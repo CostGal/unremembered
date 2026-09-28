@@ -44,6 +44,7 @@ public/
     bg/         street_rain.png, records_office.png, memory_city.png
     cutscene/   city.png, reliquary.png, battlefield.png, council.png, statue.png, exile_close.png,
                 aurelian_king.png, aurelian_exile.png   (cutouts are transparent PNGs)
+    portraits/  rhea_sad.png, dov_*.png, clerk_*.png, nala.png   (flat #FF00FF background, keyed out at load)
     ui/         logo.png, letter.png
     audio/music/  title, cutscene, battle, boss, ending (.mp3)
 src/
@@ -218,9 +219,15 @@ Relay's second hit uses an offensive ring on the enemy: tap on close for the bon
 ```
 `b3_hollows` is P2: it is only inserted into `chapter1.json` if there's time.
 
-`dialogue.json`: `{ "<id>": [ {"speaker": "Rhea" | null, "style": "normal" | "letter" | "narration", "text": "..."} ] }`
+`dialogue.json`: `{ "<id>": [ {"speaker": "Rhea" | null, "style": "normal" | "letter" | "narration", "text": "...", "portrait": "rhea_sad" | null} ] }`
 - The typewriter runs at 40 chars/s. A tap during typing completes the line; a tap after advances.
 - If a dialogue id is missing, write placeholder lines from the beats in `docs/STORY.md` and mark them `"todo": true`.
+
+### Dialogue layout (visual novel style)
+- The scene's background fills the top of the screen; the text box sits at the bottom with the speaker name and the typewritten line. The overworld (a separate walking-around view) is out of scope for the demo — dialogue is this box over a background, nothing else.
+- Up to 2 portraits stand on the text box, one left, one right — the side is fixed per character (Rhea left, Dov right), not per line. The current line's `speaker` is lit at full brightness; the other portrait present on screen, if any, is dimmed (~40% brightness).
+- A line's `portrait` field names the portrait key to show on its speaker's side (e.g. `"rhea_sad"`); `null`/missing leaves that side empty. The other character's portrait (if it was already showing from an earlier line) stays up, just dimmed, until dismissed by a line that leaves that side `null`.
+- Portrait art lives in `public/assets/portraits/`, flat `#FF00FF` background, keyed out (made transparent) at load time — see Assets pipeline.
 
 ## Cutscene system
 `cutscene_origin.json` → `{"shots": [ ... ]}`. Full text and visual notes are in `docs/STORY.md`, §Cutscene script.
@@ -246,6 +253,7 @@ Behaviour:
 - Backgrounds are 360×360 canvases, also rendered at `scale: 1`. In battle, darken them ~20% (a flat black overlay at ~20% alpha) so characters read clearly against them.
 - Register every sprite in `assets.json`: `key, file, scale, faces ("left"|"right")`. A part sprite (see Attack rig, below) also carries `pivot: [x, y]` in local canvas pixels.
 - **Facing:** in-game, heroes face right and enemies face left. Flip based on `faces`.
+- **Portraits** (`public/assets/portraits/`, used by the Dialogue scene) are exported on a flat `#FF00FF` background instead of a transparent PNG. The loader keys that exact color out to transparent at load time (a pixel-level pass, not alpha in the source file). Missing portraits fall through to the placeholder loader like any other asset.
 
 ### Attack rig
 - No sprite-sheet attack animations. A character is a `body` PNG plus zero or more named `parts` (also PNGs, same canvas size as the body), each with a fixed pivot point in local pixels.
