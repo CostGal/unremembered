@@ -1,0 +1,19 @@
+{
+  "sprites": {
+    "rhea_body": { "file": "sprites/rhea_body.png", "w": 128, "h": 128, "faces": "left", "scale": 1 },
+    "rhea_arm": { "file": "sprites/rhea_arm.png", "w": 128, "h": 128, "faces": "left", "scale": 1, "pivot": [56, 65] },
+    "dov": { "file": "sprites/dov.png", "w": 128, "h": 128, "faces": "left", "scale": 1 },
+    "blank": { "file": "sprites/blank.png", "w": 128, "h": 128, "faces": "left", "scale": 1 },
+    "hollow": { "file": "sprites/hollow.png", "w": 128, "h": 128, "faces": "left", "scale": 1 },
+    "clerk": { "file": "sprites/clerk.png", "w": 256, "h": 256, "faces": "left", "scale": 1 },
+    "nala": { "file": "sprites/nala.png", "w": 128, "h": 128, "faces": "right", "scale": 1 }
+  },
+  "backgrounds": {
+    "street_rain": { "file": "bg/street_rain.png", "w": 360, "h": 360 },
+    "records_office": { "file": "bg/records_office.png", "w": 360, "h": 360 },
+    "memory_city": { "file": "bg/memory_city.png", "w": 360, "h": 360 }
+  },
+  "ui": {
+    "logo": { "file": "ui/logo.png", "w": 240, "h": 100 }
+  }
+}

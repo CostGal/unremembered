@@ -1,15 +1,8 @@
 import Phaser from 'phaser';
-
-class SetupScene extends Phaser.Scene {
-  create() {
-    this.add
-      .text(180, 320, 'Unremembered', {
-        fontSize: '24px',
-        color: '#f1efe8',
-      })
-      .setOrigin(0.5);
-  }
-}
+import BootScene from './scenes/BootScene.js';
+import PreloadScene from './scenes/PreloadScene.js';
+import TitleScene from './scenes/TitleScene.js';
+import BattleScene from './scenes/BattleScene.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -23,7 +16,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [SetupScene],
+  scene: [BootScene, PreloadScene, TitleScene, BattleScene],
 };
 
 new Phaser.Game(config);
