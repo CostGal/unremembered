@@ -39,7 +39,8 @@ vite.config.js
 public/
   fonts/
   assets/
-    sprites/    rhea.png, rhea_attack.png, dov.png, dov_attack.png, blank*, hollow*, clerk*, nala.png
+    sprites/    rhea_body.png, rhea_arm.png, dov.png, blank.png, hollow.png, clerk.png, nala.png
+                (body PNG + optional named part PNGs per character — see Assets pipeline > Attack rig)
     bg/         street_rain.png, records_office.png, memory_city.png
     cutscene/   city.png, reliquary.png, battlefield.png, council.png, statue.png, exile_close.png,
                 aurelian_king.png, aurelian_exile.png   (cutouts are transparent PNGs)
@@ -71,6 +72,7 @@ src/
 .github/workflows/deploy.yml
 scripts/bootstrap-issues.sh
 docs/STORY.md
+_art/                       source art: raw downloads + PSDs. Committed, never loaded by the game.
 ```
 
 ## Game flow (state machine)
@@ -117,7 +119,7 @@ WIN → "Victory" → runner.next()      LOSE → Retry
 - **Player attack FX:** dash to the target (180ms tween) → attack anim → white flash 60ms + 2px shake + damage number → dash back.
 
 ### Parry QTE (the core feel — tune this carefully)
-- **Telegraph:** the enemy holds its `windupFrame`. A ring appears around the targeted hero and shrinks from radius 48 → 14 over `telegraphMs`. The moment it reaches 14 is the impact time **T**.
+- **Telegraph:** the enemy holds the pose at its attack rig's `windupT` keyframe (its windup/telegraph pose — see Assets pipeline > Attack rig). A ring appears around the targeted hero and shrinks from radius 48 → 14 over `telegraphMs`. The moment it reaches 14 is the impact time **T**.
 - **Input:** the first `pointerdown` during ENEMY_TURN (anywhere in the lower half, or anywhere at all). Debounced.
 - **Judgement on |t − T|:**
   - ≤ 90ms → **PERFECT**: 0 damage, +2 Echo, counter for 4 damage.
@@ -155,9 +157,17 @@ WIN → "Victory" → runner.next()      LOSE → Retry
 `characters.json`
 ```json
 {
-  "rhea": {"name": "Rhea", "hp": 60, "sprite": "rhea", "attackAnim": "rhea_attack",
+  "rhea": {"name": "Rhea", "hp": 60, "body": "rhea_body",
+           "parts": [{"key": "arm", "sprite": "rhea_arm", "pivot": [56, 65]}],
+           "attack": {"windupT": 0.3, "keyframes": [
+             {"t": 0,    "body": [0, 0],  "arm": {"rotation": 0,   "offset": [0, 0]}},
+             {"t": 0.3,  "body": [-2, 0], "arm": {"rotation": -50, "offset": [0, 0]}},
+             {"t": 0.5,  "body": [4, 0],  "arm": {"rotation": 70,  "offset": [2, -2]}},
+             {"t": 0.8,  "body": [0, 0],  "arm": {"rotation": 0,   "offset": [0, 0]}}
+           ]},
            "strike": [8, 10], "techniques": ["relay"], "canUltimate": true},
-  "dov":  {"name": "Dov",  "hp": 90, "sprite": "dov",  "attackAnim": "dov_attack",
+  "dov":  {"name": "Dov",  "hp": 90, "body": "dov",
+           "attack": {"type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15},
            "strike": [7, 9],  "techniques": ["anchor"]}
 }
 ```
@@ -176,12 +186,15 @@ Relay's second hit uses an offensive ring on the enemy: tap on close for the bon
 `enemies.json`
 ```json
 {
-  "blank":  {"name": "Blank", "hp": 30, "sprite": "blank", "attackAnim": "blank_attack", "hollow": false,
+  "blank":  {"name": "Blank", "hp": 30, "body": "blank",
+             "attack": {"type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15}, "hollow": false,
              "attacks": [{"id": "punch", "weight": 1, "telegraphMs": 900, "dmg": 10}]},
-  "hollow": {"name": "Hollow", "hp": 45, "sprite": "hollow", "attackAnim": "hollow_attack", "hollow": true,
+  "hollow": {"name": "Hollow", "hp": 45, "body": "hollow",
+             "attack": {"type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15}, "hollow": true,
              "attacks": [{"id": "claw", "weight": 3, "telegraphMs": 700, "dmg": 12},
                          {"id": "siphon", "weight": 1, "telegraphMs": 800, "dmg": 4, "onMiss": {"echo": -2}, "priority": "P2"}]},
-  "clerk":  {"name": "The Clerk", "hp": 250, "sprite": "clerk", "attackAnim": "clerk_attack", "hollow": false, "boss": true,
+  "clerk":  {"name": "The Clerk", "hp": 250, "body": "clerk",
+             "attack": {"type": "lunge", "windupT": 0.3, "distance": 14, "squash": 0.15}, "hollow": false, "boss": true,
              "phases": [
                {"untilHpPct": 50, "attacks": [
                  {"id": "stamp", "weight": 2, "telegraphMs": 800, "dmg": 15},
@@ -228,10 +241,17 @@ Behaviour:
 - Missing images → black background with the shot's text and fx. **The cutscene must work with zero art.**
 
 ## Assets pipeline
-- Sprites come from pixler.dev as transparent PNGs. The attack animation is a horizontal sprite sheet.
-- Register every asset in `assets.json`: `key, file, frameWidth, frameHeight, frames, fps, windupFrame, faces ("left"|"right"), displayHeight`.
-  - displayHeight: heroes 96, Blank and Hollow 96, Clerk 160, Nala 40.
+- `_art/` holds source art: raw downloads and PSDs. Commit it, but the game never loads from it — only `public/assets/` is served/bundled.
+- Sprites come from pixler.dev as transparent PNGs, pre-sized to their canvas — **128×128 for every character, 256×256 for The Clerk (boss)**. Render at `scale: 1`, never fractional; the canvas size *is* the display size.
+- Backgrounds are 360×360 canvases, also rendered at `scale: 1`. In battle, darken them ~20% (a flat black overlay at ~20% alpha) so characters read clearly against them.
+- Register every sprite in `assets.json`: `key, file, scale, faces ("left"|"right")`. A part sprite (see Attack rig, below) also carries `pivot: [x, y]` in local canvas pixels.
 - **Facing:** in-game, heroes face right and enemies face left. Flip based on `faces`.
+
+### Attack rig
+- No sprite-sheet attack animations. A character is a `body` PNG plus zero or more named `parts` (also PNGs, same canvas size as the body), each with a fixed pivot point in local pixels.
+- `characters.json` / `enemies.json` give each character an `attack`:
+  - **With parts:** `{windupT, keyframes: [{t, body: [x,y], <partKey>: {rotation, offset: [x,y]}, ...}, ...]}`. `t` runs 0→1 over the attack's duration; positions/offsets are tweened linearly between keyframes. The keyframe at `windupT` is the pose held during the QTE telegraph (see Parry QTE > Telegraph).
+  - **Without parts** (`type: "lunge"`): a body lunge toward the target plus a squash/stretch, using `windupT`, `distance` (px) and `squash` (scale delta). Used by every character that doesn't yet have a part rig — currently Dov, and all enemies until their art lands.
 - **Idle is code:** a slow 1px sine bob, period ~1.2s. **Hurt is code:** white flash + knockback.
 - Palette anchors: ink navy backgrounds, teal Echo `#3fd0c9`, amber for Dov `#e0a040`, Nala orange accent `#e8883a`, off-white text `#f1efe8`.
 
