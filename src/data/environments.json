@@ -1,0 +1,49 @@
+{
+  "street_rain": {
+    "ambientTint": "0xa8b4e0",
+    "vignette": { "color": "0x04050b", "alpha": 0.6, "inner": 0.5, "bands": 5, "depth": 880 },
+    "lights": {
+      "depth": 1,
+      "color": "0x3fd0c9",
+      "flicker": 0.25,
+      "flickerMs": [700, 1400],
+      "spots": [
+        { "x": 30, "y": 186, "radius": 44, "alpha": 0.3 },
+        { "x": 314, "y": 186, "radius": 44, "alpha": 0.3 },
+        { "x": 116, "y": 214, "radius": 22, "alpha": 0.25 },
+        { "x": 246, "y": 214, "radius": 22, "alpha": 0.25 },
+        { "x": 40, "y": 300, "radius": 56, "alpha": 0.14, "squash": 0.35 },
+        { "x": 318, "y": 300, "radius": 56, "alpha": 0.14, "squash": 0.35 },
+        { "x": 160, "y": 300, "radius": 40, "alpha": 0.1, "squash": 0.3 }
+      ]
+    },
+    "rain": {
+      "far": {
+        "count": 50,
+        "speed": 360,
+        "wind": -24,
+        "landY": [220, 290],
+        "alpha": [0.15, 0.35],
+        "length": 5,
+        "color": "0x8fb4d8",
+        "depth": 2
+      },
+      "near": {
+        "count": 70,
+        "speed": 560,
+        "wind": -40,
+        "landY": [296, 356],
+        "alpha": [0.3, 0.65],
+        "length": 9,
+        "color": "0xc2dcf0",
+        "depth": 860,
+        "splash": true
+      },
+      "splash": { "count": 28, "lifeMs": 220, "alpha": 0.7, "color": "0xd8ecf8" }
+    }
+  },
+  "records_office": {
+    "ambientTint": "0xe0d6c4",
+    "vignette": { "color": "0x0a0806", "alpha": 0.55, "inner": 0.5, "bands": 5, "depth": 880 }
+  }
+}

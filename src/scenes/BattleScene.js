@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import battles from '../data/battles.json';
 import characters from '../data/characters.json';
 import enemies from '../data/enemies.json';
+import environments from '../data/environments.json';
 import ui from '../data/ui.json';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
@@ -32,6 +33,8 @@ export default class BattleScene extends Phaser.Scene {
 
     this.add.image(180, 180, this.battleDef.bg).setDisplaySize(360, 360);
     this.add.rectangle(180, 180, 360, 360, 0x000000, 0.2);
+    this.environment = environments[this.battleDef.bg] || {};
+    this.createEnvironmentFx();
 
     if (this.battleDef.nala) this.createNala();
 
@@ -45,6 +48,8 @@ export default class BattleScene extends Phaser.Scene {
     this.enemies = enemyKeys.map((key, i) =>
       this.createEntity(`${key}_${i}`, key, enemies[key], slots[Math.min(i, slots.length - 1)], 'left', false)
     );
+
+    this.applyAmbientTint();
 
     this.echo = 0;
     this.hud = new Hud(this, ui.hud, ui.font, this.heroes);
@@ -63,6 +68,25 @@ export default class BattleScene extends Phaser.Scene {
     });
 
     machine.run(this.heroes, this.enemies);
+  }
+
+  // ---------- Environment ----------
+
+  // Lantern glows, rain and vignette for this battle's background (environments.json).
+  createEnvironmentFx() {
+    const env = this.environment;
+    const area = { x: 0, y: 0, w: 360, h: layout.sceneBottom };
+    if (env.lights) Fx.lights(this, env.lights);
+    if (env.rain) Fx.rain(this, env.rain, area);
+    if (env.vignette) Fx.vignette(this, env.vignette, area);
+  }
+
+  // Night (or lamp) light on every combatant, so they sit in the scene.
+  applyAmbientTint() {
+    if (!this.environment.ambientTint) return;
+    const images = [...this.heroes, ...this.enemies].flatMap((e) => [e.body, ...Object.values(e.parts).map((p) => p.img)]);
+    if (this.nala) images.push(this.nala.image);
+    Fx.setBaseTint(images, Number(this.environment.ambientTint));
   }
 
   // ---------- Entity setup ----------
@@ -84,10 +108,11 @@ export default class BattleScene extends Phaser.Scene {
     const sprite = this.manifest.sprites.nala;
     const { x, feetY } = layout.nala;
     const container = this.add.container(x, feetY - sprite.h / 2).setDepth(feetY);
-    container.add(this.add.image(0, 0, 'nala'));
+    const image = this.add.image(0, 0, 'nala');
+    container.add(image);
     container.setScale((sprite.faces || 'right') !== 'right' ? -1 : 1, 1);
     this.checkLayout('nala', feetY, sprite.h);
-    this.nala = { container };
+    this.nala = { container, image };
     this.idleBob(container);
   }
 
@@ -432,7 +457,7 @@ export default class BattleScene extends Phaser.Scene {
 
   clearTargeting(livingEnemies) {
     for (const enemy of livingEnemies) {
-      enemy.body.clearTint();
+      Fx.restoreTint(enemy.body);
       enemy.body.off('pointerdown');
       enemy.body.disableInteractive();
     }
