@@ -1,0 +1,22 @@
+{
+  "rhea_strike": {
+    "sheet": "anim/rhea_strike.png", "frame_size": [128, 128], "frames": 8,
+    "durations_ms": [110, 90, 100, 60, 50, 45, 90, 140], "loop": false,
+    "windupFrame": 2, "impactFrame": 5
+  },
+  "rhea_bolts": {
+    "sheet": "anim/rhea_bolts.png", "frame_size": [128, 128], "frames": 10,
+    "durations_ms": [100, 90, 80, 90, 120, 60, 45, 70, 90, 140], "loop": false,
+    "windupFrame": 4, "impactFrame": 6
+  },
+  "rhea_counter": {
+    "sheet": "anim/rhea_counter.png", "frame_size": [128, 128], "frames": 8,
+    "durations_ms": [90, 70, 70, 100, 60, 45, 90, 130], "loop": false,
+    "windupFrame": 3, "impactFrame": 5
+  },
+  "dov_fists": {
+    "sheet": "anim/dov_fists.png", "frame_size": [128, 128], "frames": 8,
+    "durations_ms": [120, 90, 80, 90, 100, 80, 110, 160], "loop": false,
+    "windupFrame": 2, "impactFrame": 5
+  }
+}

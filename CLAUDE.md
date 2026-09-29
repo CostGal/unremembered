@@ -256,12 +256,25 @@ Behaviour:
 - **Portraits** (`public/assets/portraits/`, used by the Dialogue scene) are exported on a flat `#FF00FF` background instead of a transparent PNG. The loader keys that exact color out to transparent at load time (a pixel-level pass, not alpha in the source file). Missing portraits fall through to the placeholder loader like any other asset.
 
 ### Attack rig
-- No sprite-sheet attack animations. A character is a `body` PNG plus zero or more named `parts` (also PNGs, same canvas size as the body), each with a fixed pivot point in local pixels.
+- Used by any character without a sheet in `animations.json` (below). A character is a `body` PNG plus zero or more named `parts` (also PNGs, same canvas size as the body), each with a fixed pivot point in local pixels.
 - `characters.json` / `enemies.json` give each character an `attack`:
   - **With parts:** `{windupT, keyframes: [{t, body: [x,y], <partKey>: {rotation, offset: [x,y]}, ...}, ...]}`. `t` runs 0→1 over the attack's duration; positions/offsets are tweened linearly between keyframes. The keyframe at `windupT` is the pose held during the QTE telegraph (see Parry QTE > Telegraph).
   - **Without parts** (`type: "lunge"`): a body lunge toward the target plus a squash/stretch, using `windupT`, `distance` (px) and `squash` (scale delta). Used by every character that doesn't yet have a part rig — currently Dov, and all enemies until their art lands.
 - **Idle is code:** a slow 1px sine bob, period ~1.2s. **Hurt is code:** white flash + knockback.
 - Palette anchors: ink navy backgrounds, teal Echo `#3fd0c9`, amber for Dov `#e0a040`, Nala orange accent `#e8883a`, off-white text `#f1efe8`.
+
+### Sprite-sheet animations
+- How to animate pixel-art sprites (rig, pixel-perfect rules, what broke, using pixler.dev sheets): `docs/ANIMATION.md`.
+- Raw pixler.dev sheets go to `_art/raw/pixler/<character>/` untouched; processed sheets go to `public/assets/anim/`.
+- Every sheet is registered in `src/data/animations.json`. The entry key is the texture key and the Phaser anim key:
+```json
+"rhea_strike": {"sheet": "anim/rhea_strike.png", "frame_size": [128, 128], "frames": 8,
+                "durations_ms": [110, 90, 100, 60, 50, 45, 90, 140], "loop": false,
+                "windupFrame": 2, "impactFrame": 5}
+```
+- `durations_ms[i]` is how long frame i is shown (slow–fast–slow; the impact frame is the shortest).
+- Optional, 0-based: `windupFrame` = the pose held during the QTE telegraph; `impactFrame` = the frame where the hit lands (flash, shake, damage number).
+- A missing sheet loads as a placeholder strip with the same frame count and timing.
 
 ## Audio
 - **Unlock** on the Title tap. Pause all audio when `document.visibilityState === 'hidden'`, resume on visible.
