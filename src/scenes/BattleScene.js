@@ -19,6 +19,20 @@ const LUNGE_OUT_MS = 150;
 // Lunge used when a sheet character's attack sheet is missing and its def has no lunge data.
 const FALLBACK_LUNGE = { distance: 10, squash: 0.15 };
 
+// ?battle=<id> (e.g. ?battle=boss_clerk) — starts that battle straight from
+// Preload. Not linked from anywhere, works in the production build.
+export function devBattleId() {
+  try {
+    const id = new URLSearchParams(window.location.search).get('battle');
+    if (!id) return null;
+    if (battles[id]) return id;
+    console.warn(`?battle=${id}: no such battle in battles.json`);
+  } catch (err) {
+    // no URL access (e.g. sandboxed webview) — just boot normally
+  }
+  return null;
+}
+
 export default class BattleScene extends Phaser.Scene {
   constructor() {
     super('Battle');
@@ -292,15 +306,40 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   // Non-lethal damage: the hurt sheet, then back to idle. Without a hurt sheet
-  // the white flash from applyHit is the whole reaction.
+  // it's the white flash from applyHit plus a knockback (heroes already get
+  // theirs from the parry result).
   playHurt(entity) {
-    if (!hasSheet(entity.anims, 'hurt')) return;
+    if (!hasSheet(entity.anims, 'hurt')) {
+      if (!entity.isHero) this.hurtKnockback(entity);
+      return;
+    }
 
     const key = animKey(entity.type, 'hurt');
     playOnce(entity.body, entity.type, 'hurt', entity.anims.hurt).then(() => {
       // Another animation (the next strike, death) may have replaced the hurt one.
       const stillHurt = entity.body.anims.currentAnim?.key === key;
       if (stillHurt && entity.hp > 0) entity.body.play(animKey(entity.type, 'idle'));
+    });
+  }
+
+  // Knocks the body image (not the container, which the lunge/intro/dash tweens
+  // own) away from the entity's facing, and always settles it back at 0.
+  hurtKnockback(entity) {
+    const { knockbackPx, durationMs } = ui.hurt;
+    const body = entity.body;
+    if (entity.hurtTween) entity.hurtTween.stop();
+    body.x = 0;
+    const away = entity.facing === 'right' ? -1 : 1;
+    // body.x is in container space; a mirrored container flips it.
+    const dx = (away * knockbackPx) / Math.sign(entity.container.scaleX || 1);
+    entity.hurtTween = this.tweens.add({
+      targets: body,
+      x: dx,
+      duration: durationMs / 2,
+      yoyo: true,
+      ease: 'Quad.easeOut',
+      onComplete: () => (body.x = 0),
+      onStop: () => (body.x = 0),
     });
   }
 

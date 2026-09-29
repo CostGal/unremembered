@@ -61,6 +61,7 @@
       "boss": [{ "x": 236, "feetY": 334 }]
     }
   },
+  "hurt": { "knockbackPx": 6, "durationMs": 160 },
   "commands": {
     "button": {
       "w": 156,

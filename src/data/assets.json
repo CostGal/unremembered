@@ -3,10 +3,19 @@
     "rhea_body": { "file": "sprites/rhea_body.png", "w": 128, "h": 128, "faces": "left", "scale": 1 },
     "rhea_arm": { "file": "sprites/rhea_arm.png", "w": 128, "h": 128, "faces": "left", "scale": 1, "pivot": [56, 65] },
     "dov": { "file": "sprites/dov.png", "w": 128, "h": 128, "faces": "left", "scale": 1 },
-    "blank": { "file": "sprites/blank.png", "w": 128, "h": 128, "faces": "left", "scale": 1 },
+    "blank": { "file": "sprites/blank.png", "w": 128, "h": 128, "faces": "right", "scale": 1 },
     "hollow": { "file": "sprites/hollow.png", "w": 128, "h": 128, "faces": "left", "scale": 1 },
-    "clerk": { "file": "sprites/clerk.png", "w": 256, "h": 256, "faces": "left", "scale": 1 },
+    "clerk": { "file": "sprites/clerk.png", "w": 256, "h": 256, "faces": "right", "scale": 1 },
     "nala": { "file": "sprites/nala.png", "w": 64, "h": 64, "faces": "right", "scale": 1 }
+  },
+  "portraits": {
+    "rhea_neutral": { "file": "portraits/rhea_neutral.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
+    "rhea_serious": { "file": "portraits/rhea_serious.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
+    "rhea_confused": { "file": "portraits/rhea_confused.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
+    "rhea_determined": { "file": "portraits/rhea_determined.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
+    "rhea_angry": { "file": "portraits/rhea_angry.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
+    "rhea_pained": { "file": "portraits/rhea_pained.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
+    "rhea_sad": { "file": "portraits/rhea_sad.png", "w": 418, "h": 560, "faces": "right", "scale": 1 }
   },
   "backgrounds": {
     "street_rain": { "file": "bg/street_rain.png", "w": 360, "h": 360 },

@@ -3,6 +3,10 @@ import characters from '../data/characters.json';
 import enemies from '../data/enemies.json';
 import { queueSheets, buildAnimations } from '../systems/SpriteAnims.js';
 import { isAnimTest } from './AnimTestScene.js';
+import { devBattleId } from './BattleScene.js';
+
+// Portraits are exported on this flat colour; the loader makes it transparent.
+const PORTRAIT_KEY_RGB = [0xff, 0x00, 0xff];
 
 export default class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -34,15 +38,50 @@ export default class PreloadScene extends Phaser.Scene {
       if (!this.textures.exists(key)) createPlaceholder(this, key, def.w, def.h);
     }
 
+    for (const key of Object.keys(this.manifest.portraits || {})) {
+      if (this.textures.get(key).getSourceImage() instanceof HTMLImageElement) keyOutColor(this, key, PORTRAIT_KEY_RGB);
+    }
+
     buildAnimations(this, this.animationSets, { ...characters, ...enemies });
 
-    this.scene.start(isAnimTest() ? 'AnimTest' : 'Title');
+    const battleId = devBattleId();
+    if (isAnimTest()) this.scene.start('AnimTest');
+    else if (battleId) this.scene.start('Battle', { battleId });
+    else this.scene.start('Title');
   }
 
   allEntries() {
-    const { sprites = {}, backgrounds = {}, ui = {} } = this.manifest;
-    return { ...sprites, ...backgrounds, ...ui };
+    const { sprites = {}, portraits = {}, backgrounds = {}, ui = {} } = this.manifest;
+    return { ...sprites, ...portraits, ...backgrounds, ...ui };
   }
+}
+
+// Pixel pass: every fully opaque pixel of exactly this colour becomes
+// transparent. Only opaque ones: portraits that arrive already transparent keep
+// a few alpha-1 magenta fringe pixels from their own keying, and those must
+// stay as they are. With nothing to key, the texture is left as loaded.
+function keyOutColor(scene, key, [r, g, b]) {
+  const image = scene.textures.get(key).getSourceImage();
+  const canvas = document.createElement('canvas');
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(image, 0, 0);
+
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = pixels.data;
+  let keyed = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 255 && d[i] === r && d[i + 1] === g && d[i + 2] === b) {
+      d[i + 3] = 0;
+      keyed += 1;
+    }
+  }
+  if (keyed === 0) return;
+
+  ctx.putImageData(pixels, 0, 0);
+  scene.textures.remove(key);
+  scene.textures.addCanvas(key, canvas);
 }
 
 function createPlaceholder(scene, key, w, h) {
