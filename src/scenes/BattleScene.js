@@ -2,8 +2,10 @@ import Phaser from 'phaser';
 import battles from '../data/battles.json';
 import characters from '../data/characters.json';
 import enemies from '../data/enemies.json';
+import ui from '../data/ui.json';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
+import Hud from '../systems/Hud.js';
 import { animKey, playOnce } from '../systems/SpriteAnims.js';
 
 const HERO_X = 100;
@@ -51,6 +53,10 @@ export default class BattleScene extends Phaser.Scene {
         false
       )
     );
+
+    this.echo = 0;
+    this.hud = new Hud(this, ui.hud, ui.font, this.heroes);
+    if (import.meta.env.DEV) this.enableHudDebug();
 
     this.buildCommandMenu();
 
@@ -110,13 +116,16 @@ export default class BattleScene extends Phaser.Scene {
       body.play(animKey(type, 'idle'));
     }
 
-    const label = this.add
-      .text(x, y - (height || 128) / 2 - 10, '', {
-        fontFamily: '"Pixelify Sans", monospace',
-        fontSize: '12px',
-        color: '#f1efe8',
-      })
-      .setOrigin(0.5, 1);
+    // Heroes' HP lives in the HUD; enemies keep an overhead label.
+    const label = isHero
+      ? null
+      : this.add
+          .text(x, y - (height || 128) / 2 - 10, '', {
+            fontFamily: '"Pixelify Sans", monospace',
+            fontSize: '12px',
+            color: '#f1efe8',
+          })
+          .setOrigin(0.5, 1);
 
     const entity = {
       id,
@@ -154,7 +163,59 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   updateLabel(entity) {
+    if (!entity.label) return;
     entity.label.setText(`${entity.name}  ${entity.hp}/${entity.maxHp}`);
+  }
+
+  // ---------- HUD ----------
+
+  // The single place the HUD learns about HP/Echo changes.
+  refreshHud() {
+    this.hud.update({
+      heroes: this.heroes.map((h) => ({ hp: h.hp, maxHp: h.maxHp })),
+      echo: this.echo,
+    });
+    this.updateRecollectionButton();
+  }
+
+  // Dev build only: tap a hero row (or keys 1/2) to take HP, tap the Echo row
+  // (or E/Q) to change Echo. A downed hero's row tap restores full HP.
+  enableHudDebug() {
+    const { hpStep, echoStep, keys } = ui.debug;
+    const max = ui.hud.echo.max;
+    const hurt = (i) => {
+      const hero = this.heroes[i];
+      if (!hero) return;
+      if (hero.hp <= 0) this.revive(hero, hero.maxHp);
+      else {
+        hero.hp = Math.max(0, hero.hp - hpStep);
+        if (hero.hp <= 0) this.markDown(hero);
+      }
+      this.refreshHud();
+    };
+    const addEcho = (d, wrap) => {
+      let next = this.echo + d;
+      if (wrap && next > max) next = 0;
+      this.echo = Math.max(0, Math.min(max, next));
+      this.refreshHud();
+    };
+
+    this.hud.enableDebugTaps({ onHeroTap: hurt, onEchoTap: () => addEcho(echoStep, true) });
+    const kb = this.input.keyboard;
+    if (!kb) return;
+    kb.on(`keydown-${keys.hurtRhea}`, () => hurt(0));
+    kb.on(`keydown-${keys.hurtDov}`, () => hurt(1));
+    kb.on(`keydown-${keys.echoUp}`, () => addEcho(echoStep, false));
+    kb.on(`keydown-${keys.echoDown}`, () => addEcho(-echoStep, false));
+  }
+
+  revive(entity, hp) {
+    entity.hp = hp;
+    this.tweens.killTweensOf(entity.container);
+    entity.container.alpha = 1;
+    if (entity.anims) entity.body.play(animKey(entity.type, 'idle'));
+    if (!entity.anims || entity.anims.idle.placeholder) entity.bobTween = this.idleBob(entity.container);
+    this.updateLabel(entity);
   }
 
   markDown(entity) {
@@ -166,41 +227,41 @@ export default class BattleScene extends Phaser.Scene {
   // ---------- Command menu ----------
 
   buildCommandMenu() {
-    this.commandItems = [];
+    const { slots, prompt } = ui.commands;
 
-    this.strikeButton = this.makeButton(90, 490, 160, 64, 'Strike', () => {
+    this.strikeButton = this.makeButton(slots.strike, 'Strike', () => {
       if (this.onStrikeChosen) this.onStrikeChosen();
     });
-    this.commandItems.push(this.strikeButton);
-
-    this.techniqueButton = this.makeButton(270, 490, 160, 64, 'Technique', null, true);
-    this.commandItems.push(this.techniqueButton);
+    this.techniqueButton = this.makeButton(slots.technique, 'Technique', null, true);
+    // Placeholder until Recollection lands: shown for Rhea at full Echo.
+    this.recollectionButton = this.makeButton(slots.recollection, 'Recollection', null, true);
 
     this.promptText = this.add
-      .text(180, 460, 'Choose a target', {
-        fontFamily: '"Pixelify Sans", monospace',
-        fontSize: '14px',
-        color: '#f1efe8',
+      .text(prompt.x, prompt.y, prompt.text, {
+        fontFamily: ui.font,
+        fontSize: `${prompt.fontSize}px`,
+        color: ui.commands.button.textColor,
       })
       .setOrigin(0.5)
       .setVisible(false);
 
-    this.backButton = this.makeButton(180, 570, 160, 64, 'Back', null);
+    this.backButton = this.makeButton(slots.back, 'Back', null);
     this.backButton.container.setVisible(false);
 
     this.hideCommandMenu();
   }
 
-  makeButton(x, y, w, h, label, onTap, disabled = false) {
+  makeButton([x, y], label, onTap, disabled = false) {
+    const b = ui.commands.button;
     const container = this.add.container(x, y);
     const rect = this.add
-      .rectangle(0, 0, w, h, disabled ? 0x1c1e29 : 0x232636)
-      .setStrokeStyle(2, disabled ? 0x3a3d4a : 0x5a5f73);
+      .rectangle(0, 0, b.w, b.h, Number(disabled ? b.disabledFill : b.fill))
+      .setStrokeStyle(2, Number(disabled ? b.disabledStroke : b.stroke));
     const text = this.add
       .text(0, 0, label, {
-        fontFamily: '"Pixelify Sans", monospace',
-        fontSize: '16px',
-        color: disabled ? '#5a5f73' : '#f1efe8',
+        fontFamily: ui.font,
+        fontSize: `${b.fontSize}px`,
+        color: disabled ? b.disabledTextColor : b.textColor,
       })
       .setOrigin(0.5);
     container.add([rect, text]);
@@ -214,15 +275,25 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   showCommandMenu() {
+    this.menuVisible = true;
     this.strikeButton.container.setVisible(true);
     this.techniqueButton.container.setVisible(true);
+    this.updateRecollectionButton();
     this.promptText.setVisible(false);
     this.backButton.container.setVisible(false);
   }
 
   hideCommandMenu() {
+    this.menuVisible = false;
     this.strikeButton.container.setVisible(false);
     this.techniqueButton.container.setVisible(false);
+    this.recollectionButton.container.setVisible(false);
+  }
+
+  updateRecollectionButton() {
+    if (!this.recollectionButton) return;
+    const show = this.menuVisible && !!this.activeHero?.def.canUltimate && this.echo >= ui.hud.echo.max;
+    this.recollectionButton.container.setVisible(show);
   }
 
   // ---------- Turn flow ----------
@@ -254,6 +325,7 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   async playerTurn(hero) {
+    this.activeHero = hero;
     this.showCommandMenu();
 
     const target = await this.waitForStrikeChoice();
@@ -422,6 +494,7 @@ export default class BattleScene extends Phaser.Scene {
 
     target.hp = Math.max(0, target.hp - dmg);
     this.updateLabel(target);
+    if (target.isHero) this.refreshHud();
 
     if (target.hp <= 0) this.markDown(target);
   }

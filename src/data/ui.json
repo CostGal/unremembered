@@ -1,0 +1,66 @@
+{
+  "font": "\"Pixelify Sans\", monospace",
+  "hud": {
+    "panel": { "x": 0, "y": 360, "w": 360, "h": 80, "color": "0x12151f", "borderColor": "0x2a2e3d" },
+    "textColor": "#f1efe8",
+    "rows": { "firstY": 374, "spacing": 22, "downedAlpha": 0.4 },
+    "name": { "x": 16, "fontSize": 14 },
+    "hpBar": {
+      "x": 72,
+      "w": 196,
+      "h": 8,
+      "bgColor": "0x2a2e3d",
+      "fillColor": "0xd8505a",
+      "lagColor": "0xf1efe8",
+      "tweenMs": 300,
+      "lagDelayMs": 250,
+      "lagTweenMs": 400
+    },
+    "hpText": { "x": 344, "fontSize": 12 },
+    "echo": {
+      "y": 422,
+      "max": 10,
+      "label": "Echo",
+      "labelX": 16,
+      "labelFontSize": 14,
+      "pipX": 72,
+      "pipW": 16,
+      "pipH": 8,
+      "pipGap": 4,
+      "fullColor": "0x3fd0c9",
+      "emptyColor": "0x1f2a33",
+      "emptyStroke": "0x2f4450",
+      "pulseScale": 1.5,
+      "pulseMs": 120,
+      "glowPad": 3,
+      "glowAlphaMin": 0.15,
+      "glowAlphaMax": 0.6,
+      "glowPeriodMs": 700
+    }
+  },
+  "commands": {
+    "button": {
+      "w": 156,
+      "h": 64,
+      "fontSize": 16,
+      "fill": "0x232636",
+      "stroke": "0x5a5f73",
+      "textColor": "#f1efe8",
+      "disabledFill": "0x1c1e29",
+      "disabledStroke": "0x3a3d4a",
+      "disabledTextColor": "#5a5f73"
+    },
+    "slots": {
+      "strike": [94, 500],
+      "technique": [266, 500],
+      "recollection": [94, 576],
+      "back": [266, 576]
+    },
+    "prompt": { "x": 180, "y": 458, "fontSize": 14, "text": "Choose a target" }
+  },
+  "debug": {
+    "hpStep": 10,
+    "echoStep": 1,
+    "keys": { "hurtRhea": "ONE", "hurtDov": "TWO", "echoUp": "E", "echoDown": "Q" }
+  }
+}
