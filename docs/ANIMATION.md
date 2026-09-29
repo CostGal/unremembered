@@ -154,3 +154,38 @@ offsets. Οι δύο εικόνες που στάλθηκαν ήταν byte-iden
 - [ ] Πρώτο και τελευταίο frame κάθε attack = rest, για καθαρό cut από/προς idle
 - [ ] Durations slow–fast–slow στο JSON
 - [ ] Zoom self-review κάθε strip, γραμμένο τι έμεινε σπασμένο
+
+
+---
+
+## 8. Rhea v8 — τι προστέθηκε μετά τα pixler sheets (ισχύει για κάθε επόμενο χαρακτήρα)
+
+> **Σημείωση:** οι αριθμοί (λάμα 39 px, stamp 5×5) είναι οι τιμές της Rhea. Για κάθε άλλο χαρακτήρα προκύπτουν
+> από το rest sprite του. Όπου ο χαρακτήρας δεν έχει όπλο ή έμβλημα (π.χ. ο Dov με τις γροθιές), το αντίστοιχο
+> βήμα παραλείπεται· τα υπόλοιπα ισχύουν ως έχουν.
+
+- **Το όπλο είναι procedural, όχι του pixler.** Το pixler ζωγραφίζει το όπλο με άλλο μήκος/γωνία σε κάθε frame
+  και το χάνει ή το κόβει στον καμβά. Σβήνουμε το δικό του (erase boxes ανά keyframe, mode 'all' έξω από τη
+  σιλουέτα) και ξανασχεδιάζουμε ένα σταθερό (ίδιο μήκος, πάχος, λαβή, χρώματα από το rest) κολλημένο στη
+  γροθιά. **Sword logic:** η λάμα συνεχίζει τη γραμμή του πήχη — ποτέ δεν κρέμεται από το χέρι. Σχεδιάζεται
+  πίσω από το σώμα (ποτέ μπροστά από το πρόσωπο), εκτός αν κρέμεται μπροστά από το παλτό.
+  Αν 39 px λάμας δεν χωρούν σε μια πόζα (γροθιά ψηλά), αλλάζει η γωνία ή η πόζα — όχι το μήκος, όχι hand-fix.
+- **Έμβλημα/patch = stamp.** Το pixler το ζωγραφίζει αλλιώς κάθε frame (teal / άσπρο / σκούρο / τρύπες).
+  Σταθερό 5×5 stamp σε anchor ανά frame· off = μουντό χρώμα παλέτας, on = FX χρώμα + λευκός πυρήνας,
+  **μόνο** στα frames που ο χαρακτήρας χρησιμοποιεί την ικανότητά του.
+- **Glow του pixler πάνω στο sprite** (γάντια/χέρια βαμμένα teal/amber) → unglow(): πίσω στο κανονικό χρώμα,
+  αλλιώς το χέρι τρεμοπαίζει. Το glow ξαναγίνεται ως FX layer.
+- **Rest = original art + procedural όπλο + off-stamp.** Εξάγεται ως `<char>_rest.png`. Frame 0 και τελευταίο
+  κάθε non-loop == rest (assert). Loops δεν ξεκινούν από rest → `<anim>_in` / `<anim>_out` 4 frames, με το
+  τελευταίο/πρώτο pixel-identical με το frame 0 του loop.
+- **Frame 0 των pixler sheets ≠ rest** (quantization noise ~2k px, διαφέρει και μεταξύ sheets). Αντικαθίσταται.
+- **Keyframe table** ανά anim: `grip`, `dir`, erase `box[]`, `anchor`, `z`. Σειρά frames + `LEAN`/`BADGE`/lift
+  λίστες. Return σε rest = reverse του lift. Attack 10–12 frames ~1.2 s, blast/ability ~1 s, hurt/dodge ~0.6 s.
+- **Μικρή κίνηση βάρους** (κεφάλι −2, κορμός −1 px στο aim, snap back στο recoil) κάνει τεράστια διαφορά
+  σε «στατικά» sheets. Row shear με όρια σε flat γραμμές.
+- **Parry και ability μοιράζονται το ίδιο guard frame** pixel-identical → το game μεταβαίνει χωρίς cut.
+  (Για τον Dov: το ίδιο ανάμεσα σε `brace` και `parry`.)
+- **Projectiles** δεν ζωγραφίζονται στο sprite: ξεχωριστό sheet FX-only + `projectile` / `spawn_px` στο JSON.
+- **Έλεγχος πριν την παράδοση (script, όχι μάτι):** παλέτα ∪ FX, alpha 0/255, 1 connected component χωρίς
+  τα FX pixel, frames == len(durations), rest in/out, in/out == loop frame 0.
+- JSON extra πεδία που χρησιμοποιεί το game: `holdLastFrame` (death/victory), `projectile`, `spawn_px`.
