@@ -58,6 +58,27 @@
     },
     "prompt": { "x": 180, "y": 458, "fontSize": 14, "text": "Choose a target" }
   },
+  "animtest": {
+    "character": "rhea",
+    "battle": "b1_tutorial",
+    "spriteX": 180,
+    "spriteY": 300,
+    "holdMs": 700,
+    "replayMs": 900,
+    "impactFlashMs": 150,
+    "panel": { "y": 360, "h": 280, "color": "0x12151f" },
+    "textColor": "#f1efe8",
+    "dimColor": "#8a8fa3",
+    "title": { "y": 374, "fontSize": 18 },
+    "frameLine": { "y": 402, "fontSize": 14 },
+    "markerLine": { "y": 424, "fontSize": 12 },
+    "strip": { "y": 456, "boxW": 24, "boxH": 36, "gap": 3, "idleStroke": "0x2a2e3d", "currentStroke": "0xf1efe8" },
+    "legend": { "y": 508, "fontSize": 12, "windup": "W windup", "impact": "I impact", "hold": "H hold" },
+    "colors": { "windup": "0xe0a040", "impact": "0xd8505a", "hold": "0x3fd0c9" },
+    "banner": { "y": 150, "fontSize": 20, "impact": "IMPACT", "hold": "HOLD" },
+    "hint": { "y": 612, "fontSize": 14, "text": "Tap: next animation" },
+    "missingText": "No animation sheets found for this character."
+  },
   "debug": {
     "hpStep": 10,
     "echoStep": 1,

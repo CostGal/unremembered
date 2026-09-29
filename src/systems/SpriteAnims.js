@@ -7,6 +7,12 @@ export function animKey(id, name) {
   return `${id}_${name}`;
 }
 
+// True when the character has a real (non-placeholder) sheet for this
+// animation. Callers use it to decide between the sheet and their code fallback.
+export function hasSheet(anims, name) {
+  return !!anims?.[name] && !anims[name].placeholder;
+}
+
 // Fetched outside the Phaser loader: in dev a missing file comes back as the
 // SPA's index.html, which Phaser's JSON loader re-throws on. Missing or broken
 // JSON just means "no sheets for this character".
@@ -27,8 +33,9 @@ export async function fetchAnimationSets(ids) {
 
 export function queueSheets(load, sets) {
   for (const [id, set] of Object.entries(sets)) {
-    const [frameWidth, frameHeight] = set.frame_size;
     for (const [name, def] of Object.entries(set.animations)) {
+      // FX sheets (e.g. blast_projectile) carry their own frame_size.
+      const [frameWidth, frameHeight] = def.frame_size || set.frame_size;
       load.spritesheet(animKey(id, name), `assets/sprites/${def.sheet}`, {
         frameWidth,
         frameHeight,
@@ -45,7 +52,9 @@ export function buildAnimations(scene, sets, bodyDefs) {
     for (const [name, def] of Object.entries(set.animations)) {
       const key = animKey(id, name);
       if (!scene.textures.exists(key)) {
-        createPlaceholderSheet(scene, key, set.frame_size, def.frames, bodyDefs[id]);
+        // An FX sheet is not the character, so its placeholder is a plain box.
+        const bodyDef = def.frame_size ? null : bodyDefs[id];
+        createPlaceholderSheet(scene, key, def.frame_size || set.frame_size, def.frames, bodyDef);
         def.placeholder = true;
         console.info(`${key}: sheet missing, using placeholder`);
       }
@@ -119,6 +128,7 @@ function createAnimation(scene, key, def) {
 
 // Every frame is the character's static body (+ parts at rest), so a missing
 // sheet still shows the character with the right frame count and timing.
+// With no bodyDef (FX sheets) each frame is a plain box.
 function createPlaceholderSheet(scene, key, [w, h], frameCount, bodyDef) {
   const texture = scene.textures.createCanvas(key, w * frameCount, h);
   const ctx = texture.getContext();

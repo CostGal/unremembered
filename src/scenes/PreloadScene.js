@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import characters from '../data/characters.json';
 import enemies from '../data/enemies.json';
 import { queueSheets, buildAnimations } from '../systems/SpriteAnims.js';
+import { isAnimTest } from './AnimTestScene.js';
 
 export default class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -35,7 +36,7 @@ export default class PreloadScene extends Phaser.Scene {
 
     buildAnimations(this, this.animationSets, { ...characters, ...enemies });
 
-    this.scene.start('Title');
+    this.scene.start(isAnimTest() ? 'AnimTest' : 'Title');
   }
 
   allEntries() {

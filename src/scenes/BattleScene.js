@@ -6,7 +6,7 @@ import ui from '../data/ui.json';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
 import Hud from '../systems/Hud.js';
-import { animKey, playOnce } from '../systems/SpriteAnims.js';
+import { animKey, hasSheet, playOnce } from '../systems/SpriteAnims.js';
 
 const HERO_X = 100;
 const HERO_Y = 300;
@@ -17,6 +17,8 @@ const ENEMY_GAP = 130;
 
 const ATTACK_DURATION_MS = 400;
 const DASH_DURATION_MS = 180;
+// Lunge used when a sheet character's attack sheet is missing and its def has no lunge data.
+const FALLBACK_LUNGE = { distance: 10, squash: 0.15 };
 
 export default class BattleScene extends Phaser.Scene {
   constructor() {
@@ -190,6 +192,7 @@ export default class BattleScene extends Phaser.Scene {
       else {
         hero.hp = Math.max(0, hero.hp - hpStep);
         if (hero.hp <= 0) this.markDown(hero);
+        else this.playHurt(hero);
       }
       this.refreshHud();
     };
@@ -218,10 +221,31 @@ export default class BattleScene extends Phaser.Scene {
     this.updateLabel(entity);
   }
 
+  // Downed: the death sheet plays once and holds its last frame. Without one,
+  // the entity freezes and dims.
   markDown(entity) {
     if (entity.bobTween) entity.bobTween.stop();
+
+    if (hasSheet(entity.anims, 'death')) {
+      entity.body.play(animKey(entity.type, 'death'));
+      return;
+    }
+
     if (entity.anims) entity.body.anims.stop();
     this.tweens.add({ targets: entity.container, alpha: 0.35, duration: 200 });
+  }
+
+  // Non-lethal damage: the hurt sheet, then back to idle. Without a hurt sheet
+  // the white flash from applyHit is the whole reaction.
+  playHurt(entity) {
+    if (!hasSheet(entity.anims, 'hurt')) return;
+
+    const key = animKey(entity.type, 'hurt');
+    playOnce(entity.body, entity.type, 'hurt', entity.anims.hurt).then(() => {
+      // Another animation (the next strike, death) may have replaced the hurt one.
+      const stillHurt = entity.body.anims.currentAnim?.key === key;
+      if (stillHurt && entity.hp > 0) entity.body.play(animKey(entity.type, 'idle'));
+    });
   }
 
   // ---------- Command menu ----------
@@ -416,7 +440,7 @@ export default class BattleScene extends Phaser.Scene {
   // onImpact(i, count) fires on each impact frame of a sheet attack, or once
   // at the end of a rig attack.
   async playAttackAnim(entity, onImpact) {
-    if (entity.anims?.attack) {
+    if (hasSheet(entity.anims, 'attack')) {
       await playOnce(entity.body, entity.type, 'attack', entity.anims.attack, { onImpact });
       if (entity.hp > 0) entity.body.play(animKey(entity.type, 'idle'));
       return;
@@ -464,7 +488,7 @@ export default class BattleScene extends Phaser.Scene {
 
   playLungeAttack(entity, dirSign) {
     return new Promise((resolve) => {
-      const { distance, squash } = entity.def.attack;
+      const { distance, squash } = entity.def.attack.distance !== undefined ? entity.def.attack : FALLBACK_LUNGE;
       const startX = entity.container.x;
       const baseScaleY = entity.container.scaleY;
 
@@ -497,6 +521,7 @@ export default class BattleScene extends Phaser.Scene {
     if (target.isHero) this.refreshHud();
 
     if (target.hp <= 0) this.markDown(target);
+    else this.playHurt(target);
   }
 
   tweenPromise(target, props, duration, ease = 'Linear') {
@@ -510,6 +535,13 @@ export default class BattleScene extends Phaser.Scene {
   onBattleEnd(result) {
     this.battleOver = true;
     this.hideCommandMenu();
+
+    // Heroes still standing celebrate if they have a victory sheet (last frame held).
+    if (result === 'WIN') {
+      for (const hero of this.heroes) {
+        if (hero.hp > 0 && hasSheet(hero.anims, 'victory')) hero.body.play(animKey(hero.type, 'victory'));
+      }
+    }
 
     const message = result === 'WIN' ? 'Victory' : 'The memory fades…';
 
