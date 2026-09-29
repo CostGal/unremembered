@@ -8,12 +8,7 @@ import * as Fx from '../systems/Fx.js';
 import Hud from '../systems/Hud.js';
 import { animKey, hasSheet, playOnce } from '../systems/SpriteAnims.js';
 
-const HERO_X = 100;
-const HERO_Y = 300;
-const HERO_GAP = 60;
-const ENEMY_X = 260;
-const ENEMY_Y = 300;
-const ENEMY_GAP = 130;
+const layout = ui.battleLayout;
 
 const ATTACK_DURATION_MS = 400;
 const DASH_DURATION_MS = 180;
@@ -38,22 +33,17 @@ export default class BattleScene extends Phaser.Scene {
     this.add.image(180, 180, this.battleDef.bg).setDisplaySize(360, 360);
     this.add.rectangle(180, 180, 360, 360, 0x000000, 0.2);
 
+    if (this.battleDef.nala) this.createNala();
+
     const heroKeys = ['rhea', 'dov'];
-    this.heroes = heroKeys.map((key, i) =>
-      this.createEntity(key, key, characters[key], HERO_X, HERO_Y + (i - 0.5) * HERO_GAP, 'right', true)
+    this.heroes = heroKeys.map((key) =>
+      this.createEntity(key, key, characters[key], layout.heroes[key], 'right', true)
     );
 
     const enemyKeys = this.battleDef.enemies;
+    const slots = this.enemySlots(enemyKeys);
     this.enemies = enemyKeys.map((key, i) =>
-      this.createEntity(
-        `${key}_${i}`,
-        key,
-        enemies[key],
-        ENEMY_X,
-        ENEMY_Y + (i - (enemyKeys.length - 1) / 2) * ENEMY_GAP,
-        'left',
-        false
-      )
+      this.createEntity(`${key}_${i}`, key, enemies[key], slots[Math.min(i, slots.length - 1)], 'left', false)
     );
 
     this.echo = 0;
@@ -77,16 +67,53 @@ export default class BattleScene extends Phaser.Scene {
 
   // ---------- Entity setup ----------
 
+  // The ui.battleLayout slots for this enemy list: the boss formation if any
+  // enemy is a boss, otherwise the one for this many enemies.
+  enemySlots(enemyKeys) {
+    const formationKey = enemyKeys.some((key) => enemies[key].boss) ? 'boss' : String(enemyKeys.length);
+    const slots = layout.enemies[formationKey];
+    if (slots && slots.length >= enemyKeys.length) return slots;
+
+    console.warn(`battleLayout: no formation "${formationKey}" for ${enemyKeys.length} enemies`);
+    const counts = Object.keys(layout.enemies).map(Number).filter(Number.isFinite);
+    return slots || layout.enemies[Math.max(...counts)];
+  }
+
+  // Nala sits behind the heroes. Static for now; her ability is its own issue.
+  createNala() {
+    const sprite = this.manifest.sprites.nala;
+    const { x, feetY } = layout.nala;
+    const container = this.add.container(x, feetY - sprite.h / 2).setDepth(feetY);
+    container.add(this.add.image(0, 0, 'nala'));
+    container.setScale((sprite.faces || 'right') !== 'right' ? -1 : 1, 1);
+    this.checkLayout('nala', feetY, sprite.h);
+    this.nala = { container };
+    this.idleBob(container);
+  }
+
+  // Dev build only: flag any sprite that reaches into the HUD or off the top.
+  checkLayout(id, feetY, height) {
+    if (!import.meta.env.DEV) return;
+    if (feetY > layout.sceneBottom) console.warn(`battleLayout: ${id} feet at y ${feetY} overlap the HUD`);
+    if (feetY - height < 0) console.warn(`battleLayout: ${id} is cut off at the top`);
+  }
+
   // type = the characters.json / enemies.json key. With a <type>_animations.json
   // that has an idle, the entity is one animated sprite; otherwise the cutout rig.
-  createEntity(id, type, def, x, y, facing, isHero) {
-    const container = this.add.container(x, y);
+  // slot = {x, feetY} from ui.battleLayout; feetY is the bottom edge of the canvas.
+  createEntity(id, type, def, slot, facing, isHero) {
     const animSet = this.animationSets[type];
     const anims = animSet?.animations?.idle ? animSet.animations : null;
-
-    if (anims) return this.finishEntity({ id, type, def, container, x, y, facing, isHero, anims, animSet });
-
     const bodyManifest = this.manifest.sprites[def.body] || {};
+    const height = anims ? animSet.frame_size[1] : bodyManifest.h || 128;
+
+    const x = slot.x;
+    const y = slot.feetY - height / 2;
+    const container = this.add.container(x, y).setDepth(slot.feetY);
+    this.checkLayout(id, slot.feetY, height);
+
+    if (anims) return this.finishEntity({ id, type, def, container, x, y, facing, isHero, height, anims, animSet });
+
     const mirror = (bodyManifest.faces || facing) !== facing;
 
     const body = this.add.image(0, 0, def.body);
@@ -106,7 +133,7 @@ export default class BattleScene extends Phaser.Scene {
 
     container.setScale(mirror ? -1 : 1, 1);
 
-    return this.finishEntity({ id, type, def, container, x, y, facing, isHero, body, parts, height: bodyManifest.h });
+    return this.finishEntity({ id, type, def, container, x, y, facing, isHero, body, parts, height });
   }
 
   finishEntity({ id, type, def, container, x, y, facing, isHero, body, parts = {}, height, anims = null, animSet }) {
@@ -114,7 +141,6 @@ export default class BattleScene extends Phaser.Scene {
       body = this.add.sprite(0, 0, animKey(type, 'idle'));
       container.add(body);
       container.setScale((animSet.facing || 'left') !== facing ? -1 : 1, 1);
-      height = animSet.frame_size[1];
       body.play(animKey(type, 'idle'));
     }
 
@@ -122,12 +148,13 @@ export default class BattleScene extends Phaser.Scene {
     const label = isHero
       ? null
       : this.add
-          .text(x, y - (height || 128) / 2 - 10, '', {
+          .text(x, y - height / 2 - layout.labelGap, '', {
             fontFamily: '"Pixelify Sans", monospace',
             fontSize: '12px',
             color: '#f1efe8',
           })
-          .setOrigin(0.5, 1);
+          .setOrigin(0.5, 1)
+          .setDepth(layout.labelDepth);
 
     const entity = {
       id,

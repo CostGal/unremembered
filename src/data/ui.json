@@ -38,6 +38,29 @@
       "glowPeriodMs": 700
     }
   },
+  "battleLayout": {
+    "sceneBottom": 360,
+    "labelGap": 6,
+    "labelDepth": 900,
+    "heroes": {
+      "rhea": { "x": 116, "feetY": 342 },
+      "dov": { "x": 76, "feetY": 300 }
+    },
+    "nala": { "x": 36, "feetY": 336 },
+    "enemies": {
+      "1": [{ "x": 256, "feetY": 326 }],
+      "2": [
+        { "x": 292, "feetY": 286 },
+        { "x": 224, "feetY": 342 }
+      ],
+      "3": [
+        { "x": 296, "feetY": 272 },
+        { "x": 204, "feetY": 310 },
+        { "x": 268, "feetY": 350 }
+      ],
+      "boss": [{ "x": 236, "feetY": 334 }]
+    }
+  },
   "commands": {
     "button": {
       "w": 156,

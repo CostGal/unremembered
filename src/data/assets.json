@@ -6,7 +6,7 @@
     "blank": { "file": "sprites/blank.png", "w": 128, "h": 128, "faces": "left", "scale": 1 },
     "hollow": { "file": "sprites/hollow.png", "w": 128, "h": 128, "faces": "left", "scale": 1 },
     "clerk": { "file": "sprites/clerk.png", "w": 256, "h": 256, "faces": "left", "scale": 1 },
-    "nala": { "file": "sprites/nala.png", "w": 128, "h": 128, "faces": "right", "scale": 1 }
+    "nala": { "file": "sprites/nala.png", "w": 64, "h": 64, "faces": "right", "scale": 1 }
   },
   "backgrounds": {
     "street_rain": { "file": "bg/street_rain.png", "w": 360, "h": 360 },
