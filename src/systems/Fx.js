@@ -218,3 +218,90 @@ function splashTexture(scene) {
   texture.refresh();
   return key;
 }
+
+// ---------- Parry feedback ----------
+
+// Freezes tweens and animations for a beat. Resolves when they resume.
+export function hitstop(scene, durationMs) {
+  scene.tweens.pauseAll();
+  scene.anims.pauseAll();
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      scene.tweens.resumeAll();
+      scene.anims.resumeAll();
+      resolve();
+    }, durationMs);
+  });
+}
+
+// A one-shot burst of square sparks. cfg = {color, speed: [min, max], lifeMs, size}
+export function sparks(scene, x, y, count, cfg, depth) {
+  const key = `fx_spark_${cfg.size}`;
+  if (!scene.textures.exists(key)) {
+    const texture = scene.textures.createCanvas(key, cfg.size, cfg.size);
+    const ctx = texture.getContext();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, cfg.size, cfg.size);
+    texture.refresh();
+  }
+
+  const emitter = scene.add.particles(x, y, key, {
+    emitting: false,
+    speed: { min: cfg.speed[0], max: cfg.speed[1] },
+    angle: { min: 0, max: 360 },
+    lifespan: cfg.lifeMs,
+    alpha: { start: 1, end: 0 },
+    tint: Number(cfg.color),
+  });
+  emitter.setDepth(depth);
+  emitter.explode(count);
+  scene.time.delayedCall(cfg.lifeMs + 50, () => emitter.destroy());
+}
+
+// A word that pops above a character and drifts up. cfg = {fontSize, offsetY, riseY, ms, depth}
+export function popText(scene, x, y, text, color, cfg) {
+  const label = scene.add
+    .text(x, y + cfg.offsetY, text, {
+      fontFamily: '"Pixelify Sans", monospace',
+      fontSize: `${cfg.fontSize}px`,
+      color,
+      stroke: '#0b0d14',
+      strokeThickness: 3,
+    })
+    .setOrigin(0.5)
+    .setDepth(cfg.depth);
+
+  scene.tweens.add({
+    targets: label,
+    y: label.y - cfg.riseY,
+    alpha: { from: 1, to: 0 },
+    duration: cfg.ms,
+    ease: 'Quad.easeIn',
+    onComplete: () => label.destroy(),
+  });
+}
+
+// A flat colour over the whole screen that fades out. cfg = {color, alpha, ms}
+export function screenFlash(scene, cfg, depth) {
+  const { width, height } = scene.scale;
+  const rect = scene.add
+    .rectangle(0, 0, width, height, Number(cfg.color), cfg.alpha)
+    .setOrigin(0)
+    .setDepth(depth);
+  scene.tweens.add({ targets: rect, alpha: 0, duration: cfg.ms, onComplete: () => rect.destroy() });
+}
+
+// Shoves a container dx px and eases it back to where it was.
+export function knockback(scene, container, dx, durationMs = 160) {
+  const restX = container.x;
+  scene.tweens.add({
+    targets: container,
+    x: restX + dx,
+    duration: durationMs / 2,
+    yoyo: true,
+    ease: 'Quad.easeOut',
+    onComplete: () => {
+      container.x = restX;
+    },
+  });
+}

@@ -46,7 +46,7 @@ Read this first in any new chat. Source of truth: `CLAUDE.md` (build spec), `doc
    - Stats system like Clair Obscur → post-jam.
 9. **Move budget (29/9):** Rhea 4 moves, Clerk 4, Dov 3 (1 attack + 2 abilities), all others 2. `parry` and `dodge` anims: Rhea, Dov, Clerk only (Clerk dodges randomly, rule later). `hurt` + `death` for every combatant (not Nala). `victory`: Rhea + Dov. Extra anims beyond ART_BRIEF are allowed; ART_BRIEF.md updated.
 10. **Chapter 1 shortened (Kostas, 29/9):** b1 tutorial = 1 Blank + 1 Hollow, then straight to Records Office + boss Clerk. **b2_hollows is dropped** (edit `chapter1.json` + `battles.json`, data only). The story beats stay. Nala's save happens in b1.
-11. **Parry/dodge input redesign (Kostas, 29/9) — PENDING DECISION, not in spec:** parry = double-tap at the exact hit moment (near-perfect window, gives +1 Echo); dodge = directional swipe (left / right / center-down) with a much wider timing window, only avoids damage, must stay challenging. Spec (CLAUDE.md) still says single tap: PERFECT/GOOD/MISS. Risks: swipes inside the Instagram in-app browser, learnability for non-gamers, +1 session of work. Decide before the QTE #4 prompt.
+11. **Parry input (Kostas, 29/9): single tap, as in CLAUDE.md** (PERFECT/GOOD/MISS). The double-tap parry + swipe dodge redesign was considered and not built for the jam.
 
 ## Work order
 **Art (one character at a time until it plays fully in game and is phone-tested):**

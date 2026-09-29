@@ -3,16 +3,19 @@ import battles from '../data/battles.json';
 import characters from '../data/characters.json';
 import enemies from '../data/enemies.json';
 import environments from '../data/environments.json';
+import qte from '../data/qte.json';
 import ui from '../data/ui.json';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
 import Hud from '../systems/Hud.js';
+import * as Qte from '../systems/Qte.js';
 import { animKey, hasSheet, playOnce } from '../systems/SpriteAnims.js';
 
 const layout = ui.battleLayout;
 
 const ATTACK_DURATION_MS = 400;
 const DASH_DURATION_MS = 180;
+const LUNGE_OUT_MS = 150;
 // Lunge used when a sheet character's attack sheet is missing and its def has no lunge data.
 const FALLBACK_LUNGE = { distance: 10, squash: 0.15 };
 
@@ -56,6 +59,7 @@ export default class BattleScene extends Phaser.Scene {
     if (import.meta.env.DEV) this.enableHudDebug();
 
     this.buildCommandMenu();
+    this.buildTapHint();
 
     const machine = new BattleStateMachine({
       intro: () => this.playIntro(),
@@ -463,13 +467,107 @@ export default class BattleScene extends Phaser.Scene {
     }
   }
 
+  // Each hit of the attack is its own parry ring on the targeted hero.
   async enemyTurn(enemy) {
     const livingHeroes = this.heroes.filter((h) => h.hp > 0);
     const target = Phaser.Utils.Array.GetRandom(livingHeroes);
     const attack = pickWeighted(enemy.def.attacks);
-    const dmg = attack.dmg !== undefined ? attack.dmg : (attack.hits || []).reduce((sum, h) => sum + h.dmg, 0);
 
-    await this.playAttackAnim(enemy, () => this.applyHit(target, dmg));
+    this.tapHint.setVisible(true);
+    for (const hit of attack.hits || [attack]) {
+      if (target.hp <= 0 || enemy.hp <= 0) break;
+      await this.enemyHit(enemy, target, hit);
+    }
+    this.tapHint.setVisible(false);
+  }
+
+  // ---------- Parry QTE ----------
+
+  buildTapHint() {
+    const { x, y, fontSize, color, text } = qte.hint;
+    this.tapHint = this.add
+      .text(x, y, text, { fontFamily: ui.font, fontSize: `${fontSize}px`, color })
+      .setOrigin(0.5)
+      .setVisible(false);
+  }
+
+  parryWindows() {
+    const storyMode = this.registry.get('settings')?.storyMode;
+    return storyMode ? Qte.scaledWindows(qte.windows, qte.storyMode.windowMult) : qte.windows;
+  }
+
+  // The ring closes at T; the enemy's attack is started early enough that its
+  // impact lands on T. The result is applied once the tap is judged.
+  async enemyHit(enemy, target, hit) {
+    const ring = Qte.runRing(this, {
+      x: target.container.x,
+      y: target.container.y + qte.ring.offsetY,
+      telegraphMs: hit.telegraphMs,
+      windows: this.parryWindows(),
+      ring: qte.ring,
+    });
+
+    const attackDone = new Promise((resolve) => {
+      const startIn = Math.max(0, hit.telegraphMs - this.impactLeadMs(enemy));
+      this.time.delayedCall(startIn, () => this.playAttackAnim(enemy).then(resolve));
+    });
+
+    const { result } = await ring.promise;
+    await this.applyParryResult(result, enemy, target, hit.dmg);
+    await attackDone;
+  }
+
+  // How long an entity's attack takes to reach its impact.
+  impactLeadMs(entity) {
+    if (hasSheet(entity.anims, 'attack')) {
+      const { impactFrames = [], durations_ms: durations = [], frames } = entity.anims.attack;
+      const impact = impactFrames.length ? impactFrames[0] : frames;
+      return durations.slice(0, impact).reduce((sum, ms) => sum + ms, 0);
+    }
+    if (entity.def.parts && Object.keys(entity.parts).length > 0) return ATTACK_DURATION_MS / 2;
+    return LUNGE_OUT_MS;
+  }
+
+  async applyParryResult(result, enemy, hero, baseDmg) {
+    const cfg = qte.results[result];
+    const x = hero.container.x;
+    const y = hero.container.y;
+
+    if (cfg.text) Fx.popText(this, x, y, cfg.text, cfg.color, qte.text);
+    if (cfg.flash) Fx.screenFlash(this, cfg.flash, qte.flashDepth);
+    this.gainEcho(cfg.echo);
+
+    const storyMult = this.registry.get('settings')?.storyMode ? qte.storyMode.damageMult : 1;
+    const dmg = Math.round(baseDmg * cfg.damageMult * storyMult);
+    if (dmg > 0) this.applyHit(hero, dmg);
+    if (cfg.knockback && hero.hp > 0) Fx.knockback(this, hero.container, hero.facing === 'right' ? -cfg.knockback : cfg.knockback);
+
+    if (result === 'PERFECT') {
+      Fx.sparks(this, x, y + qte.ring.offsetY, cfg.sparks, qte.sparks, qte.ring.depth);
+      Fx.shake(this, cfg.shake, cfg.hitstopMs * 2);
+      await Fx.hitstop(this, cfg.hitstopMs);
+      await this.playCounter(hero, enemy, cfg.counterDmg);
+    }
+  }
+
+  // PERFECT: the hero answers with a counter. With a parry sheet the damage
+  // lands on its impact frame; otherwise straight away.
+  async playCounter(hero, enemy, dmg) {
+    const counter = () => {
+      if (enemy.hp > 0) this.applyHit(enemy, dmg);
+    };
+    if (!hasSheet(hero.anims, 'parry')) {
+      counter();
+      return;
+    }
+    await playOnce(hero.body, hero.type, 'parry', hero.anims.parry, { onImpact: (i) => i === 0 && counter() });
+    if (hero.hp > 0) hero.body.play(animKey(hero.type, 'idle'));
+  }
+
+  gainEcho(amount) {
+    if (!amount) return;
+    this.echo = Phaser.Math.Clamp(this.echo + amount, 0, ui.hud.echo.max);
+    this.refreshHud();
   }
 
   // ---------- Attack execution ----------
@@ -547,7 +645,7 @@ export default class BattleScene extends Phaser.Scene {
       this.tweens.chain({
         targets: entity.container,
         tweens: [
-          { x: startX + distance * dirSign, duration: 150, ease: 'Quad.easeOut' },
+          { x: startX + distance * dirSign, duration: LUNGE_OUT_MS, ease: 'Quad.easeOut' },
           { x: startX, duration: 150, ease: 'Quad.easeIn' },
         ],
         onComplete: resolve,
