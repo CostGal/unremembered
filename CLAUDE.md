@@ -40,7 +40,8 @@ public/
   fonts/
   assets/
     sprites/    rhea_body.png, rhea_arm.png, dov.png, blank.png, hollow.png, clerk.png, nala.png
-                (body PNG + optional named part PNGs per character — see Assets pipeline > Attack rig)
+                <character>_<anim>.png sheets + <character>_animations.json (see Assets pipeline > Sprite-sheet animations);
+                body PNG + optional part PNGs for the rig fallback
     bg/         street_rain.png, records_office.png, memory_city.png
     cutscene/   city.png, reliquary.png, battlefield.png, council.png, statue.png, exile_close.png,
                 aurelian_king.png, aurelian_exile.png   (cutouts are transparent PNGs)
@@ -120,7 +121,7 @@ WIN → "Victory" → runner.next()      LOSE → Retry
 - **Player attack FX:** dash to the target (180ms tween) → attack anim → white flash 60ms + 2px shake + damage number → dash back.
 
 ### Parry QTE (the core feel — tune this carefully)
-- **Telegraph:** the enemy holds the pose at its attack rig's `windupT` keyframe (its windup/telegraph pose — see Assets pipeline > Attack rig). A ring appears around the targeted hero and shrinks from radius 48 → 14 over `telegraphMs`. The moment it reaches 14 is the impact time **T**.
+- **Telegraph:** the enemy holds its attack sheet's `windupFrame` (or, on the rig fallback, the `windupT` keyframe) (its windup/telegraph pose — see Assets pipeline > Attack rig). A ring appears around the targeted hero and shrinks from radius 48 → 14 over `telegraphMs`. The moment it reaches 14 is the impact time **T**.
 - **Input:** the first `pointerdown` during ENEMY_TURN (anywhere in the lower half, or anywhere at all). Debounced.
 - **Judgement on |t − T|:**
   - ≤ 90ms → **PERFECT**: 0 damage, +2 Echo, counter for 4 damage.
@@ -256,7 +257,7 @@ Behaviour:
 - **Portraits** (`public/assets/portraits/`, used by the Dialogue scene) are exported on a flat `#FF00FF` background instead of a transparent PNG. The loader keys that exact color out to transparent at load time (a pixel-level pass, not alpha in the source file). Missing portraits fall through to the placeholder loader like any other asset.
 
 ### Attack rig
-- Used by any character without a sheet in `animations.json` (below). A character is a `body` PNG plus zero or more named `parts` (also PNGs, same canvas size as the body), each with a fixed pivot point in local pixels.
+- **Fallback only:** used by any character without a `<character>_animations.json` (below). A character is a `body` PNG plus zero or more named `parts` (also PNGs, same canvas size as the body), each with a fixed pivot point in local pixels.
 - `characters.json` / `enemies.json` give each character an `attack`:
   - **With parts:** `{windupT, keyframes: [{t, body: [x,y], <partKey>: {rotation, offset: [x,y]}, ...}, ...]}`. `t` runs 0→1 over the attack's duration; positions/offsets are tweened linearly between keyframes. The keyframe at `windupT` is the pose held during the QTE telegraph (see Parry QTE > Telegraph).
   - **Without parts** (`type: "lunge"`): a body lunge toward the target plus a squash/stretch, using `windupT`, `distance` (px) and `squash` (scale delta). Used by every character that doesn't yet have a part rig — currently Dov, and all enemies until their art lands.
@@ -264,17 +265,23 @@ Behaviour:
 - Palette anchors: ink navy backgrounds, teal Echo `#3fd0c9`, amber for Dov `#e0a040`, Nala orange accent `#e8883a`, off-white text `#f1efe8`.
 
 ### Sprite-sheet animations
-- How to animate pixel-art sprites (rig, pixel-perfect rules, what broke, using pixler.dev sheets): `docs/ANIMATION.md`.
-- Raw pixler.dev sheets go to `_art/raw/pixler/<character>/` untouched; processed sheets go to `public/assets/anim/`.
-- Every sheet is registered in `src/data/animations.json`. The entry key is the texture key and the Phaser anim key:
+- Output contract: `docs/ART_BRIEF.md`. Method (rig, pixel-perfect rules, what broke): `docs/ANIMATION.md`.
+- Raw pixler.dev downloads go to `_art/raw/pixler/<character>/` untouched.
+- Game-ready sheets live in `public/assets/sprites/` as `<character>_<anim>.png` (horizontal strip, facing left), with one `<character>_animations.json` per character. `<character>` is the key in `characters.json` / `enemies.json`. The JSON sits next to the art (not in `src/data/`) because the art pipeline delivers it with the sheets:
 ```json
-"rhea_strike": {"sheet": "anim/rhea_strike.png", "frame_size": [128, 128], "frames": 8,
-                "durations_ms": [110, 90, 100, 60, 50, 45, 90, 140], "loop": false,
-                "windupFrame": 2, "impactFrame": 5}
+{
+  "frame_size": [128, 128],
+  "facing": "left",
+  "animations": {
+    "attack": {"frames": 10, "sheet": "rhea_attack.png", "durations_ms": [90,70,60,50,45,55,70,90,110,150],
+               "loop": false, "windupFrame": 4, "impactFrames": [5], "holdFrame": 3}
+  }
+}
 ```
-- `durations_ms[i]` is how long frame i is shown (slow–fast–slow; the impact frame is the shortest).
-- Optional, 0-based: `windupFrame` = the pose held during the QTE telegraph; `impactFrame` = the frame where the hit lands (flash, shake, damage number).
-- A missing sheet loads as a placeholder strip with the same frame count and timing.
+- Texture key and Phaser anim key = `<character>_<anim>` (e.g. `rhea_attack`). `durations_ms[i]` is exactly how long frame i is shown.
+- Optional, 0-based: `windupFrame` = the pose held during the QTE telegraph. `impactFrames` = frames where damage lands (hit FX + damage number); a Strike deals its damage on the first one, and with none the hit lands when the anim ends. `holdFrame` = the anim pauses there until code resumes it (only when the caller handles the hold; otherwise it plays through, so nothing can soft-lock).
+- A character with a JSON that has `idle` is one animated sprite in battle: idle loops, Strike plays `attack`, then back to idle. Without the JSON it uses the rig.
+- A sheet listed in the JSON but missing from disk becomes a placeholder strip (the static body + parts in every frame, same frame count and timing), logged as `<key>: sheet missing, using placeholder`. While idle is a placeholder the code bob stays on.
 
 ## Audio
 - **Unlock** on the Title tap. Pause all audio when `document.visibilityState === 'hidden'`, resume on visible.

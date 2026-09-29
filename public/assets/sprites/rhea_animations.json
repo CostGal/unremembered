@@ -1,0 +1,9 @@
+{
+  "frame_size": [128, 128],
+  "facing": "left",
+  "animations": {
+    "idle": {"frames": 6, "sheet": "rhea_idle.png", "durations_ms": [220, 200, 200, 220, 120, 260], "loop": true},
+    "attack": {"frames": 10, "sheet": "rhea_attack.png", "durations_ms": [90, 70, 60, 50, 45, 55, 70, 90, 110, 150],
+               "loop": false, "windupFrame": 4, "impactFrames": [5]}
+  }
+}

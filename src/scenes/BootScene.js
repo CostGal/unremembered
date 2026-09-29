@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import manifest from '../data/assets.json';
-import animations from '../data/animations.json';
+import characters from '../data/characters.json';
+import enemies from '../data/enemies.json';
 import { loadSettings } from '../systems/Settings.js';
+import { fetchAnimationSets } from '../systems/SpriteAnims.js';
 
 const FONT_TIMEOUT_MS = 1000;
 
@@ -11,10 +13,13 @@ export default class BootScene extends Phaser.Scene {
   }
 
   async create() {
-    await this.loadFont();
+    const [, animationSets] = await Promise.all([
+      this.loadFont(),
+      fetchAnimationSets([...Object.keys(characters), ...Object.keys(enemies)]),
+    ]);
 
     this.registry.set('manifest', manifest);
-    this.registry.set('animations', animations);
+    this.registry.set('animationSets', animationSets);
     this.registry.set('settings', loadSettings());
 
     this.scene.start('Preload');

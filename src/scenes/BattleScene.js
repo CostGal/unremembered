@@ -4,6 +4,7 @@ import characters from '../data/characters.json';
 import enemies from '../data/enemies.json';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
+import { animKey, playOnce } from '../systems/SpriteAnims.js';
 
 const HERO_X = 100;
 const HERO_Y = 300;
@@ -27,6 +28,7 @@ export default class BattleScene extends Phaser.Scene {
 
   create() {
     this.manifest = this.registry.get('manifest');
+    this.animationSets = this.registry.get('animationSets') || {};
     this.battleOver = false;
 
     this.add.image(180, 180, this.battleDef.bg).setDisplaySize(360, 360);
@@ -34,13 +36,14 @@ export default class BattleScene extends Phaser.Scene {
 
     const heroKeys = ['rhea', 'dov'];
     this.heroes = heroKeys.map((key, i) =>
-      this.createEntity(key, characters[key], HERO_X, HERO_Y + (i - 0.5) * HERO_GAP, 'right', true)
+      this.createEntity(key, key, characters[key], HERO_X, HERO_Y + (i - 0.5) * HERO_GAP, 'right', true)
     );
 
     const enemyKeys = this.battleDef.enemies;
     this.enemies = enemyKeys.map((key, i) =>
       this.createEntity(
         `${key}_${i}`,
+        key,
         enemies[key],
         ENEMY_X,
         ENEMY_Y + (i - (enemyKeys.length - 1) / 2) * ENEMY_GAP,
@@ -66,8 +69,15 @@ export default class BattleScene extends Phaser.Scene {
 
   // ---------- Entity setup ----------
 
-  createEntity(id, def, x, y, facing, isHero) {
+  // type = the characters.json / enemies.json key. With a <type>_animations.json
+  // that has an idle, the entity is one animated sprite; otherwise the cutout rig.
+  createEntity(id, type, def, x, y, facing, isHero) {
     const container = this.add.container(x, y);
+    const animSet = this.animationSets[type];
+    const anims = animSet?.animations?.idle ? animSet.animations : null;
+
+    if (anims) return this.finishEntity({ id, type, def, container, x, y, facing, isHero, anims, animSet });
+
     const bodyManifest = this.manifest.sprites[def.body] || {};
     const mirror = (bodyManifest.faces || facing) !== facing;
 
@@ -88,8 +98,20 @@ export default class BattleScene extends Phaser.Scene {
 
     container.setScale(mirror ? -1 : 1, 1);
 
+    return this.finishEntity({ id, type, def, container, x, y, facing, isHero, body, parts, height: bodyManifest.h });
+  }
+
+  finishEntity({ id, type, def, container, x, y, facing, isHero, body, parts = {}, height, anims = null, animSet }) {
+    if (anims) {
+      body = this.add.sprite(0, 0, animKey(type, 'idle'));
+      container.add(body);
+      container.setScale((animSet.facing || 'left') !== facing ? -1 : 1, 1);
+      height = animSet.frame_size[1];
+      body.play(animKey(type, 'idle'));
+    }
+
     const label = this.add
-      .text(x, y - (bodyManifest.h || 128) / 2 - 10, '', {
+      .text(x, y - (height || 128) / 2 - 10, '', {
         fontFamily: '"Pixelify Sans", monospace',
         fontSize: '12px',
         color: '#f1efe8',
@@ -98,6 +120,7 @@ export default class BattleScene extends Phaser.Scene {
 
     const entity = {
       id,
+      type,
       def,
       name: def.name,
       hp: def.hp,
@@ -105,6 +128,7 @@ export default class BattleScene extends Phaser.Scene {
       container,
       body,
       parts,
+      anims,
       label,
       facing,
       isHero,
@@ -112,7 +136,8 @@ export default class BattleScene extends Phaser.Scene {
     };
 
     this.updateLabel(entity);
-    entity.bobTween = this.idleBob(container);
+    // The code bob stands in for idle until a real idle sheet lands.
+    if (!anims || anims.idle.placeholder) entity.bobTween = this.idleBob(container);
 
     return entity;
   }
@@ -134,6 +159,7 @@ export default class BattleScene extends Phaser.Scene {
 
   markDown(entity) {
     if (entity.bobTween) entity.bobTween.stop();
+    if (entity.anims) entity.body.anims.stop();
     this.tweens.add({ targets: entity.container, alpha: 0.35, duration: 200 });
   }
 
@@ -295,8 +321,7 @@ export default class BattleScene extends Phaser.Scene {
     const attack = pickWeighted(enemy.def.attacks);
     const dmg = attack.dmg !== undefined ? attack.dmg : (attack.hits || []).reduce((sum, h) => sum + h.dmg, 0);
 
-    await this.playAttackAnim(enemy);
-    this.applyHit(target, dmg);
+    await this.playAttackAnim(enemy, () => this.applyHit(target, dmg));
   }
 
   // ---------- Attack execution ----------
@@ -306,20 +331,32 @@ export default class BattleScene extends Phaser.Scene {
     const approachX = Phaser.Math.Linear(restX, target.container.x, 0.7);
 
     await this.tweenPromise(hero.container, { x: approachX }, DASH_DURATION_MS);
-    await this.playAttackAnim(hero);
 
+    // A Strike deals its damage once, on the first impact frame.
     const dmg = Phaser.Math.Between(hero.def.strike[0], hero.def.strike[1]);
-    this.applyHit(target, dmg);
+    await this.playAttackAnim(hero, (i) => {
+      if (i === 0) this.applyHit(target, dmg);
+    });
 
     await this.tweenPromise(hero.container, { x: restX }, DASH_DURATION_MS);
   }
 
-  playAttackAnim(entity) {
-    if (entity.def.parts && Object.keys(entity.parts).length > 0) {
-      return this.playRigAttack(entity);
+  // onImpact(i, count) fires on each impact frame of a sheet attack, or once
+  // at the end of a rig attack.
+  async playAttackAnim(entity, onImpact) {
+    if (entity.anims?.attack) {
+      await playOnce(entity.body, entity.type, 'attack', entity.anims.attack, { onImpact });
+      if (entity.hp > 0) entity.body.play(animKey(entity.type, 'idle'));
+      return;
     }
-    const dirSign = entity.facing === 'right' ? 1 : -1;
-    return this.playLungeAttack(entity, dirSign);
+
+    if (entity.def.parts && Object.keys(entity.parts).length > 0) {
+      await this.playRigAttack(entity);
+    } else {
+      const dirSign = entity.facing === 'right' ? 1 : -1;
+      await this.playLungeAttack(entity, dirSign);
+    }
+    if (onImpact) onImpact(0, 1);
   }
 
   playRigAttack(entity) {
