@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import manifest from '../data/assets.json';
 import characters from '../data/characters.json';
+import allies from '../data/allies.json';
 import enemies from '../data/enemies.json';
 import { loadSettings } from '../systems/Settings.js';
 import { fetchAnimationSets } from '../systems/SpriteAnims.js';
@@ -15,7 +16,7 @@ export default class BootScene extends Phaser.Scene {
   async create() {
     const [, animationSets] = await Promise.all([
       this.loadFont(),
-      fetchAnimationSets([...Object.keys(characters), ...Object.keys(enemies)]),
+      fetchAnimationSets([...Object.keys(characters), ...Object.keys(enemies), ...Object.keys(allies)]),
     ]);
 
     this.registry.set('manifest', manifest);

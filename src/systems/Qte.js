@@ -33,6 +33,7 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring }) {
   const target = Number(ring.targetColor);
   const color = Number(ring.color);
 
+  let cancel = () => {};
   const promise = new Promise((resolve) => {
     let judged = null;
 
@@ -72,6 +73,13 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring }) {
       else if (!judged && now > impactAt + windows.goodMs) finish({ result: 'MISS', dtMs: null });
     };
 
+    // e.g. Nala cancels the attack: resolves at once with result 'CANCEL'.
+    cancel = () => {
+      if (judged?.result === 'CANCEL') return;
+      judged = { result: 'CANCEL', dtMs: null };
+      finish(judged);
+    };
+
     scene.input.on('pointerdown', onDown);
     scene.events.on('update', onUpdate);
     // Leaving the scene mid-ring (e.g. a restart) must not leave listeners behind.
@@ -79,7 +87,7 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring }) {
     onUpdate();
   });
 
-  return { promise, impactAt };
+  return { promise, impactAt, cancel: () => cancel() };
 }
 
 // The pointer event's own timestamp is closest to the real touch. Fall back to

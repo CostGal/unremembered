@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 
+const EDGE_PAD = 4;
+
 export function flash(scene, images, durationMs = 60) {
   for (const img of images) img.setTintFill(0xffffff);
   scene.time.delayedCall(durationMs, () => {
@@ -106,7 +108,7 @@ export function vignette(scene, cfg, area) {
     .setDepth(cfg.depth);
 }
 
-function glowTexture(scene, radius) {
+export function glowTexture(scene, radius) {
   const key = `fx_glow_${radius}`;
   if (scene.textures.exists(key)) return key;
 
@@ -270,6 +272,9 @@ export function popText(scene, x, y, text, color, cfg) {
     })
     .setOrigin(0.5)
     .setDepth(cfg.depth);
+  // Keep the whole word on screen (e.g. above Nala at the left edge).
+  const half = label.width / 2 + EDGE_PAD;
+  label.x = Phaser.Math.Clamp(x, half, scene.scale.width - half);
 
   scene.tweens.add({
     targets: label,

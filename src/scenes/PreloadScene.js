@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import characters from '../data/characters.json';
+import allies from '../data/allies.json';
 import enemies from '../data/enemies.json';
 import { queueSheets, buildAnimations } from '../systems/SpriteAnims.js';
 import { isAnimTest } from './AnimTestScene.js';
@@ -42,7 +43,7 @@ export default class PreloadScene extends Phaser.Scene {
       if (this.textures.get(key).getSourceImage() instanceof HTMLImageElement) keyOutColor(this, key, PORTRAIT_KEY_RGB);
     }
 
-    buildAnimations(this, this.animationSets, { ...characters, ...enemies });
+    buildAnimations(this, this.animationSets, { ...characters, ...enemies, ...allies });
 
     const battleId = devBattleId();
     if (isAnimTest()) this.scene.start('AnimTest');

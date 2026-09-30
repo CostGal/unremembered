@@ -3,6 +3,7 @@ import battles from '../data/battles.json';
 import characters from '../data/characters.json';
 import enemies from '../data/enemies.json';
 import environments from '../data/environments.json';
+import allies from '../data/allies.json';
 import qte from '../data/qte.json';
 import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
@@ -52,6 +53,8 @@ export default class BattleScene extends Phaser.Scene {
     this.manifest = this.registry.get('manifest');
     this.animationSets = this.registry.get('animationSets') || {};
     this.battleOver = false;
+    this.tutorialSlow = !!this.battleDef.tutorial;
+    this.timeScale = 1;
 
     this.add.image(180, 180, this.battleDef.bg).setDisplaySize(360, 360);
     this.add.rectangle(180, 180, 360, 360, 0x000000, 0.2);
@@ -131,17 +134,67 @@ export default class BattleScene extends Phaser.Scene {
     return slots || layout.enemies[Math.max(...counts)];
   }
 
-  // Nala sits behind the heroes. Static for now; her ability is its own issue.
+  // Nala sits behind the heroes. When a Hollow telegraphs she glows, and a
+  // tap on her cancels that attack — once per battle (allies.json).
   createNala() {
     const sprite = this.manifest.sprites.nala;
+    const def = allies.nala;
     const { x, feetY } = layout.nala;
     const container = this.add.container(x, feetY - sprite.h / 2).setDepth(feetY);
-    const image = this.add.image(0, 0, 'nala');
-    container.add(image);
-    container.setScale((sprite.faces || 'right') !== 'right' ? -1 : 1, 1);
+    const glow = this.add.image(0, 0, Fx.glowTexture(this, def.glow.radius)).setBlendMode(Phaser.BlendModes.ADD).setTint(Number(def.glow.color)).setAlpha(0);
+    const animSet = this.animationSets.nala;
+    const anims = animSet?.animations?.idle ? animSet.animations : null;
+    const image = anims ? this.add.sprite(0, 0, animKey('nala', 'idle')).play(animKey('nala', 'idle')) : this.add.image(0, 0, 'nala');
+    container.add([glow, image]);
+    const faces = anims ? animSet.facing || 'left' : sprite.faces || 'right';
+    container.setScale(faces !== 'right' ? -1 : 1, 1);
     this.checkLayout('nala', feetY, sprite.h);
-    this.nala = { container, image };
-    this.idleBob(container);
+    this.nala = { container, image, glow, anims, def, used: false, ring: null };
+    if (!anims || anims.idle.placeholder) this.idleBob(container);
+
+    image.setInteractive({ useHandCursor: true });
+    image.on('pointerdown', () => this.nalaHiss());
+  }
+
+  // Called when an enemy starts a telegraph. Returns true if Nala is watching it.
+  nalaWatch(enemy, ring) {
+    const nala = this.nala;
+    if (!nala || nala.used || !enemy.def.hollow) return false;
+    nala.ring = ring;
+    nala.enemy = enemy;
+    const g = nala.def.glow;
+    nala.glowTween = this.tweens.add({ targets: nala.glow, alpha: { from: g.alphaMin, to: g.alphaMax }, duration: g.pulseMs, yoyo: true, repeat: -1 });
+    if (hasSheet(nala.anims, 'alert')) nala.image.play(animKey('nala', 'alert'));
+    this.tapHint.setText(nala.def.promptText);
+    return true;
+  }
+
+  nalaStopWatching() {
+    const nala = this.nala;
+    if (!nala?.ring) return;
+    nala.ring = null;
+    if (nala.glowTween) nala.glowTween.stop();
+    nala.glow.setAlpha(0);
+    if (hasSheet(nala.anims, 'alert')) nala.image.play(animKey('nala', 'idle'));
+    this.tapHint.setText(qte.hint.text);
+  }
+
+  nalaHiss() {
+    const nala = this.nala;
+    if (!nala?.ring || nala.used) return;
+    nala.used = true;
+    const { ring, enemy, def } = nala;
+    this.nalaStopWatching();
+    ring.cancel();
+
+    Fx.popText(this, nala.container.x, nala.container.y, def.hissText, def.hissColor, qte.text);
+    Fx.popText(this, enemy.container.x, enemy.container.y, def.cancelText, def.hissColor, qte.text);
+    Fx.shake(this, def.shake, def.shakeMs);
+    if (hasSheet(nala.anims, 'hiss')) {
+      playOnce(nala.image, 'nala', 'hiss', nala.anims.hiss).then(() => nala.image.play(animKey('nala', 'idle')));
+    } else {
+      this.tweens.add({ targets: nala.container, scaleY: nala.container.scaleY * def.hopSquash, duration: def.hopMs, yoyo: true });
+    }
   }
 
   // Dev build only: flag any sprite that reaches into the HUD or off the top.
@@ -496,7 +549,8 @@ export default class BattleScene extends Phaser.Scene {
     this.tapHint.setVisible(true);
     for (const hit of attack.hits || [attack]) {
       if (target.hp <= 0 || enemy.hp <= 0) break;
-      await this.enemyHit(enemy, target, hit, attack.id);
+      const result = await this.enemyHit(enemy, target, hit, attack.id);
+      if (result === 'CANCEL') break;
     }
     this.tapHint.setVisible(false);
     this.brace = null;
@@ -519,45 +573,86 @@ export default class BattleScene extends Phaser.Scene {
 
   // The ring closes at T. The enemy holds its windup pose through the
   // telegraph and is released just early enough for its impact to land on T.
+  // Tutorial: while the player hasn't landed a GOOD/PERFECT yet, the whole
+  // scene runs slowed down (ring, windows and animations alike).
   async enemyHit(enemy, target, hit, attackId) {
+    const slow = this.tutorialSlow ? qte.tutorial.timeScale : 1;
+    this.setTimeScale(slow);
+    if (this.tutorialSlow) this.showTutorialPrompt(true);
+
+    const windows = this.parryWindows();
     const ring = Qte.runRing(this, {
       x: target.container.x,
       y: target.container.y + qte.ring.offsetY,
-      telegraphMs: hit.telegraphMs,
-      feint: hit.feint,
-      windows: this.parryWindows(),
+      telegraphMs: hit.telegraphMs / slow,
+      feint: hit.feint ? { ...hit.feint, pauseMs: hit.feint.pauseMs / slow } : null,
+      windows: slow === 1 ? windows : Qte.scaledWindows(windows, 1 / slow),
       ring: qte.ring,
     });
+    const watched = this.nalaWatch(enemy, ring);
 
-    const attackDone = this.playEnemyAttack(enemy, attackId, ring.impactAt);
+    const abort = { aborted: false };
+    const attackDone = this.playEnemyAttack(enemy, attackId, ring.impactAt, abort);
 
     const { result } = await ring.promise;
+    if (watched) this.nalaStopWatching();
+    this.setTimeScale(1);
+    this.showTutorialPrompt(false);
+
+    if (result === 'CANCEL') {
+      abort.aborted = true;
+      await attackDone;
+      return 'CANCEL';
+    }
+    if (this.tutorialSlow && result !== 'MISS') this.tutorialSlow = false;
     await this.applyParryResult(result, enemy, target, hit);
     await attackDone;
+    return result;
+  }
+
+  setTimeScale(scale) {
+    this.timeScale = scale;
+    this.tweens.timeScale = scale;
+    this.anims.globalTimeScale = scale;
+    this.time.timeScale = scale;
+  }
+
+  showTutorialPrompt(on) {
+    if (!this.tutorialPrompt) {
+      const p = qte.tutorial.prompt;
+      this.tutorialPrompt = this.add
+        .text(p.x, p.y, p.text, { fontFamily: ui.font, fontSize: `${p.fontSize}px`, color: p.color, align: 'center', wordWrap: { width: p.wrap } })
+        .setOrigin(0.5)
+        .setDepth(p.depth);
+    }
+    this.tutorialPrompt.setVisible(on);
+    this.tapHint.setVisible(!on);
   }
 
   // Sheet: plays up to windupFrame, holds, resumes so the first impact frame
   // lands at impactAt (a performance.now() time). The attack's own sheet
   // (e.g. blank_punch) wins over the generic attack sheet.
   // Rig: leans back (windupPx), then lunges.
-  playEnemyAttack(enemy, attackId, impactAt) {
+  // abort.aborted (set when the attack is cancelled) drops the attack back to idle.
+  playEnemyAttack(enemy, attackId, impactAt, abort) {
     const name = hasSheet(enemy.anims, attackId) ? attackId : 'attack';
-    if (!hasSheet(enemy.anims, name)) return this.playLungeTelegraph(enemy, impactAt);
+    if (!hasSheet(enemy.anims, name)) return this.playLungeTelegraph(enemy, impactAt, abort);
 
     const def = enemy.anims[name];
     const durations = def.durations_ms || [];
     const windup = def.windupFrame ?? 0;
     const impact = def.impactFrames?.length ? def.impactFrames[0] : def.frames;
-    const leadMs = durations.slice(windup, impact).reduce((sum, ms) => sum + ms, 0);
+    const leadMs = durations.slice(windup, impact).reduce((sum, ms) => sum + ms, 0) / (this.timeScale || 1);
 
     return playOnce(enemy.body, enemy.type, name, { ...def, holdFrame: windup }, {
-      onHold: (resume) => this.atRealTime(impactAt - leadMs, resume),
+      onHold: (resume) =>
+        this.atRealTime(impactAt - leadMs, () => (abort.aborted ? enemy.body.anims.stop() : resume()), () => abort.aborted),
     }).then(() => {
       if (enemy.hp > 0) enemy.body.play(animKey(enemy.type, 'idle'));
     });
   }
 
-  playLungeTelegraph(enemy, impactAt) {
+  playLungeTelegraph(enemy, impactAt, abort) {
     const lunge = enemy.def.attack?.distance !== undefined ? enemy.def.attack : FALLBACK_LUNGE;
     const dir = enemy.facing === 'right' ? 1 : -1;
     const restX = enemy.restX;
@@ -566,8 +661,13 @@ export default class BattleScene extends Phaser.Scene {
     const windup = this.tweens.add({ targets: c, x: restX - dir * (lunge.windupPx || 0), duration: WINDUP_MS, ease: 'Quad.easeOut' });
 
     return new Promise((resolve) => {
-      this.atRealTime(impactAt - LUNGE_OUT_MS, () => {
+      const outMs = LUNGE_OUT_MS / (this.timeScale || 1);
+      this.atRealTime(impactAt - outMs, () => {
         windup.stop();
+        if (abort.aborted) {
+          this.tweens.add({ targets: c, x: restX, duration: WINDUP_MS, onComplete: resolve });
+          return;
+        }
         const baseScaleY = c.scaleY;
         this.tweens.chain({
           targets: c,
@@ -581,7 +681,7 @@ export default class BattleScene extends Phaser.Scene {
           },
         });
         this.tweens.add({ targets: c, scaleY: baseScaleY * (1 - lunge.squash), duration: 100, yoyo: true });
-      });
+      }, () => abort.aborted);
     });
   }
 
@@ -590,11 +690,12 @@ export default class BattleScene extends Phaser.Scene {
     return enemy.def.attacks;
   }
 
-  // Calls fn once performance.now() reaches t, checked every frame, so it
-  // follows the ring's clock whatever the scene's time scale is.
-  atRealTime(t, fn) {
+  // Calls fn once performance.now() reaches t (or as soon as early() is true),
+  // checked every frame, so it follows the ring's clock whatever the scene's
+  // time scale is.
+  atRealTime(t, fn, early = () => false) {
     const check = () => {
-      if (performance.now() < t) return;
+      if (performance.now() < t && !early()) return;
       this.events.off('update', check);
       fn();
     };
