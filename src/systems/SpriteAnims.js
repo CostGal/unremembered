@@ -13,6 +13,20 @@ export function hasSheet(anims, name) {
   return !!anims?.[name] && !anims[name].placeholder;
 }
 
+// Dev builds: which animation paths ran ("play:rhea_attack", "hold:…",
+// "impact:…", "fallback:…"), for the headless coverage checks.
+export function trace(event) {
+  if (!import.meta.env.DEV) return;
+  const log = (window.__animTrace = window.__animTrace || {});
+  log[event] = (log[event] || 0) + 1;
+}
+
+// Plays a looping (or any) animation and notes it in the dev trace.
+export function playLoop(sprite, id, name) {
+  trace(`play:${animKey(id, name)}`);
+  return sprite.play(animKey(id, name));
+}
+
 // Fetched outside the Phaser loader: in dev a missing file comes back as the
 // SPA's index.html, which Phaser's JSON loader re-throws on. Missing or broken
 // JSON just means "no sheets for this character".
@@ -70,6 +84,7 @@ export function buildAnimations(scene, sets, bodyDefs) {
 //   an onHold handler the animation plays through, so nothing can soft-lock.
 export function playOnce(sprite, id, name, def, { onImpact, onHold } = {}) {
   const key = animKey(id, name);
+  trace(`play:${key}`);
   const impacts = [...(def.impactFrames || [])].sort((a, b) => a - b);
   let nextImpact = 0;
   let held = false;
@@ -77,11 +92,13 @@ export function playOnce(sprite, id, name, def, { onImpact, onHold } = {}) {
   return new Promise((resolve) => {
     const reached = (frameIndex) => {
       while (nextImpact < impacts.length && impacts[nextImpact] <= frameIndex) {
+        trace(`impact:${key}`);
         if (onImpact) onImpact(nextImpact, impacts.length);
         nextImpact++;
       }
       if (!held && onHold && def.holdFrame !== undefined && frameIndex >= def.holdFrame) {
         held = true;
+        trace(`hold:${key}`);
         sprite.anims.pause();
         onHold(() => sprite.anims.resume());
       }
@@ -89,10 +106,15 @@ export function playOnce(sprite, id, name, def, { onImpact, onHold } = {}) {
 
     const onFrame = (anim, frame) => {
       if (anim.key === key) reached(frame.index - 1);
+      // A paused animation that gets replaced emits no stop event (Phaser
+      // doesn't count it as playing), so another one starting = ours is over.
+      else finish({ key });
     };
 
+    let finished = false;
     const finish = (anim) => {
-      if (anim.key !== key) return;
+      if (anim.key !== key || finished) return;
+      finished = true;
       sprite.off('animationstart', onFrame);
       sprite.off('animationupdate', onFrame);
       sprite.off('animationcomplete', finish);
@@ -108,6 +130,92 @@ export function playOnce(sprite, id, name, def, { onImpact, onHold } = {}) {
     sprite.on('animationstop', finish);
     sprite.play(key);
   });
+}
+
+// Drives one non-looping sheet frame by frame, for moves timed against the
+// clock: runTo(frame) plays (or continues) until that frame and pauses there.
+// Enemy attacks use it to hold the windup and land impact frame k on the
+// ring's impact time. If something else replaces the animation (a hurt
+// reaction, death), every pending runTo resolves and done settles, so a
+// caller can never wait forever.
+export class SheetDriver {
+  constructor(sprite, id, name, def) {
+    this.sprite = sprite;
+    this.key = animKey(id, name);
+    this.def = def;
+    this.frame = -1;
+    this.started = false;
+    this.ended = false;
+    this.pending = null; // {frame, resolve}
+    this.done = new Promise((resolve) => (this.resolveDone = resolve));
+
+    this.onFrame = (anim, frame) => {
+      // Another animation took over (see playOnce): this one is over.
+      if (anim.key !== this.key) {
+        if (this.started) this.onEnd({ key: this.key });
+        return;
+      }
+      this.frame = frame.index - 1;
+      if (this.pending && this.frame >= this.pending.frame) {
+        sprite.anims.pause();
+        this.settle();
+      }
+    };
+    this.onEnd = (anim) => {
+      if (anim.key !== this.key || this.ended) return;
+      this.ended = true;
+      sprite.off('animationstart', this.onFrame);
+      sprite.off('animationupdate', this.onFrame);
+      sprite.off('animationcomplete', this.onEnd);
+      sprite.off('animationstop', this.onEnd);
+      this.settle();
+      this.resolveDone();
+    };
+    sprite.on('animationstart', this.onFrame);
+    sprite.on('animationupdate', this.onFrame);
+    sprite.on('animationcomplete', this.onEnd);
+    sprite.on('animationstop', this.onEnd);
+  }
+
+  settle() {
+    const p = this.pending;
+    this.pending = null;
+    if (p) p.resolve();
+  }
+
+  // Plays until `frame` and pauses on it. Resolves on arrival (or at once if
+  // already there / the animation is gone).
+  runTo(frame) {
+    return new Promise((resolve) => {
+      if (this.ended || this.frame >= frame) {
+        if (!this.ended) this.sprite.anims.pause();
+        resolve();
+        return;
+      }
+      this.pending = { frame, resolve };
+      if (!this.started) {
+        this.started = true;
+        trace(`play:${this.key}`);
+        this.sprite.play(this.key);
+      } else {
+        this.sprite.anims.resume();
+      }
+    });
+  }
+
+  // Plays through to the end; resolves when the animation is over.
+  finish() {
+    this.settle();
+    if (!this.ended && this.started) this.sprite.anims.resume();
+    else if (!this.started) this.resolveDone();
+    return this.done;
+  }
+
+  stop() {
+    this.settle();
+    if (this.started && !this.ended) this.sprite.anims.stop();
+    else this.resolveDone();
+  }
 }
 
 // durations_ms[i] is exactly how long frame i stays on screen (Phaser uses a

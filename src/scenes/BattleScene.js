@@ -15,7 +15,7 @@ import CommandMenu from '../systems/CommandMenu.js';
 import Hud from '../systems/Hud.js';
 import * as Qte from '../systems/Qte.js';
 import { devInt } from '../systems/DevParams.js';
-import { animKey, hasSheet, playOnce } from '../systems/SpriteAnims.js';
+import { animKey, hasSheet, playLoop, playOnce, SheetDriver, trace } from '../systems/SpriteAnims.js';
 
 const layout = ui.battleLayout;
 
@@ -186,7 +186,7 @@ export default class BattleScene extends Phaser.Scene {
     const glow = this.add.image(0, 0, Fx.glowTexture(this, def.glow.radius)).setBlendMode(Phaser.BlendModes.ADD).setTint(Number(def.glow.color)).setAlpha(0);
     const animSet = this.animationSets.nala;
     const anims = animSet?.animations?.idle ? animSet.animations : null;
-    const image = anims ? this.add.sprite(0, 0, animKey('nala', 'idle')).play(animKey('nala', 'idle')) : this.add.image(0, 0, 'nala');
+    const image = anims ? playLoop(this.add.sprite(0, 0, animKey('nala', 'idle')), 'nala', 'idle') : this.add.image(0, 0, 'nala');
     container.add([glow, image]);
     const faces = anims ? animSet.facing || 'left' : sprite.faces || 'right';
     container.setScale(faces !== 'right' ? -1 : 1, 1);
@@ -206,7 +206,8 @@ export default class BattleScene extends Phaser.Scene {
     nala.enemy = enemy;
     const g = nala.def.glow;
     nala.glowTween = this.tweens.add({ targets: nala.glow, alpha: { from: g.alphaMin, to: g.alphaMax }, duration: g.pulseMs, yoyo: true, repeat: -1 });
-    if (hasSheet(nala.anims, 'alert')) nala.image.play(animKey('nala', 'alert'));
+    if (hasSheet(nala.anims, 'alert')) playLoop(nala.image, 'nala', 'alert');
+    else trace('fallback:alert:nala');
     this.tapHint.setText(nala.def.promptText);
     return true;
   }
@@ -289,7 +290,7 @@ export default class BattleScene extends Phaser.Scene {
       body = this.add.sprite(0, 0, animKey(type, 'idle'));
       container.add(body);
       container.setScale((animSet.facing || 'left') !== facing ? -1 : 1, 1);
-      body.play(animKey(type, 'idle'));
+      playLoop(body, type, 'idle');
     }
 
     // Heroes' HP lives in the HUD; enemies keep an overhead label.
@@ -401,10 +402,14 @@ export default class BattleScene extends Phaser.Scene {
     if (entity.bobTween) entity.bobTween.stop();
     if (entity.label) this.tweens.add({ targets: entity.label, alpha: 0, duration: ui.downed.enemyFadeMs });
 
+    // The death sheet holds its last frame; an enemy then fades out.
     if (hasSheet(entity.anims, 'death')) {
-      entity.body.play(animKey(entity.type, 'death'));
+      playOnce(entity.body, entity.type, 'death', entity.anims.death).then(() => {
+        if (!entity.isHero && entity.hp <= 0) this.tweens.add({ targets: entity.container, alpha: 0, duration: ui.downed.enemyFadeMs });
+      });
       return;
     }
+    trace(`fallback:death:${entity.type}`);
 
     if (entity.anims) entity.body.anims.stop();
     if (entity.isHero) {
@@ -419,16 +424,27 @@ export default class BattleScene extends Phaser.Scene {
   // theirs from the parry result).
   playHurt(entity) {
     if (!hasSheet(entity.anims, 'hurt')) {
+      trace(`fallback:hurt:${entity.type}`);
       if (!entity.isHero) this.hurtKnockback(entity);
       return;
     }
+    this.playReaction(entity, 'hurt');
+  }
 
-    const key = animKey(entity.type, 'hurt');
-    playOnce(entity.body, entity.type, 'hurt', entity.anims.hurt).then(() => {
-      // Another animation (the next strike, death) may have replaced the hurt one.
-      const stillHurt = entity.body.anims.currentAnim?.key === key;
-      if (stillHurt && entity.hp > 0) entity.body.play(animKey(entity.type, 'idle'));
+  // A one-shot reaction (hurt, dodge, parry), then back to the entity's rest
+  // loop — unless another animation (the next strike, death) replaced it.
+  playReaction(entity, name) {
+    const key = animKey(entity.type, name);
+    return playOnce(entity.body, entity.type, name, entity.anims[name]).then(() => {
+      const still = entity.body.anims.currentAnim?.key === key;
+      if (still && entity.hp > 0) playLoop(entity.body, entity.type, this.restAnim(entity));
     });
+  }
+
+  // The loop an entity returns to: idle, or its charge loop while charging.
+  restAnim(entity) {
+    const chargeAnim = entity.charge?.attack.chargeAnim;
+    return entity.charge?.loop && hasSheet(entity.anims, chargeAnim) ? chargeAnim : 'idle';
   }
 
   // Knocks the body image (not the container, which the lunge/intro/dash tweens
@@ -595,7 +611,7 @@ export default class BattleScene extends Phaser.Scene {
         return;
       }
       attack = enemy.charge.attack;
-      this.endCharge(enemy);
+      await this.endCharge(enemy);
     } else {
       attack = pickWeighted(this.enemyAttacks(enemy));
       if (attack.chargeTurns) {
@@ -606,11 +622,14 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     this.tapHint.setVisible(true);
-    for (const hit of attack.hits || [attack]) {
+    const hits = attack.hits || [attack];
+    const sheet = this.enemyAttackSheet(enemy, attack, hits.length);
+    for (let k = 0; k < hits.length; k++) {
       if (target.hp <= 0 || enemy.hp <= 0) break;
-      const result = await this.enemyHit(enemy, target, hit, attack.id);
+      const result = await this.enemyHit(enemy, target, hits[k], sheet, k);
       if (result === 'CANCEL') break;
     }
+    if (sheet) await sheet.finish();
     this.tapHint.setVisible(false);
     this.brace = null;
   }
@@ -636,7 +655,8 @@ export default class BattleScene extends Phaser.Scene {
   // scene runs slowed down (ring, windows and animations alike).
   // An app switch mid-telegraph (INTERRUPTED) drops the attack back to idle
   // and, after "Tap to continue", runs the whole telegraph again.
-  async enemyHit(enemy, target, hit, attackId) {
+  // sheet = enemyAttackSheet(...) or null (lunge rig); k = the hit's index.
+  async enemyHit(enemy, target, hit, sheet, k) {
     let ring;
     let result;
     let attackDone;
@@ -657,7 +677,8 @@ export default class BattleScene extends Phaser.Scene {
       const watched = this.nalaWatch(enemy, ring);
 
       const abort = { aborted: false };
-      attackDone = this.playEnemyAttack(enemy, attackId, ring.impactAt, abort);
+      const feintPauseMs = hit.feint ? hit.feint.pauseMs / slow : 0;
+      attackDone = sheet ? sheet.strike(k, ring.impactAt, abort, feintPauseMs) : this.playLungeTelegraph(enemy, ring.impactAt, abort);
 
       ({ result } = await ring.promise);
       if (watched) this.nalaStopWatching();
@@ -666,12 +687,14 @@ export default class BattleScene extends Phaser.Scene {
 
       if (result === 'INTERRUPTED') {
         abort.aborted = true;
+        sheet?.abort();
         await this.resumeGate;
         await attackDone;
         continue;
       }
       if (result === 'CANCEL') {
         abort.aborted = true;
+        sheet?.abort();
         await attackDone;
         return 'CANCEL';
       }
@@ -702,30 +725,63 @@ export default class BattleScene extends Phaser.Scene {
     this.tapHint.setVisible(!on);
   }
 
-  // Sheet: plays up to windupFrame, holds, resumes so the first impact frame
-  // lands at impactAt (a performance.now() time). The attack's own sheet
-  // (e.g. blank_punch) wins over the generic attack sheet.
-  // Rig: leans back (windupPx), then lunges.
-  // abort.aborted (set when the attack is cancelled) drops the attack back to idle.
-  playEnemyAttack(enemy, attackId, impactAt, abort) {
-    const name = hasSheet(enemy.anims, attackId) ? attackId : 'attack';
-    if (!hasSheet(enemy.anims, name)) return this.playLungeTelegraph(enemy, impactAt, abort);
-
+  // The attack's sheet: its own (attack.anim, else e.g. blank_punch), else the
+  // generic attack sheet; null = the lunge rig. strike(k) holds the windup
+  // (hit 0) or the frame after the previous impact (hit k), then releases so
+  // impact frame k lands on the ring's impact time. A holdFrame between them
+  // (Redact's feint) pauses there for the ring's feint pause. With fewer
+  // impact frames than hits, the sheet replays for every hit.
+  // abort() drops the attack (Nala, app switch); finish() plays out to idle.
+  enemyAttackSheet(enemy, attack, hitCount) {
+    const name = [attack.anim, attack.id, 'attack'].find((n) => n && hasSheet(enemy.anims, n));
+    if (!name) return null;
     const def = enemy.anims[name];
+    const impacts = def.impactFrames?.length ? [...def.impactFrames].sort((a, b) => a - b) : [def.frames - 1];
+    const perHit = impacts.length < hitCount;
     const durations = def.durations_ms || [];
-    const windup = def.windupFrame ?? 0;
-    const impact = def.impactFrames?.length ? def.impactFrames[0] : def.frames;
-    const leadMs = durations.slice(windup, impact).reduce((sum, ms) => sum + ms, 0) / (this.timeScale || 1);
+    const span = (from, to) => durations.slice(from, to).reduce((sum, ms) => sum + ms, 0);
+    let driver = null;
 
-    return playOnce(enemy.body, enemy.type, name, { ...def, holdFrame: windup }, {
-      onHold: (resume) =>
-        this.atRealTime(impactAt - leadMs, () => (abort.aborted ? enemy.body.anims.stop() : resume()), () => abort.aborted),
-    }).then(() => {
-      if (enemy.hp > 0) enemy.body.play(animKey(enemy.type, 'idle'));
-    });
+    return {
+      strike: async (k, impactAt, abort, feintPauseMs) => {
+        const i = perHit ? 0 : Math.min(k, impacts.length - 1);
+        if (driver && (perHit || driver.ended)) {
+          driver.stop();
+          driver = null;
+        }
+        if (!driver) driver = new SheetDriver(enemy.body, enemy.type, name, def);
+        const d = driver;
+        const impact = impacts[i];
+        const holdAt = i === 0 ? Math.min(def.windupFrame ?? 0, impact) : Math.min(impacts[i - 1] + 1, impact);
+        await d.runTo(holdAt);
+        if (holdAt === def.windupFrame) trace(`windup:${d.key}`);
+        const feintAt = feintPauseMs && def.holdFrame > holdAt && def.holdFrame < impact ? def.holdFrame : null;
+        const lead = span(holdAt, impact) / (this.timeScale || 1) + (feintAt !== null ? feintPauseMs : 0);
+        await new Promise((resolve) => this.atRealTime(impactAt - lead, resolve, () => abort.aborted));
+        if (abort.aborted) return;
+        if (feintAt !== null) {
+          await d.runTo(feintAt);
+          trace(`hold:${d.key}`);
+          await new Promise((resolve) => this.atRealTime(performance.now() + feintPauseMs, resolve, () => abort.aborted));
+          if (abort.aborted) return;
+        }
+        await d.runTo(impact);
+        trace(`impact:${d.key}`);
+      },
+      abort: () => driver?.stop(),
+      finish: async () => {
+        if (!driver) return;
+        const { key } = driver;
+        await driver.finish();
+        const current = enemy.body.anims.currentAnim?.key;
+        // A hurt/death that replaced the attack takes care of itself.
+        if (enemy.hp > 0 && !enemy.charge && (!enemy.body.anims.isPlaying || current === key)) playLoop(enemy.body, enemy.type, 'idle');
+      },
+    };
   }
 
   playLungeTelegraph(enemy, impactAt, abort) {
+    trace(`fallback:lunge:${enemy.type}`);
     const lunge = enemy.def.attack?.distance !== undefined ? enemy.def.attack : FALLBACK_LUNGE;
     const dir = enemy.facing === 'right' ? 1 : -1;
     const restX = enemy.restX;
@@ -832,7 +888,10 @@ export default class BattleScene extends Phaser.Scene {
       .text(enemy.container.x, enemy.label.y - enemy.label.height + c.counterOffsetY, '', { fontFamily: ui.font, fontSize: `${c.counterFontSize}px`, color: c.counterColor })
       .setOrigin(0.5, 1)
       .setDepth(layout.labelDepth);
-    enemy.charge = { attack, turnsLeft: attack.chargeTurns, dealt: 0, glow, glowTween, counter };
+    // The charge sheet (archive_charge: _in -> loop -> _out) if there is one.
+    const loop = attack.chargeAnim && hasSheet(enemy.anims, attack.chargeAnim) ? this.loopWithInOut(enemy, attack.chargeAnim) : null;
+    if (!loop) trace(`fallback:charge:${enemy.type}`);
+    enemy.charge = { attack, turnsLeft: attack.chargeTurns, dealt: 0, glow, glowTween, counter, loop };
     this.updateChargeCounter(enemy);
     Fx.popText(this, enemy.container.x, enemy.container.y, c.startText, c.textColor, qte.text);
   }
@@ -851,17 +910,22 @@ export default class BattleScene extends Phaser.Scene {
     this.updateChargeCounter(enemy);
     if (ch.dealt >= ch.attack.interruptDmg || enemy.hp <= 0) {
       if (enemy.hp > 0) Fx.popText(this, enemy.container.x, enemy.container.y, battleEvents.charge.interruptText, battleEvents.charge.textColor, qte.text);
-      this.endCharge(enemy);
+      this.endCharge(enemy, true);
     }
   }
 
-  endCharge(enemy) {
+  // Resolves once the charge sheet's _out has played. interrupted = back to
+  // idle afterwards (when firing, the release attack takes over instead).
+  async endCharge(enemy, interrupted = false) {
     const ch = enemy.charge;
     if (!ch) return;
     ch.glowTween.stop();
     ch.glow.destroy();
     ch.counter.destroy();
     enemy.charge = null;
+    if (!ch.loop) return;
+    await ch.loop.stop();
+    if (interrupted && enemy.hp > 0 && !enemy.body.anims.isPlaying) playLoop(enemy.body, enemy.type, 'idle');
   }
 
   // ---------- Recollection (ultimate) ----------
@@ -945,15 +1009,32 @@ export default class BattleScene extends Phaser.Scene {
 
   // Loops the cast sheet (cast_in first) until stop(); cast_out on stop.
   playCastLoop(hero) {
-    if (!hasSheet(hero.anims, 'cast')) return { stop: () => {} };
-    const loop = () => hero.body.play(animKey(hero.type, 'cast'));
-    if (hasSheet(hero.anims, 'cast_in')) playOnce(hero.body, hero.type, 'cast_in', hero.anims.cast_in).then(loop);
-    else loop();
+    if (!hasSheet(hero.anims, 'cast')) {
+      trace(`fallback:cast:${hero.type}`);
+      return { stop: () => {} };
+    }
+    const loop = this.loopWithInOut(hero, 'cast');
+    return { stop: () => loop.stop().then(() => hero.hp > 0 && playLoop(hero.body, hero.type, 'idle')) };
+  }
+
+  // <name>_in (if any) -> <name> looping, until stop(); stop() plays
+  // <name>_out (if any) and resolves when it's done. Something else taking
+  // over the sprite in between (hurt, death) just ends the loop.
+  loopWithInOut(entity, name) {
+    const loopKey = animKey(entity.type, name);
+    let stopped = false;
+    const intro = hasSheet(entity.anims, `${name}_in`) ? playOnce(entity.body, entity.type, `${name}_in`, entity.anims[`${name}_in`]) : Promise.resolve();
+    const started = intro.then(() => {
+      if (!stopped && entity.hp > 0) playLoop(entity.body, entity.type, name);
+    });
     return {
-      stop: () => {
-        const idle = () => hero.hp > 0 && hero.body.play(animKey(hero.type, 'idle'));
-        if (hasSheet(hero.anims, 'cast_out')) playOnce(hero.body, hero.type, 'cast_out', hero.anims.cast_out).then(idle);
-        else idle();
+      stop: async () => {
+        stopped = true;
+        await started;
+        const current = entity.body.anims.currentAnim?.key;
+        if (entity.hp <= 0 || (current !== loopKey && current !== animKey(entity.type, `${name}_in`))) return;
+        if (hasSheet(entity.anims, `${name}_out`)) await playOnce(entity.body, entity.type, `${name}_out`, entity.anims[`${name}_out`]);
+        else entity.body.anims.stop();
       },
     };
   }
@@ -988,7 +1069,11 @@ export default class BattleScene extends Phaser.Scene {
     const storyMult = this.registry.get('settings')?.storyMode ? qte.storyMode.damageMult : 1;
     const braceMult = this.brace ? this.brace.damageMult : 1;
     const dmg = Math.round(baseDmg * cfg.damageMult * storyMult * braceMult);
-    if (dmg > 0) this.applyHit(hero, dmg);
+    // Reactions (ART_BRIEF): PERFECT -> parry (the counter), GOOD -> dodge,
+    // MISS -> hurt, each only if the character has that sheet.
+    const dodge = result === 'GOOD' && hero.hp > 0 && hasSheet(hero.anims, 'dodge');
+    if (dmg > 0) this.applyHit(hero, dmg, undefined, { react: !dodge });
+    if (dodge && hero.hp > 0) this.playReaction(hero, 'dodge');
     if (dmg > 0 && this.brace) Fx.popText(this, x, y + qte.text.riseY, this.brace.blockText, this.brace.color, qte.text);
     if (cfg.knockback && hero.hp > 0) Fx.knockback(this, hero.container, hero.facing === 'right' ? -cfg.knockback : cfg.knockback);
 
@@ -1013,6 +1098,7 @@ export default class BattleScene extends Phaser.Scene {
       if (enemy.hp > 0) this.applyHit(enemy, dmg);
     };
     if (!hasSheet(hero.anims, 'parry')) {
+      trace(`fallback:parry:${hero.type}`);
       counter();
       return;
     }
@@ -1072,20 +1158,32 @@ export default class BattleScene extends Phaser.Scene {
     if (hero.hp > 0) hero.body.play(animKey(hero.type, 'idle'));
   }
 
-  // One bolt from the hero to the target: the projectile sheet if there is
-  // one, otherwise a small teal square.
+  // One bolt from the hero to the target: the blast sheet's projectile sheet
+  // (starting at its spawn_px) if there is one, otherwise a small teal square
+  // from the hero's centre.
   fireBolt(hero, target, tech) {
-    const fromX = hero.container.x;
-    const fromY = hero.container.y;
-    const projectileKey = animKey(hero.type, 'blast_projectile');
-    const hasProjectile = hasSheet(hero.anims, 'blast_projectile');
+    const blast = hasSheet(hero.anims, 'blast') ? hero.anims.blast : null;
+    const projectile = blast?.projectile || 'blast_projectile';
+    const hasProjectile = hasSheet(hero.anims, projectile);
+    const [fromX, fromY] = this.spawnPoint(hero, blast?.spawn_px);
+    if (!hasProjectile) trace(`fallback:projectile:${hero.type}`);
     const bolt = hasProjectile
-      ? this.add.sprite(fromX, fromY, projectileKey).play(projectileKey)
+      ? playLoop(this.add.sprite(fromX, fromY, animKey(hero.type, projectile)), hero.type, projectile)
       : this.add.rectangle(fromX, fromY, tech.boltSize, tech.boltSize, Number(tech.boltColor));
     bolt.setDepth(ui.battleLayout.labelDepth);
     // The projectile sheet faces left like every sheet; heroes fire to the right.
     if (hasProjectile) bolt.setFlipX(true);
     return this.tweenPromise(bolt, { x: target.container.x, y: target.container.y }, tech.boltFlightMs).then(() => bolt.destroy());
+  }
+
+  // spawn_px is in the (left-facing) sheet frame; a flipped sprite mirrors it.
+  spawnPoint(entity, spawnPx) {
+    const { x, y } = entity.container;
+    const size = this.animationSets[entity.type]?.frame_size;
+    if (!spawnPx || !size) return [x, y];
+    const flipped = entity.container.scaleX < 0;
+    const dx = spawnPx[0] - size[0] / 2;
+    return [x + (flipped ? -dx : dx), y + spawnPx[1] - size[1] / 2];
   }
 
   // Return to Sender: the hero holds a guard (the ability sheet's holdFrame)
@@ -1141,45 +1239,60 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   // Anchor: heals the hero who needs it most — a downed ally first (if the
-  // technique can revive), then the lowest HP share.
+  // technique can revive), then the lowest HP share. The heal lands on the
+  // move's impact frame.
   async playHeal(hero, tech) {
     const candidates = this.heroes.filter((h) => h.hp > 0 || tech.canRevive);
     const target = candidates.sort((a, b) => (a.hp > 0) - (b.hp > 0) || a.hp / a.maxHp - b.hp / b.maxHp)[0];
     if (!target) return;
 
-    await this.playCast(hero);
-    const amount = Math.min(tech.amount, target.maxHp - target.hp);
-    if (target.hp <= 0) this.revive(target, Math.min(target.maxHp, tech.amount));
-    else target.hp += amount;
-    Fx.damageNumber(this, target.container.x, target.container.y - 80, `${ui.heal.textPrefix}${Math.min(tech.amount, target.maxHp)}`, tech.color);
-    this.refreshHud();
+    await this.playMove(hero, tech.anims || ['cast'], () => {
+      const amount = Math.min(tech.amount, target.maxHp - target.hp);
+      if (target.hp <= 0) this.revive(target, Math.min(target.maxHp, tech.amount));
+      else target.hp += amount;
+      Fx.damageNumber(this, target.container.x, target.container.y - 80, `${ui.heal.textPrefix}${Math.min(tech.amount, target.maxHp)}`, tech.color);
+      this.refreshHud();
+    });
   }
 
   // Brace: the whole party takes reduced damage from the next enemy attack.
   async playBrace(hero, tech) {
-    await this.playCast(hero);
-    this.brace = tech;
-    for (const h of this.heroes.filter((x) => x.hp > 0)) {
-      Fx.popText(this, h.container.x, h.container.y, tech.castText, tech.color, qte.text);
-    }
+    await this.playMove(hero, tech.anims || ['cast'], () => {
+      this.brace = tech;
+      for (const h of this.heroes.filter((x) => x.hp > 0)) {
+        Fx.popText(this, h.container.x, h.container.y, tech.castText, tech.color, qte.text);
+      }
+    });
   }
 
-  // A support move's body language: the cast sheet (in → loop once → out)
-  // if the character has one, otherwise a short hop.
-  async playCast(hero) {
-    if (hasSheet(hero.anims, 'cast')) {
-      if (hasSheet(hero.anims, 'cast_in')) await playOnce(hero.body, hero.type, 'cast_in', hero.anims.cast_in);
-      await new Promise((resolve) => {
-        hero.body.play(animKey(hero.type, 'cast'));
-        hero.body.once('animationrepeat', resolve);
-      });
-      if (hasSheet(hero.anims, 'cast_out')) await playOnce(hero.body, hero.type, 'cast_out', hero.anims.cast_out);
-      if (hero.hp > 0) hero.body.play(animKey(hero.type, 'idle'));
+  // A support move's body language: the first of `names` the character has a
+  // sheet for. A looping sheet plays _in -> one loop -> _out; a one-shot sheet
+  // plays once. onImpact fires on its first impact frame (or when the loop
+  // finishes / at the end). Without any sheet: a short hop, then onImpact.
+  async playMove(hero, names, onImpact) {
+    const name = names.find((n) => hasSheet(hero.anims, n));
+    if (!name) {
+      trace(`fallback:move:${hero.type}_${names[0]}`);
+      const y = hero.container.y;
+      await this.tweenPromise(hero.container, { y: y - ui.cast.hopPx }, ui.cast.hopMs, 'Quad.easeOut');
+      await this.tweenPromise(hero.container, { y }, ui.cast.hopMs, 'Quad.easeIn');
+      onImpact();
       return;
     }
-    const y = hero.container.y;
-    await this.tweenPromise(hero.container, { y: y - ui.cast.hopPx }, ui.cast.hopMs, 'Quad.easeOut');
-    await this.tweenPromise(hero.container, { y }, ui.cast.hopMs, 'Quad.easeIn');
+
+    const def = hero.anims[name];
+    if (def.loop) {
+      if (hasSheet(hero.anims, `${name}_in`)) await playOnce(hero.body, hero.type, `${name}_in`, hero.anims[`${name}_in`]);
+      await new Promise((resolve) => {
+        playLoop(hero.body, hero.type, name);
+        hero.body.once('animationrepeat', resolve);
+      });
+      onImpact();
+      if (hasSheet(hero.anims, `${name}_out`)) await playOnce(hero.body, hero.type, `${name}_out`, hero.anims[`${name}_out`]);
+    } else {
+      await playOnce(hero.body, hero.type, name, def, { onImpact: (i) => i === 0 && onImpact() });
+    }
+    if (hero.hp > 0) playLoop(hero.body, hero.type, 'idle');
   }
 
   wait(ms) {
@@ -1214,6 +1327,7 @@ export default class BattleScene extends Phaser.Scene {
       return;
     }
 
+    trace(`fallback:attack:${entity.type}`);
     if (entity.def.parts && Object.keys(entity.parts).length > 0) {
       await this.playRigAttack(entity);
     } else {
@@ -1278,7 +1392,8 @@ export default class BattleScene extends Phaser.Scene {
     });
   }
 
-  applyHit(target, dmg, color) {
+  // react: false = the caller plays its own reaction instead of hurt.
+  applyHit(target, dmg, color, { react = true } = {}) {
     const images = [target.body, ...Object.values(target.parts).map((p) => p.img)];
     Fx.flash(this, images, 60);
     Fx.shake(this, 2, 80);
@@ -1294,7 +1409,7 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     if (target.hp <= 0) this.markDown(target);
-    else this.playHurt(target);
+    else if (react) this.playHurt(target);
   }
 
   tweenPromise(target, props, duration, ease = 'Linear') {
@@ -1314,7 +1429,8 @@ export default class BattleScene extends Phaser.Scene {
     // Heroes still standing celebrate if they have a victory sheet (last frame held).
     if (result === 'WIN') {
       for (const hero of this.heroes) {
-        if (hero.hp > 0 && hasSheet(hero.anims, 'victory')) hero.body.play(animKey(hero.type, 'victory'));
+        if (hero.hp > 0 && hasSheet(hero.anims, 'victory')) playOnce(hero.body, hero.type, 'victory', hero.anims.victory);
+        else if (hero.hp > 0) trace(`fallback:victory:${hero.type}`);
       }
     }
 

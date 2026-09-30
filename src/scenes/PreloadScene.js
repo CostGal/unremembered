@@ -3,6 +3,8 @@ import characters from '../data/characters.json';
 import allies from '../data/allies.json';
 import enemies from '../data/enemies.json';
 import { queueSheets, buildAnimations } from '../systems/SpriteAnims.js';
+import { applyFakeSheets } from '../systems/FakeSheets.js';
+import animSpecs from '../data/animSpecs.json';
 import { isAnimTest } from './AnimTestScene.js';
 import { devBattleId } from './BattleScene.js';
 import chapter1 from '../data/chapter1.json';
@@ -46,7 +48,14 @@ export default class PreloadScene extends Phaser.Scene {
       if (this.textures.get(key).getSourceImage() instanceof HTMLImageElement) keyOutColor(this, key, PORTRAIT_KEY_RGB);
     }
 
-    buildAnimations(this, this.animationSets, { ...characters, ...enemies, ...allies });
+    const bodyDefs = { ...characters, ...enemies, ...allies };
+    // ?fakesheets=1: stand-in sheets for every animation that has no file yet.
+    if (devParam('fakesheets') === '1') {
+      const facesRight = new Set([...Object.keys(characters), ...Object.keys(allies)]);
+      applyFakeSheets(this, this.animationSets, animSpecs, bodyDefs, this.manifest, facesRight);
+      this.registry.set('animationSets', this.animationSets);
+    }
+    buildAnimations(this, this.animationSets, bodyDefs);
 
     const battleId = devBattleId();
     if (isAnimTest()) this.scene.start('AnimTest');

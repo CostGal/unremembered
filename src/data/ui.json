@@ -93,6 +93,7 @@
     "battle": "b1_tutorial",
     "spriteX": 180,
     "spriteY": 300,
+    "feetGap": 4,
     "holdMs": 700,
     "replayMs": 900,
     "impactFlashMs": 150,

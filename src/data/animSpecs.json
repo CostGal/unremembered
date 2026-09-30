@@ -1,0 +1,91 @@
+{
+  "_about": "Expected animation set per character (docs/ART_BRIEF.md). Only used by ?fakesheets=1 to generate in-memory stand-in sheets for anims with no real file. Real sheets + <id>_animations.json always win. ms = per-frame duration (windup/hold frames get holdMs).",
+  "fake": {
+    "ms": 90,
+    "loopMs": 160,
+    "holdMs": 140,
+    "colors": { "plain": "#2e3a55", "windup": "#e0a040", "impact": "#d8505a", "hold": "#3fd0c9", "text": "#f1efe8" },
+    "bodyAlpha": 0.45
+  },
+  "characters": {
+    "rhea": {
+      "frame_size": [128, 128],
+      "animations": {
+        "idle": { "frames": 8, "loop": true },
+        "attack": { "frames": 12, "windupFrame": 3, "impactFrames": [6] },
+        "blast": { "frames": 10, "holdFrame": 4, "projectile": "blast_projectile", "spawn_px": [0, 57] },
+        "blast_projectile": { "frames": 4, "frame_size": [48, 48], "loop": true },
+        "ability": { "frames": 10, "holdFrame": 3, "impactFrames": [5] },
+        "cast_in": { "frames": 4 },
+        "cast": { "frames": 8, "loop": true },
+        "cast_out": { "frames": 4 },
+        "hurt": { "frames": 8 },
+        "dodge": { "frames": 8 },
+        "parry": { "frames": 8, "impactFrames": [4] },
+        "death": { "frames": 10, "holdLastFrame": true },
+        "victory": { "frames": 8, "holdLastFrame": true }
+      }
+    },
+    "dov": {
+      "frame_size": [128, 128],
+      "animations": {
+        "idle": { "frames": 4, "loop": true },
+        "attack": { "frames": 8, "windupFrame": 2, "impactFrames": [4] },
+        "cast_in": { "frames": 4 },
+        "cast": { "frames": 8, "loop": true },
+        "cast_out": { "frames": 4 },
+        "brace": { "frames": 8, "impactFrames": [4] },
+        "hurt": { "frames": 6 },
+        "dodge": { "frames": 8 },
+        "parry": { "frames": 8, "impactFrames": [4] },
+        "death": { "frames": 10, "holdLastFrame": true },
+        "victory": { "frames": 8, "holdLastFrame": true }
+      }
+    },
+    "blank": {
+      "frame_size": [128, 128],
+      "animations": {
+        "idle": { "frames": 6, "loop": true },
+        "punch": { "frames": 8, "windupFrame": 3, "impactFrames": [5] },
+        "lunge": { "frames": 7, "windupFrame": 2, "impactFrames": [4] },
+        "hurt": { "frames": 5 },
+        "death": { "frames": 10, "holdLastFrame": true }
+      }
+    },
+    "hollow": {
+      "frame_size": [128, 128],
+      "animations": {
+        "idle": { "frames": 6, "loop": true },
+        "claw": { "frames": 8, "windupFrame": 3, "impactFrames": [5] },
+        "siphon": { "frames": 10, "windupFrame": 4, "impactFrames": [6] },
+        "hurt": { "frames": 5 },
+        "death": { "frames": 10, "holdLastFrame": true }
+      }
+    },
+    "clerk": {
+      "frame_size": [256, 256],
+      "animations": {
+        "idle": { "frames": 6, "loop": true },
+        "stamp": { "frames": 10, "windupFrame": 4, "impactFrames": [6] },
+        "file_away": { "frames": 12, "windupFrame": 2, "impactFrames": [4, 8] },
+        "redact": { "frames": 12, "windupFrame": 3, "holdFrame": 7, "impactFrames": [9] },
+        "archive_charge_in": { "frames": 4 },
+        "archive_charge": { "frames": 6, "loop": true },
+        "archive_charge_out": { "frames": 4 },
+        "archive_release": { "frames": 10, "windupFrame": 3, "impactFrames": [6] },
+        "hurt": { "frames": 6 },
+        "parry": { "frames": 8, "impactFrames": [4] },
+        "dodge": { "frames": 8 },
+        "death": { "frames": 12, "holdLastFrame": true }
+      }
+    },
+    "nala": {
+      "frame_size": [64, 64],
+      "animations": {
+        "idle": { "frames": 8, "loop": true },
+        "alert": { "frames": 4, "loop": true },
+        "hiss": { "frames": 6, "impactFrames": [3] }
+      }
+    }
+  }
+}

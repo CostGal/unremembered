@@ -30,7 +30,7 @@ export async function loadPlaywright() {
 // Vite dev server on a free port (dev build: window.__game / __battle exist).
 export async function startServer() {
   const { createServer } = await import('vite');
-  const server = await createServer({ root, logLevel: 'error', server: { port: 0, host: '127.0.0.1' } });
+  const server = await createServer({ root, logLevel: 'error', server: { port: 0, host: '127.0.0.1', hmr: false, watch: null } });
   await server.listen();
   const url = server.resolvedUrls.local[0];
   return { url, close: () => server.close() };

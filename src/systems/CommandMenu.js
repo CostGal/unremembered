@@ -30,6 +30,8 @@ export default class CommandMenu {
 
     return new Promise((resolve) => {
       this.pending = resolve;
+      // What's on screen (read by the headless playtest bot).
+      this.items = items;
       this.buttons = items.map((item) => this.makeButton(item, () => this.choose(item.value)));
     });
   }
@@ -43,6 +45,7 @@ export default class CommandMenu {
 
   hide() {
     this.pending = null;
+    this.items = [];
     for (const b of this.buttons) {
       if (b.pulse) b.pulse.stop();
       b.container.destroy();

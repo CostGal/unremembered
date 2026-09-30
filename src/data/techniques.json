@@ -31,6 +31,7 @@
     "name": "Anchor",
     "cost": 3,
     "type": "heal",
+    "anims": ["cast"],
     "amount": 25,
     "canRevive": true,
     "color": "#e0a040"
@@ -39,6 +40,7 @@
     "name": "Brace",
     "cost": 2,
     "type": "brace",
+    "anims": ["brace", "cast"],
     "damageMult": 0.5,
     "castText": "Brace!",
     "blockText": "Braced",

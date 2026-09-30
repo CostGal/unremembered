@@ -61,6 +61,8 @@
           },
           {
             "id": "archive",
+            "anim": "archive_release",
+            "chargeAnim": "archive_charge",
             "weight": 1,
             "chargeTurns": 2,
             "interruptDmg": 40,

@@ -1,12 +1,16 @@
 import Phaser from 'phaser';
 import battles from '../data/battles.json';
+import enemies from '../data/enemies.json';
 import ui from '../data/ui.json';
 import * as Fx from '../systems/Fx.js';
 import { animKey, playOnce } from '../systems/SpriteAnims.js';
+import { devParam } from '../systems/DevParams.js';
 
 const cfg = ui.animtest;
 
-// ?animtest=1 — not linked from anywhere, works in the production build.
+// ?animtest=1[&char=<id>] — not linked from anywhere, works in the production
+// build. char = any characters/enemies/allies key (default ui.animtest.character);
+// add &fakesheets=1 to preview stand-ins for sheets that don't exist yet.
 export function isAnimTest() {
   try {
     return new URLSearchParams(window.location.search).get('animtest') === '1';
@@ -24,7 +28,7 @@ export default class AnimTestScene extends Phaser.Scene {
   }
 
   create() {
-    this.id = cfg.character;
+    this.id = devParam('char') || cfg.character;
     this.set = (this.registry.get('animationSets') || {})[this.id];
     this.token = 0;
     this.index = -1;
@@ -37,13 +41,16 @@ export default class AnimTestScene extends Phaser.Scene {
       this.add.text(180, y, '', { fontFamily: ui.font, fontSize: `${size}px`, color }).setOrigin(0.5, 0);
 
     if (!this.set) {
-      text(cfg.title.y, cfg.title.fontSize).setText(cfg.missingText);
+      text(cfg.title.y, cfg.title.fontSize).setText(`${this.id}: ${cfg.missingText}`);
       return;
     }
 
     this.entries = Object.entries(this.set.animations).map(([name, def]) => ({ name, def }));
 
-    this.sprite = this.add.sprite(cfg.spriteX, cfg.spriteY, animKey(this.id, this.entries[0].name));
+    // Feet just above the panel, whatever the frame size (Clerk 256, Nala 64).
+    const frameH = this.set.frame_size?.[1] || 128;
+    const spriteY = Math.min(cfg.spriteY, cfg.panel.y - frameH / 2 - cfg.feetGap);
+    this.sprite = this.add.sprite(cfg.spriteX, spriteY, animKey(this.id, this.entries[0].name));
     this.banner = this.add
       .text(cfg.spriteX, cfg.banner.y, '', {
         fontFamily: ui.font,
@@ -99,9 +106,11 @@ export default class AnimTestScene extends Phaser.Scene {
     // stop() (not just play()) so a paused hold releases its playOnce listeners.
     this.sprite.anims.stop();
 
-    // FX sheets (own frame_size) are not the character: shown unflipped.
+    // Shown facing the way they do in battle: heroes/allies right, enemies
+    // left. FX sheets (own frame_size) are not the character: shown unflipped.
     const isFx = !!def.frame_size;
-    const flip = !isFx && (this.set.facing || 'left') !== 'right';
+    const wantFaces = enemies[this.id] ? 'left' : 'right';
+    const flip = !isFx && (this.set.facing || 'left') !== wantFaces;
     this.sprite.setScale(flip ? -1 : 1, 1);
 
     this.buildStrip(def);
@@ -149,6 +158,7 @@ export default class AnimTestScene extends Phaser.Scene {
   markerSummary(def) {
     if (def.placeholder) return 'PLACEHOLDER: sheet missing';
     const parts = [`${def.frames}f`, def.loop ? 'loop' : 'once'];
+    if (def.fake) parts.unshift('FAKE');
     if (def.windupFrame !== undefined) parts.push(`windup ${def.windupFrame}`);
     if (def.impactFrames) parts.push(`impact [${def.impactFrames.join(',')}]`);
     if (def.holdFrame !== undefined) parts.push(`hold ${def.holdFrame}`);
