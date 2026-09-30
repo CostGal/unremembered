@@ -1,0 +1,29 @@
+{
+  "music": {
+    "dir": "assets/audio/music/",
+    "ext": ".mp3",
+    "crossfadeMs": 500,
+    "scenes": { "Menu": "title", "Cutscene": "cutscene", "Dialogue": "cutscene", "End": "ending" }
+  },
+  "sfx": {
+    "hit": [
+      { "type": "noise", "ms": 90, "gain": 0.35, "filterHz": 1800 },
+      { "type": "osc", "wave": "square", "from": 180, "to": 60, "ms": 90, "gain": 0.15 }
+    ],
+    "perfect": [
+      { "type": "osc", "wave": "triangle", "from": 880, "to": 1760, "ms": 120, "gain": 0.3 },
+      { "type": "osc", "wave": "sine", "from": 1320, "to": 1320, "ms": 240, "gain": 0.2, "delayMs": 60 }
+    ],
+    "good": [{ "type": "osc", "wave": "triangle", "from": 660, "to": 880, "ms": 110, "gain": 0.25 }],
+    "miss": [
+      { "type": "osc", "wave": "sawtooth", "from": 220, "to": 90, "ms": 180, "gain": 0.15 },
+      { "type": "noise", "ms": 120, "gain": 0.2, "filterHz": 800 }
+    ],
+    "menu": [{ "type": "osc", "wave": "square", "from": 520, "to": 520, "ms": 40, "gain": 0.08 }],
+    "echo": [{ "type": "osc", "wave": "sine", "from": 990, "to": 1480, "ms": 90, "gain": 0.12 }],
+    "ultimate": [
+      { "type": "osc", "wave": "sine", "from": 220, "to": 880, "ms": 700, "gain": 0.3 },
+      { "type": "osc", "wave": "triangle", "from": 330, "to": 1320, "ms": 700, "gain": 0.15, "delayMs": 80 }
+    ]
+  }
+}

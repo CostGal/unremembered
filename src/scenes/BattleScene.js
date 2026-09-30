@@ -8,6 +8,7 @@ import battleEvents from '../data/battleEvents.json';
 import qte from '../data/qte.json';
 import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
+import { playMusic, playSfx } from '../systems/Audio.js';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
 import CommandMenu from '../systems/CommandMenu.js';
@@ -54,6 +55,7 @@ export default class BattleScene extends Phaser.Scene {
     this.manifest = this.registry.get('manifest');
     this.animationSets = this.registry.get('animationSets') || {};
     this.battleOver = false;
+    playMusic(this.battleDef.music || null);
     this.tutorialSlow = !!this.battleDef.tutorial;
     this.pendingEvents = [];
     this.timeScale = 1;
@@ -827,6 +829,7 @@ export default class BattleScene extends Phaser.Scene {
       this.tweens.add({ targets: memoryBg, alpha: 1, duration: r.tint.fadeMs });
     }
     Fx.popText(this, hero.container.x, hero.container.y, tech.name, r.textColor, qte.text);
+    playSfx('ultimate');
     const castDone = this.playCastLoop(hero);
     await this.wait(r.tint.fadeMs);
 
@@ -858,6 +861,7 @@ export default class BattleScene extends Phaser.Scene {
     const r = qte.recollection;
     const cfg = qte.results[result];
     const dmg = tech.dmg[result.toLowerCase()];
+    playSfx(result.toLowerCase());
     Fx.popText(this, target.container.x, target.container.y, cfg.text || result, result === 'MISS' ? r.missColor : r.textColor, qte.text);
     if (result === 'PERFECT') {
       Fx.sparks(this, target.container.x, target.container.y, cfg.sparks, { ...qte.sparks, color: r.ringColor }, qte.ring.depth);
@@ -903,6 +907,7 @@ export default class BattleScene extends Phaser.Scene {
 
     if (cfg.text) Fx.popText(this, x, y, cfg.text, cfg.color, qte.text);
     if (cfg.flash) Fx.screenFlash(this, cfg.flash, qte.flashDepth);
+    playSfx(result.toLowerCase());
     this.gainEcho(cfg.echo);
     // e.g. Siphon: a missed parry also drains Echo.
     if (result === 'MISS' && hit.onMiss?.echo) this.gainEcho(hit.onMiss.echo);
@@ -944,6 +949,7 @@ export default class BattleScene extends Phaser.Scene {
 
   gainEcho(amount) {
     if (!amount) return;
+    if (amount > 0) playSfx('echo');
     this.echo = Phaser.Math.Clamp(this.echo + amount, 0, ui.hud.echo.max);
     this.refreshHud();
   }
@@ -1202,6 +1208,7 @@ export default class BattleScene extends Phaser.Scene {
     Fx.flash(this, images, 60);
     Fx.shake(this, 2, 80);
     Fx.damageNumber(this, target.container.x, target.container.y - 80, dmg, color);
+    playSfx('hit');
 
     target.hp = Math.max(0, target.hp - dmg);
     this.updateLabel(target);

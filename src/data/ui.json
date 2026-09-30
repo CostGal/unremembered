@@ -269,5 +269,77 @@
       }
     },
     "background": "#000000"
+  },
+  "title": {
+    "logo": { "x": 180, "y": 220 },
+    "fallbackText": "UNREMEMBERED",
+    "fallbackFontSize": 34,
+    "fallbackColor": "#3fd0c9",
+    "subtitle": { "text": "A memory RPG demo", "y": 270, "fontSize": 14, "color": "#8a8fa3" },
+    "tap": {
+      "text": "Tap to start",
+      "y": 420,
+      "fontSize": 20,
+      "color": "#f1efe8",
+      "pulseAlpha": 0.35,
+      "pulseMs": 700
+    },
+    "silent": { "text": "🔈 Turn off silent mode for sound", "y": 600, "fontSize": 11, "color": "#8a8f9e" }
+  },
+  "menu": {
+    "title": { "text": "UNREMEMBERED", "y": 110, "fontSize": 30, "color": "#3fd0c9" },
+    "firstY": 230,
+    "spacing": 76,
+    "button": { "w": 280, "h": 60, "fontSize": 18 },
+    "items": [
+      { "id": "new", "label": "New Game" },
+      { "id": "chapter2", "label": "Chapter 2 🔒", "locked": true },
+      { "id": "arena", "label": "Arena 🔒", "locked": true },
+      { "id": "settings", "label": "Settings" },
+      { "id": "credits", "label": "Credits" }
+    ],
+    "lockedText": "Coming soon",
+    "lockedColor": "#e0a040"
+  },
+  "settings": {
+    "title": { "text": "Settings", "y": 90, "fontSize": 26, "color": "#f1efe8" },
+    "firstY": 210,
+    "spacing": 90,
+    "button": { "w": 300, "h": 64, "fontSize": 17 },
+    "volumeSteps": [1, 0.75, 0.5, 0.25, 0],
+    "labels": {
+      "musicVolume": "Music: {v}",
+      "sfxVolume": "Sound FX: {v}",
+      "storyMode": "Story Mode: {v}",
+      "on": "On",
+      "off": "Off",
+      "back": "Back"
+    },
+    "hint": {
+      "text": "Story Mode: wider parry timing, half damage taken.",
+      "y": 470,
+      "fontSize": 12,
+      "color": "#8a8fa3",
+      "wrap": 300
+    },
+    "backY": 560
+  },
+  "end": {
+    "title": { "y": 80, "fontSize": 28, "color": "#3fd0c9" },
+    "firstY": 150,
+    "lineH": 26,
+    "roleFontSize": 12,
+    "roleColor": "#8a8fa3",
+    "nameFontSize": 16,
+    "nameColor": "#f1efe8",
+    "hint": {
+      "text": "Tap to return to the menu",
+      "y": 600,
+      "fontSize": 14,
+      "color": "#8a8fa3",
+      "delayMs": 1500,
+      "pulseAlpha": 0.35,
+      "pulseMs": 700
+    }
   }
 }

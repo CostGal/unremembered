@@ -1,0 +1,14 @@
+{
+  "endTitle": "End of Demo",
+  "creditsTitle": "Credits",
+  "lines": [
+    { "role": "A game by", "name": "Kostas", "todo": true },
+    { "role": "Code", "name": "Kostas + Claude Code" },
+    { "role": "Sprites & animation", "name": "pixler.dev + Fable" },
+    { "role": "Illustrations", "name": "Gemini" },
+    { "role": "Music", "name": "TBD", "todo": true },
+    { "role": "Font", "name": "Pixelify Sans (SIL OFL 1.1)" },
+    { "role": "Engine", "name": "Phaser 3" },
+    { "role": "Made in one week for a game jam", "name": "Thanks for playing!" }
+  ]
+}

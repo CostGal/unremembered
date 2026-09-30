@@ -8,6 +8,13 @@
     />
     <title>Unremembered</title>
     <style>
+      @font-face {
+        font-family: 'Pixelify Sans';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('./fonts/PixelifySans-Regular-latin.woff2') format('woff2');
+      }
       html,
       body {
         margin: 0;
@@ -28,6 +35,24 @@
         align-items: center;
         justify-content: center;
       }
+      #rotate {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        background: #0b0d14;
+        color: #f1efe8;
+        font: 20px 'Pixelify Sans', monospace;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      /* Phones held sideways (short landscape screens); desktops are unaffected. */
+      @media (orientation: landscape) and (max-height: 500px) {
+        #rotate {
+          display: flex;
+        }
+      }
       canvas {
         touch-action: none;
         user-select: none;
@@ -38,6 +63,7 @@
   </head>
   <body>
     <div id="game"></div>
+    <div id="rotate">Rotate your phone</div>
     <script>
       document.addEventListener('contextmenu', (e) => e.preventDefault());
     </script>

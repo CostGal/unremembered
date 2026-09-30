@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import cutsceneOrigin from '../data/cutscene_origin.json';
 import environments from '../data/environments.json';
 import ui from '../data/ui.json';
+import { playSceneMusic } from '../systems/Audio.js';
 import * as Fx from '../systems/Fx.js';
 
 const cfg = ui.cutscene;
@@ -23,6 +24,7 @@ export default class CutsceneScene extends Phaser.Scene {
   }
 
   create() {
+    playSceneMusic('Cutscene');
     this.cameras.main.setBackgroundColor(cfg.background);
     const a = cfg.area;
     this.area = { x: 0, y: a.y, w: 360, h: a.h };

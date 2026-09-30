@@ -3,6 +3,7 @@ import manifest from '../data/assets.json';
 import characters from '../data/characters.json';
 import allies from '../data/allies.json';
 import enemies from '../data/enemies.json';
+import { setVolumes } from '../systems/Audio.js';
 import { loadSettings } from '../systems/Settings.js';
 import { fetchAnimationSets } from '../systems/SpriteAnims.js';
 
@@ -21,7 +22,9 @@ export default class BootScene extends Phaser.Scene {
 
     this.registry.set('manifest', manifest);
     this.registry.set('animationSets', animationSets);
-    this.registry.set('settings', loadSettings());
+    const settings = loadSettings();
+    this.registry.set('settings', settings);
+    setVolumes(settings);
 
     this.scene.start('Preload');
   }

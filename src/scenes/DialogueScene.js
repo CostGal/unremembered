@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import dialogue from '../data/dialogue.json';
 import environments from '../data/environments.json';
 import ui from '../data/ui.json';
+import { playSceneMusic } from '../systems/Audio.js';
 import * as Fx from '../systems/Fx.js';
 
 const cfg = ui.dialogue;
@@ -30,6 +31,7 @@ export default class DialogueScene extends Phaser.Scene {
     if (this.overlay) {
       this.add.rectangle(0, 0, 360, 640, Number(cfg.overlayDim.color), cfg.overlayDim.alpha).setOrigin(0);
     } else {
+      playSceneMusic('Dialogue');
       this.buildBackground();
     }
 
