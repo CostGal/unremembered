@@ -29,14 +29,19 @@ export default class Hud {
   }
 
   buildRow(hero, y) {
-    const { name, hpBar, hpText } = this.cfg;
+    const { name, hpBar, hpText, lowHp } = this.cfg;
+    // Low HP: a red frame around the bar that pulses (see setLow).
+    const warn = this.scene.add
+      .rectangle(hpBar.x - lowHp.pad, y, hpBar.w + lowHp.pad * 2, hpBar.h + lowHp.pad * 2, color(lowHp.color))
+      .setOrigin(0, 0.5)
+      .setAlpha(0);
     const bg = this.scene.add.rectangle(hpBar.x, y, hpBar.w, hpBar.h, color(hpBar.bgColor)).setOrigin(0, 0.5);
     const lag = this.scene.add.rectangle(hpBar.x, y, hpBar.w, hpBar.h, color(hpBar.lagColor)).setOrigin(0, 0.5);
     const fill = this.scene.add.rectangle(hpBar.x, y, hpBar.w, hpBar.h, color(hpBar.fillColor)).setOrigin(0, 0.5);
     const label = this.text(name.x, y, hero.name, name.fontSize).setOrigin(0, 0.5);
     const value = this.text(hpText.x, y, '', hpText.fontSize).setOrigin(1, 0.5);
 
-    const row = { y, bg, lag, fill, label, value, hp: hero.hp, maxHp: hero.maxHp, shown: { hp: hero.hp } };
+    const row = { y, warn, bg, lag, fill, label, value, hp: hero.hp, maxHp: hero.maxHp, shown: { hp: hero.hp }, low: false, active: false };
     this.setBarWidths(row, hero.hp);
     this.setHpText(row, hero.hp);
     return row;
@@ -70,6 +75,7 @@ export default class Hud {
     const { hpBar, rows } = this.cfg;
     const alpha = hero.hp > 0 ? 1 : rows.downedAlpha;
     for (const obj of [row.bg, row.lag, row.fill, row.label, row.value]) obj.setAlpha(alpha);
+    this.setLow(row, hero.hp > 0 && hero.hp < hero.maxHp * this.cfg.lowHp.pct);
 
     if (hero.hp === row.hp && hero.maxHp === row.maxHp) return;
     const dropped = hero.hp < row.hp;
@@ -102,6 +108,36 @@ export default class Hud {
     });
   }
 
+  // Under lowHp.pct the bar's red frame pulses and the name turns red.
+  setLow(row, low) {
+    if (low === row.low) return;
+    row.low = low;
+    const l = this.cfg.lowHp;
+    if (row.lowTween) row.lowTween.stop();
+    row.lowTween = null;
+    row.warn.setAlpha(0);
+    if (low) row.lowTween = this.scene.tweens.add({ targets: row.warn, alpha: { from: l.alphaMin, to: l.alphaMax }, duration: l.pulseMs, yoyo: true, repeat: -1 });
+    this.paintName(row);
+  }
+
+  // The hero whose turn it is gets a lit name (index -1 = nobody).
+  setActive(index) {
+    this.rows.forEach((row, i) => {
+      row.active = i === index;
+      this.paintName(row);
+    });
+  }
+
+  paintName(row) {
+    row.label.setColor(row.low ? this.cfg.lowHp.nameColor : row.active ? this.cfg.activeColor : this.cfg.textColor);
+  }
+
+  // Centre of Echo pip i (for "+N" numbers).
+  pipPosition(i) {
+    const { pip } = this.pips[Math.max(0, Math.min(this.pips.length - 1, i))];
+    return { x: pip.x, y: pip.y };
+  }
+
   barWidth(row, hp) {
     return row.maxHp > 0 ? (this.cfg.hpBar.w * Math.max(0, hp)) / row.maxHp : 0;
   }
@@ -124,12 +160,23 @@ export default class Hud {
     this.echo = next;
     this.paintPips(next);
 
-    // Pulse the pips that changed.
+    // The pips that changed pulse; gained ones fill one after another,
+    // flashing white before they settle on teal.
+    const gained = next > lo && hi === next;
     for (let i = lo; i < hi; i++) {
       const { pip } = this.pips[i];
+      const delay = gained ? (i - lo) * e.fillStaggerMs : 0;
       this.scene.tweens.killTweensOf(pip);
       pip.setScale(1);
-      this.scene.tweens.add({ targets: pip, scale: e.pulseScale, duration: e.pulseMs, yoyo: true, ease: 'Quad.easeOut' });
+      this.scene.tweens.add({ targets: pip, scale: e.pulseScale, delay, duration: e.pulseMs, yoyo: true, ease: 'Quad.easeOut' });
+      if (!gained) continue;
+      pip.setFillStyle(color(e.emptyColor)).setStrokeStyle(1, color(e.emptyStroke));
+      this.scene.time.delayedCall(delay, () => {
+        if (i < this.echo) pip.setFillStyle(color(e.flashColor)).setStrokeStyle();
+      });
+      this.scene.time.delayedCall(delay + e.pulseMs, () => {
+        if (i < this.echo) pip.setFillStyle(color(e.fullColor));
+      });
     }
 
     this.setGlow(next === e.max);

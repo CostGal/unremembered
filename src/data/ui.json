@@ -3,6 +3,8 @@
   "hud": {
     "panel": { "x": 0, "y": 360, "w": 360, "h": 80, "color": "0x12151f", "borderColor": "0x2a2e3d" },
     "textColor": "#f1efe8",
+    "activeColor": "#3fd0c9",
+    "lowHp": { "pct": 0.25, "color": "0xff4050", "pad": 2, "alphaMin": 0.15, "alphaMax": 0.9, "pulseMs": 380, "nameColor": "#ff8a80" },
     "rows": { "firstY": 374, "spacing": 22, "downedAlpha": 0.4 },
     "name": { "x": 16, "fontSize": 14 },
     "hpBar": {
@@ -32,6 +34,8 @@
       "emptyStroke": "0x2f4450",
       "pulseScale": 1.5,
       "pulseMs": 120,
+      "fillStaggerMs": 60,
+      "flashColor": "0xffffff",
       "glowPad": 3,
       "glowAlphaMin": 0.15,
       "glowAlphaMax": 0.6,
@@ -42,6 +46,7 @@
     "sceneBottom": 360,
     "labelGap": 6,
     "labelDepth": 900,
+    "label": { "fontSize": 12, "color": "#f1efe8", "stroke": "#0b0d14", "strokeThickness": 3 },
     "heroes": { "rhea": { "x": 116, "feetY": 342 }, "dov": { "x": 76, "feetY": 300 } },
     "nala": { "x": 36, "feetY": 336 },
     "enemies": {
@@ -55,26 +60,29 @@
   "commands": {
     "button": {
       "w": 156,
-      "h": 64,
+      "h": 58,
       "fontSize": 16,
       "fill": "0x232636",
       "stroke": "0x5a5f73",
       "textColor": "#f1efe8",
       "disabledFill": "0x1c1e29",
       "disabledStroke": "0x3a3d4a",
-      "disabledTextColor": "#5a5f73",
-      "costFontSize": 11,
+      "disabledTextColor": "#80859a",
+      "costFontSize": 12,
       "costColor": "#3fd0c9",
       "labelOffsetY": -7,
       "costOffsetY": 14,
       "pulseScale": 1.06,
-      "pulseMs": 420
+      "pulseMs": 420,
+      "pressScale": 0.93,
+      "pressMs": 60,
+      "pressFill": "0x34384c"
     },
     "slots": {
-      "strike": [94, 500],
-      "technique": [266, 500],
-      "recollection": [94, 576],
-      "back": [266, 576],
+      "strike": [94, 486],
+      "technique": [266, 486],
+      "recollection": [94, 548],
+      "back": [266, 548],
       "retry": [180, 540]
     },
     "prompt": { "x": 180, "y": 458, "fontSize": 14, "text": "Choose a target" },
@@ -154,7 +162,7 @@
       "x": 12,
       "y": 440,
       "w": 336,
-      "h": 184,
+      "h": 150,
       "fill": "0x12151f",
       "stroke": "0x2a2e3d",
       "alpha": 0.96,
@@ -219,8 +227,9 @@
     "skipHint": {
       "text": "Hold to skip",
       "fontSize": 12,
-      "color": "#5a5f73",
+      "color": "#8a8fa3",
       "pad": 16,
+      "y": 576,
       "showMs": 4000,
       "fadeMs": 600
     },
@@ -307,7 +316,7 @@
       "pulseAlpha": 0.35,
       "pulseMs": 700
     },
-    "silent": { "text": "🔈 Turn off silent mode for sound", "y": 600, "fontSize": 11, "color": "#8a8f9e" }
+    "silent": { "text": "🔈 Turn off silent mode for sound", "y": 566, "fontSize": 12, "color": "#8a8f9e" }
   },
   "menu": {
     "title": { "text": "UNREMEMBERED", "y": 110, "fontSize": 30, "color": "#3fd0c9" },
@@ -345,7 +354,7 @@
       "color": "#8a8fa3",
       "wrap": 300
     },
-    "backY": 560
+    "backY": 540
   },
   "end": {
     "title": { "y": 80, "fontSize": 28, "color": "#3fd0c9" },
@@ -357,7 +366,7 @@
     "nameColor": "#f1efe8",
     "hint": {
       "text": "Tap to return to the menu",
-      "y": 600,
+      "y": 566,
       "fontSize": 14,
       "color": "#8a8fa3",
       "delayMs": 1500,
@@ -370,5 +379,46 @@
     "title": { "text": "Paused", "y": 260, "fontSize": 26, "color": "#f1efe8" },
     "tap": { "text": "Tap to continue", "y": 320, "fontSize": 18, "color": "#3fd0c9", "pulseAlpha": 0.35, "pulseMs": 700 },
     "inputDelayMs": 250
-  }
+  },
+  "damageNumbers": {
+    "types": {
+      "normal": { "color": "#f1efe8", "fontSize": 16 },
+      "crit": { "color": "#f0c060", "fontSize": 20 },
+      "hurt": { "color": "#ff8a80", "fontSize": 16 },
+      "heal": { "color": "#8ee6a8", "fontSize": 17 },
+      "echo": { "color": "#3fd0c9", "fontSize": 13 }
+    },
+    "popScale": 1.5,
+    "popMs": 130,
+    "riseY": 24,
+    "ms": 620,
+    "depth": 1000,
+    "stroke": "#0b0d14",
+    "strokeThickness": 3,
+    "echoOffsetY": -14
+  },
+  "tutorial": {
+    "banner": {
+      "y": 40,
+      "w": 328,
+      "padY": 8,
+      "fill": "0x0b0d14",
+      "alpha": 0.9,
+      "stroke": "0x3fd0c9",
+      "fontSize": 16,
+      "color": "#f1efe8",
+      "depth": 2500,
+      "fadeMs": 180,
+      "dismissDelayMs": 200,
+      "maxMs": 5000
+    },
+    "hints": {
+      "strike": { "text": "Tap Strike to attack" },
+      "echo": { "text": "Good timing charges Echo" },
+      "techniques": { "text": "Techniques spend Echo" }
+    }
+  },
+  "activeHero": { "color": "0x3fd0c9", "size": 7, "gapY": 6, "bobPx": 3, "bobMs": 380, "depth": 905, "nameColor": "#3fd0c9" },
+  "targetMarker": { "color": "0xfff066", "size": 7, "gapY": 20, "bobPx": 3, "bobMs": 320, "depth": 905 },
+  "victory": { "band": { "h": 56, "color": "0x0b0d14", "alpha": 0.8, "lineColor": "0x3fd0c9" }, "popScale": 1.6, "popMs": 360 }
 }

@@ -57,7 +57,7 @@ export default class CutsceneScene extends Phaser.Scene {
       .setDepth(cfg.depth.text);
 
     this.skipHint = this.add
-      .text(360 - cfg.skipHint.pad, 640 - cfg.skipHint.pad, cfg.skipHint.text, {
+      .text(360 - cfg.skipHint.pad, cfg.skipHint.y ?? 640 - cfg.skipHint.pad, cfg.skipHint.text, {
         fontFamily: ui.font,
         fontSize: `${cfg.skipHint.fontSize}px`,
         color: cfg.skipHint.color,

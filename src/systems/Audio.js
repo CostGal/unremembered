@@ -58,6 +58,19 @@ function applyVolumes() {
   sfxBus.gain.value = volumes.sfxVolume;
 }
 
+// ---------- Haptics ----------
+
+// A short buzz where the browser supports it (Android; iOS ignores it).
+// Off when the SFX volume is 0.
+export function vibrate(ms) {
+  if (!ms || volumes.sfxVolume <= 0) return;
+  try {
+    if (navigator.vibrate) navigator.vibrate(ms);
+  } catch (err) {
+    // not allowed here (e.g. no user gesture yet) — skip
+  }
+}
+
 // ---------- SFX ----------
 
 export function playSfx(name) {

@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
+import ui from '../data/ui.json';
 
-const EDGE_PAD = 4;
+// Floating text stays this far from the screen edges (CLAUDE.md: 16px).
+const EDGE_PAD = 16;
 
 export function flash(scene, images, durationMs = 60) {
   for (const img of images) img.setTintFill(0xffffff);
@@ -13,22 +15,34 @@ export function shake(scene, amount = 2, durationMs = 80) {
   scene.cameras.main.shake(durationMs, amount / 1000);
 }
 
-export function damageNumber(scene, x, y, value, color = '#f1efe8') {
+// A number that pops (scale up, settle) then drifts up and fades.
+// type = ui.json damageNumbers key: normal | crit | hurt | heal | echo.
+// color (optional) overrides the type's colour (e.g. a technique's colour).
+export function damageNumber(scene, x, y, value, color = null, type = 'normal') {
+  const cfg = ui.damageNumbers;
+  const t = cfg.types[type] || cfg.types.normal;
   const text = scene.add
     .text(x, y, `${value}`, {
-      fontFamily: '"Pixelify Sans", monospace',
-      fontSize: '16px',
-      color,
+      fontFamily: ui.font,
+      fontSize: `${t.fontSize}px`,
+      color: color || t.color,
+      stroke: cfg.stroke,
+      strokeThickness: cfg.strokeThickness,
     })
     .setOrigin(0.5)
-    .setDepth(1000);
+    .setDepth(cfg.depth)
+    .setScale(cfg.popScale);
+  const half = text.width / 2 + EDGE_PAD;
+  text.x = Phaser.Math.Clamp(x, half, scene.scale.width - half);
 
+  scene.tweens.add({ targets: text, scale: 1, duration: cfg.popMs, ease: 'Back.easeOut' });
   scene.tweens.add({
     targets: text,
-    y: y - 24,
+    y: y - cfg.riseY,
     alpha: 0,
-    duration: 600,
-    ease: 'Cubic.easeOut',
+    delay: cfg.popMs,
+    duration: cfg.ms,
+    ease: 'Cubic.easeIn',
     onComplete: () => text.destroy(),
   });
 }

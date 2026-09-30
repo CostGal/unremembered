@@ -1,4 +1,4 @@
-import { playSfx } from './Audio.js';
+import { pressButton } from './Button.js';
 
 // The command buttons in the lower screen (2×2 grid, slots from ui.json).
 // show(items) draws one button per item and resolves with the tapped item's
@@ -87,10 +87,7 @@ export default class CommandMenu {
 
     if (enabled) {
       rect.setInteractive({ useHandCursor: true });
-      rect.on('pointerdown', () => {
-        playSfx('menu');
-        onTap();
-      });
+      rect.on('pointerdown', () => pressButton(this.scene, container, rect, b, onTap));
     }
 
     let pulse = null;

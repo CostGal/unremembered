@@ -8,11 +8,12 @@ import battleEvents from '../data/battleEvents.json';
 import qte from '../data/qte.json';
 import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
-import { playMusic, playSfx } from '../systems/Audio.js';
+import { playMusic, playSfx, vibrate } from '../systems/Audio.js';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
 import CommandMenu from '../systems/CommandMenu.js';
 import Hud from '../systems/Hud.js';
+import TutorialHints from '../systems/TutorialHints.js';
 import * as Qte from '../systems/Qte.js';
 import { devInt } from '../systems/DevParams.js';
 import { animKey, hasSheet, playLoop, playOnce, SheetDriver, trace } from '../systems/SpriteAnims.js';
@@ -74,6 +75,8 @@ export default class BattleScene extends Phaser.Scene {
     this.timeScale = 1;
     this.resumeGate = null;
     this.listenForBackground();
+    this.hints = new TutorialHints(this, !!this.battleDef.tutorial);
+    this.activeMarker = null;
 
     this.add.image(180, 180, this.battleDef.bg).setDisplaySize(360, 360);
     this.add.rectangle(180, 180, 360, 360, 0x000000, 0.2);
@@ -304,9 +307,11 @@ export default class BattleScene extends Phaser.Scene {
       ? null
       : this.add
           .text(x, y - height / 2 - layout.labelGap, '', {
-            fontFamily: '"Pixelify Sans", monospace',
-            fontSize: '12px',
-            color: '#f1efe8',
+            fontFamily: ui.font,
+            fontSize: `${layout.label.fontSize}px`,
+            color: layout.label.color,
+            stroke: layout.label.stroke,
+            strokeThickness: layout.label.strokeThickness,
           })
           .setOrigin(0.5, 1)
           .setDepth(layout.labelDepth);
@@ -326,6 +331,7 @@ export default class BattleScene extends Phaser.Scene {
       facing,
       isHero,
       restX: x,
+      height,
     };
 
     this.updateLabel(entity);
@@ -490,8 +496,14 @@ export default class BattleScene extends Phaser.Scene {
     const labels = ui.commands.labels;
     while (true) {
       const main = [
-        { slot: 'strike', label: labels.strike, value: 'strike' },
-        { slot: 'technique', label: labels.technique, value: 'technique', enabled: (hero.def.techniques || []).length > 0 },
+        { slot: 'strike', label: labels.strike, value: 'strike', pulse: this.hints.isShowing('strike') },
+        {
+          slot: 'technique',
+          label: labels.technique,
+          value: 'technique',
+          enabled: (hero.def.techniques || []).length > 0,
+          pulse: this.hints.isShowing('techniques'),
+        },
       ];
       if (this.canUltimate(hero)) {
         main.push({ slot: 'recollection', label: labels.recollection, value: 'ultimate', pulse: true });
@@ -540,14 +552,18 @@ export default class BattleScene extends Phaser.Scene {
     const living = this.enemies.filter((e) => e.hp > 0);
     if (living.length <= 1) return Promise.resolve(living[0] || null);
 
+    const markers = [];
     for (const enemy of living) {
       enemy.body.setTint(Number(ui.commands.targetTint));
       enemy.body.setInteractive({ useHandCursor: true });
       enemy.body.once('pointerdown', () => this.menu.choose(enemy));
+      const top = enemy.label ? enemy.label.y - enemy.label.height : enemy.container.y - enemy.height / 2;
+      markers.push(this.pointer(enemy.container.x, top - ui.targetMarker.gapY, ui.targetMarker));
     }
 
     const back = [{ slot: 'back', label: ui.commands.labels.back, value: null }];
     return this.menu.show(back, ui.commands.prompt.text).then((target) => {
+      markers.forEach((m) => m.destroy());
       for (const enemy of living) {
         Fx.restoreTint(enemy.body);
         enemy.body.off('pointerdown');
@@ -590,7 +606,14 @@ export default class BattleScene extends Phaser.Scene {
     // A stance that was never tested ends when its owner acts again.
     if (this.stance?.hero === hero) this.endStance(false);
 
+    this.showActiveHero(hero);
+    this.hints.show('strike');
+    const costs = (hero.def.techniques || []).map((id) => techniques[id].cost);
+    if (costs.length && this.echo >= Math.min(...costs)) this.hints.show('techniques');
     const action = await this.chooseAction(hero);
+    this.hints.done('strike');
+    this.hints.done('techniques');
+    this.showActiveHero(null);
     this.hideCommandMenu();
 
     const tech = techniques[action.techId];
@@ -599,6 +622,28 @@ export default class BattleScene extends Phaser.Scene {
     if (action.kind === 'strike') await this.playerStrike(hero, action.target);
     else if (action.kind === 'ultimate') await this.playRecollection(hero, action.target);
     else await this.runTechnique(hero, action.techId, action.target);
+  }
+
+  // The hero whose turn it is: a bobbing marker over their head and their
+  // HUD row lit. null clears it.
+  showActiveHero(hero) {
+    if (this.activeMarker) this.activeMarker.destroy();
+    this.activeMarker = null;
+    this.hud.setActive(hero ? this.heroes.indexOf(hero) : -1);
+    if (!hero) return;
+    const a = ui.activeHero;
+    this.activeMarker = this.pointer(hero.container.x, hero.container.y - hero.height / 2 - a.gapY, a);
+  }
+
+  // A small down-pointing triangle that bobs over (x, y). cfg = {color, size, bobPx, bobMs, depth}
+  pointer(x, y, cfg) {
+    const g = this.add.graphics({ x, y }).setDepth(cfg.depth);
+    g.fillStyle(Number(cfg.color), 1);
+    g.fillTriangle(-cfg.size, -cfg.size, cfg.size, -cfg.size, 0, 0);
+    g.lineStyle(1, 0x0b0d14, 1);
+    g.strokeTriangle(-cfg.size, -cfg.size, cfg.size, -cfg.size, 0, 0);
+    this.tweens.add({ targets: g, y: y - cfg.bobPx, duration: cfg.bobMs, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    return g;
   }
 
   // Each hit of the attack is its own parry ring on the targeted hero.
@@ -1068,6 +1113,8 @@ export default class BattleScene extends Phaser.Scene {
     if (cfg.text) Fx.popText(this, x, y, cfg.text, cfg.color, qte.text);
     if (cfg.flash) Fx.screenFlash(this, cfg.flash, qte.flashDepth);
     playSfx(result.toLowerCase());
+    vibrate(cfg.vibrateMs);
+    if (result !== 'MISS') this.hints.show('echo');
     this.gainEcho(cfg.echo);
     // e.g. Siphon: a missed parry also drains Echo.
     if (result === 'MISS' && hit.onMiss?.echo) this.gainEcho(hit.onMiss.echo);
@@ -1112,11 +1159,18 @@ export default class BattleScene extends Phaser.Scene {
     if (hero.hp > 0) hero.body.play(animKey(hero.type, 'idle'));
   }
 
+  // Gains show as a small teal "+N" over the pip they fill.
   gainEcho(amount) {
     if (!amount) return;
-    if (amount > 0) playSfx('echo');
+    const before = this.echo;
     this.echo = Phaser.Math.Clamp(this.echo + amount, 0, ui.hud.echo.max);
     this.refreshHud();
+    const gained = this.echo - before;
+    if (gained > 0) {
+      playSfx('echo');
+      const pip = this.hud.pipPosition(this.echo - 1);
+      Fx.damageNumber(this, pip.x, pip.y + ui.damageNumbers.echoOffsetY, `+${gained}`, null, 'echo');
+    }
   }
 
   spendEcho(amount) {
@@ -1147,7 +1201,7 @@ export default class BattleScene extends Phaser.Scene {
         if (crit) total += 1;
         await this.fireBolt(hero, target, tech);
         const dmg = Phaser.Math.Between(tech.dmg[0], tech.dmg[1]);
-        this.applyHit(target, dmg, crit ? tech.critColor : undefined);
+        this.applyHit(target, dmg, undefined, { type: crit ? 'crit' : 'normal' });
         if (i === 0) this.gainEcho(tech.echoOnHit);
         if (crit) Fx.popText(this, target.container.x, target.container.y, tech.critText, tech.critColor, qte.text);
         await this.wait(tech.boltIntervalMs);
@@ -1256,7 +1310,7 @@ export default class BattleScene extends Phaser.Scene {
       const amount = Math.min(tech.amount, target.maxHp - target.hp);
       if (target.hp <= 0) this.revive(target, Math.min(target.maxHp, tech.amount));
       else target.hp += amount;
-      Fx.damageNumber(this, target.container.x, target.container.y - 80, `${ui.heal.textPrefix}${Math.min(tech.amount, target.maxHp)}`, tech.color);
+      Fx.damageNumber(this, target.container.x, target.container.y - 80, `${ui.heal.textPrefix}${Math.min(tech.amount, target.maxHp)}`, null, 'heal');
       this.refreshHud();
     });
   }
@@ -1311,7 +1365,7 @@ export default class BattleScene extends Phaser.Scene {
     const restX = hero.container.x;
     const approachX = Phaser.Math.Linear(restX, target.container.x, 0.7);
 
-    await this.tweenPromise(hero.container, { x: approachX }, DASH_DURATION_MS);
+    await this.tweenPromise(hero.container, { x: approachX }, DASH_DURATION_MS, 'Cubic.easeOut');
 
     // A Strike deals its damage once, on the first impact frame.
     const dmg = Phaser.Math.Between(hero.def.strike[0], hero.def.strike[1]);
@@ -1321,7 +1375,7 @@ export default class BattleScene extends Phaser.Scene {
       this.gainEcho(techniques.strike.echoOnHit);
     });
 
-    await this.tweenPromise(hero.container, { x: restX }, DASH_DURATION_MS);
+    await this.tweenPromise(hero.container, { x: restX }, DASH_DURATION_MS, 'Cubic.easeInOut');
   }
 
   // onImpact(i, count) fires on each impact frame of a sheet attack, or once
@@ -1399,11 +1453,12 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   // react: false = the caller plays its own reaction instead of hurt.
-  applyHit(target, dmg, color, { react = true } = {}) {
+  // type = damage number style (ui.json damageNumbers); heroes' damage is "hurt".
+  applyHit(target, dmg, color, { react = true, type = null } = {}) {
     const images = [target.body, ...Object.values(target.parts).map((p) => p.img)];
     Fx.flash(this, images, 60);
     Fx.shake(this, 2, 80);
-    Fx.damageNumber(this, target.container.x, target.container.y - 80, dmg, color);
+    Fx.damageNumber(this, target.container.x, target.container.y - 80, dmg, color, type || (target.isHero ? 'hurt' : 'normal'));
     playSfx('hit');
 
     target.hp = Math.max(0, target.hp - dmg);
@@ -1447,6 +1502,19 @@ export default class BattleScene extends Phaser.Scene {
       .setDepth(cfg.depth)
       .setAlpha(0);
     this.tweens.add({ targets: message, alpha: 1, duration: cfg.fadeMs });
+    this.showActiveHero(null);
+    this.hints.hide();
+
+    // Victory: a band across the scene, the word pops in, a short sting.
+    if (result === 'WIN') {
+      const v = ui.victory;
+      const band = this.add.rectangle(180, cfg.textY, 360, v.band.h, Number(v.band.color), v.band.alpha).setDepth(cfg.depth - 1).setStrokeStyle(1, Number(v.band.lineColor));
+      band.setScale(1, 0);
+      this.tweens.add({ targets: band, scaleY: 1, duration: v.popMs / 2, ease: 'Cubic.easeOut' });
+      message.setScale(v.popScale);
+      this.tweens.add({ targets: message, scale: 1, duration: v.popMs, ease: 'Back.easeOut' });
+      playSfx('victory');
+    }
 
     // A short delay so the tap that ended the fight doesn't also skip this.
     this.time.delayedCall(cfg.inputDelayMs, () => {

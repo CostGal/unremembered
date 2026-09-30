@@ -12,11 +12,31 @@ export function makeButton(scene, x, y, size, label, onTap) {
     .setOrigin(0.5);
   container.add([rect, text]);
   rect.setInteractive({ useHandCursor: true });
-  rect.on('pointerdown', () => {
-    playSfx('menu');
-    onTap();
-  });
+  rect.on('pointerdown', () => pressButton(scene, container, rect, b, onTap));
   return { container, rect, text };
+}
+
+// Press feedback: tick, the button dips and lights up for a beat, then
+// onTap runs (so the press is visible before the screen changes).
+// Taps during the dip are ignored.
+export function pressButton(scene, container, rect, b, onTap) {
+  if (container.pressed) return;
+  container.pressed = true;
+  playSfx('menu');
+  rect.setFillStyle(Number(b.pressFill));
+  scene.tweens.killTweensOf(container);
+  scene.tweens.add({
+    targets: container,
+    scale: b.pressScale,
+    duration: b.pressMs,
+    yoyo: true,
+    ease: 'Quad.easeOut',
+    onComplete: () => {
+      container.pressed = false;
+      if (rect.active) rect.setFillStyle(Number(b.fill));
+      onTap();
+    },
+  });
 }
 
 export function addText(scene, x, y, str, cfg) {

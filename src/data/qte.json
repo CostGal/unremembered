@@ -17,6 +17,7 @@
       "damageMult": 0,
       "echo": 2,
       "counterDmg": 4,
+      "vibrateMs": 15,
       "text": "PERFECT",
       "color": "#3fd0c9",
       "hitstopMs": 80,
@@ -34,7 +35,8 @@
       "damageMult": 1,
       "echo": 0,
       "flash": { "color": "0xd8505a", "alpha": 0.3, "ms": 140 },
-      "knockback": 6
+      "knockback": 6,
+      "vibrateMs": 30
     }
   },
   "text": { "fontSize": 20, "offsetY": -64, "riseY": 18, "ms": 700, "depth": 1000 },
@@ -50,7 +52,7 @@
       "color": "#3fd0c9",
       "wrap": 320,
       "depth": 1000,
-      "text": "An attack is coming!\nTap anywhere the moment the ring closes."
+      "text": "Tap anywhere when\nthe ring closes!"
     }
   },
   "recollection": {
