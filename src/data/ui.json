@@ -142,5 +142,69 @@
     "hintPulseMs": 700,
     "inputDelayMs": 900
   },
-  "downed": { "heroAlpha": 0.35, "fadeMs": 200, "enemyFadeMs": 500 }
+  "downed": { "heroAlpha": 0.35, "fadeMs": 200, "enemyFadeMs": 500 },
+  "dialogue": {
+    "charsPerSec": 40,
+    "nextMark": "▼",
+    "nextBlinkMs": 450,
+    "bg": { "size": 360, "fadeH": 24, "fadeAlpha": 0.6 },
+    "overlayDim": { "color": "0x04050b", "alpha": 0.55 },
+    "box": {
+      "x": 12,
+      "y": 440,
+      "w": 336,
+      "h": 184,
+      "fill": "0x12151f",
+      "stroke": "0x2a2e3d",
+      "alpha": 0.96,
+      "padX": 16,
+      "nameY": 14,
+      "textY": 42,
+      "nameFontSize": 16,
+      "fontSize": 16,
+      "lineSpacing": 6,
+      "textColor": "#f1efe8",
+      "depth": 900
+    },
+    "portrait": {
+      "leftX": 96,
+      "rightX": 264,
+      "bottomY": 448,
+      "height": 290,
+      "dimTint": "0x666666",
+      "depth": 870
+    },
+    "portraitSides": { "rhea": "left", "dov": "right", "clerk": "right", "nala": "right", "default": "right" },
+    "nameColors": {
+      "default": "#f1efe8",
+      "Rhea": "#3fd0c9",
+      "Dov": "#e0a040",
+      "The Clerk": "#c8c2b4",
+      "▯▯▯": "#e0a040"
+    },
+    "styles": {
+      "normal": {
+        "fill": "0x12151f",
+        "textColor": "#f1efe8",
+        "align": "left",
+        "showName": true,
+        "portraits": true
+      },
+      "narration": {
+        "fill": "0x0b0d14",
+        "textColor": "#b8bccb",
+        "align": "center",
+        "showName": false,
+        "portraits": true
+      },
+      "letter": {
+        "fill": "0xe8e0cc",
+        "textColor": "#2a2230",
+        "align": "center",
+        "showName": false,
+        "portraits": false
+      }
+    },
+    "nextBlinkAlpha": 0.2
+  }
 }

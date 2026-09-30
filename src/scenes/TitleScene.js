@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
+import chapter1 from '../data/chapter1.json';
 import { unlockAudio } from '../systems/Audio.js';
+import ChapterRunner from '../systems/ChapterRunner.js';
 
 export default class TitleScene extends Phaser.Scene {
   constructor() {
@@ -29,7 +31,7 @@ export default class TitleScene extends Phaser.Scene {
 
     this.input.once('pointerdown', () => {
       unlockAudio();
-      this.scene.start('Battle', { battleId: 'b1_tutorial' });
+      ChapterRunner.start(this, chapter1);
     });
   }
 }

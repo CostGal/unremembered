@@ -5,6 +5,9 @@ import enemies from '../data/enemies.json';
 import { queueSheets, buildAnimations } from '../systems/SpriteAnims.js';
 import { isAnimTest } from './AnimTestScene.js';
 import { devBattleId } from './BattleScene.js';
+import chapter1 from '../data/chapter1.json';
+import ChapterRunner from '../systems/ChapterRunner.js';
+import { devParam } from '../systems/DevParams.js';
 
 // Portraits are exported on this flat colour; the loader makes it transparent.
 const PORTRAIT_KEY_RGB = [0xff, 0x00, 0xff];
@@ -48,6 +51,7 @@ export default class PreloadScene extends Phaser.Scene {
     const battleId = devBattleId();
     if (isAnimTest()) this.scene.start('AnimTest');
     else if (battleId) this.scene.start('Battle', { battleId });
+    else if (devParam('step') !== null) ChapterRunner.start(this, chapter1);
     else this.scene.start('Title');
   }
 
@@ -102,6 +106,7 @@ function createPlaceholder(scene, key, w, h) {
   ctx.font = `${fontSize}px monospace`;
   drawWrappedText(ctx, key, w / 2, h / 2, w - 12, fontSize + 2);
 
+  texture.customData.placeholder = true;
   texture.refresh();
 }
 

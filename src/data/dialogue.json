@@ -1,0 +1,63 @@
+{
+  "letter": [
+    { "speaker": null, "style": "narration", "text": "I wake up with a letter in my hand.", "portrait": null, "todo": true },
+    { "speaker": null, "style": "narration", "text": "The handwriting is mine. I don't remember writing it.", "portrait": null, "todo": true },
+    { "speaker": null, "style": "letter", "text": "Trust Dov.\nYou won't remember why.", "portrait": null, "todo": true },
+    { "speaker": null, "style": "letter", "text": "Yesterday I delivered a parcel to the Records Office. I saw the Ledger. The next name was Dov's.\nI'm writing this before nightfall. — R.", "portrait": null, "todo": true },
+    { "speaker": null, "style": "narration", "text": "Who is Dov?", "portrait": null, "todo": true }
+  ],
+  "meet_dov": [
+    { "speaker": null, "style": "narration", "text": "Morning. The rain hasn't stopped since the Hush.", "portrait": null, "todo": true },
+    { "speaker": "Dov", "style": "normal", "text": "Rhea! Thank the lanterns. You're all right.", "portrait": "dov_neutral", "todo": true },
+    { "speaker": "Rhea", "style": "normal", "text": "Do I know you?", "portrait": "rhea_confused", "todo": true },
+    { "speaker": "Dov", "style": "normal", "text": "It's me. Dov. Your brother.", "portrait": "dov_worried", "todo": true },
+    { "speaker": "Rhea", "style": "normal", "text": "I don't have a brother.", "portrait": "rhea_serious", "todo": true },
+    { "speaker": "Dov", "style": "normal", "text": "You do. Since last night, you just can't remember him.", "portrait": "dov_sad", "todo": true },
+    { "speaker": "Rhea", "style": "normal", "text": "That's what every liar in Veyra says to a courier.", "portrait": "rhea_angry", "todo": true },
+    { "speaker": null, "style": "narration", "text": "A calico cat darts out of the alley, straight past Rhea, and leaps into the stranger's arms.", "portrait": null, "todo": true },
+    { "speaker": "Dov", "style": "normal", "text": "Nala. Hey, girl. You still know me, don't you?", "portrait": "dov_warm", "todo": true },
+    { "speaker": "Rhea", "style": "normal", "text": "She's never let anyone hold her. Not even me.", "portrait": "rhea_confused", "todo": true },
+    { "speaker": "Dov", "style": "normal", "text": "Animals don't live in the Reliquary. It can't take me from her.", "portrait": "dov_warm", "todo": true },
+    { "speaker": "Rhea", "style": "normal", "text": "...The letter said to trust you. Fine. I'll trust her.", "portrait": "rhea_determined", "todo": true },
+    { "speaker": null, "style": "narration", "text": "Grey raincoats in the fog. Smooth faces, no eyes. Blanks.", "portrait": null, "todo": true },
+    { "speaker": "Dov", "style": "normal", "text": "Behind me. They go for whoever's still holding on to something.", "portrait": "dov_fierce", "todo": true },
+    { "speaker": "Rhea", "style": "normal", "text": "Then they'll go for me.", "portrait": "rhea_determined", "todo": true }
+  ],
+  "after_b1": [
+    { "speaker": "Rhea", "style": "normal", "text": "What did you mean... they took you last night?", "portrait": "rhea_serious", "todo": true },
+    { "speaker": "Dov", "style": "normal", "text": "Every night the King takes one of us. Last night it was me. Everyone I ever met forgot me at once.", "portrait": "dov_sad", "todo": true },
+    { "speaker": "Dov", "style": "normal", "text": "Including you.", "portrait": "dov_sad", "todo": true },
+    { "speaker": "Rhea", "style": "normal", "text": "The letter. I saw the Ledger at the Records Office. Your name was on it.", "portrait": "rhea_serious", "todo": true },
+    { "speaker": "Dov", "style": "normal", "text": "The Ledger lists who goes next. If we steal it before tonight...", "portrait": "dov_fierce", "todo": true },
+    { "speaker": "Rhea", "style": "normal", "text": "...nobody else wakes up a stranger to their own family.", "portrait": "rhea_determined", "todo": true },
+    { "speaker": "Dov", "style": "normal", "text": "The Records Office, then. Nala, stay close.", "portrait": "dov_neutral", "todo": true }
+  ],
+  "records_office": [
+    { "speaker": null, "style": "narration", "text": "The Records Office. Shelves to the ceiling, every drawer full of names.", "portrait": null, "todo": true },
+    { "speaker": "The Clerk", "style": "normal", "text": "A courier. Again. You were here yesterday, weren't you?", "portrait": "clerk_smug", "todo": true },
+    { "speaker": "Rhea", "style": "normal", "text": "I don't remember. You'd know why.", "portrait": "rhea_angry", "todo": true },
+    { "speaker": "The Clerk", "style": "normal", "text": "I used to be the royal archivist. Now nobody knows my name. Not even the ones I served.", "portrait": "clerk_cold", "todo": true },
+    { "speaker": "The Clerk", "style": "normal", "text": "His Majesty promised me that when the Ledger is done, I will be remembered again.", "portrait": "clerk_desperate", "todo": true },
+    { "speaker": "Dov", "style": "normal", "text": "Give us the book, and no one else has to go through this.", "portrait": "dov_fierce", "todo": true },
+    { "speaker": "The Clerk", "style": "normal", "text": "And who are you? ...Ah. Of course. You're no one. Filed and forgotten.", "portrait": "clerk_smug", "todo": true },
+    { "speaker": "The Clerk", "style": "normal", "text": "Let me file you both.", "portrait": "clerk_furious", "todo": true }
+  ],
+  "keepsake_burn": [
+    { "speaker": "Rhea", "style": "normal", "text": "I can't beat him like this. I need more Echo.", "portrait": "rhea_pained", "todo": true },
+    { "speaker": null, "style": "narration", "text": "A Keepsake: a memory held back for the end. Rhea has only one left.", "portrait": null, "todo": true },
+    { "speaker": null, "style": "narration", "text": "Today. A stranger in the rain. A cat running to him. His voice saying her name.", "portrait": null, "todo": true },
+    { "speaker": "Dov", "style": "normal", "text": "Rhea, don't. That's the only part of me you have left.", "portrait": "dov_worried", "todo": true },
+    { "speaker": "Rhea", "style": "normal", "text": "Then remember it for both of us.", "portrait": "rhea_sad", "todo": true },
+    { "speaker": null, "style": "narration", "text": "She burns it. Her Echo floods back.", "portrait": null, "todo": true }
+  ],
+  "ending": [
+    { "speaker": "The Clerk", "style": "normal", "text": "No... I was so close. They were going to remember me...", "portrait": "clerk_desperate", "todo": true },
+    { "speaker": null, "style": "narration", "text": "The Ledger falls open. Tonight's name is still unwritten.", "portrait": null, "todo": true },
+    { "speaker": "Rhea", "style": "normal", "text": "We did it. We have the Ledger.", "portrait": "rhea_determined", "todo": true },
+    { "speaker": null, "style": "narration", "text": "She turns to the man beside her. Tall, worn jacket, bandaged fists.", "portrait": null, "todo": true },
+    { "speaker": "Rhea", "style": "normal", "text": "...Who are you?", "portrait": "rhea_confused", "todo": true },
+    { "speaker": "▯▯▯", "style": "normal", "text": "It's me, Rhea. It's—", "portrait": null, "todo": true },
+    { "speaker": null, "style": "narration", "text": "Somewhere above the city, a silhouette watches from the broken tower.", "portrait": null, "todo": true },
+    { "speaker": null, "style": "narration", "text": "Chapter 2: The Gallery — locked.", "portrait": null, "todo": true }
+  ]
+}
