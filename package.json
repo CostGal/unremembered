@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "validate": "node scripts/validate.mjs",
     "budget": "node scripts/budget.mjs",
+    "sim": "node scripts/sim.mjs",
     "perf": "node scripts/perf.mjs"
   },
   "dependencies": {

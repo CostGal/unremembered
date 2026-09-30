@@ -7,10 +7,11 @@
 //   npm run sim                  all battles, all profiles, Normal + Story
 //   npm run sim -- --runs 5000   more runs
 //   npm run sim -- --battle boss_clerk --json
+//   npm run sim -- --set enemies.clerk.hp=400 --set characters.rhea.hp=70
 //
-// QTE model: a profile is "lapse" (no useful tap at all) + a Gaussian timing
-// error sigma, solved so that the default windows (qte.json) give the
-// profile's PERFECT/GOOD/MISS split. Wider windows (Story Mode, tutorial
+// QTE model: a profile is "lapse" (no useful tap at all) + a biased Gaussian
+// timing error (bias, sigma), solved so that the default windows (qte.json)
+// give the profile's PERFECT/GOOD/MISS split. Wider windows (Story Mode, tutorial
 // slow-mo) then shift the odds the way they would for a real player.
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -42,6 +43,16 @@ const opt = (name, def) => {
   const i = args.indexOf(`--${name}`);
   return i >= 0 ? args[i + 1] : def;
 };
+// --set enemies.clerk.hp=400 (repeatable): try a value without editing the JSON.
+// Paths may index arrays: enemies.clerk.phases.0.attacks.0.dmg=18
+for (let i = 0; i < args.length; i++) {
+  if (args[i] !== '--set') continue;
+  const [path, raw] = args[i + 1].split('=');
+  const keys = path.split('.');
+  let obj = D;
+  for (const k of keys.slice(0, -1)) obj = obj[k];
+  obj[keys[keys.length - 1]] = JSON.parse(raw);
+}
 const RUNS = Number(opt('runs', D.sim.runs));
 const ONLY = opt('battle', null);
 const JSON_OUT = args.includes('--json');
@@ -53,29 +64,34 @@ const erf = (x) => {
   const y = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
   return x >= 0 ? y : -y;
 };
-const within = (ms, sigma) => erf(ms / (sigma * Math.SQRT2));
 
-// Solve sigma (and lapse) so the default windows give {PERFECT, GOOD}.
+// P(|e| <= w) for a tap error e ~ Normal(bias, sigma).
+const inWindow = (w, bias, sigma) => 0.5 * (erf((w - bias) / (sigma * Math.SQRT2)) - erf((-w - bias) / (sigma * Math.SQRT2)));
+
+// Real players tap systematically early/late, so the error is a biased
+// Gaussian (a centred one can't make PERFECT rarer than 90/200 of GOOD+PERFECT).
+// Grid-search bias, sigma and a lapse rate (no useful tap) so the default
+// windows reproduce the profile's PERFECT and PERFECT+GOOD shares.
 function solveProfile({ PERFECT, GOOD }) {
   const w = D.qte.windows;
-  const target = PERFECT / (PERFECT + GOOD);
-  let lo = 1;
-  let hi = 5000;
-  for (let i = 0; i < 80; i++) {
-    const mid = (lo + hi) / 2;
-    const ratio = within(w.perfectMs, mid) / within(w.goodMs, mid);
-    if (ratio > target) lo = mid;
-    else hi = mid;
+  let best = null;
+  for (let lapse = 0; lapse <= 0.5001; lapse += 0.05) {
+    for (let bias = 0; bias <= 400; bias += 4) {
+      for (let sigma = 10; sigma <= 600; sigma += 4) {
+        const p = (1 - lapse) * inWindow(w.perfectMs, bias, sigma);
+        const pg = (1 - lapse) * inWindow(w.goodMs, bias, sigma);
+        const err = (p - PERFECT) ** 2 + (pg - PERFECT - GOOD) ** 2 + lapse * 1e-4;
+        if (!best || err < best.err) best = { err, lapse, bias, sigma };
+      }
+    }
   }
-  const sigma = (lo + hi) / 2;
-  const lapse = 1 - (PERFECT + GOOD) / within(w.goodMs, sigma);
-  return { sigma, lapse: Math.max(0, lapse) };
+  return best;
 }
 
 function qteOdds(profile, windowMult) {
   const w = D.qte.windows;
-  const p = (1 - profile.lapse) * within(w.perfectMs * windowMult, profile.sigma);
-  const pg = (1 - profile.lapse) * within(w.goodMs * windowMult, profile.sigma);
+  const p = (1 - profile.lapse) * inWindow(w.perfectMs * windowMult, profile.bias, profile.sigma);
+  const pg = (1 - profile.lapse) * inWindow(w.goodMs * windowMult, profile.bias, profile.sigma);
   return { PERFECT: p, GOOD: pg - p, MISS: 1 - pg };
 }
 
@@ -118,7 +134,8 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const heroes = ['rhea', 'dov'].map((id) => ({ id, def: D.characters[id], hp: D.characters[id].hp, max: D.characters[id].hp }));
   const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: D.enemies[id].hp, max: D.enemies[id].hp, phase: 0, charge: null }));
 
-  const st = { echo: 0, ms: T.introMs, rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  // A tutorial battle also costs the time to read its hint banners.
+  const st = { echo: 0, ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   const gain = (n) => (st.echo = Math.max(0, Math.min(echoMax, st.echo + n)));
   const living = (list) => list.filter((e) => e.hp > 0);
 
@@ -154,7 +171,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
   };
 
   const playerTurn = (hero) => {
-    st.ms += think;
+    st.ms += think + (living(enemies).length > 1 ? D.sim.timing.targetMs : 0);
     if (st.stance?.hero === hero) st.stance = null;
     const targets = living(enemies).sort((a, b) => a.hp - b.hp);
     const target = targets[0];
@@ -173,7 +190,9 @@ function simulateBattle(battleId, profileName, story, rnd) {
       st.ms += T.recollectionFadeMs * 2 + r.taps * (qte.recollection.ringMs + r.intervalMs);
       return;
     }
-    const can = (id) => hero.def.techniques?.includes(id) && st.echo >= tech[id].cost;
+    // Full Echo is kept for Rhea's Recollection (its button pulses).
+    const saving = hero.id !== 'rhea' && st.echo >= tech.recollection.cost && heroes[0].hp > 0;
+    const can = (id) => !saving && hero.def.techniques?.includes(id) && st.echo >= tech[id].cost;
 
     if (hero.id === 'dov') {
       if ((down || hurt.length) && can('anchor')) {
@@ -352,12 +371,16 @@ for (const story of [false, true]) {
 }
 
 const story = chapterStoryMs();
+function odds(profile, mult) {
+  const o = qteOdds(profile, mult);
+  return ['PERFECT', 'GOOD', 'MISS'].map((k) => Math.round(o[k] * 100)).join('/');
+}
 if (JSON_OUT) {
   console.log(JSON.stringify({ runs: RUNS, profiles: D.sim.profilesSolved, rows, story }, null, 2));
 } else {
   const pct = (x) => `${(x * 100).toFixed(1)}%`.padStart(6);
   const f1 = (x) => x.toFixed(1).padStart(5);
-  console.log(`runs per cell: ${RUNS}   QTE model: ${Object.entries(D.sim.profilesSolved).map(([k, v]) => `${k} sigma=${v.sigma.toFixed(0)}ms lapse=${(v.lapse * 100).toFixed(0)}%`).join(', ')}\n`);
+  console.log(`runs per cell: ${RUNS}   QTE model: ${Object.entries(D.sim.profilesSolved).map(([k, v]) => `${k} bias=${v.bias}ms sigma=${v.sigma}ms lapse=${(v.lapse * 100).toFixed(0)}% -> normal ${odds(v, 1)} / story ${odds(v, D.qte.storyMode.windowMult)}`).join(', ')}\n`);
   console.log('mode    battle        profile    win    rounds  min (p10–p90)       avgEcho  recoll  archive  interrupt  P/G/M seen');
   for (const r of rows) {
     console.log(
