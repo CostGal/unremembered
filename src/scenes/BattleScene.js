@@ -19,6 +19,7 @@ const layout = ui.battleLayout;
 const ATTACK_DURATION_MS = 400;
 const DASH_DURATION_MS = 180;
 const LUNGE_OUT_MS = 150;
+const WINDUP_MS = 200;
 // Lunge used when a sheet character's attack sheet is missing and its def has no lunge data.
 const FALLBACK_LUNGE = { distance: 10, squash: 0.15 };
 
@@ -42,6 +43,7 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   init(data) {
+    this.initData = data;
     this.battleId = data.battleId || 'b1_tutorial';
     this.battleDef = battles[this.battleId];
   }
@@ -75,7 +77,10 @@ export default class BattleScene extends Phaser.Scene {
     this.echo = Phaser.Math.Clamp(devInt('echo') ?? 0, 0, ui.hud.echo.max);
     this.hud = new Hud(this, ui.hud, ui.font, this.heroes);
     this.refreshHud();
-    if (import.meta.env.DEV) this.enableHudDebug();
+    if (import.meta.env.DEV) {
+      this.enableHudDebug();
+      window.__battle = this;
+    }
 
     this.buildCommandMenu();
     this.buildTapHint();
@@ -299,6 +304,7 @@ export default class BattleScene extends Phaser.Scene {
   // the entity freezes and dims.
   markDown(entity) {
     if (entity.bobTween) entity.bobTween.stop();
+    if (entity.label) this.tweens.add({ targets: entity.label, alpha: 0, duration: ui.downed.enemyFadeMs });
 
     if (hasSheet(entity.anims, 'death')) {
       entity.body.play(animKey(entity.type, 'death'));
@@ -306,7 +312,11 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     if (entity.anims) entity.body.anims.stop();
-    this.tweens.add({ targets: entity.container, alpha: 0.35, duration: 200 });
+    if (entity.isHero) {
+      this.tweens.add({ targets: entity.container, alpha: ui.downed.heroAlpha, duration: ui.downed.fadeMs });
+      return;
+    }
+    this.tweens.add({ targets: entity.container, alpha: 0, duration: ui.downed.enemyFadeMs });
   }
 
   // Non-lethal damage: the hurt sheet, then back to idle. Without a hurt sheet
@@ -478,14 +488,15 @@ export default class BattleScene extends Phaser.Scene {
   // A hero in a counter stance draws the attack.
   async enemyTurn(enemy) {
     const livingHeroes = this.heroes.filter((h) => h.hp > 0);
+    if (livingHeroes.length === 0) return;
     const stanceHero = this.stance && this.stance.hero.hp > 0 ? this.stance.hero : null;
     const target = stanceHero || Phaser.Utils.Array.GetRandom(livingHeroes);
-    const attack = pickWeighted(enemy.def.attacks);
+    const attack = pickWeighted(this.enemyAttacks(enemy));
 
     this.tapHint.setVisible(true);
     for (const hit of attack.hits || [attack]) {
       if (target.hp <= 0 || enemy.hp <= 0) break;
-      await this.enemyHit(enemy, target, hit);
+      await this.enemyHit(enemy, target, hit, attack.id);
     }
     this.tapHint.setVisible(false);
     this.brace = null;
@@ -506,46 +517,103 @@ export default class BattleScene extends Phaser.Scene {
     return storyMode ? Qte.scaledWindows(qte.windows, qte.storyMode.windowMult) : qte.windows;
   }
 
-  // The ring closes at T; the enemy's attack is started early enough that its
-  // impact lands on T. The result is applied once the tap is judged.
-  async enemyHit(enemy, target, hit) {
+  // The ring closes at T. The enemy holds its windup pose through the
+  // telegraph and is released just early enough for its impact to land on T.
+  async enemyHit(enemy, target, hit, attackId) {
     const ring = Qte.runRing(this, {
       x: target.container.x,
       y: target.container.y + qte.ring.offsetY,
       telegraphMs: hit.telegraphMs,
+      feint: hit.feint,
       windows: this.parryWindows(),
       ring: qte.ring,
     });
 
-    const attackDone = new Promise((resolve) => {
-      const startIn = Math.max(0, hit.telegraphMs - this.impactLeadMs(enemy));
-      this.time.delayedCall(startIn, () => this.playAttackAnim(enemy).then(resolve));
-    });
+    const attackDone = this.playEnemyAttack(enemy, attackId, ring.impactAt);
 
     const { result } = await ring.promise;
-    await this.applyParryResult(result, enemy, target, hit.dmg);
+    await this.applyParryResult(result, enemy, target, hit);
     await attackDone;
   }
 
-  // How long an entity's attack takes to reach its impact.
-  impactLeadMs(entity) {
-    if (hasSheet(entity.anims, 'attack')) {
-      const { impactFrames = [], durations_ms: durations = [], frames } = entity.anims.attack;
-      const impact = impactFrames.length ? impactFrames[0] : frames;
-      return durations.slice(0, impact).reduce((sum, ms) => sum + ms, 0);
-    }
-    if (entity.def.parts && Object.keys(entity.parts).length > 0) return ATTACK_DURATION_MS / 2;
-    return LUNGE_OUT_MS;
+  // Sheet: plays up to windupFrame, holds, resumes so the first impact frame
+  // lands at impactAt (a performance.now() time). The attack's own sheet
+  // (e.g. blank_punch) wins over the generic attack sheet.
+  // Rig: leans back (windupPx), then lunges.
+  playEnemyAttack(enemy, attackId, impactAt) {
+    const name = hasSheet(enemy.anims, attackId) ? attackId : 'attack';
+    if (!hasSheet(enemy.anims, name)) return this.playLungeTelegraph(enemy, impactAt);
+
+    const def = enemy.anims[name];
+    const durations = def.durations_ms || [];
+    const windup = def.windupFrame ?? 0;
+    const impact = def.impactFrames?.length ? def.impactFrames[0] : def.frames;
+    const leadMs = durations.slice(windup, impact).reduce((sum, ms) => sum + ms, 0);
+
+    return playOnce(enemy.body, enemy.type, name, { ...def, holdFrame: windup }, {
+      onHold: (resume) => this.atRealTime(impactAt - leadMs, resume),
+    }).then(() => {
+      if (enemy.hp > 0) enemy.body.play(animKey(enemy.type, 'idle'));
+    });
   }
 
-  async applyParryResult(result, enemy, hero, baseDmg) {
+  playLungeTelegraph(enemy, impactAt) {
+    const lunge = enemy.def.attack?.distance !== undefined ? enemy.def.attack : FALLBACK_LUNGE;
+    const dir = enemy.facing === 'right' ? 1 : -1;
+    const restX = enemy.restX;
+    const c = enemy.container;
+
+    const windup = this.tweens.add({ targets: c, x: restX - dir * (lunge.windupPx || 0), duration: WINDUP_MS, ease: 'Quad.easeOut' });
+
+    return new Promise((resolve) => {
+      this.atRealTime(impactAt - LUNGE_OUT_MS, () => {
+        windup.stop();
+        const baseScaleY = c.scaleY;
+        this.tweens.chain({
+          targets: c,
+          tweens: [
+            { x: restX + dir * lunge.distance, duration: LUNGE_OUT_MS, ease: 'Quad.easeOut' },
+            { x: restX, duration: 150, ease: 'Quad.easeIn' },
+          ],
+          onComplete: () => {
+            c.x = restX;
+            resolve();
+          },
+        });
+        this.tweens.add({ targets: c, scaleY: baseScaleY * (1 - lunge.squash), duration: 100, yoyo: true });
+      });
+    });
+  }
+
+  // A boss uses the attack list of its current phase.
+  enemyAttacks(enemy) {
+    return enemy.def.attacks;
+  }
+
+  // Calls fn once performance.now() reaches t, checked every frame, so it
+  // follows the ring's clock whatever the scene's time scale is.
+  atRealTime(t, fn) {
+    const check = () => {
+      if (performance.now() < t) return;
+      this.events.off('update', check);
+      fn();
+    };
+    this.events.on('update', check);
+    this.events.once('shutdown', () => this.events.off('update', check));
+    check();
+  }
+
+  async applyParryResult(result, enemy, hero, hit) {
     const cfg = qte.results[result];
+    const baseDmg = hit.dmg;
     const x = hero.container.x;
     const y = hero.container.y;
 
     if (cfg.text) Fx.popText(this, x, y, cfg.text, cfg.color, qte.text);
     if (cfg.flash) Fx.screenFlash(this, cfg.flash, qte.flashDepth);
     this.gainEcho(cfg.echo);
+    // e.g. Siphon: a missed parry also drains Echo.
+    if (result === 'MISS' && hit.onMiss?.echo) this.gainEcho(hit.onMiss.echo);
 
     const storyMult = this.registry.get('settings')?.storyMode ? qte.storyMode.damageMult : 1;
     const braceMult = this.brace ? this.brace.damageMult : 1;
@@ -867,6 +935,8 @@ export default class BattleScene extends Phaser.Scene {
   onBattleEnd(result) {
     this.battleOver = true;
     this.hideCommandMenu();
+    this.tapHint.setVisible(false);
+    const cfg = ui.battleEnd;
 
     // Heroes still standing celebrate if they have a victory sheet (last frame held).
     if (result === 'WIN') {
@@ -875,16 +945,38 @@ export default class BattleScene extends Phaser.Scene {
       }
     }
 
-    const message = result === 'WIN' ? 'Victory' : 'The memory fades…';
-
-    this.add
-      .text(180, 320, message, {
-        fontFamily: '"Pixelify Sans", monospace',
-        fontSize: '28px',
-        color: '#f1efe8',
-      })
+    const style = { fontFamily: ui.font, fontSize: `${cfg.fontSize}px`, color: cfg.color, stroke: cfg.stroke, strokeThickness: cfg.strokeThickness };
+    const message = this.add
+      .text(180, cfg.textY, result === 'WIN' ? cfg.victoryText : cfg.loseText, style)
       .setOrigin(0.5)
-      .setDepth(2000);
+      .setDepth(cfg.depth)
+      .setAlpha(0);
+    this.tweens.add({ targets: message, alpha: 1, duration: cfg.fadeMs });
+
+    // A short delay so the tap that ended the fight doesn't also skip this.
+    this.time.delayedCall(cfg.inputDelayMs, () => {
+      if (result === 'WIN') {
+        const hint = this.add
+          .text(180, cfg.hintY, cfg.continueText, { fontFamily: ui.font, fontSize: `${cfg.hintFontSize}px`, color: cfg.hintColor })
+          .setOrigin(0.5)
+          .setDepth(cfg.depth);
+        this.tweens.add({ targets: hint, alpha: cfg.hintPulseAlpha, duration: cfg.hintPulseMs, yoyo: true, repeat: -1 });
+        this.input.once('pointerdown', () => this.continueChapter());
+        return;
+      }
+      this.menu.show([{ slot: 'retry', label: cfg.retryText, value: 'retry' }]).then(() => this.retry());
+    });
+  }
+
+  // Retry restarts the same battle from its starting state (full HP, starting Echo).
+  retry() {
+    this.scene.restart(this.initData);
+  }
+
+  continueChapter() {
+    const runner = this.registry.get('runner');
+    if (runner) runner.next(this);
+    else this.scene.start('Title');
   }
 }
 

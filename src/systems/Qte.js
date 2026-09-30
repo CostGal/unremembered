@@ -21,9 +21,13 @@ export function scaledWindows(windows, mult) {
 // Shows the ring at (x, y) and resolves with {result, dtMs} once the tap is
 // judged: at T for an early tap, at the tap for a late one, at T + goodMs if
 // there is no tap (MISS). impactAt = the performance.now() time of T.
-export function runRing(scene, { x, y, telegraphMs, windows, ring }) {
+// feint = {atPct, pauseMs}: the ring freezes at atPct of its travel for
+// pauseMs, so T moves pauseMs later.
+export function runRing(scene, { x, y, telegraphMs, feint, windows, ring }) {
   const start = performance.now();
-  const impactAt = start + telegraphMs;
+  const pauseAt = feint ? feint.atPct * telegraphMs : Infinity;
+  const pauseMs = feint ? feint.pauseMs : 0;
+  const impactAt = start + telegraphMs + pauseMs;
 
   const g = scene.add.graphics().setDepth(ring.depth);
   const target = Number(ring.targetColor);
@@ -53,7 +57,9 @@ export function runRing(scene, { x, y, telegraphMs, windows, ring }) {
 
     const onUpdate = () => {
       const now = performance.now();
-      const t = Math.min(1, (now - start) / telegraphMs);
+      const elapsed = now - start;
+      const travel = elapsed < pauseAt ? elapsed : Math.max(pauseAt, elapsed - pauseMs);
+      const t = Math.min(1, travel / telegraphMs);
       const radius = ring.startRadius + (ring.endRadius - ring.startRadius) * t;
 
       g.clear();

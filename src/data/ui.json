@@ -70,7 +70,13 @@
       "pulseScale": 1.06,
       "pulseMs": 420
     },
-    "slots": { "strike": [94, 500], "technique": [266, 500], "recollection": [94, 576], "back": [266, 576] },
+    "slots": {
+      "strike": [94, 500],
+      "technique": [266, 500],
+      "recollection": [94, 576],
+      "back": [266, 576],
+      "retry": [180, 540]
+    },
     "prompt": { "x": 180, "y": 458, "fontSize": 14, "text": "Choose a target" },
     "techniqueSlots": ["strike", "technique", "recollection"],
     "labels": {
@@ -116,5 +122,25 @@
     "keys": { "hurtRhea": "ONE", "hurtDov": "TWO", "echoUp": "E", "echoDown": "Q" }
   },
   "heal": { "textPrefix": "+", "fontSize": 16 },
-  "cast": { "hopPx": 6, "hopMs": 120 }
+  "cast": { "hopPx": 6, "hopMs": 120 },
+  "battleEnd": {
+    "victoryText": "Victory",
+    "loseText": "The memory fades…",
+    "continueText": "Tap to continue",
+    "retryText": "Retry",
+    "textY": 300,
+    "fontSize": 28,
+    "color": "#f1efe8",
+    "stroke": "#0b0d14",
+    "strokeThickness": 4,
+    "fadeMs": 400,
+    "depth": 2000,
+    "hintY": 540,
+    "hintFontSize": 16,
+    "hintColor": "#8a8fa3",
+    "hintPulseAlpha": 0.35,
+    "hintPulseMs": 700,
+    "inputDelayMs": 900
+  },
+  "downed": { "heroAlpha": 0.35, "fadeMs": 200, "enemyFadeMs": 500 }
 }
