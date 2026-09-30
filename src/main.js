@@ -3,6 +3,7 @@ import BootScene from './scenes/BootScene.js';
 import PreloadScene from './scenes/PreloadScene.js';
 import TitleScene from './scenes/TitleScene.js';
 import BattleScene from './scenes/BattleScene.js';
+import CutsceneScene from './scenes/CutsceneScene.js';
 import DialogueScene from './scenes/DialogueScene.js';
 import AnimTestScene from './scenes/AnimTestScene.js';
 
@@ -18,7 +19,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, PreloadScene, TitleScene, DialogueScene, BattleScene, AnimTestScene],
+  scene: [BootScene, PreloadScene, TitleScene, CutsceneScene, DialogueScene, BattleScene, AnimTestScene],
 };
 
 new Phaser.Game(config);

@@ -62,5 +62,15 @@
     "records_office": { "file": "bg/records_office.png", "w": 360, "h": 360 },
     "memory_city": { "file": "bg/memory_city.png", "w": 360, "h": 360 }
   },
-  "ui": { "logo": { "file": "ui/logo.png", "w": 240, "h": 100 } }
+  "ui": { "logo": { "file": "ui/logo.png", "w": 240, "h": 100 } },
+  "cutscene": {
+    "city": { "file": "cutscene/city.png", "w": 360, "h": 360 },
+    "reliquary": { "file": "cutscene/reliquary.png", "w": 360, "h": 360 },
+    "battlefield": { "file": "cutscene/battlefield.png", "w": 360, "h": 360 },
+    "council": { "file": "cutscene/council.png", "w": 360, "h": 360 },
+    "statue": { "file": "cutscene/statue.png", "w": 360, "h": 360 },
+    "exile_close": { "file": "cutscene/exile_close.png", "w": 360, "h": 360 },
+    "aurelian_king": { "file": "cutscene/aurelian_king.png", "w": 360, "h": 360 },
+    "aurelian_exile": { "file": "cutscene/aurelian_exile.png", "w": 360, "h": 360 }
+  }
 }

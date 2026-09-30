@@ -206,5 +206,68 @@
       }
     },
     "nextBlinkAlpha": 0.2
+  },
+  "cutscene": {
+    "area": { "y": 56, "h": 344 },
+    "text": { "y": 428, "fontSize": 17, "color": "#f1efe8", "lineSpacing": 6, "wrap": 312 },
+    "defaultDurationMs": 4500,
+    "fadeOutMs": 500,
+    "splitLine": 2,
+    "splitColor": "0x000000",
+    "depth": { "picture": 0, "fx": 10, "bars": 20, "text": 30, "hold": 40 },
+    "skipHint": {
+      "text": "Hold to skip",
+      "fontSize": 12,
+      "color": "#5a5f73",
+      "pad": 16,
+      "showMs": 4000,
+      "fadeMs": 600
+    },
+    "hold": {
+      "ms": 800,
+      "showAfter": 0.15,
+      "radius": 22,
+      "width": 4,
+      "color": "0x3fd0c9",
+      "bgColor": "0xf1efe8",
+      "bgAlpha": 0.25
+    },
+    "move": { "panScale": 1.15, "panPx": 24, "zoomScale": 1.18 },
+    "fx": {
+      "flash": { "color": "0xffffff", "alpha": 0.8, "ms": 500 },
+      "crystal_particles": {
+        "size": 2,
+        "spawnTop": 0.2,
+        "speed": [8, 26],
+        "drift": 6,
+        "lifeMs": 3000,
+        "alpha": 0.9,
+        "colors": ["0x3fd0c9", "0xa8f0ec"],
+        "frequency": 90,
+        "max": 45
+      },
+      "embers": {
+        "size": 2,
+        "spawnTop": 0.5,
+        "speed": [20, 50],
+        "drift": 14,
+        "lifeMs": 2200,
+        "alpha": 1,
+        "colors": ["0xe8883a", "0xf0c060"],
+        "frequency": 70,
+        "max": 45
+      },
+      "lights_out": { "startPct": 0.3, "ms": 1500, "steps": 5 },
+      "dissolve_layer": { "startPct": 0.35, "ms": 1800, "steps": 8 },
+      "eyes_glow": {
+        "at": [[0.44, 0.42], [0.56, 0.42]],
+        "radius": 8,
+        "color": "0x3fd0c9",
+        "alpha": 1,
+        "delayMs": 600,
+        "ms": 900
+      }
+    },
+    "background": "#000000"
   }
 }

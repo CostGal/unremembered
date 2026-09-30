@@ -56,8 +56,8 @@ export default class PreloadScene extends Phaser.Scene {
   }
 
   allEntries() {
-    const { sprites = {}, portraits = {}, backgrounds = {}, ui = {} } = this.manifest;
-    return { ...sprites, ...portraits, ...backgrounds, ...ui };
+    const { sprites = {}, portraits = {}, backgrounds = {}, cutscene = {}, ui = {} } = this.manifest;
+    return { ...sprites, ...portraits, ...backgrounds, ...cutscene, ...ui };
   }
 }
 
