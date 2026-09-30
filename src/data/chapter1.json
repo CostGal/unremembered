@@ -1,0 +1,11 @@
+[
+  { "type": "cutscene", "id": "origin" },
+  { "type": "dialogue", "id": "letter", "bg": "black" },
+  { "type": "dialogue", "id": "meet_dov", "bg": "street_rain" },
+  { "type": "battle", "id": "b1_tutorial" },
+  { "type": "dialogue", "id": "after_b1", "bg": "street_rain" },
+  { "type": "dialogue", "id": "records_office", "bg": "records_office" },
+  { "type": "battle", "id": "boss_clerk" },
+  { "type": "dialogue", "id": "ending", "bg": "records_office" },
+  { "type": "end" }
+]
