@@ -26,7 +26,8 @@ const config = {
   scene: [BootScene, PreloadScene, TitleScene, MenuScene, SettingsScene, CutsceneScene, BattleScene, DialogueScene, EndScene, AnimTestScene],
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+if (import.meta.env.DEV) window.__game = game;
 
 // Dev params skip the Title tap, so any first tap also unlocks audio.
 document.addEventListener('pointerdown', () => unlockAudio(), { once: true });

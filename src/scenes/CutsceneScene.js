@@ -19,6 +19,11 @@ export default class CutsceneScene extends Phaser.Scene {
   }
 
   init(data) {
+    this.done = false;
+    this.typing = false;
+    this.typeEvent = null;
+    this.shotTimer = null;
+    this.fxObjects = [];
     this.cutsceneId = data.id || 'origin';
     this.shots = (CUTSCENES[this.cutsceneId] || { shots: [] }).shots;
   }

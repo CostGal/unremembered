@@ -19,6 +19,10 @@ export default class DialogueScene extends Phaser.Scene {
   }
 
   init(data) {
+    // Scene instances are reused (dialogue -> dialogue), so reset state here.
+    this.finished = false;
+    this.typing = false;
+    this.typeEvent = null;
     this.dialogueId = data.id;
     this.bgKey = data.bg;
     this.overlay = !!data.overlay;

@@ -55,6 +55,13 @@ export default class BattleScene extends Phaser.Scene {
     this.manifest = this.registry.get('manifest');
     this.animationSets = this.registry.get('animationSets') || {};
     this.battleOver = false;
+    // Scene instances are reused (Retry, battle -> battle), so reset state here.
+    this.tutorialPrompt = null;
+    this.stance = null;
+    this.brace = null;
+    this.activeHero = null;
+    this.nala = null;
+    this.setTimeScale(1);
     playMusic(this.battleDef.music || null);
     this.tutorialSlow = !!this.battleDef.tutorial;
     this.pendingEvents = [];
