@@ -2,10 +2,23 @@ import Phaser from 'phaser';
 import dialogue from '../data/dialogue.json';
 import environments from '../data/environments.json';
 import ui from '../data/ui.json';
-import { playSceneMusic } from '../systems/Audio.js';
+import voices from '../data/voices.json';
+import { playBlip, playSceneMusic } from '../systems/Audio.js';
 import * as Fx from '../systems/Fx.js';
 
 const cfg = ui.dialogue;
+
+// Voice by speaker, else by "_" + style (letter/narration), else "_default".
+// A key that maps to null is deliberately silent.
+function voiceFor(line) {
+  for (const key of [line.speaker, `_${line.style || 'normal'}`]) {
+    if (key && key in voices) return voices[key];
+  }
+  return voices._default;
+}
+
+// Only letters and digits get a blip (no spaces or punctuation).
+const VOICED = /[\p{L}\p{N}]/u;
 
 // Visual-novel dialogue: background on top, text box at the bottom with the
 // speaker's name and a typewritten line, up to two portraits standing on the
@@ -126,6 +139,8 @@ export default class DialogueScene extends Phaser.Scene {
 
     this.fullText = line.text || '';
     this.shown = 0;
+    this.voice = voiceFor(line);
+    this.voicedCount = 0;
     this.bodyText.setText('');
     this.nextMark.setVisible(false);
     this.typing = true;
@@ -136,9 +151,17 @@ export default class DialogueScene extends Phaser.Scene {
       callback: () => {
         this.shown += 1;
         this.bodyText.setText(this.fullText.slice(0, this.shown));
+        this.blip(this.fullText[this.shown - 1]);
         if (this.shown >= this.fullText.length) this.completeLine();
       },
     });
+  }
+
+  // Blip on every Nth voiced character of the line as it is revealed.
+  blip(char) {
+    if (!this.voice || !char || !VOICED.test(char)) return;
+    this.voicedCount += 1;
+    if (this.voicedCount % (this.voice.every || 1) === 0) playBlip(this.voice);
   }
 
   completeLine() {

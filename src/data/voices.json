@@ -1,0 +1,9 @@
+{
+  "Rhea": { "wave": "square", "freq": 520, "durMs": 40, "every": 2, "jitter": 0.06, "gain": 0.25 },
+  "Dov": { "wave": "triangle", "freq": 220, "durMs": 60, "every": 3, "jitter": 0.04, "gain": 0.35 },
+  "The Clerk": { "wave": "sawtooth", "freq": 330, "durMs": 30, "every": 2, "jitter": 0.0, "gain": 0.18, "lowpass": 1200 },
+  "Nala": { "wave": "sine", "freq": 700, "slideTo": 950, "durMs": 70, "every": 4, "jitter": 0.08, "gain": 0.3 },
+  "_letter": { "wave": "noise", "durMs": 25, "every": 3, "gain": 0.12, "lowpass": 2500 },
+  "_narration": null,
+  "_default": { "wave": "square", "freq": 440, "durMs": 40, "every": 2, "jitter": 0.05, "gain": 0.2 }
+}

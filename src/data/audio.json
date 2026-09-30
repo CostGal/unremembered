@@ -5,6 +5,7 @@
     "crossfadeMs": 500,
     "scenes": { "Menu": "title", "Cutscene": "cutscene", "Dialogue": "cutscene", "End": "ending" }
   },
+  "blip": { "minGapMs": 35, "attackMs": 2 },
   "sfx": {
     "hit": [
       { "type": "noise", "ms": 90, "gain": 0.35, "filterHz": 1800 },

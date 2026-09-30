@@ -92,6 +92,53 @@ export function playSfx(name) {
   }
 }
 
+// ---------- Dialogue voice blips ----------
+
+let lastBlipAt = -Infinity;
+
+// One short typewriter blip for a voice from voices.json:
+// {wave, freq, slideTo?, durMs, jitter?, gain, lowpass?}. wave "noise" uses
+// the shared noise buffer. Goes through the SFX bus, so the SFX volume
+// setting applies. Does nothing while audio is locked/suspended, and at most
+// one blip per audio.json blip.minGapMs.
+export function playBlip(voice) {
+  if (!voice || !ctx || ctx.state !== 'running') return;
+  const nowMs = performance.now();
+  if (nowMs - lastBlipAt < audioData.blip.minGapMs) return;
+  lastBlipAt = nowMs;
+
+  const start = ctx.currentTime;
+  const end = start + voice.durMs / 1000;
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0.0001, start);
+  env.gain.linearRampToValueAtTime(voice.gain, start + audioData.blip.attackMs / 1000);
+  env.gain.exponentialRampToValueAtTime(0.0001, end);
+  env.connect(sfxBus);
+
+  let source;
+  if (voice.wave === 'noise') {
+    source = ctx.createBufferSource();
+    source.buffer = getNoise();
+  } else {
+    const pitch = 1 + (Math.random() * 2 - 1) * (voice.jitter || 0);
+    source = ctx.createOscillator();
+    source.type = voice.wave;
+    source.frequency.setValueAtTime(voice.freq * pitch, start);
+    if (voice.slideTo) source.frequency.linearRampToValueAtTime(voice.slideTo * pitch, end);
+  }
+  if (voice.lowpass) {
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = voice.lowpass;
+    source.connect(filter);
+    filter.connect(env);
+  } else {
+    source.connect(env);
+  }
+  source.start(start);
+  source.stop(end + 0.02);
+}
+
 function getNoise() {
   if (!noiseBuffer) {
     noiseBuffer = ctx.createBuffer(1, ctx.sampleRate / 2, ctx.sampleRate);
