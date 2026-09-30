@@ -310,3 +310,50 @@ export function knockback(scene, container, dx, durationMs = 160) {
     },
   });
 }
+
+// ---------- Title ----------
+
+// A few slow glowing specks drifting up. cfg = {count, color, size, area:
+// {x, y, w, h}, speedY: [min, max], driftX, lifeMs, alpha, frequency, depth}
+export function motes(scene, cfg) {
+  const key = `fx_spark_${cfg.size}`;
+  if (!scene.textures.exists(key)) {
+    const texture = scene.textures.createCanvas(key, cfg.size, cfg.size);
+    const ctx = texture.getContext();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, cfg.size, cfg.size);
+    texture.refresh();
+  }
+  const { x, y, w, h } = cfg.area;
+  return scene.add
+    .particles(0, 0, key, {
+      x: { min: x, max: x + w },
+      y: { min: y, max: y + h },
+      speedY: { min: -cfg.speedY[1], max: -cfg.speedY[0] },
+      speedX: { min: -cfg.driftX, max: cfg.driftX },
+      lifespan: cfg.lifeMs,
+      alpha: { values: [0, cfg.alpha, cfg.alpha, 0] },
+      tint: Number(cfg.color),
+      frequency: cfg.frequency,
+      maxAliveParticles: cfg.count,
+      blendMode: Phaser.BlendModes.ADD,
+    })
+    .setDepth(cfg.depth);
+}
+
+// A vertical fade from transparent to `color` at `alpha` (smooth, LINEAR).
+export function gradientTexture(scene, w, h, color, alpha) {
+  const key = `fx_gradient_${w}x${h}_${color}_${alpha}`;
+  if (scene.textures.exists(key)) return key;
+  const texture = scene.textures.createCanvas(key, w, h);
+  const ctx = texture.getContext();
+  const { r, g, b } = Phaser.Display.Color.IntegerToRGB(Number(color));
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, `rgba(${r},${g},${b},0)`);
+  grad.addColorStop(1, `rgba(${r},${g},${b},${alpha})`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+  texture.refresh();
+  texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+  return key;
+}

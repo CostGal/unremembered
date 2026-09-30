@@ -16,6 +16,7 @@ import Hud from '../systems/Hud.js';
 import * as Qte from '../systems/Qte.js';
 import { devInt } from '../systems/DevParams.js';
 import { animKey, hasSheet, playLoop, playOnce, SheetDriver, trace } from '../systems/SpriteAnims.js';
+import { whenReady } from '../systems/Assets.js';
 
 const layout = ui.battleLayout;
 
@@ -51,7 +52,12 @@ export default class BattleScene extends Phaser.Scene {
     this.battleDef = battles[this.battleId];
   }
 
+  // Waits for this scene's assets (loaded in the background by the Loader).
   create() {
+    whenReady(this, () => this.build());
+  }
+
+  build() {
     this.manifest = this.registry.get('manifest');
     this.animationSets = this.registry.get('animationSets') || {};
     this.battleOver = false;

@@ -5,6 +5,7 @@ import ui from '../data/ui.json';
 import * as Fx from '../systems/Fx.js';
 import { animKey, playOnce } from '../systems/SpriteAnims.js';
 import { devParam } from '../systems/DevParams.js';
+import { whenReady } from '../systems/Assets.js';
 
 const cfg = ui.animtest;
 
@@ -27,7 +28,12 @@ export default class AnimTestScene extends Phaser.Scene {
     super('AnimTest');
   }
 
+  // Waits for this scene's assets (loaded in the background by the Loader).
   create() {
+    whenReady(this, () => this.build());
+  }
+
+  build() {
     this.id = devParam('char') || cfg.character;
     this.set = (this.registry.get('animationSets') || {})[this.id];
     this.token = 0;

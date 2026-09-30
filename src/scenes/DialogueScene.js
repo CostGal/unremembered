@@ -5,6 +5,7 @@ import ui from '../data/ui.json';
 import voices from '../data/voices.json';
 import { playBlip, playSceneMusic } from '../systems/Audio.js';
 import * as Fx from '../systems/Fx.js';
+import { whenReady } from '../systems/Assets.js';
 
 const cfg = ui.dialogue;
 
@@ -44,7 +45,12 @@ export default class DialogueScene extends Phaser.Scene {
     if (!dialogue[data.id]) console.warn(`dialogue "${data.id}" not found`);
   }
 
+  // Waits for this scene's assets (loaded in the background by the Loader).
   create() {
+    whenReady(this, () => this.build());
+  }
+
+  build() {
     if (this.overlay) {
       this.add.rectangle(0, 0, 360, 640, Number(cfg.overlayDim.color), cfg.overlayDim.alpha).setOrigin(0);
     } else {

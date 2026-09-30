@@ -62,7 +62,10 @@
     "records_office": { "file": "bg/records_office.png", "w": 360, "h": 360 },
     "memory_city": { "file": "bg/memory_city.png", "w": 360, "h": 360 }
   },
-  "ui": { "logo": { "file": "ui/logo.png", "w": 240, "h": 100 } },
+  "ui": {
+    "logo": { "file": "ui/logo.png", "w": 720, "h": 207, "optional": true },
+    "title_bg": { "file": "ui/title_bg.jpg", "w": 720, "h": 1280, "optional": true }
+  },
   "cutscene": {
     "city": { "file": "cutscene/city.png", "w": 360, "h": 360 },
     "reliquary": { "file": "cutscene/reliquary.png", "w": 360, "h": 360 },
@@ -72,5 +75,27 @@
     "exile_close": { "file": "cutscene/exile_close.png", "w": 360, "h": 360 },
     "aurelian_king": { "file": "cutscene/aurelian_king.png", "w": 360, "h": 360 },
     "aurelian_exile": { "file": "cutscene/aurelian_exile.png", "w": 360, "h": 360 }
+  },
+  "loading": {
+    "background": ["ui", "cutscene", "sprites", "backgrounds", "portraits", "sheets"],
+    "deps": { "sheets": ["sprites"] },
+    "scenes": {
+      "Title": ["ui"],
+      "Cutscene": ["cutscene", "sprites", "backgrounds"],
+      "Dialogue": ["portraits", "backgrounds"],
+      "Battle": ["sprites", "backgrounds", "sheets"],
+      "AnimTest": ["sprites", "backgrounds", "sheets"]
+    },
+    "linear": ["ui", "portraits", "cutscene"],
+    "indicator": {
+      "text": "Loading…",
+      "y": 320,
+      "font": "\"Pixelify Sans\", monospace",
+      "fontSize": 16,
+      "color": "#8a8fa3",
+      "depth": 3000,
+      "delayMs": 150,
+      "fadeMs": 200
+    }
   }
 }

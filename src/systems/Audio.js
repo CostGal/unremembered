@@ -12,6 +12,7 @@ let volumes = { musicVolume: 1, sfxVolume: 1 };
 let wantedMusic = null;
 let current = null; // {key, source, gain}
 const buffers = new Map(); // key -> Promise<AudioBuffer | null>
+const bytes = new Map(); // key -> Promise<ArrayBuffer | null> (prefetched, not yet decoded)
 let noiseBuffer = null;
 
 export function unlockAudio() {
@@ -192,14 +193,30 @@ export function playMusic(key) {
 
 function loadBuffer(key) {
   if (!buffers.has(key)) {
-    const url = `${audioData.music.dir}${key}${audioData.music.ext}`;
-    const promise = fetch(url)
-      .then((res) => (res.ok ? res.arrayBuffer() : null))
+    const promise = fetchBytes(key)
       .then((data) => (data ? decode(data) : null))
       .catch(() => null);
     buffers.set(key, promise);
   }
   return buffers.get(key);
+}
+
+function fetchBytes(key) {
+  if (!bytes.has(key)) {
+    const url = `${audioData.music.dir}${key}${audioData.music.ext}`;
+    const promise = fetch(url)
+      .then((res) => (res.ok && !/text\/html/.test(res.headers.get('content-type') || '') ? res.arrayBuffer() : null))
+      .catch(() => null);
+    bytes.set(key, promise);
+  }
+  return bytes.get(key);
+}
+
+// Downloads every music track (audio.json scenes + battles) in the
+// background, one after another, so a track is ready when its scene starts.
+// Decoding waits for playMusic (it needs the unlocked AudioContext).
+export async function prefetchMusic(keys = audioData.music.prefetch) {
+  for (const key of keys) await fetchBytes(key);
 }
 
 // Safari's decodeAudioData still wants callbacks. A file that isn't audio

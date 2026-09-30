@@ -4,6 +4,7 @@ import environments from '../data/environments.json';
 import ui from '../data/ui.json';
 import { playSceneMusic } from '../systems/Audio.js';
 import * as Fx from '../systems/Fx.js';
+import { whenReady } from '../systems/Assets.js';
 
 const cfg = ui.cutscene;
 const CUTSCENES = { origin: cutsceneOrigin };
@@ -28,7 +29,12 @@ export default class CutsceneScene extends Phaser.Scene {
     this.shots = (CUTSCENES[this.cutsceneId] || { shots: [] }).shots;
   }
 
+  // Waits for this scene's assets (loaded in the background by the Loader).
   create() {
+    whenReady(this, () => this.build());
+  }
+
+  build() {
     playSceneMusic('Cutscene');
     this.cameras.main.setBackgroundColor(cfg.background);
     const a = cfg.area;

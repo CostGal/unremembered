@@ -15,14 +15,14 @@ export default class BootScene extends Phaser.Scene {
   }
 
   async create() {
-    const [, animationSets] = await Promise.all([
-      this.loadFont(),
-      fetchAnimationSets([...Object.keys(characters), ...Object.keys(enemies), ...Object.keys(allies)]),
-    ]);
+    // Only the font blocks the first screen; the animation sets are fetched
+    // by the Loader with the sprite sheets.
+    await this.loadFont();
 
     this.registry.set('manifest', manifest);
-    this.registry.set('animationSets', animationSets);
-    if (import.meta.env.DEV) validateInDev(animationSets);
+    if (import.meta.env.DEV) {
+      fetchAnimationSets([...Object.keys(characters), ...Object.keys(enemies), ...Object.keys(allies)]).then(validateInDev);
+    }
     const settings = loadSettings();
     this.registry.set('settings', settings);
     setVolumes(settings);

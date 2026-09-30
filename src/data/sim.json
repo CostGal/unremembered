@@ -1,0 +1,32 @@
+{
+  "_about": "Balance simulation settings (scripts/sim.mjs, npm run sim). Not loaded by the game.",
+  "runs": 2000,
+  "seed": 20261003,
+  "profiles": {
+    "non-gamer": { "PERFECT": 0.15, "GOOD": 0.35, "MISS": 0.5 },
+    "average": { "PERFECT": 0.3, "GOOD": 0.45, "MISS": 0.25 },
+    "good": { "PERFECT": 0.55, "GOOD": 0.35, "MISS": 0.1 }
+  },
+  "thinkMs": { "non-gamer": 3500, "average": 2200, "good": 1400 },
+  "policy": {
+    "anchorBelow": 0.4,
+    "blastAtEcho": 3,
+    "returnToSenderChance": 0.5,
+    "braceOnArchive": true,
+    "nalaTapChance": { "non-gamer": 0.7, "average": 0.85, "good": 0.95 }
+  },
+  "timing": {
+    "introMs": 1000,
+    "dashMs": 180,
+    "attackMs": 700,
+    "castMs": 1100,
+    "counterMs": 900,
+    "chargeMs": 1200,
+    "hitResolveMs": 700,
+    "keepsakeMs": 25000,
+    "recollectionFadeMs": 400,
+    "victoryMs": 2500,
+    "loseMs": 2500,
+    "readAfterLineMs": 1200
+  }
+}

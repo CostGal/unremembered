@@ -272,6 +272,28 @@
     "background": "#000000"
   },
   "title": {
+    "art": {
+      "layout": { "tap": { "y": 520 }, "silent": { "y": 556 }, "logo": { "y": 90 } },
+      "logo": { "widthPct": 0.9, "topPct": 0.04, "depth": 20 },
+      "drift": { "zoom": 1.06, "x": -6, "y": -4, "ms": 14000 },
+      "gradient": { "y": 380, "color": "0x0b0d14", "alpha": 0.92, "depth": 10 },
+      "textDepth": 30,
+      "rain": {
+        "near": { "count": 45, "speed": 520, "wind": -30, "landY": [480, 660], "alpha": [0.12, 0.35], "length": 8, "color": "0xc2dcf0", "depth": 15 }
+      },
+      "motes": {
+        "count": 12,
+        "color": "0x3fd0c9",
+        "size": 2,
+        "area": { "x": 20, "y": 260, "w": 320, "h": 300 },
+        "speedY": [4, 14],
+        "driftX": 5,
+        "lifeMs": 5000,
+        "alpha": 0.8,
+        "frequency": 420,
+        "depth": 16
+      }
+    },
     "logo": { "x": 180, "y": 220 },
     "fallbackText": "UNREMEMBERED",
     "fallbackFontSize": 34,

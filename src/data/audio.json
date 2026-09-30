@@ -3,7 +3,8 @@
     "dir": "assets/audio/music/",
     "ext": ".mp3",
     "crossfadeMs": 500,
-    "scenes": { "Menu": "title", "Cutscene": "cutscene", "Dialogue": "cutscene", "End": "ending" }
+    "scenes": { "Menu": "title", "Cutscene": "cutscene", "Dialogue": "cutscene", "End": "ending" },
+    "prefetch": ["title", "cutscene", "battle", "boss", "ending"]
   },
   "blip": { "minGapMs": 35, "attackMs": 2 },
   "sfx": {
