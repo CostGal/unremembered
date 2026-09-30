@@ -341,5 +341,11 @@
       "pulseAlpha": 0.35,
       "pulseMs": 700
     }
+  },
+  "pause": {
+    "dim": { "color": "0x04050b", "alpha": 0.72 },
+    "title": { "text": "Paused", "y": 260, "fontSize": 26, "color": "#f1efe8" },
+    "tap": { "text": "Tap to continue", "y": 320, "fontSize": 18, "color": "#3fd0c9", "pulseAlpha": 0.35, "pulseMs": 700 },
+    "inputDelayMs": 250
   }
 }

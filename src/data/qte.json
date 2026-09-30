@@ -60,6 +60,7 @@
     "missColor": "#8a8fa3",
     "bg": "memory_city",
     "bgDepth": 3,
+    "counter": { "text": "{i}/{n}", "fontSize": 18, "gap": 6, "stroke": "#0b0d14", "strokeThickness": 3, "popScale": 1.5, "popMs": 200 },
     "tint": { "color": "0xf0a040", "alpha": 0.22, "fadeMs": 400, "depth": 870 }
   }
 }

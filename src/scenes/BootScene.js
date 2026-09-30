@@ -22,6 +22,7 @@ export default class BootScene extends Phaser.Scene {
 
     this.registry.set('manifest', manifest);
     this.registry.set('animationSets', animationSets);
+    if (import.meta.env.DEV) validateInDev(animationSets);
     const settings = loadSettings();
     this.registry.set('settings', settings);
     setVolumes(settings);
@@ -39,4 +40,20 @@ export default class BootScene extends Phaser.Scene {
       // missing font file never blocks the game — falls back to the CSS stack
     }
   }
+}
+
+// Dev builds only: the same checks as `npm run validate` (minus the files on
+// disk), printed to the console at boot.
+async function validateInDev(animationSets) {
+  const { validateData } = await import('../systems/Validate.js');
+  const modules = import.meta.glob('../data/*.json', { eager: true, import: 'default' });
+  const data = { cutscenes: {}, animationSets };
+  for (const [path, json] of Object.entries(modules)) {
+    const name = path.split('/').pop().slice(0, -5);
+    if (name.startsWith('cutscene_')) data.cutscenes[name.slice('cutscene_'.length)] = json;
+    else data[name] = json;
+  }
+  const { errors, warnings } = validateData(data);
+  for (const w of warnings) console.warn(`[validate] ${w}`);
+  for (const e of errors) console.error(`[validate] ${e}`);
 }

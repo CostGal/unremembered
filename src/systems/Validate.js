@@ -1,0 +1,139 @@
+// Cross-checks the game data (src/data/*.json + the sprites' *_animations.json).
+// Plain JS with no Phaser, so it runs in Node (npm run validate) and in dev
+// builds at boot (console warnings).
+//
+// data = {chapter1, cutscenes: {id: {shots}}, dialogue, battles, enemies,
+//         characters, allies, techniques, assets, ui, battleEvents, animationSets}
+// options.sheetExists(fileName) -> bool: checks sheet files on disk (Node only).
+// Returns {errors: [...], warnings: [...]}.
+
+const STEP_TYPES = ['cutscene', 'dialogue', 'battle', 'end'];
+const SHOT_FX = ['crystal_particles', 'rain', 'flash', 'lights_out', 'dissolve_layer', 'embers', 'eyes_glow'];
+const SHOT_MOVES = ['none', 'pan_left', 'pan_right', 'zoom_in', 'zoom_out'];
+const SPLITS = ['none', 'vertical', 'horizontal'];
+const BATTLE_EVENTS = ['keepsake_burn'];
+
+export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {}) {
+  const errors = [];
+  const warnings = [];
+  const err = (msg) => errors.push(msg);
+  const warn = (msg) => warnings.push(msg);
+
+  const { chapter1 = [], cutscenes = {}, dialogue = {}, battles = {}, enemies = {}, characters = {}, allies = {} } = data;
+  const { techniques = {}, assets = {}, ui = {}, battleEvents = {}, animationSets = {} } = data;
+  const backgrounds = assets.backgrounds || {};
+  const anyAsset = { ...assets.sprites, ...assets.portraits, ...backgrounds, ...assets.cutscene, ...assets.ui };
+
+  // Chapter steps
+  chapter1.forEach((step, i) => {
+    const at = `chapter1[${i}]`;
+    if (!STEP_TYPES.includes(step.type)) err(`${at}: unknown step type "${step.type}"`);
+    if (step.type === 'cutscene' && !cutscenes[step.id]) err(`${at}: no cutscene "${step.id}" (src/data/cutscene_${step.id}.json)`);
+    if (step.type === 'dialogue') {
+      if (!dialogue[step.id]) err(`${at}: no dialogue "${step.id}" in dialogue.json`);
+      if (step.bg && step.bg !== 'black' && !backgrounds[step.bg]) err(`${at}: bg "${step.bg}" is not in assets.json backgrounds`);
+    }
+    if (step.type === 'battle' && !battles[step.id]) err(`${at}: no battle "${step.id}" in battles.json`);
+  });
+  if (chapter1.length && chapter1[chapter1.length - 1].type !== 'end') warn('chapter1: last step is not {"type": "end"}');
+
+  // Battles
+  for (const [id, battle] of Object.entries(battles)) {
+    if (!backgrounds[battle.bg]) err(`battles.${id}: bg "${battle.bg}" is not in assets.json backgrounds`);
+    for (const key of battle.enemies || []) {
+      if (!enemies[key]) err(`battles.${id}: no enemy "${key}" in enemies.json`);
+    }
+    if (!battle.enemies?.length) err(`battles.${id}: no enemies`);
+  }
+
+  // Dialogue
+  const speakers = new Set([
+    ...Object.values(characters).map((c) => c.name),
+    ...Object.values(enemies).map((e) => e.name),
+    ...Object.values(allies).map((a) => a.name),
+    ...Object.keys(ui.dialogue?.nameColors || {}),
+  ]);
+  const styles = ui.dialogue?.styles || {};
+  for (const [id, lines] of Object.entries(dialogue)) {
+    if (!Array.isArray(lines)) {
+      err(`dialogue.${id}: not a list of lines`);
+      continue;
+    }
+    lines.forEach((line, i) => {
+      const at = `dialogue.${id}[${i}]`;
+      if (typeof line.text !== 'string' || !line.text) err(`${at}: missing text`);
+      else if (line.text.length > maxLineChars) warn(`${at}: ${line.text.length} chars (> ${maxLineChars}) may not fit the box`);
+      if (line.speaker && !speakers.has(line.speaker)) err(`${at}: unknown speaker "${line.speaker}"`);
+      if (line.portrait && !assets.portraits?.[line.portrait]) err(`${at}: portrait "${line.portrait}" is not in assets.json portraits`);
+      if (line.style && !styles[line.style]) err(`${at}: unknown style "${line.style}"`);
+    });
+  }
+
+  // Heroes, enemies, allies
+  for (const [id, c] of Object.entries(characters)) {
+    for (const t of c.techniques || []) if (!techniques[t]) err(`characters.${id}: technique "${t}" is not in techniques.json`);
+    if (!assets.sprites?.[c.body]) err(`characters.${id}: body sprite "${c.body}" is not in assets.json sprites`);
+    for (const part of c.parts || []) if (!assets.sprites?.[part.sprite]) err(`characters.${id}: part sprite "${part.sprite}" is not in assets.json`);
+    if (!Array.isArray(c.strike) || c.strike.length !== 2) err(`characters.${id}: strike must be [min, max]`);
+  }
+  if (!techniques.strike) err('techniques.json: "strike" is required');
+  if (!techniques.recollection) err('techniques.json: "recollection" is required');
+
+  for (const [id, e] of Object.entries(enemies)) {
+    if (!assets.sprites?.[e.body]) err(`enemies.${id}: body sprite "${e.body}" is not in assets.json sprites`);
+    const lists = e.phases ? e.phases.map((p, i) => [`phases[${i}]`, p.attacks]) : [['attacks', e.attacks]];
+    for (const [where, attacks] of lists) {
+      if (!attacks?.length) err(`enemies.${id}.${where}: no attacks`);
+      for (const a of attacks || []) {
+        for (const hit of a.hits || [a]) {
+          if (!(hit.telegraphMs > 0)) err(`enemies.${id}.${where}.${a.id}: telegraphMs missing`);
+          if (typeof hit.dmg !== 'number') err(`enemies.${id}.${where}.${a.id}: dmg missing`);
+        }
+      }
+    }
+    for (const p of e.phases || []) {
+      if (p.onEnter && !BATTLE_EVENTS.includes(p.onEnter)) err(`enemies.${id}: unknown phase event "${p.onEnter}"`);
+    }
+  }
+  for (const [id, a] of Object.entries(allies)) {
+    if (!assets.sprites?.[a.body]) err(`allies.${id}: body sprite "${a.body}" is not in assets.json sprites`);
+  }
+  const keepsake = battleEvents.keepsake_burn?.dialogue;
+  if (keepsake && !dialogue[keepsake]) err(`battleEvents.keepsake_burn: no dialogue "${keepsake}"`);
+
+  // Cutscenes
+  for (const [id, cs] of Object.entries(cutscenes)) {
+    (cs.shots || []).forEach((shot, i) => {
+      const at = `cutscene_${id}.shots[${i}]`;
+      if (!shot.text) warn(`${at}: no text`);
+      for (const key of [shot.bg, shot.bg2]) if (key && !anyAsset[key]) err(`${at}: image "${key}" is not in assets.json`);
+      for (const layer of shot.layers || []) if (!anyAsset[layer.img]) err(`${at}: layer "${layer.img}" is not in assets.json`);
+      for (const fx of shot.fx || []) if (!SHOT_FX.includes(fx)) err(`${at}: unknown fx "${fx}"`);
+      if (shot.move && !SHOT_MOVES.includes(shot.move)) err(`${at}: unknown move "${shot.move}"`);
+      if (shot.split && !SPLITS.includes(shot.split)) err(`${at}: unknown split "${shot.split}"`);
+    });
+  }
+
+  // Animation sheets (ART_BRIEF output contract)
+  const combatants = { ...characters, ...enemies, ...allies };
+  for (const [id, set] of Object.entries(animationSets)) {
+    if (!combatants[id]) warn(`${id}_animations.json: "${id}" is not a character, enemy or ally key`);
+    if (!Array.isArray(set.frame_size)) err(`${id}_animations.json: frame_size missing`);
+    for (const [name, def] of Object.entries(set.animations || {})) {
+      const at = `${id}_animations.json ${name}`;
+      if (!(def.frames > 0)) err(`${at}: frames missing`);
+      if ((def.durations_ms || []).length !== def.frames) err(`${at}: ${def.frames} frames but ${(def.durations_ms || []).length} durations_ms`);
+      for (const [field, value] of [['windupFrame', def.windupFrame], ['holdFrame', def.holdFrame], ...(def.impactFrames || []).map((f) => ['impactFrames', f])]) {
+        if (value !== undefined && !(value >= 0 && value < def.frames)) err(`${at}: ${field} ${value} is outside 0..${def.frames - 1}`);
+      }
+      if (def.projectile && !set.animations[def.projectile]) err(`${at}: projectile "${def.projectile}" is not an animation in the set`);
+      if (!def.sheet) err(`${at}: sheet missing`);
+      else if (sheetExists && !sheetExists(def.sheet)) {
+        if (def.optional) warn(`${at}: ${def.sheet} not delivered yet (optional, placeholder)`);
+        else err(`${at}: ${def.sheet} is missing (add the file or mark the animation "optional": true)`);
+      }
+    }
+  }
+
+  return { errors, warnings };
+}

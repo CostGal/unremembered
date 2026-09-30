@@ -66,6 +66,8 @@ export default class BattleScene extends Phaser.Scene {
     this.tutorialSlow = !!this.battleDef.tutorial;
     this.pendingEvents = [];
     this.timeScale = 1;
+    this.resumeGate = null;
+    this.listenForBackground();
 
     this.add.image(180, 180, this.battleDef.bg).setDisplaySize(360, 360);
     this.add.rectangle(180, 180, 360, 360, 0x000000, 0.2);
@@ -111,6 +113,34 @@ export default class BattleScene extends Phaser.Scene {
     });
 
     machine.run(this.heroes, this.enemies);
+  }
+
+  // ---------- App switch ----------
+
+  // The app went to the background (another app, lock screen): the battle
+  // pauses, live rings stop without a judgement, and "Tap to continue" waits
+  // on return. Whoever was waiting on a ring restarts it (resumeGate).
+  // A battle already paused by the Keepsake dialogue is left alone.
+  listenForBackground() {
+    const onHidden = () => this.pauseForBackground();
+    this.game.events.on(Phaser.Core.Events.HIDDEN, onHidden);
+    this.events.once('shutdown', () => this.game.events.off(Phaser.Core.Events.HIDDEN, onHidden));
+  }
+
+  pauseForBackground() {
+    if (this.resumeGate || !this.scene.isActive()) return;
+    Qte.interruptRings(this);
+    this.scene.pause();
+    this.resumeGate = new Promise((resolve) => {
+      this.scene.launch('Pause', {
+        onContinue: () => {
+          this.resumeGate = null;
+          this.scene.resume();
+          resolve();
+        },
+      });
+      this.scene.bringToTop('Pause');
+    });
   }
 
   // ---------- Environment ----------
@@ -604,34 +634,48 @@ export default class BattleScene extends Phaser.Scene {
   // telegraph and is released just early enough for its impact to land on T.
   // Tutorial: while the player hasn't landed a GOOD/PERFECT yet, the whole
   // scene runs slowed down (ring, windows and animations alike).
+  // An app switch mid-telegraph (INTERRUPTED) drops the attack back to idle
+  // and, after "Tap to continue", runs the whole telegraph again.
   async enemyHit(enemy, target, hit, attackId) {
-    const slow = this.tutorialSlow ? qte.tutorial.timeScale : 1;
-    this.setTimeScale(slow);
-    if (this.tutorialSlow) this.showTutorialPrompt(true);
+    let ring;
+    let result;
+    let attackDone;
+    while (true) {
+      const slow = this.tutorialSlow ? qte.tutorial.timeScale : 1;
+      this.setTimeScale(slow);
+      if (this.tutorialSlow) this.showTutorialPrompt(true);
 
-    const windows = this.parryWindows();
-    const ring = Qte.runRing(this, {
-      x: target.container.x,
-      y: target.container.y + qte.ring.offsetY,
-      telegraphMs: hit.telegraphMs / slow,
-      feint: hit.feint ? { ...hit.feint, pauseMs: hit.feint.pauseMs / slow } : null,
-      windows: slow === 1 ? windows : Qte.scaledWindows(windows, 1 / slow),
-      ring: qte.ring,
-    });
-    const watched = this.nalaWatch(enemy, ring);
+      const windows = this.parryWindows();
+      ring = Qte.runRing(this, {
+        x: target.container.x,
+        y: target.container.y + qte.ring.offsetY,
+        telegraphMs: hit.telegraphMs / slow,
+        feint: hit.feint ? { ...hit.feint, pauseMs: hit.feint.pauseMs / slow } : null,
+        windows: slow === 1 ? windows : Qte.scaledWindows(windows, 1 / slow),
+        ring: qte.ring,
+      });
+      const watched = this.nalaWatch(enemy, ring);
 
-    const abort = { aborted: false };
-    const attackDone = this.playEnemyAttack(enemy, attackId, ring.impactAt, abort);
+      const abort = { aborted: false };
+      attackDone = this.playEnemyAttack(enemy, attackId, ring.impactAt, abort);
 
-    const { result } = await ring.promise;
-    if (watched) this.nalaStopWatching();
-    this.setTimeScale(1);
-    this.showTutorialPrompt(false);
+      ({ result } = await ring.promise);
+      if (watched) this.nalaStopWatching();
+      this.setTimeScale(1);
+      this.showTutorialPrompt(false);
 
-    if (result === 'CANCEL') {
-      abort.aborted = true;
-      await attackDone;
-      return 'CANCEL';
+      if (result === 'INTERRUPTED') {
+        abort.aborted = true;
+        await this.resumeGate;
+        await attackDone;
+        continue;
+      }
+      if (result === 'CANCEL') {
+        abort.aborted = true;
+        await attackDone;
+        return 'CANCEL';
+      }
+      break;
     }
     if (this.tutorialSlow && result !== 'MISS') this.tutorialSlow = false;
     await this.applyParryResult(result, enemy, target, hit);
@@ -841,27 +885,49 @@ export default class BattleScene extends Phaser.Scene {
     await this.wait(r.tint.fadeMs);
 
     this.tapHint.setVisible(true);
-    const ringCfg = { ...qte.ring, color: r.ringColor, targetColor: r.ringColor };
-    const rings = [];
-    for (let i = 0; i < tech.taps; i++) {
-      if (i > 0) await this.wait(tech.intervalMs);
-      rings.push(
-        Qte.runRing(this, {
-          x: target.container.x,
-          y: target.container.y + qte.ring.offsetY,
-          telegraphMs: r.ringMs,
-          windows: this.parryWindows(),
-          ring: ringCfg,
-        }).promise.then(({ result }) => this.recollectionHit(target, result, tech))
-      );
-    }
-    await Promise.all(rings);
+    await this.recollectionRings(target, tech);
     this.tapHint.setVisible(false);
     castDone.stop();
 
     this.tweens.add({ targets: overlay, fillAlpha: 0, duration: r.tint.fadeMs, onComplete: () => overlay.destroy() });
     if (memoryBg) this.tweens.add({ targets: memoryBg, alpha: 0, duration: r.tint.fadeMs, onComplete: () => memoryBg.destroy() });
     await this.wait(r.tint.fadeMs);
+  }
+
+  // One ring at a time, each with its own "1/3" counter and feedback; the next
+  // one starts intervalMs after the previous ring's impact, so they never
+  // overlap. An app switch restarts the ring that was running.
+  async recollectionRings(target, tech) {
+    const r = qte.recollection;
+    const ringCfg = { ...qte.ring, color: r.ringColor, targetColor: r.ringColor };
+    const x = target.container.x;
+    const y = target.container.y + qte.ring.offsetY;
+    const c = r.counter;
+    const counter = this.add
+      .text(x, y - qte.ring.startRadius - c.gap, '', {
+        fontFamily: ui.font,
+        fontSize: `${c.fontSize}px`,
+        color: r.textColor,
+        stroke: c.stroke,
+        strokeThickness: c.strokeThickness,
+      })
+      .setOrigin(0.5, 1)
+      .setDepth(qte.ring.depth);
+
+    for (let i = 0; i < tech.taps; i++) {
+      counter.setText(r.counter.text.replace('{i}', i + 1).replace('{n}', tech.taps));
+      this.tweens.add({ targets: counter, scale: { from: r.counter.popScale, to: 1 }, duration: r.counter.popMs, ease: 'Back.easeOut' });
+      let ring;
+      let result;
+      do {
+        ring = Qte.runRing(this, { x, y, telegraphMs: r.ringMs, windows: this.parryWindows(), ring: ringCfg });
+        ({ result } = await ring.promise);
+        if (result === 'INTERRUPTED') await this.resumeGate;
+      } while (result === 'INTERRUPTED');
+      this.recollectionHit(target, result, tech);
+      if (i < tech.taps - 1) await this.wait(Math.max(0, ring.impactAt + tech.intervalMs - performance.now()));
+    }
+    counter.destroy();
   }
 
   recollectionHit(target, result, tech) {
@@ -980,6 +1046,7 @@ export default class BattleScene extends Phaser.Scene {
   // Blast: 3–6 bolts; every bolt has a chance to crit, and each crit adds a
   // bolt (up to maxHits). With a blast sheet the bolts fly while the anim holds
   // its aim frame.
+  // Echo: one landed volley is one player hit (+echoOnHit), not one per bolt.
   async playBlast(hero, target, tech) {
     let total = Phaser.Math.Between(tech.hits[0], tech.hits[1]);
     const fire = async () => {
@@ -989,6 +1056,7 @@ export default class BattleScene extends Phaser.Scene {
         await this.fireBolt(hero, target, tech);
         const dmg = Phaser.Math.Between(tech.dmg[0], tech.dmg[1]);
         this.applyHit(target, dmg, crit ? tech.critColor : undefined);
+        if (i === 0) this.gainEcho(tech.echoOnHit);
         if (crit) Fx.popText(this, target.container.x, target.container.y, tech.critText, tech.critColor, qte.text);
         await this.wait(tech.boltIntervalMs);
       }

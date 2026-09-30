@@ -9,6 +9,7 @@ import EndScene from './scenes/EndScene.js';
 import MenuScene from './scenes/MenuScene.js';
 import SettingsScene from './scenes/SettingsScene.js';
 import AnimTestScene from './scenes/AnimTestScene.js';
+import PauseScene from './scenes/PauseScene.js';
 import { unlockAudio } from './systems/Audio.js';
 
 const config = {
@@ -23,7 +24,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, PreloadScene, TitleScene, MenuScene, SettingsScene, CutsceneScene, BattleScene, DialogueScene, EndScene, AnimTestScene],
+  scene: [BootScene, PreloadScene, TitleScene, MenuScene, SettingsScene, CutsceneScene, BattleScene, DialogueScene, EndScene, AnimTestScene, PauseScene],
 };
 
 const game = new Phaser.Game(config);

@@ -5,6 +5,7 @@
     "cost": 3,
     "type": "blast",
     "target": "enemy",
+    "echoOnHit": 1,
     "hits": [3, 6],
     "dmg": [3, 4],
     "critChance": 0.3,

@@ -20,7 +20,8 @@ export function scaledWindows(windows, mult) {
 
 // Shows the ring at (x, y) and resolves with {result, dtMs} once the tap is
 // judged: at T for an early tap, at the tap for a late one, at T + goodMs if
-// there is no tap (MISS). impactAt = the performance.now() time of T.
+// there is no tap (MISS). 'CANCEL' (Nala) and 'INTERRUPTED' (app hidden, see
+// interruptRings) are never judgements. impactAt = the performance.now() time of T.
 // feint = {atPct, pauseMs}: the ring freezes at atPct of its travel for
 // pauseMs, so T moves pauseMs later.
 export function runRing(scene, { x, y, telegraphMs, feint, windows, ring }) {
@@ -34,6 +35,7 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring }) {
   const color = Number(ring.color);
 
   let cancel = () => {};
+  let interrupt = () => {};
   const promise = new Promise((resolve) => {
     let judged = null;
 
@@ -50,6 +52,7 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring }) {
     };
 
     const detach = () => {
+      liveRings(scene).delete(handle);
       scene.input.off('pointerdown', onDown);
       scene.events.off('update', onUpdate);
       scene.events.off('shutdown', detach);
@@ -57,7 +60,9 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring }) {
 
     const finish = (outcome) => {
       detach();
-      scene.tweens.add({ targets: g, alpha: 0, duration: ring.fadeMs, onComplete: () => g.destroy() });
+      // An interrupted ring vanishes at once: its fade would freeze with the paused scene.
+      if (outcome.result === 'INTERRUPTED') g.destroy();
+      else scene.tweens.add({ targets: g, alpha: 0, duration: ring.fadeMs, onComplete: () => g.destroy() });
       resolve(outcome);
     };
 
@@ -85,6 +90,14 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring }) {
       finish(judged);
     };
 
+    // The app went to the background: the ring stops without a judgement
+    // (even an early tap already waiting for T is dropped). The caller restarts it.
+    interrupt = () => {
+      if (judged?.result === 'CANCEL') return;
+      judged = { result: 'INTERRUPTED', dtMs: null };
+      finish(judged);
+    };
+
     scene.input.on('pointerdown', onDown);
     scene.events.on('update', onUpdate);
     // Leaving the scene mid-ring (e.g. a restart) must not leave listeners behind.
@@ -92,7 +105,19 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring }) {
     onUpdate();
   });
 
-  return { promise, impactAt, cancel: () => cancel() };
+  const handle = { promise, impactAt, cancel: () => cancel(), interrupt: () => interrupt() };
+  liveRings(scene).add(handle);
+  return handle;
+}
+
+// Stops every ring still running in the scene with result 'INTERRUPTED'.
+export function interruptRings(scene) {
+  for (const ring of [...liveRings(scene)]) ring.interrupt();
+}
+
+function liveRings(scene) {
+  if (!scene.qteRings) scene.qteRings = new Set();
+  return scene.qteRings;
 }
 
 // The pointer event's own timestamp is closest to the real touch. Fall back to
