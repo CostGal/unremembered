@@ -4,6 +4,8 @@ const DEFAULTS = {
   musicVolume: 1,
   sfxVolume: 1,
   storyMode: false,
+  // Set once the first New Game asked "How do you like your fights?".
+  difficultyChosen: false,
 };
 
 export function loadSettings() {
