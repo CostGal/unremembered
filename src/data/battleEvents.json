@@ -1,0 +1,19 @@
+{
+  "keepsake_burn": { "dialogue": "keepsake_burn", "flash": { "color": "0x3fd0c9", "alpha": 0.45, "ms": 500 } },
+  "charge": {
+    "glowRadius": 90,
+    "glowColor": "0x3fd0c9",
+    "glowAlphaMin": 0.2,
+    "glowAlphaMax": 0.55,
+    "glowPulseMs": 500,
+    "counterOffsetY": -2,
+    "counterFontSize": 12,
+    "counterColor": "#3fd0c9",
+    "counterText": "Interrupt: {n}/{max}",
+    "startText": "Archive…",
+    "chargingText": "Charging…",
+    "interruptText": "Interrupted!",
+    "textColor": "#3fd0c9",
+    "chargingMs": 700
+  }
+}

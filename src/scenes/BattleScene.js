@@ -4,6 +4,7 @@ import characters from '../data/characters.json';
 import enemies from '../data/enemies.json';
 import environments from '../data/environments.json';
 import allies from '../data/allies.json';
+import battleEvents from '../data/battleEvents.json';
 import qte from '../data/qte.json';
 import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
@@ -54,6 +55,7 @@ export default class BattleScene extends Phaser.Scene {
     this.animationSets = this.registry.get('animationSets') || {};
     this.battleOver = false;
     this.tutorialSlow = !!this.battleDef.tutorial;
+    this.pendingEvents = [];
     this.timeScale = 1;
 
     this.add.image(180, 180, this.battleDef.bg).setDisplaySize(360, 360);
@@ -95,6 +97,7 @@ export default class BattleScene extends Phaser.Scene {
       allHeroesDown: () => this.heroes.every((h) => h.hp <= 0),
       playerTurn: (hero) => this.playerTurn(hero),
       enemyTurn: (enemy) => this.enemyTurn(enemy),
+      afterTurn: () => this.afterTurn(),
       onEnd: (result) => this.onBattleEnd(result),
     });
 
@@ -544,7 +547,24 @@ export default class BattleScene extends Phaser.Scene {
     if (livingHeroes.length === 0) return;
     const stanceHero = this.stance && this.stance.hero.hp > 0 ? this.stance.hero : null;
     const target = stanceHero || Phaser.Utils.Array.GetRandom(livingHeroes);
-    const attack = pickWeighted(this.enemyAttacks(enemy));
+    let attack;
+    if (enemy.charge) {
+      enemy.charge.turnsLeft -= 1;
+      if (enemy.charge.turnsLeft > 0) {
+        Fx.popText(this, enemy.container.x, enemy.container.y, battleEvents.charge.chargingText, battleEvents.charge.textColor, qte.text);
+        await this.wait(battleEvents.charge.chargingMs);
+        return;
+      }
+      attack = enemy.charge.attack;
+      this.endCharge(enemy);
+    } else {
+      attack = pickWeighted(this.enemyAttacks(enemy));
+      if (attack.chargeTurns) {
+        this.startCharge(enemy, attack);
+        await this.wait(battleEvents.charge.chargingMs);
+        return;
+      }
+    }
 
     this.tapHint.setVisible(true);
     for (const hit of attack.hits || [attack]) {
@@ -685,9 +705,180 @@ export default class BattleScene extends Phaser.Scene {
     });
   }
 
+  // ---------- Boss phases (enemies.json phases) ----------
+
   // A boss uses the attack list of its current phase.
   enemyAttacks(enemy) {
-    return enemy.def.attacks;
+    return enemy.def.phases ? enemy.def.phases[enemy.phase || 0].attacks : enemy.def.attacks;
+  }
+
+  // After damage: move a boss into the next phase once its HP share drops to
+  // the current phase's untilHpPct. The phase's onEnter event waits for the
+  // end of the current turn (afterTurn).
+  checkPhase(enemy) {
+    const phases = enemy.def.phases;
+    if (!phases || enemy.hp <= 0) return;
+    const pct = (enemy.hp / enemy.maxHp) * 100;
+    while ((enemy.phase || 0) < phases.length - 1 && pct <= phases[enemy.phase || 0].untilHpPct) {
+      enemy.phase = (enemy.phase || 0) + 1;
+      const onEnter = phases[enemy.phase].onEnter;
+      if (onEnter) this.pendingEvents.push(onEnter);
+    }
+  }
+
+  async afterTurn() {
+    while (this.pendingEvents.length && !this.battleOver) {
+      const event = this.pendingEvents.shift();
+      if (event === 'keepsake_burn') await this.keepsakeBurn();
+    }
+  }
+
+  // Keepsake: the battle pauses for a conversation, then Echo fills and the
+  // Recollection button pulses on Rhea's next turn.
+  async keepsakeBurn() {
+    if (this.enemies.every((e) => e.hp <= 0)) return;
+    await this.playDialogueOverlay(battleEvents.keepsake_burn.dialogue);
+    this.gainEcho(ui.hud.echo.max);
+    const k = battleEvents.keepsake_burn;
+    Fx.screenFlash(this, k.flash, qte.flashDepth);
+  }
+
+  playDialogueOverlay(id) {
+    return new Promise((resolve) => {
+      if (!this.scene.get('Dialogue')) {
+        resolve();
+        return;
+      }
+      this.scene.pause();
+      this.scene.launch('Dialogue', {
+        id,
+        overlay: true,
+        onDone: () => {
+          this.scene.resume();
+          resolve();
+        },
+      });
+      this.scene.bringToTop('Dialogue');
+    });
+  }
+
+  // ---------- Archive (charged attack) ----------
+
+  // First pick: the enemy starts charging instead of attacking. It charges
+  // for chargeTurns enemy turns (glow + damage-to-interrupt counter), then
+  // fires as a normal hit. Enough damage during the charge cancels it.
+  startCharge(enemy, attack) {
+    const c = battleEvents.charge;
+    const glow = this.add
+      .image(enemy.container.x, enemy.container.y, Fx.glowTexture(this, c.glowRadius))
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setTint(Number(c.glowColor))
+      .setDepth(enemy.container.depth - 1);
+    const glowTween = this.tweens.add({ targets: glow, alpha: { from: c.glowAlphaMin, to: c.glowAlphaMax }, duration: c.glowPulseMs, yoyo: true, repeat: -1 });
+    const counter = this.add
+      .text(enemy.container.x, enemy.label.y - enemy.label.height + c.counterOffsetY, '', { fontFamily: ui.font, fontSize: `${c.counterFontSize}px`, color: c.counterColor })
+      .setOrigin(0.5, 1)
+      .setDepth(layout.labelDepth);
+    enemy.charge = { attack, turnsLeft: attack.chargeTurns, dealt: 0, glow, glowTween, counter };
+    this.updateChargeCounter(enemy);
+    Fx.popText(this, enemy.container.x, enemy.container.y, c.startText, c.textColor, qte.text);
+  }
+
+  updateChargeCounter(enemy) {
+    const ch = enemy.charge;
+    const c = battleEvents.charge;
+    ch.counter.setText(c.counterText.replace('{n}', ch.dealt).replace('{max}', ch.attack.interruptDmg));
+  }
+
+  // Party damage during a charge counts toward the interrupt.
+  chargeDamage(enemy, dmg) {
+    const ch = enemy.charge;
+    if (!ch) return;
+    ch.dealt += dmg;
+    this.updateChargeCounter(enemy);
+    if (ch.dealt >= ch.attack.interruptDmg || enemy.hp <= 0) {
+      if (enemy.hp > 0) Fx.popText(this, enemy.container.x, enemy.container.y, battleEvents.charge.interruptText, battleEvents.charge.textColor, qte.text);
+      this.endCharge(enemy);
+    }
+  }
+
+  endCharge(enemy) {
+    const ch = enemy.charge;
+    if (!ch) return;
+    ch.glowTween.stop();
+    ch.glow.destroy();
+    ch.counter.destroy();
+    enemy.charge = null;
+  }
+
+  // ---------- Recollection (ultimate) ----------
+
+  // The screen warms to gold (and the background becomes memory_city if it
+  // exists), then three rhythm rings close on the target, intervalMs apart.
+  async playRecollection(hero, target) {
+    const tech = techniques.recollection;
+    const r = qte.recollection;
+
+    const overlay = this.add.rectangle(180, layout.sceneBottom / 2, 360, layout.sceneBottom, Number(r.tint.color), 0).setDepth(r.tint.depth);
+    this.tweens.add({ targets: overlay, fillAlpha: r.tint.alpha, duration: r.tint.fadeMs });
+    let memoryBg = null;
+    if (this.textures.exists(r.bg) && !this.textures.get(r.bg).customData.placeholder) {
+      memoryBg = this.add.image(180, 180, r.bg).setDisplaySize(360, 360).setDepth(r.bgDepth).setAlpha(0);
+      this.tweens.add({ targets: memoryBg, alpha: 1, duration: r.tint.fadeMs });
+    }
+    Fx.popText(this, hero.container.x, hero.container.y, tech.name, r.textColor, qte.text);
+    const castDone = this.playCastLoop(hero);
+    await this.wait(r.tint.fadeMs);
+
+    this.tapHint.setVisible(true);
+    const ringCfg = { ...qte.ring, color: r.ringColor, targetColor: r.ringColor };
+    const rings = [];
+    for (let i = 0; i < tech.taps; i++) {
+      if (i > 0) await this.wait(tech.intervalMs);
+      rings.push(
+        Qte.runRing(this, {
+          x: target.container.x,
+          y: target.container.y + qte.ring.offsetY,
+          telegraphMs: r.ringMs,
+          windows: this.parryWindows(),
+          ring: ringCfg,
+        }).promise.then(({ result }) => this.recollectionHit(target, result, tech))
+      );
+    }
+    await Promise.all(rings);
+    this.tapHint.setVisible(false);
+    castDone.stop();
+
+    this.tweens.add({ targets: overlay, fillAlpha: 0, duration: r.tint.fadeMs, onComplete: () => overlay.destroy() });
+    if (memoryBg) this.tweens.add({ targets: memoryBg, alpha: 0, duration: r.tint.fadeMs, onComplete: () => memoryBg.destroy() });
+    await this.wait(r.tint.fadeMs);
+  }
+
+  recollectionHit(target, result, tech) {
+    const r = qte.recollection;
+    const cfg = qte.results[result];
+    const dmg = tech.dmg[result.toLowerCase()];
+    Fx.popText(this, target.container.x, target.container.y, cfg.text || result, result === 'MISS' ? r.missColor : r.textColor, qte.text);
+    if (result === 'PERFECT') {
+      Fx.sparks(this, target.container.x, target.container.y, cfg.sparks, { ...qte.sparks, color: r.ringColor }, qte.ring.depth);
+      Fx.shake(this, cfg.shake, cfg.hitstopMs * 2);
+    }
+    if (target.hp > 0) this.applyHit(target, dmg, r.textColor);
+  }
+
+  // Loops the cast sheet (cast_in first) until stop(); cast_out on stop.
+  playCastLoop(hero) {
+    if (!hasSheet(hero.anims, 'cast')) return { stop: () => {} };
+    const loop = () => hero.body.play(animKey(hero.type, 'cast'));
+    if (hasSheet(hero.anims, 'cast_in')) playOnce(hero.body, hero.type, 'cast_in', hero.anims.cast_in).then(loop);
+    else loop();
+    return {
+      stop: () => {
+        const idle = () => hero.hp > 0 && hero.body.play(animKey(hero.type, 'idle'));
+        if (hasSheet(hero.anims, 'cast_out')) playOnce(hero.body, hero.type, 'cast_out', hero.anims.cast_out).then(idle);
+        else idle();
+      },
+    };
   }
 
   // Calls fn once performance.now() reaches t (or as soon as early() is true),
@@ -910,11 +1101,6 @@ export default class BattleScene extends Phaser.Scene {
     await this.tweenPromise(hero.container, { y }, ui.cast.hopMs, 'Quad.easeIn');
   }
 
-  // Placeholder until the Recollection issue lands: a plain strike.
-  playRecollection(hero, target) {
-    return this.playerStrike(hero, target);
-  }
-
   wait(ms) {
     return new Promise((resolve) => this.time.delayedCall(ms, resolve));
   }
@@ -1020,6 +1206,10 @@ export default class BattleScene extends Phaser.Scene {
     target.hp = Math.max(0, target.hp - dmg);
     this.updateLabel(target);
     if (target.isHero) this.refreshHud();
+    else {
+      this.chargeDamage(target, dmg);
+      this.checkPhase(target);
+    }
 
     if (target.hp <= 0) this.markDown(target);
     else this.playHurt(target);

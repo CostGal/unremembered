@@ -52,5 +52,14 @@
       "depth": 1000,
       "text": "An attack is coming!\nTap anywhere the moment the ring closes."
     }
+  },
+  "recollection": {
+    "ringMs": 900,
+    "ringColor": "0xf0c060",
+    "textColor": "#f0c060",
+    "missColor": "#8a8fa3",
+    "bg": "memory_city",
+    "bgDepth": 3,
+    "tint": { "color": "0xf0a040", "alpha": 0.22, "fadeMs": 400, "depth": 870 }
   }
 }

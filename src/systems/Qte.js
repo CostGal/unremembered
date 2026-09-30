@@ -39,9 +39,14 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring }) {
 
     const onDown = (pointer) => {
       if (judged) return;
-      const dtMs = tapTime(pointer) - impactAt;
+      const time = tapTime(pointer);
+      // Overlapping rings (Recollection): a tap counts for one ring only.
+      if (pointer.qteUsedAt === pointer.downTime) return;
+      const dtMs = time - impactAt;
       const result = judge(dtMs, windows);
-      if (result) judged = { result, dtMs };
+      if (!result) return;
+      judged = { result, dtMs };
+      pointer.qteUsedAt = pointer.downTime;
     };
 
     const detach = () => {

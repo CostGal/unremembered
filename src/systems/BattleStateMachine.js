@@ -11,6 +11,7 @@ export default class BattleStateMachine {
         if (!this.hooks.isAlive(hero)) continue;
 
         await this.hooks.playerTurn(hero);
+        if (this.hooks.afterTurn) await this.hooks.afterTurn();
 
         if (this.hooks.allEnemiesDown()) return this.finish('WIN');
       }
@@ -19,6 +20,7 @@ export default class BattleStateMachine {
         if (!this.hooks.isAlive(enemy)) continue;
 
         await this.hooks.enemyTurn(enemy);
+        if (this.hooks.afterTurn) await this.hooks.afterTurn();
 
         if (this.hooks.allHeroesDown()) return this.finish('LOSE');
         // A parry counter can finish the last enemy during its own turn.
