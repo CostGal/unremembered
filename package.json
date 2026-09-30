@@ -10,6 +10,7 @@
     "validate": "node scripts/validate.mjs",
     "budget": "node scripts/budget.mjs",
     "sim": "node scripts/sim.mjs",
+    "playtest": "node scripts/playtest.mjs",
     "perf": "node scripts/perf.mjs"
   },
   "dependencies": {

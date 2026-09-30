@@ -40,6 +40,8 @@ export function probe(page) {
     }
     const d = g.scene.getScene('Dialogue');
     if (active.includes('Dialogue')) st.dialogue = { id: d.dialogueId, index: d.index };
+    // The first New Game's difficulty panel (MenuScene).
+    st.menuPanel = active.includes('Menu') && !!g.scene.getScene('Menu').panel;
     const c = g.scene.getScene('Cutscene');
     if (active.includes('Cutscene')) st.cutscene = { index: c.index };
     return st;
@@ -91,7 +93,7 @@ export class Bot {
     else if (has('Dialogue')) await this.tapOnce(180, 560, 200);
     else if (has('Cutscene')) await this.tapOnce(180, 480, 250);
     else if (has('Title')) await this.tapOnce(180, ui.title.tap.y, 500);
-    else if (has('Menu')) await this.tapOnce(180, ui.menu.firstY, 800);
+    else if (has('Menu')) await this.tapOnce(180, st.menuPanel ? ui.menu.difficulty.normal.y : ui.menu.firstY, 800);
     else if (has('End')) await this.tapOnce(180, 600, 800);
     return st;
   }
