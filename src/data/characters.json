@@ -13,8 +13,8 @@
         { "t": 0.8, "body": [0, 0], "arm": { "rotation": 0, "offset": [0, 0] } }
       ]
     },
-    "strike": [8, 10],
-    "techniques": ["relay"],
+    "strike": [5, 6],
+    "techniques": ["blast", "return_to_sender"],
     "canUltimate": true
   },
   "dov": {
@@ -23,6 +23,6 @@
     "body": "dov",
     "attack": { "type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15 },
     "strike": [7, 9],
-    "techniques": ["anchor"]
+    "techniques": ["anchor", "brace"]
   }
 }

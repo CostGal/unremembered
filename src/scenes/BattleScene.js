@@ -4,11 +4,14 @@ import characters from '../data/characters.json';
 import enemies from '../data/enemies.json';
 import environments from '../data/environments.json';
 import qte from '../data/qte.json';
+import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
+import CommandMenu from '../systems/CommandMenu.js';
 import Hud from '../systems/Hud.js';
 import * as Qte from '../systems/Qte.js';
+import { devInt } from '../systems/DevParams.js';
 import { animKey, hasSheet, playOnce } from '../systems/SpriteAnims.js';
 
 const layout = ui.battleLayout;
@@ -68,8 +71,10 @@ export default class BattleScene extends Phaser.Scene {
 
     this.applyAmbientTint();
 
-    this.echo = 0;
+    // ?echo=N starts the battle with N Echo (dev).
+    this.echo = Phaser.Math.Clamp(devInt('echo') ?? 0, 0, ui.hud.echo.max);
     this.hud = new Hud(this, ui.hud, ui.font, this.heroes);
+    this.refreshHud();
     if (import.meta.env.DEV) this.enableHudDebug();
 
     this.buildCommandMenu();
@@ -247,7 +252,6 @@ export default class BattleScene extends Phaser.Scene {
       heroes: this.heroes.map((h) => ({ hp: h.hp, maxHp: h.maxHp })),
       echo: this.echo,
     });
-    this.updateRecollectionButton();
   }
 
   // Dev build only: tap a hero row (or keys 1/2) to take HP, tap the Echo row
@@ -346,73 +350,84 @@ export default class BattleScene extends Phaser.Scene {
   // ---------- Command menu ----------
 
   buildCommandMenu() {
-    const { slots, prompt } = ui.commands;
-
-    this.strikeButton = this.makeButton(slots.strike, 'Strike', () => {
-      if (this.onStrikeChosen) this.onStrikeChosen();
-    });
-    this.techniqueButton = this.makeButton(slots.technique, 'Technique', null, true);
-    // Placeholder until Recollection lands: shown for Rhea at full Echo.
-    this.recollectionButton = this.makeButton(slots.recollection, 'Recollection', null, true);
-
-    this.promptText = this.add
-      .text(prompt.x, prompt.y, prompt.text, {
-        fontFamily: ui.font,
-        fontSize: `${prompt.fontSize}px`,
-        color: ui.commands.button.textColor,
-      })
-      .setOrigin(0.5)
-      .setVisible(false);
-
-    this.backButton = this.makeButton(slots.back, 'Back', null);
-    this.backButton.container.setVisible(false);
-
-    this.hideCommandMenu();
-  }
-
-  makeButton([x, y], label, onTap, disabled = false) {
-    const b = ui.commands.button;
-    const container = this.add.container(x, y);
-    const rect = this.add
-      .rectangle(0, 0, b.w, b.h, Number(disabled ? b.disabledFill : b.fill))
-      .setStrokeStyle(2, Number(disabled ? b.disabledStroke : b.stroke));
-    const text = this.add
-      .text(0, 0, label, {
-        fontFamily: ui.font,
-        fontSize: `${b.fontSize}px`,
-        color: disabled ? b.disabledTextColor : b.textColor,
-      })
-      .setOrigin(0.5);
-    container.add([rect, text]);
-
-    if (!disabled && onTap) {
-      rect.setInteractive({ useHandCursor: true });
-      rect.on('pointerdown', onTap);
-    }
-
-    return { container, rect, text, onTap };
-  }
-
-  showCommandMenu() {
-    this.menuVisible = true;
-    this.strikeButton.container.setVisible(true);
-    this.techniqueButton.container.setVisible(true);
-    this.updateRecollectionButton();
-    this.promptText.setVisible(false);
-    this.backButton.container.setVisible(false);
+    this.menu = new CommandMenu(this, ui.commands, ui.font);
   }
 
   hideCommandMenu() {
-    this.menuVisible = false;
-    this.strikeButton.container.setVisible(false);
-    this.techniqueButton.container.setVisible(false);
-    this.recollectionButton.container.setVisible(false);
+    this.menu.hide();
   }
 
-  updateRecollectionButton() {
-    if (!this.recollectionButton) return;
-    const show = this.menuVisible && !!this.activeHero?.def.canUltimate && this.echo >= ui.hud.echo.max;
-    this.recollectionButton.container.setVisible(show);
+  // Main menu → (technique submenu) → (target). Back steps out one level.
+  // Resolves {kind: 'strike' | 'technique' | 'ultimate', techId, target}.
+  async chooseAction(hero) {
+    const labels = ui.commands.labels;
+    while (true) {
+      const main = [
+        { slot: 'strike', label: labels.strike, value: 'strike' },
+        { slot: 'technique', label: labels.technique, value: 'technique', enabled: (hero.def.techniques || []).length > 0 },
+      ];
+      if (this.canUltimate(hero)) {
+        main.push({ slot: 'recollection', label: labels.recollection, value: 'ultimate', pulse: true });
+      }
+      const pick = await this.menu.show(main);
+
+      if (pick === 'strike') {
+        const target = await this.pickEnemy();
+        if (target) return { kind: 'strike', techId: 'strike', target };
+        continue;
+      }
+
+      if (pick === 'ultimate') {
+        const target = await this.pickEnemy();
+        if (target) return { kind: 'ultimate', techId: 'recollection', target };
+        continue;
+      }
+
+      const techId = await this.menu.show(this.techniqueItems(hero));
+      if (!techId) continue;
+      if (techniques[techId].target !== 'enemy') return { kind: 'technique', techId };
+      const target = await this.pickEnemy();
+      if (target) return { kind: 'technique', techId, target };
+    }
+  }
+
+  canUltimate(hero) {
+    return !!hero.def.canUltimate && this.echo >= techniques.recollection.cost;
+  }
+
+  techniqueItems(hero) {
+    const slots = ui.commands.techniqueSlots;
+    const items = (hero.def.techniques || []).slice(0, slots.length).map((id, i) => ({
+      slot: slots[i],
+      label: techniques[id].name,
+      cost: techniques[id].cost,
+      enabled: this.echo >= techniques[id].cost,
+      value: id,
+    }));
+    items.push({ slot: 'back', label: ui.commands.labels.back, value: null });
+    return items;
+  }
+
+  // One living enemy = automatic. Otherwise tap a highlighted enemy, or Back (→ null).
+  pickEnemy() {
+    const living = this.enemies.filter((e) => e.hp > 0);
+    if (living.length <= 1) return Promise.resolve(living[0] || null);
+
+    for (const enemy of living) {
+      enemy.body.setTint(Number(ui.commands.targetTint));
+      enemy.body.setInteractive({ useHandCursor: true });
+      enemy.body.once('pointerdown', () => this.menu.choose(enemy));
+    }
+
+    const back = [{ slot: 'back', label: ui.commands.labels.back, value: null }];
+    return this.menu.show(back, ui.commands.prompt.text).then((target) => {
+      for (const enemy of living) {
+        Fx.restoreTint(enemy.body);
+        enemy.body.off('pointerdown');
+        enemy.body.disableInteractive();
+      }
+      return target;
+    });
   }
 
   // ---------- Turn flow ----------
@@ -445,71 +460,26 @@ export default class BattleScene extends Phaser.Scene {
 
   async playerTurn(hero) {
     this.activeHero = hero;
-    this.showCommandMenu();
+    // A stance that was never tested ends when its owner acts again.
+    if (this.stance?.hero === hero) this.endStance(false);
 
-    const target = await this.waitForStrikeChoice();
-
+    const action = await this.chooseAction(hero);
     this.hideCommandMenu();
 
-    if (target) await this.playerStrike(hero, target);
-  }
+    const tech = techniques[action.techId];
+    this.spendEcho(tech.cost);
 
-  waitForStrikeChoice() {
-    return new Promise((resolve) => {
-      this.onStrikeChosen = () => {
-        this.onStrikeChosen = null;
-        const livingEnemies = this.enemies.filter((e) => e.hp > 0);
-
-        if (livingEnemies.length <= 1) {
-          resolve(livingEnemies[0] || null);
-          return;
-        }
-
-        this.enterTargeting(livingEnemies, resolve);
-      };
-    });
-  }
-
-  enterTargeting(livingEnemies, resolve) {
-    this.hideCommandMenu();
-    this.promptText.setVisible(true);
-    this.backButton.container.setVisible(true);
-    this.backButton.rect.off('pointerdown');
-    this.backButton.rect.setInteractive({ useHandCursor: true });
-    this.backButton.rect.once('pointerdown', () => {
-      this.clearTargeting(livingEnemies);
-      this.promptText.setVisible(false);
-      this.backButton.container.setVisible(false);
-      this.backButton.rect.disableInteractive();
-      this.showCommandMenu();
-      this.waitForStrikeChoice().then(resolve);
-    });
-
-    for (const enemy of livingEnemies) {
-      enemy.body.setTint(0xfff066);
-      enemy.body.setInteractive({ useHandCursor: true });
-      enemy.body.once('pointerdown', () => {
-        this.clearTargeting(livingEnemies);
-        this.promptText.setVisible(false);
-        this.backButton.container.setVisible(false);
-        this.backButton.rect.disableInteractive();
-        resolve(enemy);
-      });
-    }
-  }
-
-  clearTargeting(livingEnemies) {
-    for (const enemy of livingEnemies) {
-      Fx.restoreTint(enemy.body);
-      enemy.body.off('pointerdown');
-      enemy.body.disableInteractive();
-    }
+    if (action.kind === 'strike') await this.playerStrike(hero, action.target);
+    else if (action.kind === 'ultimate') await this.playRecollection(hero, action.target);
+    else await this.runTechnique(hero, action.techId, action.target);
   }
 
   // Each hit of the attack is its own parry ring on the targeted hero.
+  // A hero in a counter stance draws the attack.
   async enemyTurn(enemy) {
     const livingHeroes = this.heroes.filter((h) => h.hp > 0);
-    const target = Phaser.Utils.Array.GetRandom(livingHeroes);
+    const stanceHero = this.stance && this.stance.hero.hp > 0 ? this.stance.hero : null;
+    const target = stanceHero || Phaser.Utils.Array.GetRandom(livingHeroes);
     const attack = pickWeighted(enemy.def.attacks);
 
     this.tapHint.setVisible(true);
@@ -518,6 +488,7 @@ export default class BattleScene extends Phaser.Scene {
       await this.enemyHit(enemy, target, hit);
     }
     this.tapHint.setVisible(false);
+    this.brace = null;
   }
 
   // ---------- Parry QTE ----------
@@ -577,16 +548,24 @@ export default class BattleScene extends Phaser.Scene {
     this.gainEcho(cfg.echo);
 
     const storyMult = this.registry.get('settings')?.storyMode ? qte.storyMode.damageMult : 1;
-    const dmg = Math.round(baseDmg * cfg.damageMult * storyMult);
+    const braceMult = this.brace ? this.brace.damageMult : 1;
+    const dmg = Math.round(baseDmg * cfg.damageMult * storyMult * braceMult);
     if (dmg > 0) this.applyHit(hero, dmg);
+    if (dmg > 0 && this.brace) Fx.popText(this, x, y + qte.text.riseY, this.brace.blockText, this.brace.color, qte.text);
     if (cfg.knockback && hero.hp > 0) Fx.knockback(this, hero.container, hero.facing === 'right' ? -cfg.knockback : cfg.knockback);
 
     if (result === 'PERFECT') {
       Fx.sparks(this, x, y + qte.ring.offsetY, cfg.sparks, qte.sparks, qte.ring.depth);
       Fx.shake(this, cfg.shake, cfg.hitstopMs * 2);
       await Fx.hitstop(this, cfg.hitstopMs);
-      await this.playCounter(hero, enemy, cfg.counterDmg);
     }
+
+    // A hero in Return to Sender answers any parry with the big counter.
+    if (this.stance?.hero === hero) {
+      await this.endStance(result !== 'MISS' && hero.hp > 0, enemy, result);
+      return;
+    }
+    if (result === 'PERFECT') await this.playCounter(hero, enemy, cfg.counterDmg);
   }
 
   // PERFECT: the hero answers with a counter. With a parry sheet the damage
@@ -609,6 +588,168 @@ export default class BattleScene extends Phaser.Scene {
     this.refreshHud();
   }
 
+  spendEcho(amount) {
+    if (!amount) return;
+    this.echo = Math.max(0, this.echo - amount);
+    this.refreshHud();
+  }
+
+  // ---------- Techniques (techniques.json) ----------
+
+  async runTechnique(hero, techId, target) {
+    const tech = techniques[techId];
+    if (tech.type === 'blast') await this.playBlast(hero, target, tech);
+    else if (tech.type === 'counterStance') await this.startStance(hero, tech);
+    else if (tech.type === 'heal') await this.playHeal(hero, tech);
+    else if (tech.type === 'brace') await this.playBrace(hero, tech);
+  }
+
+  // Blast: 3–6 bolts; every bolt has a chance to crit, and each crit adds a
+  // bolt (up to maxHits). With a blast sheet the bolts fly while the anim holds
+  // its aim frame.
+  async playBlast(hero, target, tech) {
+    let total = Phaser.Math.Between(tech.hits[0], tech.hits[1]);
+    const fire = async () => {
+      for (let i = 0; i < total && target.hp > 0; i++) {
+        const crit = Math.random() < tech.critChance && total < tech.maxHits;
+        if (crit) total += 1;
+        await this.fireBolt(hero, target, tech);
+        const dmg = Phaser.Math.Between(tech.dmg[0], tech.dmg[1]);
+        this.applyHit(target, dmg, crit ? tech.critColor : undefined);
+        if (crit) Fx.popText(this, target.container.x, target.container.y, tech.critText, tech.critColor, qte.text);
+        await this.wait(tech.boltIntervalMs);
+      }
+    };
+
+    if (!hasSheet(hero.anims, 'blast')) {
+      await fire();
+      return;
+    }
+    await playOnce(hero.body, hero.type, 'blast', hero.anims.blast, {
+      onHold: (resume) => fire().then(resume),
+    });
+    if (hero.hp > 0) hero.body.play(animKey(hero.type, 'idle'));
+  }
+
+  // One bolt from the hero to the target: the projectile sheet if there is
+  // one, otherwise a small teal square.
+  fireBolt(hero, target, tech) {
+    const fromX = hero.container.x;
+    const fromY = hero.container.y;
+    const projectileKey = animKey(hero.type, 'blast_projectile');
+    const hasProjectile = hasSheet(hero.anims, 'blast_projectile');
+    const bolt = hasProjectile
+      ? this.add.sprite(fromX, fromY, projectileKey).play(projectileKey)
+      : this.add.rectangle(fromX, fromY, tech.boltSize, tech.boltSize, Number(tech.boltColor));
+    bolt.setDepth(ui.battleLayout.labelDepth);
+    // The projectile sheet faces left like every sheet; heroes fire to the right.
+    if (hasProjectile) bolt.setFlipX(true);
+    return this.tweenPromise(bolt, { x: target.container.x, y: target.container.y }, tech.boltFlightMs).then(() => bolt.destroy());
+  }
+
+  // Return to Sender: the hero holds a guard (the ability sheet's holdFrame)
+  // and draws the next enemy attack. A parry answers it with a big counter.
+  async startStance(hero, tech) {
+    Fx.popText(this, hero.container.x, hero.container.y, tech.castText, tech.color, qte.text);
+    const stance = { hero, tech, resume: null, done: null, onImpact: null };
+    this.stance = stance;
+    if (!hasSheet(hero.anims, 'ability')) return;
+
+    this.stance.done = playOnce(hero.body, hero.type, 'ability', hero.anims.ability, {
+      onHold: (resume) => {
+        if (this.stance === stance) stance.resume = resume;
+        else resume();
+      },
+      onImpact: () => stance.onImpact?.(),
+    });
+  }
+
+  // Ends the stance. countered = the parry landed: the rest of the ability
+  // anim plays as the counter swing and the damage lands on its impact frame.
+  // Otherwise the guard just drops.
+  async endStance(countered, enemy, result) {
+    const stance = this.stance;
+    if (!stance) return;
+    this.stance = null;
+    const { hero, tech } = stance;
+    const abilityKey = animKey(hero.type, 'ability');
+    const inGuard = () => hero.body.anims?.currentAnim?.key === abilityKey;
+
+    if (!countered) {
+      if (stance.done && inGuard() && hero.hp > 0) hero.body.play(animKey(hero.type, 'idle'));
+      return;
+    }
+
+    const counter = () => {
+      if (enemy.hp <= 0) return;
+      const base = Phaser.Math.Between(tech.counterDmg[0], tech.counterDmg[1]);
+      const dmg = Math.round(base * (result === 'PERFECT' ? tech.perfectMult : 1));
+      Fx.popText(this, hero.container.x, hero.container.y, tech.counterText, tech.color, qte.text);
+      this.applyHit(enemy, dmg, tech.color);
+    };
+
+    if (!stance.done || !inGuard()) {
+      counter();
+      return;
+    }
+
+    stance.onImpact = counter;
+    if (stance.resume) stance.resume();
+    await stance.done;
+    if (hero.hp > 0) hero.body.play(animKey(hero.type, 'idle'));
+  }
+
+  // Anchor: heals the hero who needs it most — a downed ally first (if the
+  // technique can revive), then the lowest HP share.
+  async playHeal(hero, tech) {
+    const candidates = this.heroes.filter((h) => h.hp > 0 || tech.canRevive);
+    const target = candidates.sort((a, b) => (a.hp > 0) - (b.hp > 0) || a.hp / a.maxHp - b.hp / b.maxHp)[0];
+    if (!target) return;
+
+    await this.playCast(hero);
+    const amount = Math.min(tech.amount, target.maxHp - target.hp);
+    if (target.hp <= 0) this.revive(target, Math.min(target.maxHp, tech.amount));
+    else target.hp += amount;
+    Fx.damageNumber(this, target.container.x, target.container.y - 80, `${ui.heal.textPrefix}${Math.min(tech.amount, target.maxHp)}`, tech.color);
+    this.refreshHud();
+  }
+
+  // Brace: the whole party takes reduced damage from the next enemy attack.
+  async playBrace(hero, tech) {
+    await this.playCast(hero);
+    this.brace = tech;
+    for (const h of this.heroes.filter((x) => x.hp > 0)) {
+      Fx.popText(this, h.container.x, h.container.y, tech.castText, tech.color, qte.text);
+    }
+  }
+
+  // A support move's body language: the cast sheet (in → loop once → out)
+  // if the character has one, otherwise a short hop.
+  async playCast(hero) {
+    if (hasSheet(hero.anims, 'cast')) {
+      if (hasSheet(hero.anims, 'cast_in')) await playOnce(hero.body, hero.type, 'cast_in', hero.anims.cast_in);
+      await new Promise((resolve) => {
+        hero.body.play(animKey(hero.type, 'cast'));
+        hero.body.once('animationrepeat', resolve);
+      });
+      if (hasSheet(hero.anims, 'cast_out')) await playOnce(hero.body, hero.type, 'cast_out', hero.anims.cast_out);
+      if (hero.hp > 0) hero.body.play(animKey(hero.type, 'idle'));
+      return;
+    }
+    const y = hero.container.y;
+    await this.tweenPromise(hero.container, { y: y - ui.cast.hopPx }, ui.cast.hopMs, 'Quad.easeOut');
+    await this.tweenPromise(hero.container, { y }, ui.cast.hopMs, 'Quad.easeIn');
+  }
+
+  // Placeholder until the Recollection issue lands: a plain strike.
+  playRecollection(hero, target) {
+    return this.playerStrike(hero, target);
+  }
+
+  wait(ms) {
+    return new Promise((resolve) => this.time.delayedCall(ms, resolve));
+  }
+
   // ---------- Attack execution ----------
 
   async playerStrike(hero, target) {
@@ -620,7 +761,9 @@ export default class BattleScene extends Phaser.Scene {
     // A Strike deals its damage once, on the first impact frame.
     const dmg = Phaser.Math.Between(hero.def.strike[0], hero.def.strike[1]);
     await this.playAttackAnim(hero, (i) => {
-      if (i === 0) this.applyHit(target, dmg);
+      if (i !== 0) return;
+      this.applyHit(target, dmg);
+      this.gainEcho(techniques.strike.echoOnHit);
     });
 
     await this.tweenPromise(hero.container, { x: restX }, DASH_DURATION_MS);
@@ -699,11 +842,11 @@ export default class BattleScene extends Phaser.Scene {
     });
   }
 
-  applyHit(target, dmg) {
+  applyHit(target, dmg, color) {
     const images = [target.body, ...Object.values(target.parts).map((p) => p.img)];
     Fx.flash(this, images, 60);
     Fx.shake(this, 2, 80);
-    Fx.damageNumber(this, target.container.x, target.container.y - 80, dmg);
+    Fx.damageNumber(this, target.container.x, target.container.y - 80, dmg, color);
 
     target.hp = Math.max(0, target.hp - dmg);
     this.updateLabel(target);

@@ -42,22 +42,12 @@
     "sceneBottom": 360,
     "labelGap": 6,
     "labelDepth": 900,
-    "heroes": {
-      "rhea": { "x": 116, "feetY": 342 },
-      "dov": { "x": 76, "feetY": 300 }
-    },
+    "heroes": { "rhea": { "x": 116, "feetY": 342 }, "dov": { "x": 76, "feetY": 300 } },
     "nala": { "x": 36, "feetY": 336 },
     "enemies": {
       "1": [{ "x": 256, "feetY": 326 }],
-      "2": [
-        { "x": 292, "feetY": 286 },
-        { "x": 224, "feetY": 342 }
-      ],
-      "3": [
-        { "x": 296, "feetY": 272 },
-        { "x": 204, "feetY": 310 },
-        { "x": 268, "feetY": 350 }
-      ],
+      "2": [{ "x": 292, "feetY": 286 }, { "x": 224, "feetY": 342 }],
+      "3": [{ "x": 296, "feetY": 272 }, { "x": 204, "feetY": 310 }, { "x": 268, "feetY": 350 }],
       "boss": [{ "x": 236, "feetY": 334 }]
     }
   },
@@ -72,15 +62,25 @@
       "textColor": "#f1efe8",
       "disabledFill": "0x1c1e29",
       "disabledStroke": "0x3a3d4a",
-      "disabledTextColor": "#5a5f73"
+      "disabledTextColor": "#5a5f73",
+      "costFontSize": 11,
+      "costColor": "#3fd0c9",
+      "labelOffsetY": -7,
+      "costOffsetY": 14,
+      "pulseScale": 1.06,
+      "pulseMs": 420
     },
-    "slots": {
-      "strike": [94, 500],
-      "technique": [266, 500],
-      "recollection": [94, 576],
-      "back": [266, 576]
+    "slots": { "strike": [94, 500], "technique": [266, 500], "recollection": [94, 576], "back": [266, 576] },
+    "prompt": { "x": 180, "y": 458, "fontSize": 14, "text": "Choose a target" },
+    "techniqueSlots": ["strike", "technique", "recollection"],
+    "labels": {
+      "strike": "Strike",
+      "technique": "Technique",
+      "recollection": "Recollection",
+      "back": "Back",
+      "cost": "{n} Echo"
     },
-    "prompt": { "x": 180, "y": 458, "fontSize": 14, "text": "Choose a target" }
+    "targetTint": "0xfff066"
   },
   "animtest": {
     "character": "rhea",
@@ -96,7 +96,14 @@
     "title": { "y": 374, "fontSize": 18 },
     "frameLine": { "y": 402, "fontSize": 14 },
     "markerLine": { "y": 424, "fontSize": 12 },
-    "strip": { "y": 456, "boxW": 24, "boxH": 36, "gap": 3, "idleStroke": "0x2a2e3d", "currentStroke": "0xf1efe8" },
+    "strip": {
+      "y": 456,
+      "boxW": 24,
+      "boxH": 36,
+      "gap": 3,
+      "idleStroke": "0x2a2e3d",
+      "currentStroke": "0xf1efe8"
+    },
     "legend": { "y": 508, "fontSize": 12, "windup": "W windup", "impact": "I impact", "hold": "H hold" },
     "colors": { "windup": "0xe0a040", "impact": "0xd8505a", "hold": "0x3fd0c9" },
     "banner": { "y": 150, "fontSize": 20, "impact": "IMPACT", "hold": "HOLD" },
@@ -107,5 +114,7 @@
     "hpStep": 10,
     "echoStep": 1,
     "keys": { "hurtRhea": "ONE", "hurtDov": "TWO", "echoUp": "E", "echoDown": "Q" }
-  }
+  },
+  "heal": { "textPrefix": "+", "fontSize": 16 },
+  "cast": { "hopPx": 6, "hopMs": 120 }
 }

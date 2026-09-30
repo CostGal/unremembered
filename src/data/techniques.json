@@ -1,0 +1,54 @@
+{
+  "strike": { "name": "Strike", "cost": 0, "type": "strike", "target": "enemy", "echoOnHit": 1 },
+  "blast": {
+    "name": "Blast",
+    "cost": 3,
+    "type": "blast",
+    "target": "enemy",
+    "hits": [3, 6],
+    "dmg": [3, 4],
+    "critChance": 0.3,
+    "maxHits": 10,
+    "boltIntervalMs": 110,
+    "boltFlightMs": 160,
+    "boltColor": "0x3fd0c9",
+    "critColor": "#3fd0c9",
+    "critText": "+1",
+    "boltSize": 6
+  },
+  "return_to_sender": {
+    "name": "Return to Sender",
+    "cost": 2,
+    "type": "counterStance",
+    "counterDmg": [14, 18],
+    "perfectMult": 1.5,
+    "castText": "On guard",
+    "counterText": "Return to Sender!",
+    "color": "#3fd0c9"
+  },
+  "anchor": {
+    "name": "Anchor",
+    "cost": 3,
+    "type": "heal",
+    "amount": 25,
+    "canRevive": true,
+    "color": "#e0a040"
+  },
+  "brace": {
+    "name": "Brace",
+    "cost": 2,
+    "type": "brace",
+    "damageMult": 0.5,
+    "castText": "Brace!",
+    "blockText": "Braced",
+    "color": "#e0a040"
+  },
+  "recollection": {
+    "name": "Recollection",
+    "cost": 10,
+    "type": "ultimate",
+    "taps": 3,
+    "intervalMs": 500,
+    "dmg": { "perfect": 30, "good": 18, "miss": 6 }
+  }
+}
