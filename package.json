@@ -13,6 +13,7 @@
     "playtest": "node scripts/playtest.mjs",
     "perf": "node scripts/perf.mjs",
     "cutscene-check": "node scripts/cutscene-check.mjs",
+    "mobile-check": "node scripts/mobile-check.mjs",
     "music-check": "node scripts/music-check.mjs",
     "music-perf": "node scripts/music-perf.mjs"
   },

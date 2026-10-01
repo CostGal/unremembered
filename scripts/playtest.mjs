@@ -5,7 +5,7 @@
 // counted), on a soft-lock (> 20 s with no scene/state change) or a missing
 // chapter step. Runs twice: real sheets, then ?fakesheets=1.
 //
-//   npm run playtest [-- --only real|fake] [-- --profile good]
+//   npm run playtest [-- --only real|fake] [-- --profile good] [-- --story]
 // Needs Playwright (used from wherever it is installed; see lib/harness.mjs).
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -18,12 +18,14 @@ const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
 const PROFILES = { average: { PERFECT: 0.3, GOOD: 0.45, MISS: 0.25 }, good: { PERFECT: 0.55, GOOD: 0.35, MISS: 0.1 } };
 const profile = PROFILES[args.includes('--profile') ? args[args.indexOf('--profile') + 1] : 'good'];
 const STALL_MS = 20000;
+// --story: Story Mode on (and the difficulty question already answered).
+const settings = args.includes('--story') ? { storyMode: true, difficultyChosen: true } : null;
 
 // The chapter steps we expect to see, in order (scene key + id).
 const expected = chapter.filter((s) => s.type !== 'end').map((s) => `${s.type}:${s.id}`);
 
 async function playthrough(browser, url, label) {
-  const page = await openPage(browser, url);
+  const page = await openPage(browser, url, { settings });
   const bot = new Bot(page, { profile });
   const seen = [];
   const t0 = Date.now();
