@@ -906,7 +906,14 @@ export default class BattleScene extends Phaser.Scene {
           await new Promise((resolve) => this.atRealTime(performance.now() + feintPauseMs, resolve, () => abort.aborted));
           if (abort.aborted) return;
         }
-        await d.runTo(impact);
+        // An FX sheet named by def.projectile (Hollow's siphon stream) plays over
+        // the sprite's frame while the move runs from here to its impact.
+        const fx = this.enemyAttackFx(enemy, def);
+        try {
+          await d.runTo(impact);
+        } finally {
+          fx?.destroy();
+        }
         trace(`impact:${d.key}`);
       },
       abort: () => driver?.stop(),
@@ -919,6 +926,13 @@ export default class BattleScene extends Phaser.Scene {
         if (enemy.hp > 0 && !enemy.charge && (!enemy.body.anims.isPlaying || current === key)) playLoop(enemy.body, enemy.type, 'idle');
       },
     };
+  }
+
+  enemyAttackFx(enemy, def) {
+    if (!def.projectile || !hasSheet(enemy.anims, def.projectile)) return null;
+    const fx = this.add.sprite(enemy.container.x, enemy.container.y, animKey(enemy.type, def.projectile));
+    fx.setScale(enemy.container.scaleX, 1).setDepth(enemy.container.depth + 1);
+    return playLoop(fx, enemy.type, def.projectile);
   }
 
   playLungeTelegraph(enemy, impactAt, abort) {
