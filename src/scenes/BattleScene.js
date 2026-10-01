@@ -100,6 +100,9 @@ export default class BattleScene extends Phaser.Scene {
 
     // ?echo=N starts the battle with N Echo (dev).
     this.echo = Phaser.Math.Clamp(devInt('echo') ?? 0, 0, ui.hud.echo.max);
+    // Perfect chain (qte.json chain). maxChain is read at the end of the battle (battle grade).
+    this.chain = 0;
+    this.maxChain = 0;
     this.hud = new Hud(this, ui.hud, ui.font, this.heroes);
     this.refreshHud();
     if (import.meta.env.DEV) {
@@ -1115,6 +1118,8 @@ export default class BattleScene extends Phaser.Scene {
     playSfx(result.toLowerCase());
     vibrate(cfg.vibrateMs);
     if (result !== 'MISS') this.hints.show('echo');
+    // Before the counter below, so a PERFECT's own counter already gets the new step.
+    this.updateChain(result);
     this.gainEcho(cfg.echo);
     // e.g. Siphon: a missed parry also drains Echo.
     if (result === 'MISS' && hit.onMiss?.echo) this.gainEcho(hit.onMiss.echo);
@@ -1142,6 +1147,42 @@ export default class BattleScene extends Phaser.Scene {
       return;
     }
     if (result === 'PERFECT') await this.playCounter(hero, enemy, cfg.counterDmg);
+  }
+
+  // ---------- Perfect chain ----------
+
+  // PERFECT +1, GOOD keeps it, MISS (full damage) breaks it. Only enemy-attack
+  // parries count; Recollection's rhythm rings don't.
+  updateChain(result) {
+    const c = qte.chain;
+    const before = this.chain;
+    if (result === 'PERFECT') this.chain += 1;
+    else if (result === 'MISS') this.chain = 0;
+    if (this.chain === before) return;
+
+    this.maxChain = Math.max(this.maxChain, this.chain);
+    this.hud.setChain(this.chain);
+    if (this.chain === 0) {
+      const at = this.hud.chainPosition();
+      Fx.sparks(this, at.x, at.y, c.break.sparks, { ...qte.sparks, color: c.break.sparkColor }, qte.ring.depth);
+      return;
+    }
+    if (this.chain >= 2) this.hints.show('chain');
+    if (this.chain === c.rhythmAt) {
+      const r = c.rhythm;
+      Fx.screenFlash(this, r.flash, qte.flashDepth);
+      Fx.shake(this, r.shake, r.shakeMs);
+      Fx.popText(this, r.x, r.y, r.text, r.color, { ...qte.text, fontSize: r.fontSize });
+      Fx.sparks(this, r.x, r.y, r.sparks, { ...qte.sparks, color: r.sparkColor }, qte.ring.depth);
+    }
+  }
+
+  // +stepPct% per chain step, capped at maxSteps. Fractions round up or down by
+  // chance (expected value stays exact), so +10% still means something on a 3-damage bolt.
+  chainDamage(dmg) {
+    const c = qte.chain;
+    const mult = 1 + (Math.min(this.chain, c.maxSteps) * c.stepPct) / 100;
+    return mult === 1 ? dmg : Math.floor(dmg * mult + Math.random());
   }
 
   // PERFECT: the hero answers with a counter. With a parry sheet the damage
@@ -1455,6 +1496,7 @@ export default class BattleScene extends Phaser.Scene {
   // react: false = the caller plays its own reaction instead of hurt.
   // type = damage number style (ui.json damageNumbers); heroes' damage is "hurt".
   applyHit(target, dmg, color, { react = true, type = null } = {}) {
+    if (!target.isHero) dmg = this.chainDamage(dmg);
     const images = [target.body, ...Object.values(target.parts).map((p) => p.img)];
     Fx.flash(this, images, 60);
     Fx.shake(this, 2, 80);

@@ -18,6 +18,7 @@ export default class Hud {
 
     this.rows = heroes.map((hero, i) => this.buildRow(hero, config.rows.firstY + i * config.rows.spacing));
     this.buildEcho();
+    this.buildChain();
   }
 
   text(x, y, str, size) {
@@ -62,6 +63,39 @@ export default class Hud {
     }
     this.echo = 0;
     this.paintPips(0);
+  }
+
+  // "CHAIN xN" under the Echo bar: hidden at 0, pops on every step. Dropping
+  // to 0 from a chain shakes the last value in red and fades it out.
+  buildChain() {
+    const c = this.cfg.chain;
+    this.chainText = this.text(c.x, c.y, '', c.fontSize).setOrigin(0, 0.5).setAlpha(0);
+    this.chainShown = 0;
+  }
+
+  setChain(n) {
+    const c = this.cfg.chain;
+    const text = this.chainText;
+    const prev = this.chainShown;
+    if (n === prev) return;
+    this.chainShown = n;
+    this.scene.tweens.killTweensOf(text);
+    text.setX(c.x).setScale(1).setAlpha(1);
+
+    if (n === 0) {
+      text.setText(c.label.replace('{n}', prev)).setColor(c.breakColor);
+      this.scene.tweens.add({ targets: text, x: c.x + c.shakePx, duration: c.shakeMs, yoyo: true, repeat: 3 });
+      this.scene.tweens.add({ targets: text, alpha: 0, delay: c.breakFadeDelayMs, duration: c.breakFadeMs });
+      return;
+    }
+    text.setText(c.label.replace('{n}', n)).setColor(c.color);
+    this.scene.tweens.add({ targets: text, scale: { from: c.popScale, to: 1 }, duration: c.popMs, ease: 'Back.easeOut' });
+  }
+
+  // Where the chain label sits (for FX that burst from it).
+  chainPosition() {
+    const c = this.cfg.chain;
+    return { x: c.x + this.chainText.width / 2, y: c.y };
   }
 
   // state: {heroes: [{hp, maxHp}], echo}

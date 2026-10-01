@@ -135,11 +135,18 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: D.enemies[id].hp, max: D.enemies[id].hp, phase: 0, charge: null }));
 
   // A tutorial battle also costs the time to read its hint banners.
-  const st = { echo: 0, ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  const st = { echo: 0, ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   const gain = (n) => (st.echo = Math.max(0, Math.min(echoMax, st.echo + n)));
   const living = (list) => list.filter((e) => e.hp > 0);
 
-  const hitEnemy = (enemy, dmg) => {
+  // Perfect chain (qte.json chain): +stepPct% per step on every player hit; the
+  // fraction rounds by chance, as in BattleScene.chainDamage.
+  const chainDmg = (dmg) => {
+    const mult = 1 + (Math.min(st.chain, qte.chain.maxSteps) * qte.chain.stepPct) / 100;
+    return mult === 1 ? dmg : Math.floor(dmg * mult + rnd());
+  };
+  const hitEnemy = (enemy, rawDmg) => {
+    const dmg = chainDmg(rawDmg);
     enemy.hp = Math.max(0, enemy.hp - dmg);
     if (enemy.charge) {
       enemy.charge.dealt += dmg;
@@ -274,6 +281,9 @@ function simulateBattle(battleId, profileName, story, rnd) {
       }
       const res = roll(qteOdds(profile, windowMult()), rnd);
       st.qtes[res] += 1;
+      if (res === 'PERFECT') st.chain += 1;
+      else if (res === 'MISS') st.chain = 0;
+      st.maxChain = Math.max(st.maxChain, st.chain);
       gain(qte.results[res].echo);
       if (res === 'MISS' && hit.onMiss?.echo) gain(hit.onMiss.echo);
       const dmg = Math.round(hit.dmg * qte.results[res].damageMult * dmgTakenMult * (st.brace ? st.brace.damageMult : 1));

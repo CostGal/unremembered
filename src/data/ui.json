@@ -40,6 +40,20 @@
       "glowAlphaMin": 0.15,
       "glowAlphaMax": 0.6,
       "glowPeriodMs": 700
+    },
+    "chain": {
+      "x": 72,
+      "y": 434,
+      "fontSize": 11,
+      "label": "CHAIN x{n}",
+      "color": "#f0c060",
+      "breakColor": "#d8505a",
+      "popScale": 1.4,
+      "popMs": 120,
+      "shakePx": 3,
+      "shakeMs": 40,
+      "breakFadeDelayMs": 220,
+      "breakFadeMs": 200
     }
   },
   "battleLayout": {
@@ -427,7 +441,8 @@
     "hints": {
       "strike": { "text": "Tap Strike to attack" },
       "echo": { "text": "Good timing charges Echo" },
-      "techniques": { "text": "Techniques spend Echo" }
+      "techniques": { "text": "Techniques spend Echo" },
+      "chain": { "text": "Chain PERFECTs for bonus damage", "always": true }
     }
   },
   "activeHero": { "color": "0x3fd0c9", "size": 7, "gapY": 6, "bobPx": 3, "bobMs": 380, "depth": 905, "nameColor": "#3fd0c9" },

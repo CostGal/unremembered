@@ -17,6 +17,7 @@ A 2D turn-based RPG **demo** with real-time parry QTEs, built for a 1-week game 
 5. **Missing art never blocks code.** If an asset file is missing, the loader draws a placeholder (colored rectangle with a label, same display size) and the game keeps working.
 6. **No new dependencies** beyond Phaser and Vite without asking.
 7. Kostas works about 1 hour per day. **A playable state beats a perfect partial system.** Stop at a working point.
+8. **"Next mechanic issue"** (or "next mechanical issue") means: pick the next open issue labeled `mechanics` that needs nothing from Kostas, so you can run it autonomously. Skip anything labeled `manual` and anything that waits on his art, music, text or a phone test. Order: P0 > P1 > P2, then lowest number. Say which one you picked, then start. A plain "next issue" still follows rule 1.
 
 ## Stack
 - **Phaser 3** (latest 3.x), **Vite**, plain **JavaScript** (ES modules).

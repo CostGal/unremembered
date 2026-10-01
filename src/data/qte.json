@@ -12,6 +12,24 @@
   },
   "windows": { "perfectMs": 90, "goodMs": 200, "ignoreBeforeMs": 350 },
   "storyMode": { "windowMult": 1.5, "damageMult": 0.5 },
+  "chain": {
+    "stepPct": 10,
+    "maxSteps": 5,
+    "rhythmAt": 5,
+    "rhythm": {
+      "text": "IN RHYTHM",
+      "color": "#f0c060",
+      "fontSize": 26,
+      "x": 180,
+      "y": 150,
+      "flash": { "color": "0xf0c060", "alpha": 0.4, "ms": 260 },
+      "shake": 5,
+      "shakeMs": 160,
+      "sparks": 22,
+      "sparkColor": "0xf0c060"
+    },
+    "break": { "sparks": 8, "sparkColor": "0xd8505a" }
+  },
   "results": {
     "PERFECT": {
       "damageMult": 0,

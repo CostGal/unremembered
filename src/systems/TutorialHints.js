@@ -15,11 +15,12 @@ export default class TutorialHints {
     this.current = null;
   }
 
-  // Returns true if the hint is shown now. One at a time: while another
+  // A hint with "always": true also shows outside tutorial battles (a mechanic
+  // that first appears later). Returns true if the hint is shown now. One at a time: while another
   // hint is up this one waits for its next chance (it isn't used up).
   show(id) {
     const hint = cfg.hints[id];
-    if (!this.enabled || !hint || shown.has(id) || this.current) return false;
+    if (!hint || (!this.enabled && !hint.always) || shown.has(id) || this.current) return false;
     shown.add(id);
 
     const b = cfg.banner;
