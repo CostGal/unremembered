@@ -1,6 +1,6 @@
 {
   "shots": [
-    {"text": "Before the Hush, Veyra forgot nothing.", "bg": null, "fx": ["crystal_particles"]},
+    {"text": "Before the Hush, Veyra forgot nothing.", "bg": "city", "move": "zoom_out", "fx": ["crystal_particles"]},
     {"text": "Not a face, not a name, not a single life was ever lost.", "bg": "city", "move": "pan_right"},
     {"text": "Beneath the city stood the Reliquary, an engine of crystal and runes.", "bg": "reliquary"},
     {"text": "Every memory of every citizen was kept inside it.", "bg": "reliquary", "move": "zoom_in", "fx": ["crystal_particles", "flash"]},
