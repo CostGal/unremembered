@@ -13,8 +13,12 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+// Playwright's Chromium (the Claude Code cloud container has it at
+// /opt/pw-browsers; PLAYWRIGHT_BROWSERS_PATH points there) counts too.
 const CANDIDATES = [
   process.env.CHROME,
+  process.env.PLAYWRIGHT_BROWSERS_PATH && join(process.env.PLAYWRIGHT_BROWSERS_PATH, 'chromium'),
+  '/opt/pw-browsers/chromium',
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
@@ -27,6 +31,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export function findChrome() {
   return CANDIDATES.find((p) => existsSync(p)) || null;
+}
+
+// Chromium refuses to start its sandbox as root (containers, CI runners).
+function needsNoSandbox() {
+  return process.platform !== 'win32' && (process.getuid?.() === 0 || !!process.env.CI);
 }
 
 class Session {
@@ -149,6 +158,7 @@ export async function launchChrome({ headless = true } = {}) {
     '--disable-renderer-backgrounding',
     '--disable-backgrounding-occluded-windows',
     ...(headless ? ['--headless=new'] : []),
+    ...(needsNoSandbox() ? ['--no-sandbox', '--disable-dev-shm-usage'] : []),
     'about:blank',
   ];
   const proc = spawn(exe, args, { stdio: 'ignore' });
