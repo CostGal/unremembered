@@ -9,7 +9,7 @@
 
 import { compileTrack } from './MusicData.js';
 
-const STEP_TYPES = ['cutscene', 'dialogue', 'battle', 'end'];
+const STEP_TYPES = ['cutscene', 'dialogue', 'battle', 'reward', 'end'];
 const SHOT_FX = ['crystal_particles', 'rain', 'flash', 'lights_out', 'dissolve_layer', 'embers', 'eyes_glow'];
 const SHOT_MOVES = ['none', 'pan_left', 'pan_right', 'zoom_in', 'zoom_out'];
 const SPLITS = ['none', 'vertical', 'horizontal'];
@@ -102,6 +102,13 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     for (const p of e.phases || []) {
       if (p.onEnter && !BATTLE_EVENTS.includes(p.onEnter)) err(`enemies.${id}: unknown phase event "${p.onEnter}"`);
     }
+  }
+  const FRAGMENT_EFFECTS = ['startEcho', 'nalaExtraUses', 'perfectWindowMs', 'dovMaxHp', 'perfectEchoBonus', 'blastCritChance'];
+  for (const [id, f] of Object.entries(data.fragments?.pool || {})) {
+    for (const key of Object.keys(f.effects || {})) {
+      if (!FRAGMENT_EFFECTS.includes(key)) err(`fragments.${id}: unknown effect "${key}"`);
+    }
+    if (!f.name || !f.short || !f.text) err(`fragments.${id}: name, short and text are required`);
   }
   for (const [id, a] of Object.entries(allies)) {
     if (!assets.sprites?.[a.body]) err(`allies.${id}: body sprite "${a.body}" is not in assets.json sprites`);

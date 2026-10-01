@@ -77,3 +77,6 @@ After a victory, a result card (Perfects, Max chain, Damage taken, Turns) and a 
 ## Memory statuses (#71)
 `src/data/statuses.json`: REDACTED (a random technique of the hero is covered by a black bar and can't be used, 2 of the hero's turns) and FOG (command names read "???", 1 turn). Applied from an enemy attack's `onMiss.status` (+ optional `chance`) in `enemies.json`: Hollow Claw -> fog (30%), Hollow Siphon and Clerk Redact -> redacted. Badges (letter + turns left) sit at the end of the hero's HP bar. Anchor clears its target's statuses; a KO clears them too.
 
+## Fragments (#72)
+A `reward` step in `chapter1.json` (after b1 and after b3, since b2 was dropped): "A memory returns…", 3 random fragments from `src/data/fragments.json`, tap one; it stays for the whole run (registry `fragments`, reset on New Game) and shows as a small letter icon at the end of the Echo row. Effects: Old Ticket (+2 Echo at battle start), Cat Hair (Nala twice), Worn Glove (PERFECT window +20ms), Dov's Scarf (+15 max HP), Ink Stain (Blast crit 40%), Echo Shard (+1 Echo on PERFECT). Dev: `?reward=1` opens the screen, `?fragments=a,b` gives fragments in a battle. The sim does not model fragments.
+

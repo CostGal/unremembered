@@ -1,6 +1,7 @@
 // Battle HUD: party status rows (name + HP bar) and the shared Echo bar.
 // It only displays state. The battle owns HP/Echo and calls update(state).
 import statuses from '../data/statuses.json';
+import fragments from '../data/fragments.json';
 
 const color = (hex) => Number(hex);
 
@@ -141,6 +142,18 @@ export default class Hud {
       duration: hpBar.tweenMs,
       onUpdate: () => this.setHpText(row, Math.round(row.shown.hp)),
       onComplete: () => this.setHpText(row, hero.hp),
+    });
+  }
+
+  // The run's fragments (fragments.json) as small letter icons at the end of
+  // the Echo row.
+  setFragments(ids) {
+    const f = this.cfg.fragments;
+    ids.forEach((id, i) => {
+      const def = fragments.pool[id];
+      const x = f.x + i * (f.size + f.gap);
+      this.scene.add.rectangle(x, f.y, f.size, f.size, color(f.fill)).setOrigin(0, 0.5).setStrokeStyle(1, color(def.color.replace('#', '0x')));
+      this.text(x + f.size / 2, f.y, def.short, f.fontSize).setOrigin(0.5).setColor(def.color);
     });
   }
 

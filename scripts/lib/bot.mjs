@@ -45,6 +45,7 @@ export function probe(page) {
     st.menuPanel = active.includes('Menu') && !!g.scene.getScene('Menu').panel;
     const c = g.scene.getScene('Cutscene');
     if (active.includes('Cutscene')) st.cutscene = { index: c.index };
+    if (active.includes('Reward')) st.reward = { id: g.registry.get('runner')?.step?.id };
     return st;
   });
 }
@@ -91,6 +92,7 @@ export class Bot {
 
     if (has('Pause')) await this.tapOnce(180, 320, 400);
     else if (st.battle && has('Battle') && !has('Dialogue')) await this.battleStep(st, nodeNow);
+    else if (has('Reward')) await this.tapOnce(180, 190, 1500); // the first card
     else if (has('Dialogue')) await this.tapOnce(180, 560, 200);
     else if (has('Cutscene')) await this.tapOnce(180, 480, 250);
     else if (has('Title')) await this.tapOnce(180, ui.title.tap.y, 500);
