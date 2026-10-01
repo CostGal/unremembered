@@ -67,3 +67,6 @@ Rhea wiring → #55 (layout, Teaser) → rain FX → parry QTE #4 → combat kit
 - New art/files: drop them in `C:\dev\unremembered\_inbox\<character>\` (git-ignored) and tell Claude Code "sort the _inbox". Sorting rule: sheets + JSON → `public/assets/sprites/`; GIFs, scripts, raw → `_art/work/<character>/`; docs → `docs/`.
 - Before leaving the PC: "commit and push everything, including _art".
 - New ideas → issue with label `idea`, milestone Post-jam. Never mid-build.
+
+## Break gauge (#69)
+Enemies have `poise` in `enemies.json` (Blank 6, Hollow 8, Clerk 20), shown as pips under the name label. Poise damage per hit: `src/data/break.json` `sources` (player hit 1, PERFECT counter 2, Return to Sender counter 3). At 0: BREAK! (enemy skips its next action, takes `damageMult` 1.5 until that turn ends, then poise refills; a phase change also refills). `npm run sim` has a `breaks` column.

@@ -24,6 +24,7 @@ const D = {
   enemies: read('src/data/enemies.json'),
   techniques: read('src/data/techniques.json'),
   qte: read('src/data/qte.json'),
+  brk: read('src/data/break.json'),
   allies: read('src/data/allies.json'),
   chapter: read('src/data/chapter1.json'),
   dialogue: read('src/data/dialogue.json'),
@@ -132,10 +133,10 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const think = D.sim.thinkMs[profileName];
 
   const heroes = ['rhea', 'dov'].map((id) => ({ id, def: D.characters[id], hp: D.characters[id].hp, max: D.characters[id].hp }));
-  const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: D.enemies[id].hp, max: D.enemies[id].hp, phase: 0, charge: null }));
+  const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: D.enemies[id].hp, max: D.enemies[id].hp, phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false }));
 
   // A tutorial battle also costs the time to read its hint banners.
-  const st = { echo: 0, ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  const st = { echo: 0, ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   const gain = (n) => (st.echo = Math.max(0, Math.min(echoMax, st.echo + n)));
   const living = (list) => list.filter((e) => e.hp > 0);
 
@@ -145,8 +146,10 @@ function simulateBattle(battleId, profileName, story, rnd) {
     const mult = 1 + (Math.min(st.chain, qte.chain.maxSteps) * qte.chain.stepPct) / 100;
     return mult === 1 ? dmg : Math.floor(dmg * mult + rnd());
   };
-  const hitEnemy = (enemy, rawDmg) => {
-    const dmg = chainDmg(rawDmg);
+  // poiseDmg: break.json sources (hit 1, counter 2, stanceCounter 3). A broken enemy takes more damage.
+  const hitEnemy = (enemy, rawDmg, poiseDmg = 0) => {
+    let dmg = chainDmg(rawDmg);
+    if (enemy.broken) dmg = Math.round(dmg * D.brk.damageMult);
     enemy.hp = Math.max(0, enemy.hp - dmg);
     if (enemy.charge) {
       enemy.charge.dealt += dmg;
@@ -161,6 +164,14 @@ function simulateBattle(battleId, profileName, story, rnd) {
       while (enemy.phase < phases.length - 1 && pct <= phases[enemy.phase].untilHpPct) {
         enemy.phase += 1;
         if (phases[enemy.phase].onEnter) st.pending.push(phases[enemy.phase].onEnter);
+        if (enemy.def.poise && !enemy.broken) enemy.poise = enemy.def.poise;
+      }
+    }
+    if (poiseDmg && enemy.def.poise && enemy.hp > 0 && !enemy.broken) {
+      enemy.poise = Math.max(0, enemy.poise - poiseDmg);
+      if (enemy.poise === 0) {
+        enemy.broken = true;
+        st.breaks += 1;
       }
     }
   };
@@ -192,7 +203,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
       const r = tech.recollection;
       for (let i = 0; i < r.taps && target.hp > 0; i++) {
         const res = roll(qteOdds(profile, storyMult), rnd);
-        hitEnemy(target, r.dmg[res.toLowerCase()]);
+        hitEnemy(target, r.dmg[res.toLowerCase()], D.brk.sources.hit);
       }
       st.ms += T.recollectionFadeMs * 2 + r.taps * (qte.recollection.ringMs + r.intervalMs);
       return;
@@ -226,7 +237,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
         for (let i = 0; i < total && target.hp > 0; i++) {
           const crit = rnd() < b.critChance && total < b.maxHits;
           if (crit) total += 1;
-          hitEnemy(target, between(rnd, b.dmg));
+          hitEnemy(target, between(rnd, b.dmg), D.brk.sources.hit);
           if (i === 0) gain(b.echoOnHit || 0);
           bolts += 1;
         }
@@ -241,12 +252,18 @@ function simulateBattle(battleId, profileName, story, rnd) {
       }
     }
     // Strike.
-    hitEnemy(target, between(rnd, hero.def.strike));
+    hitEnemy(target, between(rnd, hero.def.strike), D.brk.sources.hit);
     gain(tech.strike.echoOnHit);
     st.ms += T.dashMs * 2 + sheetMs(hero.id, 'attack', T.attackMs);
   };
 
   const enemyTurn = (enemy) => {
+    if (enemy.broken) {
+      enemy.broken = false;
+      enemy.poise = enemy.def.poise;
+      st.ms += D.brk.stunMs;
+      return;
+    }
     const targets = living(heroes);
     if (!targets.length) return;
     const stanceHero = st.stance && st.stance.hero.hp > 0 ? st.stance.hero : null;
@@ -302,11 +319,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
         const s = st.stance;
         st.stance = null;
         if (!dodged && res !== 'MISS' && target.hp > 0) {
-          hitEnemy(enemy, Math.round(between(rnd, s.tech.counterDmg) * (res === 'PERFECT' ? s.tech.perfectMult : 1)));
+          hitEnemy(enemy, Math.round(between(rnd, s.tech.counterDmg) * (res === 'PERFECT' ? s.tech.perfectMult : 1)), D.brk.sources.stanceCounter);
           st.ms += T.counterMs;
         }
       } else if (res === 'PERFECT' && !dodged && enemy.hp > 0) {
-        hitEnemy(enemy, qte.results.PERFECT.counterDmg);
+        hitEnemy(enemy, qte.results.PERFECT.counterDmg, D.brk.sources.counter);
       }
     }
     st.brace = null;
@@ -382,6 +399,7 @@ for (const story of [false, true]) {
         avgEcho: avg((r) => r.echoCurve.reduce((a, b) => a + b, 0) / Math.max(1, r.echoCurve.length)),
         recollections: avg((r) => r.recollections),
         archives: avg((r) => r.archives),
+        breaks: avg((r) => r.breaks),
         interruptRate: res.reduce((s, r) => s + r.archiveInterrupts, 0) / Math.max(1, res.reduce((s, r) => s + r.archives, 0)),
         qte: Object.fromEntries(['PERFECT', 'GOOD', 'MISS'].map((k) => [k, avg((r) => r.qtes[k]) / Math.max(1e-9, avg((r) => r.qtes.PERFECT + r.qtes.GOOD + r.qtes.MISS))])),
       });
@@ -400,10 +418,10 @@ if (JSON_OUT) {
   const pct = (x) => `${(x * 100).toFixed(1)}%`.padStart(6);
   const f1 = (x) => x.toFixed(1).padStart(5);
   console.log(`runs per cell: ${RUNS}   QTE model: ${Object.entries(D.sim.profilesSolved).map(([k, v]) => `${k} bias=${v.bias}ms sigma=${v.sigma}ms lapse=${(v.lapse * 100).toFixed(0)}% -> normal ${odds(v, 1)} / story ${odds(v, D.qte.storyMode.windowMult)}`).join(', ')}\n`);
-  console.log('mode    battle        profile    win    rounds  min (p10–p90)       avgEcho  recoll  archive  interrupt  P/G/M seen');
+  console.log('mode    battle        profile    win    rounds  min (p10–p90)       avgEcho  recoll  archive  interrupt  breaks  P/G/M seen');
   for (const r of rows) {
     console.log(
-      `${r.mode.padEnd(7)} ${r.battle.padEnd(13)} ${r.profile.padEnd(10)} ${pct(r.win)}  ${f1(r.rounds)}  ${f1(r.minutes)} (${r.p10.toFixed(1)}–${r.p90.toFixed(1)})   ${f1(r.avgEcho)}   ${r.recollections.toFixed(2)}    ${r.archives.toFixed(2)}    ${r.archives ? pct(r.interruptRate) : '   –  '}    ${pct(r.qte.PERFECT)}/${pct(r.qte.GOOD)}/${pct(r.qte.MISS)}`
+      `${r.mode.padEnd(7)} ${r.battle.padEnd(13)} ${r.profile.padEnd(10)} ${pct(r.win)}  ${f1(r.rounds)}  ${f1(r.minutes)} (${r.p10.toFixed(1)}–${r.p90.toFixed(1)})   ${f1(r.avgEcho)}   ${r.recollections.toFixed(2)}    ${r.archives.toFixed(2)}    ${r.archives ? pct(r.interruptRate) : '   –  '}    ${r.breaks.toFixed(2)}   ${pct(r.qte.PERFECT)}/${pct(r.qte.GOOD)}/${pct(r.qte.MISS)}`
     );
   }
   const battleMin = (profile) => rows.filter((r) => r.mode === 'normal' && r.profile === profile).reduce((s, r) => s + r.minutes / Math.max(0.01, r.win), 0);

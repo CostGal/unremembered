@@ -1,0 +1,32 @@
+{
+  "damageMult": 1.5,
+  "stunMs": 900,
+  "sources": { "hit": 1, "counter": 2, "stanceCounter": 3 },
+  "pips": {
+    "w": 4,
+    "h": 3,
+    "gap": 1,
+    "offsetY": 5,
+    "fullColor": "0xe0a040",
+    "emptyColor": "0x2a2f42",
+    "brokenColor": "0xd8505a",
+    "depth": 901,
+    "popScale": 1.5,
+    "popMs": 160,
+    "brokenPulseMs": 260
+  },
+  "stunText": { "text": "STUNNED", "fontSize": 10, "color": "#d8505a", "offsetY": 12, "stroke": "#0b0d14", "strokeThickness": 3 },
+  "fx": {
+    "text": "BREAK!",
+    "color": "#e0a040",
+    "fontSize": 30,
+    "offsetY": -40,
+    "shake": 6,
+    "shakeMs": 260,
+    "flash": { "color": "0xe0a040", "alpha": 0.35, "ms": 220 },
+    "sparks": 26,
+    "sparkColor": "0xe0a040",
+    "sfx": "break"
+  },
+  "recoverText": { "text": "Recovered", "color": "#8a8fa3" }
+}
