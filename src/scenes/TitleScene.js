@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import ui from '../data/ui.json';
-import { unlockAudio } from '../systems/Audio.js';
+import { playSceneMusic, unlockAudio } from '../systems/Audio.js';
+import { rect as viewRect } from '../systems/View.js';
 import { addText } from '../systems/Button.js';
 import { isRealTexture, whenReady } from '../systems/Assets.js';
 import * as Fx from '../systems/Fx.js';
@@ -22,6 +23,9 @@ export default class TitleScene extends Phaser.Scene {
   // "Tap to start" over a dark gradient at the bottom. Without it: the title
   // set in type (ui.title), as before.
   build() {
+    // The title track is wanted from here: it starts the moment audio unlocks
+    // (the first tap, or earlier where the browser allows) and carries on into the Menu.
+    playSceneMusic('Title');
     const art = isRealTexture(this, 'title_bg');
     const hasLogo = isRealTexture(this, 'logo');
     const layout = art ? { ...cfg, ...cfg.art.layout } : cfg;
@@ -51,8 +55,9 @@ export default class TitleScene extends Phaser.Scene {
 
   buildArt() {
     const a = cfg.art;
+    const view = viewRect();
     const bg = this.add.image(180, 320, 'title_bg');
-    const cover = Math.max(360 / bg.width, 640 / bg.height);
+    const cover = Math.max(view.w / bg.width, view.h / bg.height);
     bg.setScale(cover);
     this.tweens.add({
       targets: bg,
@@ -65,10 +70,10 @@ export default class TitleScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    Fx.rain(this, a.rain, { x: 0, y: 0, w: 360, h: 640 });
+    Fx.rain(this, a.rain, view);
     Fx.motes(this, a.motes);
 
     const g = a.gradient;
-    this.add.image(0, g.y, Fx.gradientTexture(this, 360, 640 - g.y, g.color, g.alpha)).setOrigin(0).setDepth(g.depth);
+    this.add.image(view.x, g.y, Fx.gradientTexture(this, view.w, 640 - g.y, g.color, g.alpha)).setOrigin(0).setDepth(g.depth);
   }
 }

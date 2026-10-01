@@ -1,5 +1,6 @@
 {
   "font": "\"Pixelify Sans\", monospace",
+  "view": { "designW": 360, "designH": 640, "maxW": 420 },
   "hud": {
     "panel": { "x": 0, "y": 360, "w": 360, "h": 80, "color": "0x12151f", "borderColor": "0x2a2e3d" },
     "textColor": "#f1efe8",
@@ -241,6 +242,7 @@
     "area": { "y": 0, "h": 640 },
     "gradient": { "y": 420, "color": "0x000000", "alpha": 0.9, "depth": 25 },
     "pixelArtMaxW": 360,
+    "focusMin": 0.08,
     "text": { "y": 506, "fontSize": 17, "color": "#f1efe8", "lineSpacing": 6, "wrap": 312 },
     "defaultDurationMs": 4500,
     "fadeOutMs": 500,
@@ -293,12 +295,13 @@
       "lights_out": { "startPct": 0.3, "ms": 1500, "steps": 5 },
       "dissolve_layer": { "startPct": 0.35, "ms": 1800, "steps": 8 },
       "eyes_glow": {
-        "at": [[0.3, 0.4], [0.69, 0.4]],
-        "radius": 26,
-        "color": "0x3fd0c9",
-        "alpha": 1,
-        "delayMs": 600,
-        "ms": 900
+        "at": [[0.297, 0.4], [0.717, 0.402]],
+        "halo": { "radius": 34, "color": "0x3fd0c9", "alpha": 0.75, "lagMs": 250 },
+        "iris": { "w": 30, "h": 18, "color": "0xa8f0ec", "alpha": 1 },
+        "delayMs": 900,
+        "ms": 1400,
+        "flare": { "color": "0x3fd0c9", "alpha": 0.18, "ms": 420 },
+        "breathe": { "min": 0.7, "ms": 1100 }
       }
     },
     "background": "#000000"

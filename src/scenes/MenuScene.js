@@ -7,6 +7,7 @@ import { addText, makeButton } from '../systems/Button.js';
 import { saveSettings } from '../systems/Settings.js';
 import ChapterRunner from '../systems/ChapterRunner.js';
 import * as Fx from '../systems/Fx.js';
+import { rect as viewRect } from '../systems/View.js';
 
 const cfg = ui.menu;
 
@@ -47,7 +48,8 @@ export default class MenuScene extends Phaser.Scene {
       return;
     }
     const d = cfg.difficulty;
-    const blocker = this.add.rectangle(0, 0, 360, 640, Number(d.dim.color), d.dim.alpha).setOrigin(0).setInteractive();
+    const v = viewRect();
+    const blocker = this.add.rectangle(v.x, v.y, v.w, v.h, Number(d.dim.color), d.dim.alpha).setOrigin(0).setInteractive();
     const box = this.add.rectangle(180, d.box.y, d.box.w, d.box.h, Number(d.box.fill)).setStrokeStyle(2, Number(d.box.stroke));
     const title = addText(this, 180, d.title.y, d.title.text, d.title);
     const pick = (storyMode) => {

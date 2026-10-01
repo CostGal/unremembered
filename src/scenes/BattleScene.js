@@ -13,6 +13,7 @@ import ui from '../data/ui.json';
 import { playMusic, playSfx, setMusicIntensity, setMusicWarm, vibrate } from '../systems/Audio.js';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
+import { mirrorEdges, rect as viewRect } from '../systems/View.js';
 import CommandMenu from '../systems/CommandMenu.js';
 import Hud from '../systems/Hud.js';
 import PoiseBar from '../systems/PoiseBar.js';
@@ -92,8 +93,9 @@ export default class BattleScene extends Phaser.Scene {
     this.hints = new TutorialHints(this, !!this.battleDef.tutorial);
     this.activeMarker = null;
 
-    this.add.image(180, 180, this.battleDef.bg).setDisplaySize(360, 360);
-    this.add.rectangle(180, 180, 360, 360, 0x000000, 0.2);
+    const view = viewRect();
+    mirrorEdges(this, this.add.image(180, 180, this.battleDef.bg).setDisplaySize(360, 360));
+    this.add.rectangle(view.x, 0, view.w, 360, 0x000000, 0.2).setOrigin(0);
     this.environment = environments[this.battleDef.bg] || {};
     this.createEnvironmentFx();
 
@@ -182,7 +184,8 @@ export default class BattleScene extends Phaser.Scene {
   // Lantern glows, rain and vignette for this battle's background (environments.json).
   createEnvironmentFx() {
     const env = this.environment;
-    const area = { x: 0, y: 0, w: 360, h: layout.sceneBottom };
+    const view = viewRect();
+    const area = { x: view.x, y: 0, w: view.w, h: layout.sceneBottom };
     if (env.lights) Fx.lights(this, env.lights);
     if (env.rain) Fx.rain(this, env.rain, area);
     if (env.vignette) Fx.vignette(this, env.vignette, area);
@@ -1095,12 +1098,20 @@ export default class BattleScene extends Phaser.Scene {
     const tech = techniques.recollection;
     const r = qte.recollection;
 
-    const overlay = this.add.rectangle(180, layout.sceneBottom / 2, 360, layout.sceneBottom, Number(r.tint.color), 0).setDepth(r.tint.depth);
+    const view = viewRect();
+    const overlay = this.add.rectangle(view.x, 0, view.w, layout.sceneBottom, Number(r.tint.color), 0).setOrigin(0).setDepth(r.tint.depth);
     this.tweens.add({ targets: overlay, fillAlpha: r.tint.alpha, duration: r.tint.fadeMs });
     let memoryBg = null;
     if (this.textures.exists(r.bg) && !this.textures.get(r.bg).customData.placeholder) {
       memoryBg = this.add.image(180, 180, r.bg).setDisplaySize(360, 360).setDepth(r.bgDepth).setAlpha(0);
-      this.tweens.add({ targets: memoryBg, alpha: 1, duration: r.tint.fadeMs });
+      const edges = mirrorEdges(this, memoryBg);
+      memoryBg.edges = edges;
+      this.tweens.add({ targets: [memoryBg, ...edges], alpha: 1, duration: r.tint.fadeMs });
+      const destroyBg = memoryBg.destroy.bind(memoryBg);
+      memoryBg.destroy = () => {
+        edges.forEach((e) => e.destroy());
+        destroyBg();
+      };
     }
     Fx.popText(this, hero.container.x, hero.container.y, tech.name, r.textColor, qte.text);
     playSfx('ultimate');
@@ -1115,7 +1126,7 @@ export default class BattleScene extends Phaser.Scene {
     setMusicWarm(false);
 
     this.tweens.add({ targets: overlay, fillAlpha: 0, duration: r.tint.fadeMs, onComplete: () => overlay.destroy() });
-    if (memoryBg) this.tweens.add({ targets: memoryBg, alpha: 0, duration: r.tint.fadeMs, onComplete: () => memoryBg.destroy() });
+    if (memoryBg) this.tweens.add({ targets: [memoryBg, ...(memoryBg.edges || [])], alpha: 0, duration: r.tint.fadeMs, onComplete: () => memoryBg.destroy() });
     await this.wait(r.tint.fadeMs);
   }
 
@@ -1761,7 +1772,7 @@ export default class BattleScene extends Phaser.Scene {
     // Victory: a band across the scene, the word pops in, a short sting.
     if (result === 'WIN') {
       const v = ui.victory;
-      const band = this.add.rectangle(180, cfg.textY, 360, v.band.h, Number(v.band.color), v.band.alpha).setDepth(cfg.depth - 1).setStrokeStyle(1, Number(v.band.lineColor));
+      const band = this.add.rectangle(180, cfg.textY, viewRect().w, v.band.h, Number(v.band.color), v.band.alpha).setDepth(cfg.depth - 1).setStrokeStyle(1, Number(v.band.lineColor));
       band.setScale(1, 0);
       this.tweens.add({ targets: band, scaleY: 1, duration: v.popMs / 2, ease: 'Cubic.easeOut' });
       message.setScale(v.popScale);

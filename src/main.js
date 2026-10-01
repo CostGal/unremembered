@@ -14,12 +14,14 @@ import LoaderScene from './scenes/LoaderScene.js';
 import RewardScene from './scenes/RewardScene.js';
 import { unlockAudio } from './systems/Audio.js';
 import { devParam } from './systems/DevParams.js';
+import { VIEW, install as installView } from './systems/View.js';
 
 const config = {
   type: Phaser.AUTO,
   parent: 'game',
-  width: 360,
-  height: 640,
+  // 360×640 design, widened a little on viewports wider than 9:16 (systems/View.js).
+  width: VIEW.w,
+  height: VIEW.h,
   pixelArt: true,
   roundPixels: true,
   backgroundColor: '#0b0d14',
@@ -31,6 +33,7 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
+installView(game);
 if (import.meta.env.DEV) window.__game = game;
 
 // Held sideways (the "Rotate your phone" overlay in index.html shows on this

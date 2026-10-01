@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import ui from '../data/ui.json';
 import { playSfx } from './Audio.js';
+import { clampX, rect as viewRect } from './View.js';
 
 // Floating text stays this far from the screen edges (CLAUDE.md: 16px).
 const EDGE_PAD = 16;
@@ -33,8 +34,7 @@ export function damageNumber(scene, x, y, value, color = null, type = 'normal') 
     .setOrigin(0.5)
     .setDepth(cfg.depth)
     .setScale(cfg.popScale);
-  const half = text.width / 2 + EDGE_PAD;
-  text.x = Phaser.Math.Clamp(x, half, scene.scale.width - half);
+  text.x = clampX(x, text.width, EDGE_PAD);
 
   scene.tweens.add({ targets: text, scale: 1, duration: cfg.popMs, ease: 'Back.easeOut' });
   scene.tweens.add({
@@ -315,8 +315,7 @@ export function popText(scene, x, y, text, color, cfg) {
     .setOrigin(0.5)
     .setDepth(cfg.depth);
   // Keep the whole word on screen (e.g. above Nala at the left edge).
-  const half = label.width / 2 + EDGE_PAD;
-  label.x = Phaser.Math.Clamp(x, half, scene.scale.width - half);
+  label.x = clampX(x, label.width, EDGE_PAD);
 
   scene.tweens.add({
     targets: label,
@@ -330,9 +329,9 @@ export function popText(scene, x, y, text, color, cfg) {
 
 // A flat colour over the whole screen that fades out. cfg = {color, alpha, ms}
 export function screenFlash(scene, cfg, depth) {
-  const { width, height } = scene.scale;
+  const v = viewRect();
   const rect = scene.add
-    .rectangle(0, 0, width, height, Number(cfg.color), cfg.alpha)
+    .rectangle(v.x, v.y, v.w, v.h, Number(cfg.color), cfg.alpha)
     .setOrigin(0)
     .setDepth(depth);
   scene.tweens.add({ targets: rect, alpha: 0, duration: cfg.ms, onComplete: () => rect.destroy() });

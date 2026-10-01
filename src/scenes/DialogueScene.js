@@ -6,6 +6,7 @@ import voices from '../data/voices.json';
 import { playBlip, playSceneMusic } from '../systems/Audio.js';
 import * as Fx from '../systems/Fx.js';
 import { whenReady } from '../systems/Assets.js';
+import { mirrorEdges, rect as viewRect } from '../systems/View.js';
 
 const cfg = ui.dialogue;
 
@@ -53,7 +54,8 @@ export default class DialogueScene extends Phaser.Scene {
 
   build() {
     if (this.overlay) {
-      this.add.rectangle(0, 0, 360, 640, Number(cfg.overlayDim.color), cfg.overlayDim.alpha).setOrigin(0);
+      const v = viewRect();
+      this.add.rectangle(v.x, v.y, v.w, v.h, Number(cfg.overlayDim.color), cfg.overlayDim.alpha).setOrigin(0);
     } else {
       playSceneMusic('Dialogue');
       this.buildBackground();
@@ -70,13 +72,16 @@ export default class DialogueScene extends Phaser.Scene {
 
   buildBackground() {
     if (!this.bgKey || this.bgKey === 'black' || !this.textures.exists(this.bgKey)) return;
-    this.add.image(180, cfg.bg.size / 2, this.bgKey).setDisplaySize(cfg.bg.size, cfg.bg.size);
+    const bg = this.add.image(180, cfg.bg.size / 2, this.bgKey).setDisplaySize(cfg.bg.size, cfg.bg.size);
+    // Wider screens: the picture's edges continue (mirrored) into the margins.
+    mirrorEdges(this, bg);
     const env = environments[this.bgKey] || {};
-    const area = { x: 0, y: 0, w: 360, h: cfg.bg.size };
+    const v = viewRect();
+    const area = { x: v.x, y: 0, w: v.w, h: cfg.bg.size };
     if (env.rain) Fx.rain(this, env.rain, area);
     if (env.vignette) Fx.vignette(this, { ...env.vignette, depth: 0 }, area);
     // Fade the picture into the ink below it.
-    this.add.rectangle(0, cfg.bg.size - cfg.bg.fadeH, 360, cfg.bg.fadeH, Number(ui.dialogue.box.fill), cfg.bg.fadeAlpha).setOrigin(0);
+    this.add.rectangle(v.x, cfg.bg.size - cfg.bg.fadeH, v.w, cfg.bg.fadeH, Number(ui.dialogue.box.fill), cfg.bg.fadeAlpha).setOrigin(0);
   }
 
   // A cutout (e.g. aurelian_exile) in black on the background: it fades in once
