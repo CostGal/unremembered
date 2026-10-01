@@ -6,6 +6,7 @@ import { playSceneMusic } from '../systems/Audio.js';
 import * as Fx from '../systems/Fx.js';
 import { whenReady } from '../systems/Assets.js';
 import { devInt } from '../systems/DevParams.js';
+import { VIEW, rect as viewRect } from '../systems/View.js';
 
 const cfg = ui.cutscene;
 const CUTSCENES = { origin: cutsceneOrigin };
@@ -42,14 +43,16 @@ export default class CutsceneScene extends Phaser.Scene {
     playSceneMusic('Cutscene');
     this.cameras.main.setBackgroundColor(cfg.background);
     const a = cfg.area;
-    this.area = { x: 0, y: a.y, w: 360, h: a.h };
+    const view = viewRect();
+    // The picture area spans the whole visible width (wider than 360 on some phones).
+    this.area = { x: view.x, y: a.y, w: view.w, h: a.h };
     this.shotLayer = this.add.container(0, 0).setDepth(cfg.depth.picture);
     // Letterbox bars hide whatever a pan/zoom pushes outside a smaller picture area.
-    if (a.y > 0) this.add.rectangle(0, 0, 360, a.y, 0x000000).setOrigin(0).setDepth(cfg.depth.bars);
-    if (a.y + a.h < 640) this.add.rectangle(0, a.y + a.h, 360, 640 - a.y - a.h, 0x000000).setOrigin(0).setDepth(cfg.depth.bars);
+    if (a.y > 0) this.add.rectangle(view.x, 0, view.w, a.y, 0x000000).setOrigin(0).setDepth(cfg.depth.bars);
+    if (a.y + a.h < 640) this.add.rectangle(view.x, a.y + a.h, view.w, 640 - a.y - a.h, 0x000000).setOrigin(0).setDepth(cfg.depth.bars);
     // The line stays readable over any picture.
     const g = cfg.gradient;
-    this.add.image(0, g.y, Fx.gradientTexture(this, 360, 640 - g.y, g.color, g.alpha)).setOrigin(0).setDepth(g.depth);
+    this.add.image(view.x, g.y, Fx.gradientTexture(this, view.w, 640 - g.y, g.color, g.alpha)).setOrigin(0).setDepth(g.depth);
 
     this.text = this.add
       .text(180, cfg.text.y, '', {
@@ -86,7 +89,7 @@ export default class CutsceneScene extends Phaser.Scene {
     this.holdStart = null;
     this.input.on('pointerdown', (pointer) => {
       this.holdStart = performance.now();
-      this.holdPos = { x: pointer.x, y: pointer.y };
+      this.holdPos = { x: pointer.worldX, y: pointer.worldY };
     });
     this.input.on('pointerup', () => {
       if (this.holdStart === null) return;
@@ -147,15 +150,16 @@ export default class CutsceneScene extends Phaser.Scene {
     this.shotLayer.add(stage);
 
     const split = shot.split || 'none';
+    this.picture = null;
     if (split === 'none') {
-      this.addPicture(stage, shot.bg, 0, 0, this.area.w, this.area.h, shot.tint, shot.bgView);
+      this.picture = this.addPicture(stage, shot.bg, 0, 0, this.area.w, this.area.h, shot.tint, shot.bgView);
     } else {
       const vertical = split === 'vertical';
       const w = vertical ? this.area.w / 2 : this.area.w;
       const h = vertical ? this.area.h : this.area.h / 2;
       const dx = vertical ? w / 2 : 0;
       const dy = vertical ? 0 : h / 2;
-      this.addPicture(stage, shot.bg, -dx, -dy, w, h, shot.tint, shot.bgView);
+      this.picture = this.addPicture(stage, shot.bg, -dx, -dy, w, h, shot.tint, shot.bgView);
       this.addPicture(stage, shot.bg2, dx, dy, w, h, shot.tint, shot.bg2View);
       const line = this.add.rectangle(0, 0, vertical ? cfg.splitLine : this.area.w, vertical ? this.area.h : cfg.splitLine, Number(cfg.splitColor));
       stage.add(line);
@@ -177,24 +181,36 @@ export default class CutsceneScene extends Phaser.Scene {
     return !!key && this.textures.exists(key) && !this.textures.get(key).customData.placeholder;
   }
 
-  // Fills a w×h cell centred at (x, y) with the image (cover), clipped to
-  // the cell. Missing art leaves the cell black. Pixel-art backgrounds (small
-  // textures) scale by whole numbers so the pixels stay even.
+  // Fills a w×h cell centred at (x, y) with the image (cover, never contain),
+  // clipped to the cell. Missing art leaves the cell black. Pixel-art
+  // backgrounds (small textures) scale by whole numbers so the pixels stay even.
   // view = {focus: [x, y], zoom}: the 0–1 image point shown at the cell
   // centre, and a multiplier on the cover scale (used to frame a cutout).
+  // The image is scaled up as far as the focus needs so that it still covers
+  // the cell, and its position is clamped so no cell edge is ever left black.
   addPicture(stage, key, x, y, w, h, tint, view) {
     if (!this.hasArt(key)) return null;
     const img = this.add.image(x, y, key);
-    const cover = Math.max(w / img.width, h / img.height);
+    let cover = Math.max(w / img.width, h / img.height);
+    const focus = view?.focus ? view.focus.map((f) => Phaser.Math.Clamp(f, cfg.focusMin, 1 - cfg.focusMin)) : null;
+    if (focus) {
+      // Centring the focus point needs (focus and 1 - focus) × the image to reach the cell edges.
+      cover = Math.max(cover, w / 2 / (Math.min(focus[0], 1 - focus[0]) * img.width), h / 2 / (Math.min(focus[1], 1 - focus[1]) * img.height));
+    }
     const scale = (img.width <= cfg.pixelArtMaxW ? Math.ceil(cover) : cover) * (view?.zoom || 1);
     img.setScale(scale);
-    if (view?.focus) img.setPosition(x + (0.5 - view.focus[0]) * img.displayWidth, y + (0.5 - view.focus[1]) * img.displayHeight);
+    if (focus) img.setPosition(x + (0.5 - focus[0]) * img.displayWidth, y + (0.5 - focus[1]) * img.displayHeight);
+    // Cover guard: whatever the focus asked for, the image never leaves a gap.
+    const slackX = Math.max(0, (img.displayWidth - w) / 2);
+    const slackY = Math.max(0, (img.displayHeight - h) / 2);
+    img.setPosition(Phaser.Math.Clamp(img.x, x - slackX, x + slackX), Phaser.Math.Clamp(img.y, y - slackY, y + slackY));
     if (tint) img.setTint(Number(tint));
     if (w < this.area.w || h < this.area.h) {
       const shape = this.make.graphics({}, false).fillRect(180 + x - w / 2, this.area.y + this.area.h / 2 + y - h / 2, w, h);
       img.setMask(shape.createGeometryMask());
     }
     stage.add(img);
+    img.cell = { x, y, w, h };
     return img;
   }
 
@@ -257,18 +273,45 @@ export default class CutsceneScene extends Phaser.Scene {
     } else if (fx === 'dissolve_layer') {
       this.tweens.add({ targets: layers, alpha: 0, delay: duration * f.dissolve_layer.startPct, duration: f.dissolve_layer.ms, ease: 'Stepped', easeParams: [f.dissolve_layer.steps] });
     } else if (fx === 'eyes_glow') {
-      // Points are relative to the picture; they sit in the stage so they follow its zoom.
-      for (const [ex, ey] of shot.eyes || f.eyes_glow.at) {
-        const glow = keep(
-          this.add
-            .image((ex - 0.5) * area.w, (ey - 0.5) * area.h, Fx.glowTexture(this, f.eyes_glow.radius))
-            .setBlendMode(Phaser.BlendModes.ADD)
-            .setTint(Number(f.eyes_glow.color))
-            .setAlpha(0)
-        );
-        stage.add(glow);
-        this.tweens.add({ targets: glow, alpha: f.eyes_glow.alpha, delay: f.eyes_glow.delayMs, duration: f.eyes_glow.ms, yoyo: true, hold: duration, ease: 'Sine.easeIn' });
+      this.eyesGlow(stage, shot, f.eyes_glow);
+    }
+  }
+
+  // The eyes light up teal: per eye a soft halo plus a bright almond-shaped
+  // iris (both additive), rising over `ms` after `delayMs`, then breathing
+  // slowly. Eye points are 0–1 positions on the shot's main picture (shot.eyes
+  // or the fx defaults), so they land on the art whatever the picture's scale,
+  // and they sit in the stage so they follow its pan/zoom.
+  eyesGlow(stage, shot, e) {
+    const pic = this.picture;
+    const toStage = ([ex, ey]) =>
+      pic
+        ? [pic.x - pic.displayWidth / 2 + ex * pic.displayWidth, pic.y - pic.displayHeight / 2 + ey * pic.displayHeight]
+        : [(ex - 0.5) * this.area.w, (ey - 0.5) * this.area.h];
+    // Sizes are in picture pixels at scale 1 for a 360-wide picture; scale with it.
+    const unit = pic ? pic.displayWidth / VIEW.designW : 1;
+    const halo = Fx.glowTexture(this, e.halo.radius);
+    const iris = irisTexture(this, e.iris.w, e.iris.h);
+    const parts = [];
+    for (const point of shot.eyes || e.at) {
+      const [x, y] = toStage(point);
+      const h = this.add.image(x, y, halo).setBlendMode(Phaser.BlendModes.ADD).setTint(Number(e.halo.color)).setAlpha(0).setScale(unit);
+      const i = this.add.image(x, y, iris).setBlendMode(Phaser.BlendModes.ADD).setTint(Number(e.iris.color)).setAlpha(0).setScale(unit);
+      stage.add([h, i]);
+      parts.push({ h, i });
+    }
+    this.fxObjects.push(...parts.flatMap((p) => [p.h, p.i]));
+    const onLit = () => {
+      // A short flare when the glow has risen, then a slow breath for the rest of the shot.
+      Fx.screenFlash(this, e.flare, cfg.depth.fx);
+      for (const p of parts) {
+        this.tweens.add({ targets: p.h, alpha: e.halo.alpha * e.breathe.min, duration: e.breathe.ms, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        this.tweens.add({ targets: p.i, alpha: e.iris.alpha * e.breathe.min, duration: e.breathe.ms, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       }
+    };
+    for (const [k, p] of parts.entries()) {
+      this.tweens.add({ targets: p.i, alpha: e.iris.alpha, delay: e.delayMs, duration: e.ms, ease: 'Sine.easeIn', onComplete: k === 0 ? onLit : null });
+      this.tweens.add({ targets: p.h, alpha: e.halo.alpha, delay: e.delayMs + e.halo.lagMs, duration: e.ms, ease: 'Sine.easeIn' });
     }
   }
 
@@ -309,6 +352,25 @@ export default class CutsceneScene extends Phaser.Scene {
       else this.scene.start('Title');
     });
   }
+}
+
+// A soft almond: bright in the middle, fading to the points (the lit iris).
+function irisTexture(scene, w, h) {
+  const key = `fx_iris_${w}x${h}`;
+  if (scene.textures.exists(key)) return key;
+  const texture = scene.textures.createCanvas(key, w, h);
+  const ctx = texture.getContext();
+  const bands = 4;
+  for (let i = 0; i < bands; i++) {
+    const t = 1 - i / bands;
+    ctx.fillStyle = `rgba(255,255,255,${1 / bands})`;
+    ctx.beginPath();
+    ctx.ellipse(w / 2, h / 2, (w / 2) * t, (h / 2) * t, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  texture.refresh();
+  texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+  return key;
 }
 
 function sparkTexture(scene, size) {
