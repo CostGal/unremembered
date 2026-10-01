@@ -22,17 +22,29 @@
         margin: 0;
         padding: 0;
         width: 100%;
-        height: 100dvh;
+        height: 100%;
+        height: 100dvh; /* older iOS (< 15.4) ignores this and keeps 100% */
         background: #0b0d14;
+        overflow: hidden;
         touch-action: none;
         user-select: none;
         -webkit-user-select: none;
         -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-text-size-adjust: 100%;
         overscroll-behavior: none;
+      }
+      /* Fixed: no rubber-band scroll or pull-to-refresh under the Instagram toolbars. */
+      body {
+        position: fixed;
+        inset: 0;
+        box-sizing: border-box;
+        /* viewport-fit=cover draws under the notch / home bar: keep the game clear of them. */
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
       }
       #game {
         width: 100%;
-        height: 100dvh;
+        height: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -48,6 +60,9 @@
         align-items: center;
         justify-content: center;
         text-align: center;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
       }
       /* Phones held sideways (short landscape screens); desktops are unaffected. */
       @media (orientation: landscape) and (max-height: 500px) {
@@ -67,7 +82,10 @@
     <div id="game"></div>
     <div id="rotate">Rotate your phone</div>
     <script>
-      document.addEventListener('contextmenu', (e) => e.preventDefault());
+      // Long-press callout, text selection, image drag and iOS pinch gestures.
+      ['contextmenu', 'selectstart', 'dragstart', 'gesturestart', 'gesturechange', 'gestureend'].forEach((type) =>
+        document.addEventListener(type, (e) => e.preventDefault(), { passive: false })
+      );
     </script>
     <script type="module" src="/src/main.js"></script>
   </body>

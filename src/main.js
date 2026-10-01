@@ -32,6 +32,16 @@ const config = {
 const game = new Phaser.Game(config);
 if (import.meta.env.DEV) window.__game = game;
 
+// Held sideways (the "Rotate your phone" overlay in index.html shows on this
+// query): treat it like leaving the app, so a battle pauses instead of running
+// a ring nobody can see. The Pause scene's "Tap to continue" waits on return.
+const sideways = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+const onSideways = () => {
+  if (sideways.matches) game.events.emit(Phaser.Core.Events.HIDDEN);
+};
+if (sideways.addEventListener) sideways.addEventListener('change', onSideways);
+else if (sideways.addListener) sideways.addListener(onSideways);
+
 // Dev params skip the Title tap, so any first tap also unlocks audio.
 document.addEventListener('pointerdown', () => unlockAudio(), { once: true });
 
