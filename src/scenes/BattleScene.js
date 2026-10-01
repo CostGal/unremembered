@@ -14,6 +14,7 @@ import { playMusic, playSfx, setMusicIntensity, setMusicWarm, vibrate } from '..
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
 import { mirrorEdges, rect as viewRect } from '../systems/View.js';
+import { difficultyDef } from '../systems/Difficulty.js';
 import CommandMenu from '../systems/CommandMenu.js';
 import Hud from '../systems/Hud.js';
 import PoiseBar from '../systems/PoiseBar.js';
@@ -85,6 +86,8 @@ export default class BattleScene extends Phaser.Scene {
     playMusic(this.battleDef.music || null);
     setMusicIntensity(0);
     setMusicWarm(false);
+    this.difficulty = difficultyDef(this.registry.get('settings'));
+    this.echoFrac = 0;
     this.tutorialSlow = !!this.battleDef.tutorial;
     this.pendingEvents = [];
     this.timeScale = 1;
@@ -352,8 +355,9 @@ export default class BattleScene extends Phaser.Scene {
       type,
       def,
       name: def.name,
-      hp: def.hp,
-      maxHp: def.hp,
+      // Difficulty scales enemy HP (qte.json difficulties.enemyHpMult).
+      hp: isHero ? def.hp : Math.round(def.hp * this.difficulty.enemyHpMult),
+      maxHp: isHero ? def.hp : Math.round(def.hp * this.difficulty.enemyHpMult),
       container,
       body,
       parts,
@@ -761,10 +765,10 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   parryWindows() {
-    const storyMode = this.registry.get('settings')?.storyMode;
+    const mult = this.difficulty.windowMult;
     // Worn Glove: a wider PERFECT window.
     const windows = { ...qte.windows, perfectMs: qte.windows.perfectMs + effectTotal(this.fragments, 'perfectWindowMs') };
-    return storyMode ? Qte.scaledWindows(windows, qte.storyMode.windowMult) : windows;
+    return mult === 1 ? windows : Qte.scaledWindows(windows, mult);
   }
 
   // The ring closes at T. The enemy holds its windup pose through the
@@ -1248,7 +1252,7 @@ export default class BattleScene extends Phaser.Scene {
     // e.g. Siphon: a missed parry also drains Echo.
     if (result === 'MISS' && hit.onMiss?.echo) this.gainEcho(hit.onMiss.echo);
 
-    const storyMult = this.registry.get('settings')?.storyMode ? qte.storyMode.damageMult : 1;
+    const storyMult = this.difficulty.damageMult;
     const braceMult = this.brace ? this.brace.damageMult : 1;
     const dmg = Math.round(baseDmg * cfg.damageMult * storyMult * braceMult);
     // Reactions (ART_BRIEF): PERFECT -> parry (the counter), GOOD -> dodge,
@@ -1332,6 +1336,14 @@ export default class BattleScene extends Phaser.Scene {
   // Gains show as a small teal "+N" over the pip they fill.
   gainEcho(amount) {
     if (!amount) return;
+    // A difficulty with echoMult < 1 earns Echo more slowly: the fraction
+    // carries over, so half the gains still add up to whole pips.
+    if (amount > 0 && this.difficulty.echoMult !== 1) {
+      this.echoFrac = (this.echoFrac || 0) + amount * this.difficulty.echoMult;
+      amount = Math.floor(this.echoFrac);
+      this.echoFrac -= amount;
+      if (!amount) return;
+    }
     const before = this.echo;
     this.echo = Phaser.Math.Clamp(this.echo + amount, 0, ui.hud.echo.max);
     this.refreshHud();

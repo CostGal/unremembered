@@ -10,9 +10,9 @@ const chapter = JSON.parse(readFileSync(join(root, 'src/data/chapter1.json'), 'u
 const expected = chapter.filter((s) => s.type !== 'end').map((s) => `${s.type}:${s.id}`);
 const VARIANTS = {
   normal: { query: '', settings: null },
-  story: { query: '', settings: { storyMode: true, difficultyChosen: true } },
+  story: { query: '', settings: { difficulty: 'story', storyMode: true, difficultyChosen: true } },
   fake: { query: '?fakesheets=1', settings: null },
-  'fake-story': { query: '?fakesheets=1', settings: { storyMode: true, difficultyChosen: true } },
+  'fake-story': { query: '?fakesheets=1', settings: { difficulty: 'story', storyMode: true, difficultyChosen: true } },
   blocked: { query: '', settings: null, init: [INIT.blockedStorage] },
   'blocked-story': { query: '', settings: null, init: [INIT.blockedStorage] },
   locked: { query: '', settings: null, init: [INIT.audioLocked] },

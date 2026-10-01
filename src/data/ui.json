@@ -359,11 +359,13 @@
     "difficulty": {
       "depth": 100,
       "dim": { "color": "0x04050b", "alpha": 0.8 },
-      "box": { "y": 330, "w": 320, "h": 300, "fill": "0x12151f", "stroke": "0x2a2e3d" },
-      "title": { "text": "How do you like your fights?", "y": 222, "fontSize": 18, "color": "#f1efe8", "wrap": 280 },
-      "story": { "label": "Story (easier timing)", "y": 296 },
-      "normal": { "label": "Normal", "y": 372 },
-      "hint": { "text": "You can change this any time in Settings.", "y": 440, "fontSize": 12, "color": "#8a8fa3", "wrap": 280 }
+      "box": { "y": 336, "w": 320, "h": 344, "fill": "0x12151f", "stroke": "0x2a2e3d" },
+      "title": { "text": "How do you like your fights?", "y": 206, "fontSize": 18, "color": "#f1efe8", "wrap": 280 },
+      "button": { "w": 280, "h": 56, "fontSize": 17 },
+      "firstY": 268,
+      "spacing": 68,
+      "currentStroke": "0x3fd0c9",
+      "hint": { "text": "You can change this any time in Settings.", "y": 470, "fontSize": 12, "color": "#8a8fa3", "wrap": 280 }
     },
     "lockedText": "Coming soon",
     "lockedColor": "#e0a040"
@@ -377,13 +379,11 @@
     "labels": {
       "musicVolume": "Music: {v}",
       "sfxVolume": "Sound FX: {v}",
-      "storyMode": "Story Mode: {v}",
-      "on": "On",
-      "off": "Off",
+      "difficulty": "Difficulty: {v}",
       "back": "Back"
     },
     "hint": {
-      "text": "Story Mode: wider parry timing, half damage taken.",
+      "text": "{hint}",
       "y": 470,
       "fontSize": 12,
       "color": "#8a8fa3",

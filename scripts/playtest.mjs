@@ -19,7 +19,7 @@ const PROFILES = { average: { PERFECT: 0.3, GOOD: 0.45, MISS: 0.25 }, good: { PE
 const profile = PROFILES[args.includes('--profile') ? args[args.indexOf('--profile') + 1] : 'good'];
 const STALL_MS = 20000;
 // --story: Story Mode on (and the difficulty question already answered).
-const settings = args.includes('--story') ? { storyMode: true, difficultyChosen: true } : null;
+const settings = args.includes('--story') ? { difficulty: 'story', storyMode: true, difficultyChosen: true } : null;
 
 // The chapter steps we expect to see, in order (scene key + id).
 const expected = chapter.filter((s) => s.type !== 'end').map((s) => `${s.type}:${s.id}`);

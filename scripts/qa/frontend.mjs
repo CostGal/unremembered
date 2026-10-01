@@ -63,20 +63,20 @@ await withBrowser(async ({ chrome, server }) => {
     sfx.push((await settings(page)).sfxVolume);
   }
   check('Settings: SFX volume cycles through all steps', new Set(sfx).size === 5, String(sfx));
-  const before = (await settings(page)).storyMode;
+  const before = (await settings(page)).difficulty;
   await page.tap(180, sy(2));
   await sleep(150);
-  const after = (await settings(page)).storyMode;
-  check('Settings: Story Mode toggles', before !== after, `${before}→${after}`);
+  const after = (await settings(page)).difficulty;
+  check('Settings: Difficulty cycles', before !== after && !!after, `${before}→${after}`);
   await page.shot(join(out, 'settings_changed.png'));
   const saved = await page.ev(`localStorage.getItem('unremembered:settings')`);
-  check('Settings: persisted to localStorage', !!saved && JSON.parse(saved).storyMode === after, saved);
+  check('Settings: persisted to localStorage', !!saved && JSON.parse(saved).difficulty === after, saved);
   const want = await settings(page);
   await page.goto(server.url);
   await waitScene(page, 'Title');
   const reloaded = await settings(page);
   await sleep(1200);
-  check('Settings: survive reload', reloaded.storyMode === want.storyMode && reloaded.musicVolume === want.musicVolume && reloaded.sfxVolume === want.sfxVolume, JSON.stringify(reloaded));
+  check('Settings: survive reload', reloaded.difficulty === want.difficulty && reloaded.musicVolume === want.musicVolume && reloaded.sfxVolume === want.sfxVolume, JSON.stringify(reloaded));
   await page.tap(180, 300);
   await waitScene(page, 'Menu');
   await sleep(400);
@@ -111,11 +111,11 @@ await withBrowser(async ({ chrome, server }) => {
   await sleep(400);
   await page.shot(join(out, 'first_run_choice.png'));
   const panel = await page.ev(`!!window.__game.scene.getScene('Menu').panel`);
-  check('First run: New Game asks Story/Normal', panel);
-  await page.tap(180, ui.menu.difficulty.story.y);
+  check('New Game asks Story/Normal/Unforgettable', panel);
+  await page.tap(180, ui.menu.difficulty.firstY);
   await sleep(1500);
   const st = await settings(page);
-  check('First run: choosing Story sets storyMode + difficultyChosen', st.storyMode === true && st.difficultyChosen === true, JSON.stringify(st));
+  check('Choosing Story sets difficulty story (+ storyMode)', st.difficulty === 'story' && st.storyMode === true, JSON.stringify(st));
   const act = await page.scenes();
   check('First run: chapter starts (Cutscene)', act.includes('Cutscene'), act.join('+'));
   check('No console errors', page.errors.length === 0, page.errors.slice(0, 2).join(' | '));
@@ -127,8 +127,11 @@ await withBrowser(async ({ chrome, server }) => {
   await waitScene(page, 'Menu');
   await sleep(300);
   await page.tap(180, first);
-  await sleep(1200);
-  check('Second New Game skips the question', (await page.scenes()).includes('Cutscene'));
+  await sleep(600);
+  check('Second New Game asks again', !!(await page.ev(`!!window.__game.scene.getScene('Menu').panel`)));
+  await page.tap(180, ui.menu.difficulty.firstY + 2 * ui.menu.difficulty.spacing);
+  await sleep(1500);
+  check('Choosing Unforgettable starts the chapter', (await page.scenes()).includes('Cutscene') && (await settings(page)).difficulty === 'unforgettable');
   // ---- End scene (non-credits)
   await page.goto(server.url + '?step=8');
   await sleep(300);
