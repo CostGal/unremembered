@@ -16,6 +16,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { root } from './lib/harness.mjs';
+import { computeGrade } from '../src/systems/Grade.js';
 
 const read = (p) => JSON.parse(readFileSync(join(root, p), 'utf8'));
 const D = {
@@ -25,6 +26,7 @@ const D = {
   techniques: read('src/data/techniques.json'),
   qte: read('src/data/qte.json'),
   brk: read('src/data/break.json'),
+  grade: read('src/data/grade.json'),
   allies: read('src/data/allies.json'),
   chapter: read('src/data/chapter1.json'),
   dialogue: read('src/data/dialogue.json'),
@@ -136,7 +138,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: D.enemies[id].hp, max: D.enemies[id].hp, phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false }));
 
   // A tutorial battle also costs the time to read its hint banners.
-  const st = { echo: 0, ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  const st = { echo: 0, ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   const gain = (n) => (st.echo = Math.max(0, Math.min(echoMax, st.echo + n)));
   const living = (list) => list.filter((e) => e.hp > 0);
 
@@ -174,6 +176,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
         st.breaks += 1;
       }
     }
+  };
+  // Battle grade (grade.json) from this run's stats.
+  const gradeOf = () => {
+    const stats = { perfects: st.qtes.PERFECT, maxChain: st.maxChain, damageTaken: st.damageTaken, partyHp: heroes.reduce((n, h) => n + h.max, 0), turns: st.rounds };
+    return { ...computeGrade(stats, battleId, D.grade), stats };
   };
   const windowMult = () => storyMult * (st.tutorialSlow ? 1 / qte.tutorial.timeScale : 1);
 
@@ -313,6 +320,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
       gain(cfg.echo);
       if (res === 'MISS' && hit.onMiss?.echo) gain(hit.onMiss.echo);
       const dmg = Math.round(hit.dmg * cfg.damageMult * dmgTakenMult * (st.brace ? st.brace.damageMult : 1));
+      st.damageTaken += Math.min(dmg, target.hp);
       target.hp = Math.max(0, target.hp - dmg);
       if (st.tutorialSlow && res !== 'MISS') st.tutorialSlow = false;
       if (st.stance?.hero === target) {
@@ -337,14 +345,14 @@ function simulateBattle(battleId, profileName, story, rnd) {
       playerTurn(hero);
       st.echoCurve.push(st.echo);
       afterTurn();
-      if (!living(enemies).length) return { ...st, win: true, ms: st.ms + T.victoryMs };
+      if (!living(enemies).length) return { ...st, win: true, ms: st.ms + T.victoryMs, grade: gradeOf() };
     }
     for (const enemy of enemies) {
       if (enemy.hp <= 0) continue;
       enemyTurn(enemy);
       afterTurn();
       if (!living(heroes).length) return { ...st, win: false, ms: st.ms + T.loseMs };
-      if (!living(enemies).length) return { ...st, win: true, ms: st.ms + T.victoryMs };
+      if (!living(enemies).length) return { ...st, win: true, ms: st.ms + T.victoryMs, grade: gradeOf() };
     }
   }
 }
@@ -400,6 +408,9 @@ for (const story of [false, true]) {
         recollections: avg((r) => r.recollections),
         archives: avg((r) => r.archives),
         breaks: avg((r) => r.breaks),
+        ranks: Object.fromEntries(D.grade.ranks.map((k) => [k.id, wins.filter((r) => r.grade.rank === k.id).length / Math.max(1, wins.length)])),
+        gradeStats: Object.fromEntries(['perfects', 'maxChain', 'damageTaken', 'turns'].map((k) => [k, avg((r) => r.grade.stats[k], wins)])),
+        score: avg((r) => r.grade.score, wins),
         interruptRate: res.reduce((s, r) => s + r.archiveInterrupts, 0) / Math.max(1, res.reduce((s, r) => s + r.archives, 0)),
         qte: Object.fromEntries(['PERFECT', 'GOOD', 'MISS'].map((k) => [k, avg((r) => r.qtes[k]) / Math.max(1e-9, avg((r) => r.qtes.PERFECT + r.qtes.GOOD + r.qtes.MISS))])),
       });
@@ -418,10 +429,10 @@ if (JSON_OUT) {
   const pct = (x) => `${(x * 100).toFixed(1)}%`.padStart(6);
   const f1 = (x) => x.toFixed(1).padStart(5);
   console.log(`runs per cell: ${RUNS}   QTE model: ${Object.entries(D.sim.profilesSolved).map(([k, v]) => `${k} bias=${v.bias}ms sigma=${v.sigma}ms lapse=${(v.lapse * 100).toFixed(0)}% -> normal ${odds(v, 1)} / story ${odds(v, D.qte.storyMode.windowMult)}`).join(', ')}\n`);
-  console.log('mode    battle        profile    win    rounds  min (p10–p90)       avgEcho  recoll  archive  interrupt  breaks  P/G/M seen');
+  console.log('mode    battle        profile    win    rounds  min (p10–p90)       avgEcho  recoll  archive  interrupt  breaks  P/G/M seen            score  rank S/A/B/C   perf chain dmg turns');
   for (const r of rows) {
     console.log(
-      `${r.mode.padEnd(7)} ${r.battle.padEnd(13)} ${r.profile.padEnd(10)} ${pct(r.win)}  ${f1(r.rounds)}  ${f1(r.minutes)} (${r.p10.toFixed(1)}–${r.p90.toFixed(1)})   ${f1(r.avgEcho)}   ${r.recollections.toFixed(2)}    ${r.archives.toFixed(2)}    ${r.archives ? pct(r.interruptRate) : '   –  '}    ${r.breaks.toFixed(2)}   ${pct(r.qte.PERFECT)}/${pct(r.qte.GOOD)}/${pct(r.qte.MISS)}`
+      `${r.mode.padEnd(7)} ${r.battle.padEnd(13)} ${r.profile.padEnd(10)} ${pct(r.win)}  ${f1(r.rounds)}  ${f1(r.minutes)} (${r.p10.toFixed(1)}–${r.p90.toFixed(1)})   ${f1(r.avgEcho)}   ${r.recollections.toFixed(2)}    ${r.archives.toFixed(2)}    ${r.archives ? pct(r.interruptRate) : '   –  '}    ${r.breaks.toFixed(2)}   ${pct(r.qte.PERFECT)}/${pct(r.qte.GOOD)}/${pct(r.qte.MISS)}   ${r.score.toFixed(0).padStart(4)}   ${D.grade.ranks.map((k) => Math.round(r.ranks[k.id] * 100).toString().padStart(3)).join('/')}   ${r.gradeStats.perfects.toFixed(1).padStart(4)} ${r.gradeStats.maxChain.toFixed(1).padStart(4)} ${r.gradeStats.damageTaken.toFixed(0).padStart(4)} ${r.gradeStats.turns.toFixed(1).padStart(4)}`
     );
   }
   const battleMin = (profile) => rows.filter((r) => r.mode === 'normal' && r.profile === profile).reduce((s, r) => s + r.minutes / Math.max(0.01, r.win), 0);

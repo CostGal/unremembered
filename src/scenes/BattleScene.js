@@ -15,6 +15,7 @@ import * as Fx from '../systems/Fx.js';
 import CommandMenu from '../systems/CommandMenu.js';
 import Hud from '../systems/Hud.js';
 import PoiseBar from '../systems/PoiseBar.js';
+import ResultCard from '../systems/ResultCard.js';
 import TutorialHints from '../systems/TutorialHints.js';
 import * as Qte from '../systems/Qte.js';
 import { devInt } from '../systems/DevParams.js';
@@ -112,6 +113,8 @@ export default class BattleScene extends Phaser.Scene {
     // Perfect chain (qte.json chain). maxChain is read at the end of the battle (battle grade).
     this.chain = 0;
     this.maxChain = 0;
+    // Stats for the result card (grade.json): maxChain is above.
+    this.stats = { perfects: 0, damageTaken: 0, turns: 0 };
     this.hud = new Hud(this, ui.hud, ui.font, this.heroes);
     this.refreshHud();
     if (import.meta.env.DEV) {
@@ -127,6 +130,7 @@ export default class BattleScene extends Phaser.Scene {
       isAlive: (entity) => entity.hp > 0,
       allEnemiesDown: () => this.enemies.every((e) => e.hp <= 0),
       allHeroesDown: () => this.heroes.every((h) => h.hp <= 0),
+      roundStart: () => (this.stats.turns += 1),
       playerTurn: (hero) => this.playerTurn(hero),
       enemyTurn: (enemy) => this.enemyTurn(enemy),
       afterTurn: () => this.afterTurn(),
@@ -1190,6 +1194,7 @@ export default class BattleScene extends Phaser.Scene {
     // A PERFECT dodge leaves the chain as it is (cfg.chain 0).
     if (cfg.chain !== 0) this.updateChain(result);
     this.gainEcho(cfg.echo);
+    if (result === 'PERFECT') this.stats.perfects += 1;
     // e.g. Siphon: a missed parry also drains Echo.
     if (result === 'MISS' && hit.onMiss?.echo) this.gainEcho(hit.onMiss.echo);
 
@@ -1577,6 +1582,7 @@ export default class BattleScene extends Phaser.Scene {
     Fx.damageNumber(this, target.container.x, target.container.y - 80, dmg, color, type || (target.isHero ? 'hurt' : 'normal'));
     playSfx('hit');
 
+    if (target.isHero) this.stats.damageTaken += Math.min(dmg, target.hp);
     target.hp = Math.max(0, target.hp - dmg);
     this.updateLabel(target);
     if (target.isHero) this.refreshHud();
@@ -1674,12 +1680,9 @@ export default class BattleScene extends Phaser.Scene {
     // A short delay so the tap that ended the fight doesn't also skip this.
     this.time.delayedCall(cfg.inputDelayMs, () => {
       if (result === 'WIN') {
-        const hint = this.add
-          .text(180, cfg.hintY, cfg.continueText, { fontFamily: ui.font, fontSize: `${cfg.hintFontSize}px`, color: cfg.hintColor })
-          .setOrigin(0.5)
-          .setDepth(cfg.depth);
-        this.tweens.add({ targets: hint, alpha: cfg.hintPulseAlpha, duration: cfg.hintPulseMs, yoyo: true, repeat: -1 });
-        this.input.once('pointerdown', () => this.continueChapter());
+        const stats = { ...this.stats, maxChain: this.maxChain };
+        const partyHp = this.heroes.reduce((sum, h) => sum + h.maxHp, 0);
+        new ResultCard(this, this.battleId, stats, partyHp).show().then(() => this.continueChapter());
         return;
       }
       this.menu.show([{ slot: 'retry', label: cfg.retryText, value: 'retry' }]).then(() => this.retry());

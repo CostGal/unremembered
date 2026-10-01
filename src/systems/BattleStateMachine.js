@@ -7,6 +7,7 @@ export default class BattleStateMachine {
     await this.hooks.intro();
 
     while (true) {
+      if (this.hooks.roundStart) this.hooks.roundStart();
       for (const hero of heroes) {
         if (!this.hooks.isAlive(hero)) continue;
 
