@@ -14,7 +14,7 @@ try {
   await page.goto(`${server.url}?battle=b3_hollows`);
   await page.waitFor(`!!(window.__battle && window.__battle.menu)`, { timeout: 30000 });
   await sleep(1500);
-  await page.eval(`(() => { const b = window.__battle; const e = b.enemies[0]; window.__orig = Math.random; Math.random = () => 0.9999; window.__p = b.enemyTurn(e); Math.random = window.__orig; })()`);
+  await page.eval(`(() => { const b = window.__battle; const e = b.enemies[0]; window.__orig = Math.random; let n = 0; Math.random = () => { if (++n >= 2) Math.random = window.__orig; return 0.9999; }; window.__p = b.enemyTurn(e); })()`);
   let n = 0, maxFx = 0, shot = false;
   for (let i = 0; i < 90; i++) {
     const c = await page.eval(`window.__battle.children.list.filter(o => o.texture && o.texture.key === 'hollow_siphon_fx').length`);

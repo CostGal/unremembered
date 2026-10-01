@@ -29,54 +29,57 @@
     "dov": {
       "frame_size": [128, 128],
       "animations": {
-        "idle": { "frames": 4, "loop": true },
-        "attack": { "frames": 8, "windupFrame": 2, "impactFrames": [4] },
-        "cast_in": { "frames": 4 },
+        "idle": { "frames": 8, "loop": true },
+        "attack": { "frames": 12, "loop": false, "windupFrame": 3, "impactFrames": [6] },
         "cast": { "frames": 8, "loop": true },
-        "cast_out": { "frames": 4 },
-        "brace": { "frames": 8, "impactFrames": [4] },
-        "hurt": { "frames": 6 },
-        "dodge": { "frames": 8 },
-        "parry": { "frames": 8, "impactFrames": [4] },
-        "death": { "frames": 10, "holdLastFrame": true },
-        "victory": { "frames": 8, "holdLastFrame": true }
+        "cast_in": { "frames": 4, "loop": false },
+        "cast_out": { "frames": 4, "loop": false },
+        "brace": { "frames": 8, "loop": true },
+        "brace_in": { "frames": 4, "loop": false },
+        "brace_out": { "frames": 4, "loop": false },
+        "parry": { "frames": 9, "loop": false, "holdFrame": 2, "impactFrames": [3] },
+        "death": { "frames": 10, "loop": false, "holdLastFrame": true },
+        "victory": { "frames": 8, "loop": false, "holdLastFrame": true },
+        "hurt": { "frames": 8, "loop": false },
+        "dodge": { "frames": 9, "loop": false, "holdFrame": 4 }
       }
     },
     "blank": {
       "frame_size": [128, 128],
       "animations": {
-        "idle": { "frames": 6, "loop": true },
-        "punch": { "frames": 8, "windupFrame": 3, "impactFrames": [5] },
-        "lunge": { "frames": 7, "windupFrame": 2, "impactFrames": [4] },
-        "hurt": { "frames": 5 },
-        "death": { "frames": 10, "holdLastFrame": true }
+        "idle": { "frames": 14, "loop": true },
+        "punch": { "frames": 11, "loop": false, "windupFrame": 2, "impactFrames": [5] },
+        "lunge": { "frames": 11, "loop": false, "windupFrame": 3, "impactFrames": [5] },
+        "hurt": { "frames": 7, "loop": false },
+        "death": { "frames": 9, "loop": false, "holdLastFrame": true }
       }
     },
     "hollow": {
       "frame_size": [128, 128],
       "animations": {
-        "idle": { "frames": 6, "loop": true },
-        "claw": { "frames": 8, "windupFrame": 3, "impactFrames": [5] },
-        "siphon": { "frames": 10, "windupFrame": 4, "impactFrames": [6] },
-        "hurt": { "frames": 5 },
-        "death": { "frames": 10, "holdLastFrame": true }
+        "idle": { "frames": 8, "loop": true },
+        "claw": { "frames": 10, "loop": false, "windupFrame": 2, "impactFrames": [6] },
+        "hurt": { "frames": 7, "loop": false },
+        "death": { "frames": 11, "loop": false, "holdLastFrame": true },
+        "siphon": { "frames": 9, "loop": false, "windupFrame": 2, "holdFrame": 4, "impactFrames": [5], "projectile": "siphon_fx", "spawn_px": [50, 48] },
+        "siphon_fx": { "frames": 6, "loop": true, "frame_size": [128, 128] }
       }
     },
     "clerk": {
       "frame_size": [256, 256],
       "animations": {
-        "idle": { "frames": 6, "loop": true },
-        "stamp": { "frames": 10, "windupFrame": 4, "impactFrames": [6] },
-        "file_away": { "frames": 12, "windupFrame": 2, "impactFrames": [4, 8] },
-        "redact": { "frames": 12, "windupFrame": 3, "holdFrame": 7, "impactFrames": [9] },
-        "archive_charge_in": { "frames": 4 },
+        "idle": { "frames": 12, "loop": true },
+        "stamp": { "frames": 14, "loop": false, "windupFrame": 4, "impactFrames": [7] },
+        "file_away": { "frames": 14, "loop": false, "windupFrame": 3, "impactFrames": [4, 8] },
+        "redact": { "frames": 16, "loop": false, "windupFrame": 4, "holdFrame": 8, "impactFrames": [9] },
+        "archive_charge_in": { "frames": 4, "loop": false },
         "archive_charge": { "frames": 6, "loop": true },
-        "archive_charge_out": { "frames": 4 },
-        "archive_release": { "frames": 10, "windupFrame": 3, "impactFrames": [6] },
-        "hurt": { "frames": 6 },
-        "parry": { "frames": 8, "impactFrames": [4] },
-        "dodge": { "frames": 8 },
-        "death": { "frames": 12, "holdLastFrame": true }
+        "archive_charge_out": { "frames": 4, "loop": false },
+        "archive_release": { "frames": 12, "loop": false, "windupFrame": 3, "impactFrames": [5] },
+        "hurt": { "frames": 8, "loop": false },
+        "death": { "frames": 14, "loop": false, "holdLastFrame": true },
+        "parry": { "frames": 8, "loop": false, "holdFrame": 3 },
+        "dodge": { "frames": 10, "loop": false }
       }
     },
     "nala": {
