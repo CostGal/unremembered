@@ -52,6 +52,6 @@
     "type": "ultimate",
     "taps": 3,
     "intervalMs": 500,
-    "dmg": { "perfect": 30, "good": 18, "miss": 6 }
+    "dmg": { "perfect": 45, "good": 30, "miss": 15 }
   }
 }

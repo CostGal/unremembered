@@ -1,13 +1,12 @@
 {
   "formula": { "base": 50, "perfect": 10, "chain": 8, "damage": 0.4, "turn": 3 },
-  "battles": { "boss_clerk": { "perfect": 6, "chain": 5 } },
+  "battles": { "boss_clerk": { "perfect": 8, "chain": 6 } },
   "ranks": [
-    { "id": "S", "min": 95, "color": "#f0c060" },
-    { "id": "A", "min": 75, "color": "#3fd0c9" },
-    { "id": "B", "min": 45, "color": "#f1efe8" },
-    { "id": "C", "min": 0, "color": "#8a8fa3" }
+    { "id": "S", "min": 90, "color": "#f0c060" },
+    { "id": "A", "min": 60, "color": "#3fd0c9" },
+    { "id": "B", "min": 0, "color": "#f1efe8" }
   ],
-  "par": { "default": 8, "b1_tutorial": 7, "b3_hollows": 8, "boss_clerk": 14 },
+  "par": { "default": 8, "b1_tutorial": 7, "b3_hollows": 8, "boss_clerk": 11 },
   "hint": "Perfect parries raise your rank",
   "card": {
     "x": 30,
