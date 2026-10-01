@@ -74,3 +74,6 @@ Enemies have `poise` in `enemies.json` (Blank 6, Hollow 8, Clerk 20), shown as p
 ## Battle grade (#70)
 After a victory, a result card (Perfects, Max chain, Damage taken, Turns) and a rank S/A/B/C that lands like a rubber stamp. Formula, thresholds, par turns, layout and texts: `src/data/grade.json`; the pure scoring is `src/systems/Grade.js` (also used by `npm run sim`, which prints score and rank split per profile). Best rank per battle is kept in memory only. A tap while the card plays jumps to the stamp; the next tap continues.
 
+## Memory statuses (#71)
+`src/data/statuses.json`: REDACTED (a random technique of the hero is covered by a black bar and can't be used, 2 of the hero's turns) and FOG (command names read "???", 1 turn). Applied from an enemy attack's `onMiss.status` (+ optional `chance`) in `enemies.json`: Hollow Claw -> fog (30%), Hollow Siphon and Clerk Redact -> redacted. Badges (letter + turns left) sit at the end of the hero's HP bar. Anchor clears its target's statuses; a KO clears them too.
+

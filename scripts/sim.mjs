@@ -27,6 +27,7 @@ const D = {
   qte: read('src/data/qte.json'),
   brk: read('src/data/break.json'),
   grade: read('src/data/grade.json'),
+  statuses: read('src/data/statuses.json'),
   allies: read('src/data/allies.json'),
   chapter: read('src/data/chapter1.json'),
   dialogue: read('src/data/dialogue.json'),
@@ -134,11 +135,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const dmgTakenMult = story ? qte.storyMode.damageMult : 1;
   const think = D.sim.thinkMs[profileName];
 
-  const heroes = ['rhea', 'dov'].map((id) => ({ id, def: D.characters[id], hp: D.characters[id].hp, max: D.characters[id].hp }));
+  const heroes = ['rhea', 'dov'].map((id) => ({ id, def: D.characters[id], hp: D.characters[id].hp, max: D.characters[id].hp, redacted: null }));
   const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: D.enemies[id].hp, max: D.enemies[id].hp, phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false }));
 
   // A tutorial battle also costs the time to read its hint banners.
-  const st = { echo: 0, ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  const st = { echo: 0, ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   const gain = (n) => (st.echo = Math.max(0, Math.min(echoMax, st.echo + n)));
   const living = (list) => list.filter((e) => e.hp > 0);
 
@@ -196,6 +197,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
   };
 
   const playerTurn = (hero) => {
+    playerTurnInner(hero);
+    // Statuses tick after the hero's own turn.
+    if (hero.redacted && --hero.redacted.turns <= 0) hero.redacted = null;
+  };
+  const playerTurnInner = (hero) => {
     st.ms += think + (living(enemies).length > 1 ? D.sim.timing.targetMs : 0);
     if (st.stance?.hero === hero) st.stance = null;
     const targets = living(enemies).sort((a, b) => a.hp - b.hp);
@@ -217,13 +223,14 @@ function simulateBattle(battleId, profileName, story, rnd) {
     }
     // Full Echo is kept for Rhea's Recollection (its button pulses).
     const saving = hero.id !== 'rhea' && st.echo >= tech.recollection.cost && heroes[0].hp > 0;
-    const can = (id) => !saving && hero.def.techniques?.includes(id) && st.echo >= tech[id].cost;
+    const can = (id) => !saving && hero.def.techniques?.includes(id) && st.echo >= tech[id].cost && hero.redacted?.tech !== id;
 
     if (hero.id === 'dov') {
       if ((down || hurt.length) && can('anchor')) {
         st.echo -= tech.anchor.cost;
         const t = down || hurt.sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
         t.hp = Math.min(t.max, (t.hp > 0 ? t.hp : 0) + tech.anchor.amount);
+        t.redacted = null; // Anchor clears statuses
         st.ms += T.castMs;
         return;
       }
@@ -322,6 +329,13 @@ function simulateBattle(battleId, profileName, story, rnd) {
       const dmg = Math.round(hit.dmg * cfg.damageMult * dmgTakenMult * (st.brace ? st.brace.damageMult : 1));
       st.damageTaken += Math.min(dmg, target.hp);
       target.hp = Math.max(0, target.hp - dmg);
+      // A missed parry can leave a memory status (Fog has no effect on the numbers).
+      const status = res === 'MISS' && hit.onMiss?.status;
+      if (status === 'redacted' && rnd() < (hit.onMiss.chance ?? 1) && target.hp > 0 && target.def.techniques?.length) {
+        const pool = target.def.techniques;
+        target.redacted = { tech: target.redacted?.tech ?? pool[Math.floor(rnd() * pool.length)], turns: D.statuses.redacted.turns };
+        st.redactions += 1;
+      }
       if (st.tutorialSlow && res !== 'MISS') st.tutorialSlow = false;
       if (st.stance?.hero === target) {
         const s = st.stance;

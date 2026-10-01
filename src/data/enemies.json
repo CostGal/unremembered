@@ -19,13 +19,13 @@
     "attack": { "type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15, "windupPx": 4 },
     "hollow": true,
     "attacks": [
-      { "id": "claw", "weight": 3, "telegraphMs": 700, "dmg": 12 },
+      { "id": "claw", "weight": 3, "telegraphMs": 700, "dmg": 12, "onMiss": { "status": "fog", "chance": 0.3 } },
       {
         "id": "siphon",
         "weight": 1,
         "telegraphMs": 800,
         "dmg": 4,
-        "onMiss": { "echo": -2 },
+        "onMiss": { "echo": -2, "status": "redacted" },
         "priority": "P2"
       }
     ]
@@ -60,6 +60,7 @@
             "id": "redact",
             "weight": 2,
             "telegraphMs": 800,
+            "onMiss": { "status": "redacted" },
             "feint": { "atPct": 0.6, "pauseMs": 400 },
             "dmg": 15
           },

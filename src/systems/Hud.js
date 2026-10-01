@@ -1,5 +1,6 @@
 // Battle HUD: party status rows (name + HP bar) and the shared Echo bar.
 // It only displays state. The battle owns HP/Echo and calls update(state).
+import statuses from '../data/statuses.json';
 
 const color = (hex) => Number(hex);
 
@@ -42,7 +43,7 @@ export default class Hud {
     const label = this.text(name.x, y, hero.name, name.fontSize).setOrigin(0, 0.5);
     const value = this.text(hpText.x, y, '', hpText.fontSize).setOrigin(1, 0.5);
 
-    const row = { y, warn, bg, lag, fill, label, value, hp: hero.hp, maxHp: hero.maxHp, shown: { hp: hero.hp }, low: false, active: false };
+    const row = { y, warn, bg, lag, fill, label, value, hp: hero.hp, maxHp: hero.maxHp, shown: { hp: hero.hp }, low: false, active: false, badges: [], badgeSig: '' };
     this.setBarWidths(row, hero.hp);
     this.setHpText(row, hero.hp);
     return row;
@@ -98,7 +99,7 @@ export default class Hud {
     return { x: c.x + this.chainText.width / 2, y: c.y };
   }
 
-  // state: {heroes: [{hp, maxHp}], echo}
+  // state: {heroes: [{hp, maxHp, statuses: [{id, turns}]}], echo}
   update(state) {
     state.heroes.forEach((hero, i) => this.updateRow(this.rows[i], hero));
     this.updateEcho(state.echo);
@@ -110,6 +111,7 @@ export default class Hud {
     const alpha = hero.hp > 0 ? 1 : rows.downedAlpha;
     for (const obj of [row.bg, row.lag, row.fill, row.label, row.value]) obj.setAlpha(alpha);
     this.setLow(row, hero.hp > 0 && hero.hp < hero.maxHp * this.cfg.lowHp.pct);
+    this.setStatuses(row, hero.statuses || []);
 
     if (hero.hp === row.hp && hero.maxHp === row.maxHp) return;
     const dropped = hero.hp < row.hp;
@@ -139,6 +141,24 @@ export default class Hud {
       duration: hpBar.tweenMs,
       onUpdate: () => this.setHpText(row, Math.round(row.shown.hp)),
       onComplete: () => this.setHpText(row, hero.hp),
+    });
+  }
+
+  // Status badges (statuses.json) at the end of the HP bar: the status's letter
+  // and its remaining turns, in its colour. Rebuilt when they change.
+  setStatuses(row, list) {
+    const sig = list.map((s) => `${s.id}:${s.turns}`).join(',');
+    if (sig === row.badgeSig) return;
+    row.badgeSig = sig;
+    for (const obj of row.badges) obj.destroy();
+    const b = this.cfg.statusBadge;
+    row.badges = list.flatMap((s, i) => {
+      const def = statuses[s.id];
+      const x = b.x + i * (b.w + b.gap);
+      const box = this.scene.add.rectangle(x, row.y, b.w, b.h, color(b.fill)).setOrigin(0, 0.5).setStrokeStyle(1, color(def.color.replace('#', '0x')), b.strokeAlpha);
+      const text = this.text(x + b.w / 2, row.y, `${def.short}${s.turns}`, b.fontSize).setOrigin(0.5).setColor(def.color);
+      this.scene.tweens.add({ targets: [box, text], scale: { from: b.popScale, to: 1 }, duration: b.popMs, ease: 'Back.easeOut' });
+      return [box, text];
     });
   }
 

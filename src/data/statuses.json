@@ -1,0 +1,5 @@
+{
+  "redacted": { "name": "Redacted", "short": "R", "turns": 2, "effect": "cover", "color": "#d8505a", "applyText": "REDACTED" },
+  "fog": { "name": "Fog", "short": "F", "turns": 1, "effect": "fog", "color": "#9db4c8", "applyText": "FOG", "label": "???" },
+  "ui": { "clearedText": "Cleared", "clearedColor": "#3fd0c9" }
+}
