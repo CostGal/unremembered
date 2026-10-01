@@ -1,5 +1,5 @@
 {
   "b1_tutorial": { "bg": "street_rain", "enemies": ["blank", "hollow"], "tutorial": true, "nala": true, "music": "battle" },
-  "b3_hollows": { "bg": "street_rain", "enemies": ["hollow", "hollow"], "nala": true, "music": "battle", "optional": true },
+  "b3_hollows": { "bg": "street_rain", "enemies": ["hollow", "hollow"], "nala": true, "music": "battle" },
   "boss_clerk": { "bg": "records_office", "enemies": ["clerk"], "nala": true, "music": "boss" }
 }
