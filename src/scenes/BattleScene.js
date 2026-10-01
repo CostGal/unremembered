@@ -749,10 +749,13 @@ export default class BattleScene extends Phaser.Scene {
     this.brace = null;
   }
 
-  // The parry tutorial teaches the tap first: no red-ring attack until it's done.
+  // The parry tutorial teaches the tap first: no red-ring attack until it's
+  // done. A battle with "redRings": false (battles.json) never throws one, so
+  // the swipe lesson waits for a later fight.
   pickableAttacks(enemy) {
     const attacks = this.enemyAttacks(enemy);
-    const parryable = this.tutorialSlow ? attacks.filter((a) => !a.unparryable) : attacks;
+    const noRed = this.tutorialSlow || this.battleDef.redRings === false;
+    const parryable = noRed ? attacks.filter((a) => !a.unparryable) : attacks;
     return parryable.length ? parryable : attacks;
   }
 
@@ -1685,9 +1688,11 @@ export default class BattleScene extends Phaser.Scene {
 
   // statuses.json: Redacted covers one of the hero's techniques, Fog hides the
   // command names. turns = the hero's own turns left (they tick after each turn).
+  // A battle with "statuses": false (battles.json) never applies one: the
+  // first fight teaches the parry, not FOG on a missed parry.
   applyStatus(hero, id) {
     const def = statuses[id];
-    if (!def || !hero.isHero || hero.hp <= 0) return;
+    if (!def || !hero.isHero || hero.hp <= 0 || this.battleDef.statuses === false) return;
     let tech = hero.statuses[id]?.tech;
     if (def.effect === 'cover' && !tech) {
       const pool = hero.def.techniques || [];

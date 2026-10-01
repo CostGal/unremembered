@@ -294,7 +294,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
     } else {
       const list = enemy.def.phases ? enemy.def.phases[enemy.phase].attacks : enemy.def.attacks;
       // The parry tutorial teaches the tap first: no red ring until it's done.
-      const open = st.tutorialSlow ? list.filter((a) => !a.unparryable) : list;
+      const open = st.tutorialSlow || battle.redRings === false ? list.filter((a) => !a.unparryable) : list;
       attack = pickWeighted(open.length ? open : list, rnd);
       if (attack.chargeTurns) {
         st.archives += 1;
@@ -330,7 +330,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
       st.damageTaken += Math.min(dmg, target.hp);
       target.hp = Math.max(0, target.hp - dmg);
       // A missed parry can leave a memory status (Fog has no effect on the numbers).
-      const status = res === 'MISS' && hit.onMiss?.status;
+      const status = res === 'MISS' && battle.statuses !== false && hit.onMiss?.status;
       if (status === 'redacted' && rnd() < (hit.onMiss.chance ?? 1) && target.hp > 0 && target.def.techniques?.length) {
         const pool = target.def.techniques;
         target.redacted = { tech: target.redacted?.tech ?? pool[Math.floor(rnd() * pool.length)], turns: D.statuses.redacted.turns };
