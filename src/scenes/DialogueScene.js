@@ -200,14 +200,17 @@ export default class DialogueScene extends Phaser.Scene {
     }
 
     const speakerId = (line.speaker || '').toLowerCase();
+    // The lit portrait is the one the line shows ("clerk_smug" -> "clerk"): a
+    // speaker label like "The Clerk" never equals its portrait owner.
+    const litOwner = line.speaker && line.portrait ? line.portrait.split('_')[0] : speakerId;
     if (line.speaker) {
-      const owner = line.portrait ? line.portrait.split('_')[0] : speakerId;
+      const owner = litOwner;
       const side = cfg.portraitSides[owner] || cfg.portraitSides.default;
       this.setSlot(this.portraits[side], line.portrait || null, owner);
     }
 
     for (const slot of Object.values(this.portraits)) {
-      const lit = slot.owner && slot.owner === speakerId;
+      const lit = slot.owner && slot.owner === litOwner;
       slot.image.setTint(lit ? 0xffffff : Number(cfg.portrait.dimTint));
     }
   }

@@ -24,6 +24,10 @@ await withBrowser(async ({ chrome, server }) => {
     await sleep(500);
     const lines = dialogue[id];
     for (let i = 0; i < lines.length; i++) {
+      if (i > 0) {
+        await page.tap(180, 520);
+        await sleep(150);
+      }
       await page.ev(`(() => { const d = window.__game.scene.getScene('Dialogue'); if (d.typing) d.completeLine(); })()`);
       await sleep(250);
       const info = await page.ev(`(() => {
