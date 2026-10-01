@@ -75,6 +75,7 @@ await withBrowser(async ({ chrome, server }) => {
   await page.goto(server.url);
   await waitScene(page, 'Title');
   const reloaded = await settings(page);
+  await sleep(1200);
   check('Settings: survive reload', reloaded.storyMode === want.storyMode && reloaded.musicVolume === want.musicVolume && reloaded.sfxVolume === want.sfxVolume, JSON.stringify(reloaded));
   await page.tap(180, 300);
   await waitScene(page, 'Menu');
@@ -102,6 +103,7 @@ await withBrowser(async ({ chrome, server }) => {
   await page.ev(`localStorage.clear()`);
   await page.goto(server.url);
   await waitScene(page, 'Title');
+  await sleep(1200);
   await page.tap(180, 300);
   await waitScene(page, 'Menu');
   await sleep(300);
@@ -120,6 +122,7 @@ await withBrowser(async ({ chrome, server }) => {
   // second New Game does not ask again
   await page.goto(server.url);
   await waitScene(page, 'Title');
+  await sleep(1200);
   await page.tap(180, 300);
   await waitScene(page, 'Menu');
   await sleep(300);
@@ -129,7 +132,7 @@ await withBrowser(async ({ chrome, server }) => {
   // ---- End scene (non-credits)
   await page.goto(server.url + '?step=8');
   await sleep(300);
-  await page.ev(`window.__game.scene.start('End')`);
+  await page.ev(`(() => { const g = window.__game; g.scene.getScenes(true).forEach((s) => { if (s.scene.key !== 'Loader') g.scene.stop(s.scene.key); }); g.scene.start('End'); return 1; })()`);
   await sleep(2500);
   await page.shot(join(out, 'end_of_demo.png'));
   const et = await texts(page, 'End');

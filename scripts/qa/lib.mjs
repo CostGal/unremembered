@@ -44,6 +44,15 @@ export async function open(chrome, url, opts = {}) {
   page.cdp.on('Network.loadingFinished', (p) => page.requests.push({ id: p.requestId, bytes: p.encodedDataLength, t: Date.now() }));
   if (settings) await page.addInitScript(`try{localStorage.setItem('unremembered:settings', ${JSON.stringify(JSON.stringify(settings))})}catch(e){}`);
   for (const src of init) await page.addInitScript(src);
+  // Every page starts from empty localStorage for its origin (the Chrome profile is shared
+  // by all pages of a run, so settings written by one test would otherwise leak into the next).
+  if (opts.fresh !== false && /^https?:/.test(url)) {
+    try {
+      await page.cdp.send('Storage.clearDataForOrigin', { origin: new URL(url).origin, storageTypes: 'local_storage,session_storage' });
+    } catch (e) {
+      // best effort
+    }
+  }
   page.vp = { w, h };
   page.ev = (expr) => page.eval(expr);
   page.tap = async (x, y) => page.click(x, y);
