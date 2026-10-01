@@ -155,6 +155,7 @@
   "battleEnd": {
     "victoryText": "Victory",
     "loseText": "The memory fades…",
+    "errorText": "The memory slips…",
     "continueText": "Tap to continue",
     "retryText": "Retry",
     "textY": 300,

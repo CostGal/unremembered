@@ -146,7 +146,16 @@ export default class BattleScene extends Phaser.Scene {
       onEnd: (result) => this.onBattleEnd(result),
     });
 
-    machine.run(this.heroes, this.enemies);
+    // An exception anywhere in the turn loop used to be a silent unhandled
+    // rejection and a frozen battle. Now it ends the battle with Retry. The
+    // scene instance is reused, so a loop from before a restart is ignored.
+    this.runId = (this.runId || 0) + 1;
+    const runId = this.runId;
+    machine.run(this.heroes, this.enemies).catch((err) => {
+      if (runId !== this.runId || !this.scene.isActive()) return;
+      console.error('battle: turn loop failed', err);
+      if (!this.battleOver) this.onBattleEnd('ERROR');
+    });
   }
 
   // ---------- App switch ----------
@@ -1750,7 +1759,7 @@ export default class BattleScene extends Phaser.Scene {
 
     const style = { fontFamily: ui.font, fontSize: `${cfg.fontSize}px`, color: cfg.color, stroke: cfg.stroke, strokeThickness: cfg.strokeThickness };
     const message = this.add
-      .text(180, cfg.textY, result === 'WIN' ? cfg.victoryText : cfg.loseText, style)
+      .text(180, cfg.textY, result === 'WIN' ? cfg.victoryText : result === 'ERROR' ? cfg.errorText : cfg.loseText, style)
       .setOrigin(0.5)
       .setDepth(cfg.depth)
       .setAlpha(0);
