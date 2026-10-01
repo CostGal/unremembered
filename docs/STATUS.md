@@ -80,3 +80,6 @@ After a victory, a result card (Perfects, Max chain, Damage taken, Turns) and a 
 ## Fragments (#72)
 A `reward` step in `chapter1.json` (after b1 and after b3, since b2 was dropped): "A memory returns…", 3 random fragments from `src/data/fragments.json`, tap one; it stays for the whole run (registry `fragments`, reset on New Game) and shows as a small letter icon at the end of the Echo row. Effects: Old Ticket (+2 Echo at battle start), Cat Hair (Nala twice), Worn Glove (PERFECT window +20ms), Dov's Scarf (+15 max HP), Ink Stain (Blast crit 40%), Echo Shard (+1 Echo on PERFECT). Dev: `?reward=1` opens the screen, `?fragments=a,b` gives fragments in a battle. The sim does not model fragments.
 
+## Lightning (#56)
+`environments.json` `street_rain.lightning`: a rare flash over the scene area (~80ms + a weaker flicker) and a procedural thunder rumble (`audio.json` `thunder`) 0.4-1.5s later. First strike after 7-16s, then every 14-28s; it waits (retry 1.5s) while a parry ring is live, so it never covers a QTE. Add `lightning` to another environment to give it storms.
+

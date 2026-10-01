@@ -17,6 +17,14 @@
         { "x": 160, "y": 300, "radius": 40, "alpha": 0.1, "squash": 0.3 }
       ]
     },
+    "lightning": {
+      "firstMs": [7000, 16000],
+      "gapMs": [14000, 28000],
+      "retryMs": 1500,
+      "depth": 875,
+      "flash": { "color": "0xe8f0ff", "alpha": 0.55, "ms": 80, "flicker": { "gapMs": 120, "alpha": 0.3, "ms": 70 } },
+      "thunder": { "sfx": "thunder", "delayMs": [400, 1500] }
+    },
     "rain": {
       "far": {
         "count": 50,
