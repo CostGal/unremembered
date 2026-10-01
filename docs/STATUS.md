@@ -70,3 +70,7 @@ Rhea wiring → #55 (layout, Teaser) → rain FX → parry QTE #4 → combat kit
 
 ## Break gauge (#69)
 Enemies have `poise` in `enemies.json` (Blank 6, Hollow 8, Clerk 20), shown as pips under the name label. Poise damage per hit: `src/data/break.json` `sources` (player hit 1, PERFECT counter 2, Return to Sender counter 3). At 0: BREAK! (enemy skips its next action, takes `damageMult` 1.5 until that turn ends, then poise refills; a phase change also refills). `npm run sim` has a `breaks` column.
+
+## Battle grade (#70)
+After a victory, a result card (Perfects, Max chain, Damage taken, Turns) and a rank S/A/B/C that lands like a rubber stamp. Formula, thresholds, par turns, layout and texts: `src/data/grade.json`; the pure scoring is `src/systems/Grade.js` (also used by `npm run sim`, which prints score and rank split per profile). Best rank per battle is kept in memory only. A tap while the card plays jumps to the stamp; the next tap continues.
+
