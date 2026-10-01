@@ -768,9 +768,38 @@ export default class BattleScene extends Phaser.Scene {
 
   parryWindows() {
     const storyMode = this.registry.get('settings')?.storyMode;
-    // Worn Glove: a wider PERFECT window.
-    const windows = { ...qte.windows, perfectMs: qte.windows.perfectMs + effectTotal(this.fragments, 'perfectWindowMs') };
+    // Worn Glove: a wider PERFECT window. Assist: see parryAssist().
+    const extra = effectTotal(this.fragments, 'perfectWindowMs');
+    const assist = this.parryAssist();
+    const windows = { ...qte.windows, perfectMs: qte.windows.perfectMs + extra + assist, goodMs: qte.windows.goodMs + assist };
     return storyMode ? Qte.scaledWindows(windows, qte.storyMode.windowMult) : windows;
+  }
+
+  // Invisible help for a player who keeps missing (qte.json assist): every
+  // missStreak MISSes in a row widen both windows by stepMs, up to maxMs; a
+  // PERFECT takes it all back. Kept in the registry, so it carries across
+  // battles and a Retry. Enemy parries only (not Recollection's rings).
+  parryAssist() {
+    return this.registry.get('parryAssistMs') || 0;
+  }
+
+  trackParryAssist(result) {
+    const a = qte.assist;
+    if (!a) return;
+    let streak = this.registry.get('parryMissStreak') || 0;
+    let assist = this.parryAssist();
+    if (result === 'MISS') {
+      streak += 1;
+      if (streak >= a.missStreak) {
+        streak = 0;
+        assist = Math.min(a.maxMs, assist + a.stepMs);
+      }
+    } else {
+      streak = 0;
+      if (result === 'PERFECT') assist = 0;
+    }
+    this.registry.set('parryMissStreak', streak);
+    this.registry.set('parryAssistMs', assist);
   }
 
   // The ring closes at T. The enemy holds its windup pose through the
@@ -805,6 +834,9 @@ export default class BattleScene extends Phaser.Scene {
         ring: hit.unparryable ? { ...qte.ring, color: red.ringColor, targetColor: red.targetColor } : qte.ring,
         swipe: qte.dodge.swipe,
         unparryable: hit.unparryable,
+        // No tap by T: the hit visibly lands now, the judgement (a late GOOD
+        // or a MISS) follows when the window closes.
+        onImpact: () => target.hp > 0 && this.playHurt(target),
       });
       const icon = hit.unparryable ? this.showUnparryableIcon(x, y) : null;
       const watched = this.nalaWatch(enemy, ring);
@@ -840,6 +872,7 @@ export default class BattleScene extends Phaser.Scene {
       if (input === 'swipe' && result !== 'MISS') dodgeLesson.learned = true;
     }
     this.tapHint.setText(qte.hint.text);
+    this.trackParryAssist(result);
     await this.applyParryResult(result, enemy, target, hit, input);
     await attackDone;
     return result;

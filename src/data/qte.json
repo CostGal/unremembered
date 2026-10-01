@@ -12,6 +12,7 @@
   },
   "windows": { "perfectMs": 90, "goodMs": 200, "ignoreBeforeMs": 350 },
   "storyMode": { "windowMult": 1.5, "damageMult": 0.5 },
+  "assist": { "missStreak": 2, "stepMs": 30, "maxMs": 90 },
   "chain": {
     "stepPct": 10,
     "maxSteps": 5,

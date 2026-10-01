@@ -144,7 +144,8 @@ await withBrowser(async ({ chrome, server }) => {
     log(r.result === 'GOOD' && r.input === 'swipe' && r.hpLost === 10, 'red ring: a late swipe = GOOD dodge (half damage)', `${r.result}/${r.input} −${r.hpLost}`);
     await sleep(500);
     r = await qteHit(page, [0], { swipe: true });
-    log(r.result === 'PERFECT' && r.input === 'swipe', 'normal ring: a swipe also dodges (no counter)', `${r.result}/${r.input}`);
+    // A parryable ring treats every touch as a parry (judged at T, shown at T): a swipe is never worse than a tap.
+    log(r.result === 'PERFECT' && r.input === 'tap' && r.hpLost === 0, 'normal ring: a swipe counts as a parry (judged at T)', `${r.result}/${r.input} −${r.hpLost}`);
   }
 
   // ============ F-boss moves: file_away multi-hit, redact feint, archive ============
