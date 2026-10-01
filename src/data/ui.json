@@ -175,7 +175,8 @@
   "downed": { "heroAlpha": 0.35, "fadeMs": 200, "enemyFadeMs": 500 },
   "dialogue": {
     "charsPerSec": 40,
-    "nextMark": "▼",
+    "nextMark": { "w": 10, "h": 7 },
+    "nameBoxes": { "wPct": 0.55, "hPct": 0.8, "lineHeightPct": 1.1, "gap": 3, "stroke": 2 },
     "nextBlinkMs": 450,
     "bg": { "size": 360, "fadeH": 24, "fadeAlpha": 0.6 },
     "overlayDim": { "color": "0x04050b", "alpha": 0.55 },

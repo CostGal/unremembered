@@ -120,12 +120,39 @@ export default class DialogueScene extends Phaser.Scene {
       lineSpacing: b.lineSpacing,
       wordWrap: { width: b.w - b.padX * 2 },
     }).setDepth(b.depth);
-    this.nextMark = this.add
-      .text(b.x + b.w - b.padX, b.y + b.h - b.padX, cfg.nextMark, { fontFamily: ui.font, fontSize: `${b.nameFontSize}px`, color: b.textColor })
-      .setOrigin(1, 1)
-      .setDepth(b.depth)
-      .setVisible(false);
+    // The "next" mark is a drawn pixel triangle (the font has no ▼), and a
+    // speaker name made of ▯ (a forgotten name) is drawn as outlined boxes:
+    // both stay crisp instead of falling back to a system font.
+    this.nextMark = this.add.graphics().setDepth(b.depth).setVisible(false);
+    this.drawNextMark(b.textColor);
     this.tweens.add({ targets: this.nextMark, alpha: cfg.nextBlinkAlpha, duration: cfg.nextBlinkMs, yoyo: true, repeat: -1 });
+    this.nameBoxes = this.add.graphics().setDepth(b.depth);
+  }
+
+  drawNextMark(color) {
+    const b = cfg.box;
+    const m = cfg.nextMark;
+    const right = b.x + b.w - b.padX;
+    const bottom = b.y + b.h - b.padX;
+    const g = this.nextMark;
+    g.clear();
+    g.fillStyle(Number(color.replace('#', '0x')), 1);
+    g.fillTriangle(right - m.w, bottom - m.h, right, bottom - m.h, right - m.w / 2, bottom);
+  }
+
+  // A name of N ▯ characters: N outlined boxes sized to the name font.
+  drawNameBoxes(name, color) {
+    const g = this.nameBoxes;
+    g.clear();
+    if (!/^▯+$/u.test(name || '')) return false;
+    const b = cfg.box;
+    const k = cfg.nameBoxes;
+    const w = Math.round(b.nameFontSize * k.wPct);
+    const h = Math.round(b.nameFontSize * k.hPct);
+    const top = b.y + b.nameY + Math.round((b.nameFontSize * k.lineHeightPct - h) / 2);
+    g.lineStyle(k.stroke, Number(color.replace('#', '0x')), 1);
+    for (let i = 0; i < name.length; i++) g.strokeRect(b.x + b.padX + i * (w + k.gap) + 0.5, top + 0.5, w, h);
+    return true;
   }
 
   onTap() {
@@ -154,14 +181,17 @@ export default class DialogueScene extends Phaser.Scene {
     this.bodyText.setOrigin(style.align === 'center' ? 0.5 : 0, 0);
     this.bodyText.x = style.align === 'center' ? b.x + b.w / 2 : b.x + b.padX;
     this.bodyText.y = b.y + (style.showName ? b.textY : b.nameY);
-    this.nextMark.setColor(style.textColor);
+    this.drawNextMark(style.textColor);
 
     const speaker = style.showName ? line.speaker : null;
     // Story sounds: a style's sfx (the letter unfolding), a speaker's (the glitch of a forgotten name).
     const sfx = line.sfx !== undefined ? line.sfx : cfg.nameSfx[speaker] || style.sfx;
     if (sfx) playSfx(sfx);
-    this.nameText.setText(speaker || '');
-    this.nameText.setColor(cfg.nameColors[speaker] || cfg.nameColors.default);
+    const nameColor = cfg.nameColors[speaker] || cfg.nameColors.default;
+    // The data string stays (colour and voice lookups use it); only the drawing changes.
+    const boxed = this.drawNameBoxes(speaker, nameColor);
+    this.nameText.setText(boxed ? '' : speaker || '');
+    this.nameText.setColor(nameColor);
 
     this.updatePortraits(line, style);
     if (line.silhouette) this.showSilhouette(line.silhouette);
