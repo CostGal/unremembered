@@ -1,0 +1,105 @@
+{
+  "frame_size": [
+    128,
+    128
+  ],
+  "facing": "left",
+  "animations": {
+    "idle": {
+      "frames": 14,
+      "sheet": "blank_idle.png",
+      "durations_ms": [
+        150,
+        110,
+        100,
+        100,
+        100,
+        110,
+        130,
+        170,
+        130,
+        110,
+        100,
+        100,
+        110,
+        130
+      ],
+      "loop": true
+    },
+    "punch": {
+      "frames": 11,
+      "sheet": "blank_punch.png",
+      "durations_ms": [
+        100,
+        120,
+        180,
+        100,
+        60,
+        50,
+        80,
+        120,
+        140,
+        150,
+        100
+      ],
+      "loop": false,
+      "windupFrame": 2,
+      "impactFrames": [
+        5
+      ]
+    },
+    "lunge": {
+      "frames": 11,
+      "sheet": "blank_lunge.png",
+      "durations_ms": [
+        80,
+        90,
+        80,
+        150,
+        60,
+        60,
+        90,
+        110,
+        120,
+        130,
+        80
+      ],
+      "loop": false,
+      "windupFrame": 3,
+      "impactFrames": [
+        5
+      ]
+    },
+    "hurt": {
+      "frames": 7,
+      "sheet": "blank_hurt.png",
+      "durations_ms": [
+        60,
+        60,
+        70,
+        100,
+        90,
+        100,
+        60
+      ],
+      "loop": false
+    },
+    "death": {
+      "frames": 9,
+      "sheet": "blank_death.png",
+      "durations_ms": [
+        80,
+        110,
+        100,
+        90,
+        60,
+        90,
+        120,
+        160,
+        220
+      ],
+      "loop": false,
+      "holdLastFrame": true
+    }
+  }
+}
