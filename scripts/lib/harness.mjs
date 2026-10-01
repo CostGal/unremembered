@@ -122,6 +122,14 @@ export async function tap(page, x, y) {
   await page.mouse.click(x, y);
 }
 
+// A quick upward drag (a dodge): down, 80px up in four moves, up.
+export async function swipe(page, x, y) {
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y - 80, { steps: 4 });
+  await page.mouse.up();
+}
+
 // Fakes the app going to the background and back (visibilitychange).
 export async function setHidden(page, hidden) {
   await page.evaluate((h) => {

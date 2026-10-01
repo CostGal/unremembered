@@ -28,6 +28,11 @@ const WINDUP_MS = 200;
 // Lunge used when a sheet character's attack sheet is missing and its def has no lunge data.
 const FALLBACK_LUNGE = { distance: 10, squash: 0.15 };
 
+// The first red ring runs in slow-mo with a prompt until the player has dodged
+// once (or seen it unparryable.lesson.attempts times). Lives for the page
+// session, like the tutorial hints: a Retry doesn't repeat it.
+const dodgeLesson = { runs: 0, learned: false };
+
 // ?battle=<id> (e.g. ?battle=boss_clerk) — starts that battle straight from
 // Preload. Not linked from anywhere, works in the production build.
 export function devBattleId() {
@@ -669,7 +674,7 @@ export default class BattleScene extends Phaser.Scene {
       attack = enemy.charge.attack;
       await this.endCharge(enemy);
     } else {
-      attack = pickWeighted(this.enemyAttacks(enemy));
+      attack = pickWeighted(this.pickableAttacks(enemy));
       if (attack.chargeTurns) {
         this.startCharge(enemy, attack);
         await this.wait(battleEvents.charge.chargingMs);
@@ -682,12 +687,20 @@ export default class BattleScene extends Phaser.Scene {
     const sheet = this.enemyAttackSheet(enemy, attack, hits.length);
     for (let k = 0; k < hits.length; k++) {
       if (target.hp <= 0 || enemy.hp <= 0) break;
-      const result = await this.enemyHit(enemy, target, hits[k], sheet, k);
+      const hit = { ...hits[k], unparryable: hits[k].unparryable ?? attack.unparryable ?? false };
+      const result = await this.enemyHit(enemy, target, hit, sheet, k);
       if (result === 'CANCEL') break;
     }
     if (sheet) await sheet.finish();
     this.tapHint.setVisible(false);
     this.brace = null;
+  }
+
+  // The parry tutorial teaches the tap first: no red-ring attack until it's done.
+  pickableAttacks(enemy) {
+    const attacks = this.enemyAttacks(enemy);
+    const parryable = this.tutorialSlow ? attacks.filter((a) => !a.unparryable) : attacks;
+    return parryable.length ? parryable : attacks;
   }
 
   // ---------- Parry QTE ----------
@@ -715,28 +728,38 @@ export default class BattleScene extends Phaser.Scene {
   async enemyHit(enemy, target, hit, sheet, k) {
     let ring;
     let result;
+    let input;
     let attackDone;
+    const red = qte.unparryable;
+    const lesson = hit.unparryable && !dodgeLesson.learned && dodgeLesson.runs < red.lesson.attempts;
+    this.tapHint.setText(hit.unparryable ? red.hint : qte.hint.text);
     while (true) {
-      const slow = this.tutorialSlow ? qte.tutorial.timeScale : 1;
+      const slow = this.tutorialSlow || lesson ? qte.tutorial.timeScale : 1;
       this.setTimeScale(slow);
-      if (this.tutorialSlow) this.showTutorialPrompt(true);
+      if (this.tutorialSlow || lesson) this.showTutorialPrompt(true, lesson ? red.lesson.text : qte.tutorial.prompt.text);
 
       const windows = this.parryWindows();
+      const x = target.container.x;
+      const y = target.container.y + qte.ring.offsetY;
       ring = Qte.runRing(this, {
-        x: target.container.x,
-        y: target.container.y + qte.ring.offsetY,
+        x,
+        y,
         telegraphMs: hit.telegraphMs / slow,
         feint: hit.feint ? { ...hit.feint, pauseMs: hit.feint.pauseMs / slow } : null,
         windows: slow === 1 ? windows : Qte.scaledWindows(windows, 1 / slow),
-        ring: qte.ring,
+        ring: hit.unparryable ? { ...qte.ring, color: red.ringColor, targetColor: red.targetColor } : qte.ring,
+        swipe: qte.dodge.swipe,
+        unparryable: hit.unparryable,
       });
+      const icon = hit.unparryable ? this.showUnparryableIcon(x, y) : null;
       const watched = this.nalaWatch(enemy, ring);
 
       const abort = { aborted: false };
       const feintPauseMs = hit.feint ? hit.feint.pauseMs / slow : 0;
       attackDone = sheet ? sheet.strike(k, ring.impactAt, abort, feintPauseMs) : this.playLungeTelegraph(enemy, ring.impactAt, abort);
 
-      ({ result } = await ring.promise);
+      ({ result, input } = await ring.promise);
+      icon?.destroy();
       if (watched) this.nalaStopWatching();
       this.setTimeScale(1);
       this.showTutorialPrompt(false);
@@ -756,8 +779,13 @@ export default class BattleScene extends Phaser.Scene {
       }
       break;
     }
-    if (this.tutorialSlow && result !== 'MISS') this.tutorialSlow = false;
-    await this.applyParryResult(result, enemy, target, hit);
+    if (this.tutorialSlow && !hit.unparryable && result !== 'MISS') this.tutorialSlow = false;
+    if (lesson) {
+      dodgeLesson.runs += 1;
+      if (input === 'swipe' && result !== 'MISS') dodgeLesson.learned = true;
+    }
+    this.tapHint.setText(qte.hint.text);
+    await this.applyParryResult(result, enemy, target, hit, input);
     await attackDone;
     return result;
   }
@@ -769,16 +797,27 @@ export default class BattleScene extends Phaser.Scene {
     this.time.timeScale = scale;
   }
 
-  showTutorialPrompt(on) {
+  showTutorialPrompt(on, text = qte.tutorial.prompt.text) {
     if (!this.tutorialPrompt) {
       const p = qte.tutorial.prompt;
       this.tutorialPrompt = this.add
-        .text(p.x, p.y, p.text, { fontFamily: ui.font, fontSize: `${p.fontSize}px`, color: p.color, align: 'center', wordWrap: { width: p.wrap } })
+        .text(p.x, p.y, text, { fontFamily: ui.font, fontSize: `${p.fontSize}px`, color: p.color, align: 'center', wordWrap: { width: p.wrap } })
         .setOrigin(0.5)
         .setDepth(p.depth);
     }
-    this.tutorialPrompt.setVisible(on);
+    this.tutorialPrompt.setText(text).setVisible(on);
     this.tapHint.setVisible(!on);
+  }
+
+  // The "!" over a red ring (an attack that can't be parried).
+  showUnparryableIcon(x, y) {
+    const c = qte.unparryable.icon;
+    const icon = this.add
+      .text(x, y + c.offsetY, c.text, { fontFamily: ui.font, fontSize: `${c.fontSize}px`, color: c.color, stroke: c.stroke, strokeThickness: c.strokeThickness })
+      .setOrigin(0.5)
+      .setDepth(qte.ring.depth);
+    this.tweens.add({ targets: icon, scale: 1.25, duration: c.pulseMs, yoyo: true, repeat: -1 });
+    return icon;
   }
 
   // The attack's sheet: its own (attack.anim, else e.g. blank_punch), else the
@@ -1113,19 +1152,24 @@ export default class BattleScene extends Phaser.Scene {
     check();
   }
 
-  async applyParryResult(result, enemy, hero, hit) {
-    const cfg = qte.results[result];
+  // input = 'tap' (parry) | 'swipe' (dodge, qte.json dodge.results overrides:
+  // no counter, less Echo) | null (no input at all).
+  async applyParryResult(result, enemy, hero, hit, input = 'tap') {
+    const dodged = input === 'swipe';
+    const cfg = dodged ? { ...qte.results[result], ...qte.dodge.results[result] } : qte.results[result];
     const baseDmg = hit.dmg;
     const x = hero.container.x;
     const y = hero.container.y;
 
     if (cfg.text) Fx.popText(this, x, y, cfg.text, cfg.color, qte.text);
     if (cfg.flash) Fx.screenFlash(this, cfg.flash, qte.flashDepth);
+    if (hit.unparryable && input === 'tap') Fx.popText(this, x, y + qte.text.riseY, qte.unparryable.tapText, qte.unparryable.tapColor, qte.text);
     playSfx(result.toLowerCase());
     vibrate(cfg.vibrateMs);
     if (result !== 'MISS') this.hints.show('echo');
     // Before the counter below, so a PERFECT's own counter already gets the new step.
-    this.updateChain(result);
+    // A PERFECT dodge leaves the chain as it is (cfg.chain 0).
+    if (cfg.chain !== 0) this.updateChain(result);
     this.gainEcho(cfg.echo);
     // e.g. Siphon: a missed parry also drains Echo.
     if (result === 'MISS' && hit.onMiss?.echo) this.gainEcho(hit.onMiss.echo);
@@ -1135,7 +1179,7 @@ export default class BattleScene extends Phaser.Scene {
     const dmg = Math.round(baseDmg * cfg.damageMult * storyMult * braceMult);
     // Reactions (ART_BRIEF): PERFECT -> parry (the counter), GOOD -> dodge,
     // MISS -> hurt, each only if the character has that sheet.
-    const dodge = result === 'GOOD' && hero.hp > 0 && hasSheet(hero.anims, 'dodge');
+    const dodge = (result === 'GOOD' || (result === 'PERFECT' && dodged)) && hero.hp > 0 && hasSheet(hero.anims, 'dodge');
     if (dmg > 0) this.applyHit(hero, dmg, undefined, { react: !dodge });
     if (dodge && hero.hp > 0) this.playReaction(hero, 'dodge');
     if (dmg > 0 && this.brace) Fx.popText(this, x, y + qte.text.riseY, this.brace.blockText, this.brace.color, qte.text);
@@ -1143,16 +1187,19 @@ export default class BattleScene extends Phaser.Scene {
 
     if (result === 'PERFECT') {
       Fx.sparks(this, x, y + qte.ring.offsetY, cfg.sparks, qte.sparks, qte.ring.depth);
-      Fx.shake(this, cfg.shake, cfg.hitstopMs * 2);
-      await Fx.hitstop(this, cfg.hitstopMs);
+      if (cfg.hitstopMs) {
+        Fx.shake(this, cfg.shake, cfg.hitstopMs * 2);
+        await Fx.hitstop(this, cfg.hitstopMs);
+      }
     }
 
-    // A hero in Return to Sender answers any parry with the big counter.
+    // A hero in Return to Sender answers any parry with the big counter
+    // (a dodge isn't a parry).
     if (this.stance?.hero === hero) {
-      await this.endStance(result !== 'MISS' && hero.hp > 0, enemy, result);
+      await this.endStance(!dodged && result !== 'MISS' && hero.hp > 0, enemy, result);
       return;
     }
-    if (result === 'PERFECT') await this.playCounter(hero, enemy, cfg.counterDmg);
+    if (result === 'PERFECT' && cfg.counterDmg) await this.playCounter(hero, enemy, cfg.counterDmg);
   }
 
   // ---------- Perfect chain ----------

@@ -7,7 +7,7 @@
 // a rotation that uses every technique the hero can afford.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { root, sleep, tap } from './harness.mjs';
+import { root, sleep, swipe, tap } from './harness.mjs';
 
 const ui = JSON.parse(readFileSync(join(root, 'src/data/ui.json'), 'utf8'));
 const qte = JSON.parse(readFileSync(join(root, 'src/data/qte.json'), 'utf8'));
@@ -31,6 +31,7 @@ export function probe(page) {
         pending: !!b.menu.pending,
         items: (b.menu.items || []).map((i) => ({ slot: i.slot, value: i.value && typeof i.value === 'object' ? 'enemy' : i.value, enabled: i.enabled !== false })),
         rings: [...(b.qteRings || [])].map((r) => r.impactAt),
+        redRings: [...(b.qteRings || [])].filter((r) => r.unparryable).map((r) => r.impactAt),
         nala: b.nala ? { watching: !!b.nala.ring, used: b.nala.used, x: b.nala.container.x, y: b.nala.container.y } : null,
         hero: b.activeHero?.type || null,
         heroes: (b.heroes || []).map((h) => ({ id: h.type, hp: h.hp, maxHp: h.maxHp })),
@@ -116,7 +117,9 @@ export class Bot {
       if (result === 'MISS') continue;
       const offset = result === 'PERFECT' ? 0 : (qte.windows.perfectMs + qte.windows.goodMs) / 2;
       const delay = impactAt + offset - st.now - 6;
-      setTimeout(() => tap(this.page, ...TAP_ZONE).catch(() => {}), Math.max(0, delay));
+      // A red ring can only be answered with a swipe.
+      const act = b.redRings.includes(impactAt) ? swipe : tap;
+      setTimeout(() => act(this.page, ...TAP_ZONE).catch(() => {}), Math.max(0, delay));
     }
     if (b.rings.length) return;
 
