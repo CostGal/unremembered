@@ -5,6 +5,7 @@ import ui from '../data/ui.json';
 import { playSceneMusic } from '../systems/Audio.js';
 import * as Fx from '../systems/Fx.js';
 import { whenReady } from '../systems/Assets.js';
+import { devInt } from '../systems/DevParams.js';
 
 const cfg = ui.cutscene;
 const CUTSCENES = { origin: cutsceneOrigin };
@@ -13,7 +14,9 @@ const CUTSCENES = { origin: cutsceneOrigin };
 // area (bg, optional split with bg2, cutout layers, a slow pan/zoom, tint,
 // fx) and a typewritten line below it. Tap = finish the line / next shot;
 // hold anywhere = skip the whole cutscene. Missing art = black + text + fx,
-// so it plays with zero art.
+// so it plays with zero art. The picture fills the screen (9:16 illustrations);
+// the line sits on a dark gradient at the bottom. ?cutscene=origin&shot=N
+// (1-based, as numbered in docs/STORY.md) starts at shot N (dev).
 export default class CutsceneScene extends Phaser.Scene {
   constructor() {
     super('Cutscene');
@@ -27,6 +30,7 @@ export default class CutsceneScene extends Phaser.Scene {
     this.fxObjects = [];
     this.cutsceneId = data.id || 'origin';
     this.shots = (CUTSCENES[this.cutsceneId] || { shots: [] }).shots;
+    this.firstShot = Math.max(1, Math.min(this.shots.length, data.shot ?? devInt('shot') ?? 1)) - 1;
   }
 
   // Waits for this scene's assets (loaded in the background by the Loader).
@@ -40,9 +44,12 @@ export default class CutsceneScene extends Phaser.Scene {
     const a = cfg.area;
     this.area = { x: 0, y: a.y, w: 360, h: a.h };
     this.shotLayer = this.add.container(0, 0).setDepth(cfg.depth.picture);
-    // Letterbox bars hide whatever a pan/zoom pushes outside the picture area.
-    this.add.rectangle(0, 0, 360, a.y, 0x000000).setOrigin(0).setDepth(cfg.depth.bars);
-    this.add.rectangle(0, a.y + a.h, 360, 640 - a.y - a.h, 0x000000).setOrigin(0).setDepth(cfg.depth.bars);
+    // Letterbox bars hide whatever a pan/zoom pushes outside a smaller picture area.
+    if (a.y > 0) this.add.rectangle(0, 0, 360, a.y, 0x000000).setOrigin(0).setDepth(cfg.depth.bars);
+    if (a.y + a.h < 640) this.add.rectangle(0, a.y + a.h, 360, 640 - a.y - a.h, 0x000000).setOrigin(0).setDepth(cfg.depth.bars);
+    // The line stays readable over any picture.
+    const g = cfg.gradient;
+    this.add.image(0, g.y, Fx.gradientTexture(this, 360, 640 - g.y, g.color, g.alpha)).setOrigin(0).setDepth(g.depth);
 
     this.text = this.add
       .text(180, cfg.text.y, '', {
@@ -69,7 +76,7 @@ export default class CutsceneScene extends Phaser.Scene {
     this.holdRing = this.add.graphics().setDepth(cfg.depth.hold);
     this.setupInput();
 
-    this.index = -1;
+    this.index = this.firstShot - 1;
     this.nextShot();
   }
 
@@ -141,15 +148,15 @@ export default class CutsceneScene extends Phaser.Scene {
 
     const split = shot.split || 'none';
     if (split === 'none') {
-      this.addPicture(stage, shot.bg, 0, 0, this.area.w, this.area.h, shot.tint);
+      this.addPicture(stage, shot.bg, 0, 0, this.area.w, this.area.h, shot.tint, shot.bgView);
     } else {
       const vertical = split === 'vertical';
       const w = vertical ? this.area.w / 2 : this.area.w;
       const h = vertical ? this.area.h : this.area.h / 2;
       const dx = vertical ? w / 2 : 0;
       const dy = vertical ? 0 : h / 2;
-      this.addPicture(stage, shot.bg, -dx, -dy, w, h, shot.tint);
-      this.addPicture(stage, shot.bg2, dx, dy, w, h, shot.tint);
+      this.addPicture(stage, shot.bg, -dx, -dy, w, h, shot.tint, shot.bgView);
+      this.addPicture(stage, shot.bg2, dx, dy, w, h, shot.tint, shot.bg2View);
       const line = this.add.rectangle(0, 0, vertical ? cfg.splitLine : this.area.w, vertical ? this.area.h : cfg.splitLine, Number(cfg.splitColor));
       stage.add(line);
     }
@@ -171,11 +178,17 @@ export default class CutsceneScene extends Phaser.Scene {
   }
 
   // Fills a w×h cell centred at (x, y) with the image (cover), clipped to
-  // the cell. Missing art leaves the cell black.
-  addPicture(stage, key, x, y, w, h, tint) {
+  // the cell. Missing art leaves the cell black. Pixel-art backgrounds (small
+  // textures) scale by whole numbers so the pixels stay even.
+  // view = {focus: [x, y], zoom}: the 0–1 image point shown at the cell
+  // centre, and a multiplier on the cover scale (used to frame a cutout).
+  addPicture(stage, key, x, y, w, h, tint, view) {
     if (!this.hasArt(key)) return null;
     const img = this.add.image(x, y, key);
-    img.setScale(Math.max(w / img.width, h / img.height));
+    const cover = Math.max(w / img.width, h / img.height);
+    const scale = (img.width <= cfg.pixelArtMaxW ? Math.ceil(cover) : cover) * (view?.zoom || 1);
+    img.setScale(scale);
+    if (view?.focus) img.setPosition(x + (0.5 - view.focus[0]) * img.displayWidth, y + (0.5 - view.focus[1]) * img.displayHeight);
     if (tint) img.setTint(Number(tint));
     if (w < this.area.w || h < this.area.h) {
       const shape = this.make.graphics({}, false).fillRect(180 + x - w / 2, this.area.y + this.area.h / 2 + y - h / 2, w, h);
@@ -244,15 +257,16 @@ export default class CutsceneScene extends Phaser.Scene {
     } else if (fx === 'dissolve_layer') {
       this.tweens.add({ targets: layers, alpha: 0, delay: duration * f.dissolve_layer.startPct, duration: f.dissolve_layer.ms, ease: 'Stepped', easeParams: [f.dissolve_layer.steps] });
     } else if (fx === 'eyes_glow') {
+      // Points are relative to the picture; they sit in the stage so they follow its zoom.
       for (const [ex, ey] of shot.eyes || f.eyes_glow.at) {
         const glow = keep(
           this.add
-            .image((ex - 0.5) * area.w + 180, area.y + ey * area.h, Fx.glowTexture(this, f.eyes_glow.radius))
+            .image((ex - 0.5) * area.w, (ey - 0.5) * area.h, Fx.glowTexture(this, f.eyes_glow.radius))
             .setBlendMode(Phaser.BlendModes.ADD)
             .setTint(Number(f.eyes_glow.color))
             .setAlpha(0)
-            .setDepth(cfg.depth.fx)
         );
+        stage.add(glow);
         this.tweens.add({ targets: glow, alpha: f.eyes_glow.alpha, delay: f.eyes_glow.delayMs, duration: f.eyes_glow.ms, yoyo: true, hold: duration, ease: 'Sine.easeIn' });
       }
     }

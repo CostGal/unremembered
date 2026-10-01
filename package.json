@@ -11,7 +11,8 @@
     "budget": "node scripts/budget.mjs",
     "sim": "node scripts/sim.mjs",
     "playtest": "node scripts/playtest.mjs",
-    "perf": "node scripts/perf.mjs"
+    "perf": "node scripts/perf.mjs",
+    "cutscene-check": "node scripts/cutscene-check.mjs"
   },
   "dependencies": {
     "phaser": "^3.90.0"

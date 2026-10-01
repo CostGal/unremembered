@@ -71,14 +71,16 @@
     "title_bg": { "file": "ui/title_bg.jpg", "w": 720, "h": 1280, "optional": true }
   },
   "cutscene": {
-    "city": { "file": "cutscene/city.png", "w": 360, "h": 360 },
-    "reliquary": { "file": "cutscene/reliquary.png", "w": 360, "h": 360 },
-    "battlefield": { "file": "cutscene/battlefield.png", "w": 360, "h": 360 },
-    "council": { "file": "cutscene/council.png", "w": 360, "h": 360 },
-    "statue": { "file": "cutscene/statue.png", "w": 360, "h": 360 },
-    "exile_close": { "file": "cutscene/exile_close.png", "w": 360, "h": 360 },
-    "aurelian_king": { "file": "cutscene/aurelian_king.png", "w": 360, "h": 360 },
-    "aurelian_exile": { "file": "cutscene/aurelian_exile.png", "w": 360, "h": 360 }
+    "city": { "file": "cutscene/city.jpg", "w": 720, "h": 1280 },
+    "reliquary": { "file": "cutscene/reliquary.jpg", "w": 720, "h": 1280 },
+    "battlefield": { "file": "cutscene/battlefield.jpg", "w": 720, "h": 1280 },
+    "council": { "file": "cutscene/council.jpg", "w": 720, "h": 1280 },
+    "statue": { "file": "cutscene/statue.jpg", "w": 720, "h": 1280 },
+    "exile_close": { "file": "cutscene/exile_close.jpg", "w": 720, "h": 1280 },
+    "aurelian_king": { "file": "cutscene/aurelian_king.png", "w": 624, "h": 900 },
+    "aurelian_king_kneel": { "file": "cutscene/aurelian_king_kneel.png", "w": 598, "h": 760 },
+    "aurelian_exile": { "file": "cutscene/aurelian_exile.png", "w": 516, "h": 900 },
+    "aurelian_exile_kneel": { "file": "cutscene/aurelian_exile_kneel.png", "w": 587, "h": 760 }
   },
   "loading": {
     "background": ["ui", "cutscene", "sprites", "backgrounds", "portraits", "sheets"],

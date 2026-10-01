@@ -57,7 +57,7 @@
     { "speaker": null, "style": "narration", "text": "She turns to the man beside her. Tall, worn jacket, bandaged fists.", "portrait": null, "todo": true },
     { "speaker": "Rhea", "style": "normal", "text": "...Who are you?", "portrait": "rhea_confused", "todo": true },
     { "speaker": "▯▯▯", "style": "normal", "text": "It's me, Rhea. It's—", "portrait": null, "todo": true },
-    { "speaker": null, "style": "narration", "text": "Somewhere above the city, a silhouette watches from the broken tower.", "portrait": null, "todo": true },
+    { "speaker": null, "style": "narration", "text": "Somewhere above the city, a silhouette watches from the broken tower.", "portrait": null, "silhouette": "aurelian_exile", "todo": true },
     { "speaker": null, "style": "narration", "text": "Chapter 2: The Gallery — locked.", "portrait": null, "todo": true }
   ]
 }

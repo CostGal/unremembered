@@ -17,8 +17,8 @@ const opt = (name, def) => {
   const i = args.indexOf(`--${name}`);
   return i >= 0 ? Number(args[i + 1]) : def;
 };
-// Still to come (defaults from the batch brief): cutscene JPGs + music tracks.
-const COMING = { 'cutscene art (JPG)': opt('cutscene-mb', 2.5), 'music (5 tracks)': opt('music-mb', 6) };
+// Still to come: cutscene art is in (0), music is procedural unless real tracks replace it (--music-mb 6).
+const COMING = { 'cutscene art (JPG)': opt('cutscene-mb', 0), 'music files (optional)': opt('music-mb', 0) };
 const TEXT = new Set(['.js', '.html', '.css', '.json', '.txt', '.svg', '.mjs']);
 const MB = 1024 * 1024;
 const mb = (b) => `${(b / MB).toFixed(2)} MB`;
@@ -32,7 +32,7 @@ const walk = (dir) => {
     else {
       const raw = statSync(p).size;
       const download = TEXT.has(extname(p)) ? gzipSync(readFileSync(p)).length : raw;
-      files.push({ path: relative(dist, p), raw, download });
+      files.push({ path: relative(dist, p).replaceAll('\\', '/'), raw, download });
     }
   }
 };

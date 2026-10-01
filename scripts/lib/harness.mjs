@@ -6,6 +6,8 @@ import { execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeFileSync } from 'node:fs';
+import { findChrome, launchChrome } from './cdp.mjs';
 
 export const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -24,7 +26,58 @@ export async function loadPlaywright() {
       // try the next place
     }
   }
-  return null;
+  // No Playwright: the same small surface on top of the system Chrome (cdp.mjs).
+  return findChrome() ? { chromium: { launch: launchShimBrowser }, shim: true } : null;
+}
+
+// Just the Playwright calls the dev scripts use: newContext/newPage, page.on
+// (console, pageerror, response), goto, mouse.click, evaluate, screenshot, close.
+async function launchShimBrowser() {
+  const chrome = await launchChrome();
+  return {
+    async newContext({ viewport = { width: 360, height: 640 }, deviceScaleFactor = 1 } = {}) {
+      let page = null;
+      return {
+        async newPage() {
+          const raw = await chrome.newPage({ width: viewport.width, height: viewport.height, dpr: deviceScaleFactor });
+          const handlers = { console: [], pageerror: [], response: [] };
+          const cdp = raw.cdp;
+          cdp.send('Network.enable');
+          cdp.on('Runtime.consoleAPICalled', (p) => {
+            const text = p.args.map((x) => x.value ?? x.description ?? '').join(' ');
+            for (const h of handlers.console) h({ type: () => (p.type === 'warning' ? 'warning' : p.type), text: () => text });
+          });
+          cdp.on('Runtime.exceptionThrown', (p) => {
+            for (const h of handlers.pageerror) h({ message: p.exceptionDetails.exception?.description || p.exceptionDetails.text });
+          });
+          cdp.on('Network.responseReceived', (p) => {
+            for (const h of handlers.response) h({ status: () => p.response.status, url: () => p.response.url });
+          });
+          page = {
+            on: (name, fn) => handlers[name]?.push(fn),
+            goto: (url) => raw.goto(url),
+            mouse: { click: (x, y) => raw.click(x, y) },
+            async evaluate(fn, arg) {
+              const expr = `(${fn.toString()})(${arg === undefined ? '' : JSON.stringify(arg)})`;
+              return raw.eval(expr);
+            },
+            async screenshot({ path } = {}) {
+              const data = await raw.screenshot({ format: 'png' });
+              if (path) writeFileSync(path, data);
+              return data;
+            },
+            close: async () => {},
+            __raw: raw,
+          };
+          return page;
+        },
+        async newCDPSession() {
+          return { send: (method, params) => page && page.__raw.cdp.send(method, params) };
+        },
+      };
+    },
+    close: () => chrome.close(),
+  };
 }
 
 // Vite dev server on a free port (dev build: window.__game / __battle exist).

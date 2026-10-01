@@ -175,6 +175,7 @@
       "textColor": "#f1efe8",
       "depth": 900
     },
+    "silhouette": { "x": 296, "bottomY": 336, "height": 210, "alpha": 0.9, "fadeMs": 1200, "tint": "0x000000", "depth": 5 },
     "portrait": {
       "leftX": 96,
       "rightX": 264,
@@ -217,8 +218,10 @@
     "nextBlinkAlpha": 0.2
   },
   "cutscene": {
-    "area": { "y": 56, "h": 344 },
-    "text": { "y": 428, "fontSize": 17, "color": "#f1efe8", "lineSpacing": 6, "wrap": 312 },
+    "area": { "y": 0, "h": 640 },
+    "gradient": { "y": 420, "color": "0x000000", "alpha": 0.9, "depth": 25 },
+    "pixelArtMaxW": 360,
+    "text": { "y": 506, "fontSize": 17, "color": "#f1efe8", "lineSpacing": 6, "wrap": 312 },
     "defaultDurationMs": 4500,
     "fadeOutMs": 500,
     "splitLine": 2,
@@ -229,7 +232,7 @@
       "fontSize": 12,
       "color": "#8a8fa3",
       "pad": 16,
-      "y": 576,
+      "y": 36,
       "showMs": 4000,
       "fadeMs": 600
     },
@@ -270,8 +273,8 @@
       "lights_out": { "startPct": 0.3, "ms": 1500, "steps": 5 },
       "dissolve_layer": { "startPct": 0.35, "ms": 1800, "steps": 8 },
       "eyes_glow": {
-        "at": [[0.44, 0.42], [0.56, 0.42]],
-        "radius": 8,
+        "at": [[0.3, 0.4], [0.69, 0.4]],
+        "radius": 26,
         "color": "0x3fd0c9",
         "alpha": 1,
         "delayMs": 600,

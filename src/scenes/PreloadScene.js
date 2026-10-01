@@ -19,6 +19,7 @@ export default class PreloadScene extends Phaser.Scene {
     const battleId = devBattleId();
     if (isAnimTest()) this.scene.start('AnimTest');
     else if (battleId) this.scene.start('Battle', { battleId });
+    else if (devParam('cutscene')) this.scene.start('Cutscene', { id: devParam('cutscene') });
     else if (devParam('step') !== null) ChapterRunner.start(this, chapter1);
     else this.scene.start('Title');
   }

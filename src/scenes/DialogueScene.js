@@ -35,6 +35,7 @@ export default class DialogueScene extends Phaser.Scene {
   init(data) {
     // Scene instances are reused (dialogue -> dialogue), so reset state here.
     this.finished = false;
+    this.silhouette = null;
     this.typing = false;
     this.typeEvent = null;
     this.dialogueId = data.id;
@@ -76,6 +77,17 @@ export default class DialogueScene extends Phaser.Scene {
     if (env.vignette) Fx.vignette(this, { ...env.vignette, depth: 0 }, area);
     // Fade the picture into the ink below it.
     this.add.rectangle(0, cfg.bg.size - cfg.bg.fadeH, 360, cfg.bg.fadeH, Number(ui.dialogue.box.fill), cfg.bg.fadeAlpha).setOrigin(0);
+  }
+
+  // A cutout (e.g. aurelian_exile) in black on the background: it fades in once
+  // and stays for the rest of the scene.
+  showSilhouette(key) {
+    if (this.silhouette || !this.textures.exists(key) || this.textures.get(key).customData.placeholder) return;
+    const s = cfg.silhouette;
+    const image = this.add.image(s.x, s.bottomY, key).setOrigin(0.5, 1).setDepth(s.depth).setTint(Number(s.tint)).setAlpha(0);
+    image.setScale(s.height / image.height);
+    this.tweens.add({ targets: image, alpha: s.alpha, duration: s.fadeMs });
+    this.silhouette = image;
   }
 
   buildPortraitSlot(side) {
@@ -142,6 +154,7 @@ export default class DialogueScene extends Phaser.Scene {
     this.nameText.setColor(cfg.nameColors[speaker] || cfg.nameColors.default);
 
     this.updatePortraits(line, style);
+    if (line.silhouette) this.showSilhouette(line.silhouette);
 
     this.fullText = line.text || '';
     this.shown = 0;
