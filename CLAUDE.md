@@ -105,7 +105,7 @@ New Game → ChapterRunner(chapter1.json) → EndScene → Menu
 ## Battle
 ### Layout (360×640)
 - **y 0–360:** scene. Background, heroes on the left facing right, enemies on the right facing left, baseline y ≈ 300.
-- **y 360–440:** party status (name, HP bar, shared Echo bar with 10 teal pips).
+- **y 360–440:** party status: per hero a name, HP bar and that hero's own Echo pips (10 teal).
 - **y 440–640:** command buttons in a 2×2 grid. During the enemy turn this whole lower area becomes the **tap zone**, with the hint "Tap when the ring closes".
 
 ### Turn state machine

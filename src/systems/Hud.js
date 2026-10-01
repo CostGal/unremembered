@@ -1,5 +1,6 @@
-// Battle HUD: party status rows (name + HP bar) and the shared Echo bar.
-// It only displays state. The battle owns HP/Echo and calls update(state).
+// Battle HUD: one block per hero (name + HP bar, and that hero's own Echo
+// pips underneath). It only displays state. The battle owns HP/Echo and
+// calls update(state).
 import statuses from '../data/statuses.json';
 import fragments from '../data/fragments.json';
 
@@ -19,7 +20,6 @@ export default class Hud {
       .setStrokeStyle(1, color(panel.borderColor));
 
     this.rows = heroes.map((hero, i) => this.buildRow(hero, config.rows.firstY + i * config.rows.spacing));
-    this.buildEcho();
     this.buildChain();
   }
 
@@ -47,24 +47,27 @@ export default class Hud {
     const row = { y, warn, bg, lag, fill, label, value, hp: hero.hp, maxHp: hero.maxHp, shown: { hp: hero.hp }, low: false, active: false, badges: [], badgeSig: '' };
     this.setBarWidths(row, hero.hp);
     this.setHpText(row, hero.hp);
+    this.buildEcho(row, hero.echoMax ?? this.cfg.echo.max);
     return row;
   }
 
-  buildEcho() {
+  // The hero's Echo pips, under their HP bar.
+  buildEcho(row, max) {
     const e = this.cfg.echo;
-    this.text(e.labelX, e.y, e.label, e.labelFontSize).setOrigin(0, 0.5);
-
-    this.pips = [];
-    for (let i = 0; i < e.max; i++) {
+    const y = row.y + e.offsetY;
+    row.echoLabel = this.text(e.labelX, y, e.label, e.labelFontSize).setOrigin(0, 0.5).setColor(e.labelColor);
+    row.pips = [];
+    for (let i = 0; i < max; i++) {
       const x = e.pipX + i * (e.pipW + e.pipGap) + e.pipW / 2;
       const glow = this.scene.add
-        .rectangle(x, e.y, e.pipW + e.glowPad * 2, e.pipH + e.glowPad * 2, color(e.fullColor))
+        .rectangle(x, y, e.pipW + e.glowPad * 2, e.pipH + e.glowPad * 2, color(e.fullColor))
         .setAlpha(0);
-      const pip = this.scene.add.rectangle(x, e.y, e.pipW, e.pipH, color(e.emptyColor));
-      this.pips.push({ pip, glow });
+      const pip = this.scene.add.rectangle(x, y, e.pipW, e.pipH, color(e.emptyColor));
+      row.pips.push({ pip, glow });
     }
-    this.echo = 0;
-    this.paintPips(0);
+    row.echo = 0;
+    row.echoMax = max;
+    this.paintPips(row, 0);
   }
 
   // "CHAIN xN" under the Echo bar: hidden at 0, pops on every step. Dropping
@@ -100,19 +103,19 @@ export default class Hud {
     return { x: c.x + this.chainText.width / 2, y: c.y };
   }
 
-  // state: {heroes: [{hp, maxHp, statuses: [{id, turns}]}], echo}
+  // state: {heroes: [{hp, maxHp, echo, echoMax, statuses: [{id, turns}]}]}
   update(state) {
     state.heroes.forEach((hero, i) => this.updateRow(this.rows[i], hero));
-    this.updateEcho(state.echo);
   }
 
   updateRow(row, hero) {
     if (!row) return;
     const { hpBar, rows } = this.cfg;
     const alpha = hero.hp > 0 ? 1 : rows.downedAlpha;
-    for (const obj of [row.bg, row.lag, row.fill, row.label, row.value]) obj.setAlpha(alpha);
+    for (const obj of [row.bg, row.lag, row.fill, row.label, row.value, row.echoLabel, ...row.pips.map((p) => p.pip)]) obj.setAlpha(alpha);
     this.setLow(row, hero.hp > 0 && hero.hp < hero.maxHp * this.cfg.lowHp.pct);
     this.setStatuses(row, hero.statuses || []);
+    this.updateEcho(row, hero.echo ?? 0);
 
     if (hero.hp === row.hp && hero.maxHp === row.maxHp) return;
     const dropped = hero.hp < row.hp;
@@ -199,9 +202,10 @@ export default class Hud {
     row.label.setColor(row.low ? this.cfg.lowHp.nameColor : row.active ? this.cfg.activeColor : this.cfg.textColor);
   }
 
-  // Centre of Echo pip i (for "+N" numbers).
-  pipPosition(i) {
-    const { pip } = this.pips[Math.max(0, Math.min(this.pips.length - 1, i))];
+  // Centre of hero row r's Echo pip i (for "+N" numbers).
+  pipPosition(r, i) {
+    const row = this.rows[Math.max(0, Math.min(this.rows.length - 1, r))];
+    const { pip } = row.pips[Math.max(0, Math.min(row.pips.length - 1, i))];
     return { x: pip.x, y: pip.y };
   }
 
@@ -217,21 +221,21 @@ export default class Hud {
     row.value.setText(`${hp}/${row.maxHp}`);
   }
 
-  updateEcho(value) {
+  updateEcho(row, value) {
     const e = this.cfg.echo;
-    const next = Math.max(0, Math.min(e.max, value));
-    if (next === this.echo) return;
+    const next = Math.max(0, Math.min(row.echoMax, value));
+    if (next === row.echo) return;
 
-    const lo = Math.min(this.echo, next);
-    const hi = Math.max(this.echo, next);
-    this.echo = next;
-    this.paintPips(next);
+    const lo = Math.min(row.echo, next);
+    const hi = Math.max(row.echo, next);
+    row.echo = next;
+    this.paintPips(row, next);
 
     // The pips that changed pulse; gained ones fill one after another,
     // flashing white before they settle on teal.
     const gained = next > lo && hi === next;
     for (let i = lo; i < hi; i++) {
-      const { pip } = this.pips[i];
+      const { pip } = row.pips[i];
       const delay = gained ? (i - lo) * e.fillStaggerMs : 0;
       this.scene.tweens.killTweensOf(pip);
       pip.setScale(1);
@@ -239,27 +243,27 @@ export default class Hud {
       if (!gained) continue;
       pip.setFillStyle(color(e.emptyColor)).setStrokeStyle(1, color(e.emptyStroke));
       this.scene.time.delayedCall(delay, () => {
-        if (i < this.echo) pip.setFillStyle(color(e.flashColor)).setStrokeStyle();
+        if (i < row.echo) pip.setFillStyle(color(e.flashColor)).setStrokeStyle();
       });
       this.scene.time.delayedCall(delay + e.pulseMs, () => {
-        if (i < this.echo) pip.setFillStyle(color(e.fullColor));
+        if (i < row.echo) pip.setFillStyle(color(e.fullColor));
       });
     }
 
-    this.setGlow(next === e.max);
+    this.setGlow(row, next === row.echoMax);
   }
 
-  paintPips(value) {
+  paintPips(row, value) {
     const e = this.cfg.echo;
-    this.pips.forEach(({ pip }, i) => {
+    row.pips.forEach(({ pip }, i) => {
       if (i < value) pip.setFillStyle(color(e.fullColor)).setStrokeStyle();
       else pip.setFillStyle(color(e.emptyColor)).setStrokeStyle(1, color(e.emptyStroke));
     });
   }
 
-  setGlow(on) {
+  setGlow(row, on) {
     const e = this.cfg.echo;
-    const glows = this.pips.map((p) => p.glow);
+    const glows = row.pips.map((p) => p.glow);
     this.scene.tweens.killTweensOf(glows);
     if (!on) {
       for (const g of glows) g.setAlpha(0);
@@ -276,17 +280,20 @@ export default class Hud {
     });
   }
 
-  // Dev only: invisible tap zones over each hero row and the Echo row.
+  // Dev only: invisible tap zones over each hero's HP line and Echo line.
   enableDebugTaps({ onHeroTap, onEchoTap }) {
-    const { panel, rows, echo } = this.cfg;
+    const { panel, echo } = this.cfg;
+    const h = echo.offsetY;
     const zone = (y, cb) =>
       this.scene.add
-        .zone(panel.x, y - rows.spacing / 2, panel.w, rows.spacing)
+        .zone(panel.x, y - h / 2, panel.w, h)
         .setOrigin(0, 0)
         .setInteractive()
         .on('pointerdown', cb);
 
-    this.rows.forEach((row, i) => zone(row.y, () => onHeroTap(i)));
-    zone(echo.y, onEchoTap);
+    this.rows.forEach((row, i) => {
+      zone(row.y, () => onHeroTap(i));
+      zone(row.y + echo.offsetY, () => onEchoTap(i));
+    });
   }
 }

@@ -2,7 +2,7 @@
   "strike": { "name": "Strike", "cost": 0, "type": "strike", "target": "enemy", "echoOnHit": 1 },
   "blast": {
     "name": "Blast",
-    "cost": 3,
+    "cost": 4,
     "type": "blast",
     "target": "enemy",
     "echoOnHit": 1,
@@ -19,7 +19,7 @@
   },
   "return_to_sender": {
     "name": "Return to Sender",
-    "cost": 2,
+    "cost": 3,
     "type": "counterStance",
     "counterDmg": [14, 18],
     "perfectMult": 1.5,
@@ -29,7 +29,7 @@
   },
   "anchor": {
     "name": "Anchor",
-    "cost": 3,
+    "cost": 4,
     "type": "heal",
     "anims": ["cast"],
     "amount": 25,
@@ -38,7 +38,7 @@
   },
   "brace": {
     "name": "Brace",
-    "cost": 2,
+    "cost": 3,
     "type": "brace",
     "anims": ["brace", "cast"],
     "damageMult": 0.5,

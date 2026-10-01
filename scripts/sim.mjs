@@ -135,12 +135,14 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const dmgTakenMult = story ? qte.storyMode.damageMult : 1;
   const think = D.sim.thinkMs[profileName];
 
-  const heroes = ['rhea', 'dov'].map((id) => ({ id, def: D.characters[id], hp: D.characters[id].hp, max: D.characters[id].hp, redacted: null }));
+  const heroes = ['rhea', 'dov'].map((id) => ({ id, def: D.characters[id], hp: D.characters[id].hp, max: D.characters[id].hp, redacted: null, echo: 0, echoMax: D.characters[id].echoMax ?? echoMax }));
   const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: D.enemies[id].hp, max: D.enemies[id].hp, phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false }));
 
   // A tutorial battle also costs the time to read its hint banners.
-  const st = { echo: 0, ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
-  const gain = (n) => (st.echo = Math.max(0, Math.min(echoMax, st.echo + n)));
+  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  // Echo is per hero (each has their own reserve).
+  const gain = (hero, n) => (hero.echo = Math.max(0, Math.min(hero.echoMax, hero.echo + n)));
+  const rhea = heroes[0];
   const living = (list) => list.filter((e) => e.hp > 0);
 
   // Perfect chain (qte.json chain): +stepPct% per step on every player hit; the
@@ -191,7 +193,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
       if (ev === 'keepsake_burn' && living(enemies).length) {
         st.keepsake = true;
         st.ms += T.keepsakeMs;
-        gain(echoMax);
+        gain(rhea, rhea.echoMax);
       }
     }
   };
@@ -210,8 +212,8 @@ function simulateBattle(battleId, profileName, story, rnd) {
     const hurt = heroes.filter((h) => h.hp > 0 && h.hp < h.max * D.sim.policy.anchorBelow);
 
     // Recollection when full.
-    if (hero.def.canUltimate && st.echo >= tech.recollection.cost) {
-      st.echo -= tech.recollection.cost;
+    if (hero.def.canUltimate && hero.echo >= tech.recollection.cost) {
+      hero.echo -= tech.recollection.cost;
       st.recollections += 1;
       const r = tech.recollection;
       for (let i = 0; i < r.taps && target.hp > 0; i++) {
@@ -221,13 +223,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
       st.ms += T.recollectionFadeMs * 2 + r.taps * (qte.recollection.ringMs + r.intervalMs);
       return;
     }
-    // Full Echo is kept for Rhea's Recollection (its button pulses).
-    const saving = hero.id !== 'rhea' && st.echo >= tech.recollection.cost && heroes[0].hp > 0;
-    const can = (id) => !saving && hero.def.techniques?.includes(id) && st.echo >= tech[id].cost && hero.redacted?.tech !== id;
+    const can = (id) => hero.def.techniques?.includes(id) && hero.echo >= tech[id].cost && hero.redacted?.tech !== id;
 
     if (hero.id === 'dov') {
       if ((down || hurt.length) && can('anchor')) {
-        st.echo -= tech.anchor.cost;
+        hero.echo -= tech.anchor.cost;
         const t = down || hurt.sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
         t.hp = Math.min(t.max, (t.hp > 0 ? t.hp : 0) + tech.anchor.amount);
         t.redacted = null; // Anchor clears statuses
@@ -235,16 +235,16 @@ function simulateBattle(battleId, profileName, story, rnd) {
         return;
       }
       const charging = enemies.some((e) => e.charge);
-      if (D.sim.policy.braceOnArchive && charging && can('brace') && st.echo - tech.brace.cost >= 0) {
-        st.echo -= tech.brace.cost;
+      if (D.sim.policy.braceOnArchive && charging && can('brace')) {
+        hero.echo -= tech.brace.cost;
         st.brace = tech.brace;
         st.ms += T.castMs;
         return;
       }
     }
     if (hero.id === 'rhea') {
-      if (can('blast') && st.echo >= D.sim.policy.blastAtEcho) {
-        st.echo -= tech.blast.cost;
+      if (can('blast') && hero.echo >= D.sim.policy.blastAtEcho) {
+        hero.echo -= tech.blast.cost;
         const b = tech.blast;
         let total = between(rnd, b.hits);
         let bolts = 0;
@@ -252,14 +252,14 @@ function simulateBattle(battleId, profileName, story, rnd) {
           const crit = rnd() < b.critChance && total < b.maxHits;
           if (crit) total += 1;
           hitEnemy(target, between(rnd, b.dmg), D.brk.sources.hit);
-          if (i === 0) gain(b.echoOnHit || 0);
+          if (i === 0) gain(hero, b.echoOnHit || 0);
           bolts += 1;
         }
         st.ms += sheetMs('rhea', 'blast', 900) + bolts * (b.boltFlightMs + b.boltIntervalMs);
         return;
       }
-      if (can('return_to_sender') && st.echo < (tech.blast?.cost ?? Infinity) && rnd() < D.sim.policy.returnToSenderChance) {
-        st.echo -= tech.return_to_sender.cost;
+      if (can('return_to_sender') && hero.echo < (tech.blast?.cost ?? Infinity) && rnd() < D.sim.policy.returnToSenderChance) {
+        hero.echo -= tech.return_to_sender.cost;
         st.stance = { hero, tech: tech.return_to_sender };
         st.ms += T.castMs;
         return;
@@ -267,7 +267,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
     }
     // Strike.
     hitEnemy(target, between(rnd, hero.def.strike), D.brk.sources.hit);
-    gain(tech.strike.echoOnHit);
+    gain(hero, tech.strike.echoOnHit);
     st.ms += T.dashMs * 2 + sheetMs(hero.id, 'attack', T.attackMs);
   };
 
@@ -324,8 +324,8 @@ function simulateBattle(battleId, profileName, story, rnd) {
         else if (res === 'MISS') st.chain = 0;
       }
       st.maxChain = Math.max(st.maxChain, st.chain);
-      gain(cfg.echo);
-      if (res === 'MISS' && hit.onMiss?.echo) gain(hit.onMiss.echo);
+      gain(target, cfg.echo);
+      if (res === 'MISS' && hit.onMiss?.echo) gain(target, hit.onMiss.echo);
       const dmg = Math.round(hit.dmg * cfg.damageMult * dmgTakenMult * (st.brace ? st.brace.damageMult : 1));
       st.damageTaken += Math.min(dmg, target.hp);
       target.hp = Math.max(0, target.hp - dmg);
@@ -357,7 +357,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
     for (const hero of heroes) {
       if (hero.hp <= 0) continue;
       playerTurn(hero);
-      st.echoCurve.push(st.echo);
+      st.echoCurve.push(rhea.echo);
       afterTurn();
       if (!living(enemies).length) return { ...st, win: true, ms: st.ms + T.victoryMs, grade: gradeOf() };
     }

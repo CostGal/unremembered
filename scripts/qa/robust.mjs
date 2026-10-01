@@ -119,8 +119,8 @@ await withBrowser(async ({ chrome, server }) => {
       await sleep(700);
     }
     await page.waitFor(`window.__done === true`, { timeout: 10000 });
-    const fin = await page.ev(`({ dmg: window.__dmg.slice(), echo: window.__battle.echo, hp: window.__battle.enemies[0].hp, hp0: window.__hp0 })`);
-    log(fin.dmg.length === 3 && fin.echo === 0, 'Recollection resumes and finishes: 3 rings judged in total, Echo → 0', JSON.stringify(fin));
+    const fin = await page.ev(`({ dmg: window.__dmg.slice(), echo: window.__battle.heroes[0].echo, hp: window.__battle.enemies[0].hp, hp0: window.__hp0 })`);
+    log(fin.dmg.length === 3 && fin.echo === 0, "Recollection resumes and finishes: 3 rings judged in total, Rhea's Echo → 0", JSON.stringify(fin));
     log(page.errors.length === 0, 'no console errors (Recollection hidden)', page.errors.slice(0, 2).join(' | '));
   }
 

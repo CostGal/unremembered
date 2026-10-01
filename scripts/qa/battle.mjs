@@ -88,19 +88,19 @@ await withBrowser(async ({ chrome, server }) => {
       await sleep(400);
     }
     // damage numbers: Echo gain per result
-    await page.ev(`window.__battle.echo = 0; window.__battle.refreshHud()`);
+    await page.ev(`window.__battle.heroes[0].echo = 0; window.__battle.refreshHud()`);
     await qteHit(page, [0]);
-    const e1 = await B(page, 'B.echo');
-    log(e1 === qte.results.PERFECT.echo, 'PERFECT gives +2 Echo', `echo ${e1}`);
+    const e1 = await B(page, 'B.heroes[0].echo');
+    log(e1 === qte.results.PERFECT.echo, `PERFECT gives +${qte.results.PERFECT.echo} Echo to the parrying hero`, `echo ${e1}`);
     await sleep(300);
-    await page.ev(`window.__battle.echo = 0`);
+    await page.ev(`window.__battle.heroes[0].echo = 0`);
     await qteHit(page, [150]);
-    const e2 = await B(page, 'B.echo');
-    log(e2 === qte.results.GOOD.echo, 'GOOD gives +1 Echo', `echo ${e2}`);
+    const e2 = await B(page, 'B.heroes[0].echo');
+    log(e2 === qte.results.GOOD.echo, `GOOD gives +${qte.results.GOOD.echo} Echo`, `echo ${e2}`);
     await sleep(300);
-    await page.ev(`window.__battle.echo = 0`);
+    await page.ev(`window.__battle.heroes[0].echo = 0`);
     await qteHit(page, []);
-    log((await B(page, 'B.echo')) === 0, 'MISS gives 0 Echo');
+    log((await B(page, 'B.heroes[0].echo')) === 0, 'MISS gives 0 Echo');
     // PERFECT counter: 4 damage to the enemy
     await sleep(500);
     const hp0 = await B(page, 'B.enemies[0].hp');
@@ -219,7 +219,8 @@ await withBrowser(async ({ chrome, server }) => {
     await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; B.applyHit(e, Math.ceil(e.maxHp * 0.06)); })()`);
     const phase = await B(page, 'B.enemies[0].phase');
     log(phase === 1, 'Keepsake: crossing 50% HP enters phase 2', `phase ${phase}`);
-    await page.ev(`window.__battle.hideCommandMenu(); window.__ke = window.__battle.afterTurn().then(() => { window.__keDone = true; })`);
+    // The expression must not evaluate to the promise: page.ev awaits one, and this one only settles after the taps below.
+    await page.ev(`window.__battle.hideCommandMenu(); window.__ke = window.__battle.afterTurn().then(() => { window.__keDone = true; }); null`);
     await sleep(800);
     const act = await page.scenes();
     const did = await page.ev(`(window.__game.scene.getScene('Dialogue') || {}).dialogueId`);
@@ -233,7 +234,7 @@ await withBrowser(async ({ chrome, server }) => {
       await sleep(260);
     }
     await sleep(800);
-    log(await B(page, 'B.echo === 10'), 'Keepsake: afterwards Echo = 10', `echo ${await B(page, 'B.echo')}`);
+    log(await B(page, 'B.heroes[0].echo === B.heroes[0].echoMax'), "Keepsake: afterwards Rhea's Echo is full", `echo ${await B(page, 'B.heroes[0].echo')}`);
     log(!(await page.ev(`window.__game.scene.isPaused('Battle')`)), 'Keepsake: the battle resumes');
     log(await B(page, 'B.canUltimate(B.heroes[0])'), 'Keepsake: Recollection becomes available to Rhea');
     await page.shot(join(out, 'keepsake_after.png'));
@@ -279,7 +280,8 @@ await withBrowser(async ({ chrome, server }) => {
     const page = await battle(chrome, server, 'boss_clerk');
     await waitMenu(page);
     // Rhea downed through real damage, then Dov casts Anchor (via the menu with real taps)
-    await page.ev(`(() => { const B = window.__battle; B.echo = 3; B.applyHit(B.heroes[0], 999); })()`);
+    // Echo is per hero: Dov needs his own for Anchor.
+    await page.ev(`(() => { const B = window.__battle; B.heroes.forEach((h) => (h.echo = h.echoMax)); B.applyHit(B.heroes[0], 999); })()`);
     await sleep(1200);
     const downed = await page.ev(`({ hp: window.__battle.heroes[0].hp, anim: window.__battle.heroes[0].body.anims.currentAnim && window.__battle.heroes[0].body.anims.currentAnim.key, frame: window.__battle.heroes[0].body.anims.currentFrame && window.__battle.heroes[0].body.anims.currentFrame.index - 1, playing: window.__battle.heroes[0].body.anims.isPlaying })`);
     log(downed.hp === 0 && downed.anim === 'rhea_death' && downed.frame === 9, 'Death: rhea_death plays and holds its last frame (holdLastFrame)', JSON.stringify(downed));
@@ -294,12 +296,12 @@ await withBrowser(async ({ chrome, server }) => {
     log(!!anchor, 'Dov technique menu offers Anchor', items.join(' '));
     await page.tap(...slots[anchor]);
     await page.waitFor(`window.__battle.heroes[0].hp > 0`, { timeout: 8000 });
-    const rv = await page.ev(`({ hp: window.__battle.heroes[0].hp, echo: window.__battle.echo, anim: window.__battle.heroes[0].body.anims.currentAnim.key })`);
+    const rv = await page.ev(`({ hp: window.__battle.heroes[0].hp, echo: window.__battle.heroes[0].echo, anim: window.__battle.heroes[0].body.anims.currentAnim.key })`);
     log(rv.hp === 25 && rv.anim === 'rhea_idle', 'Anchor revives the downed hero with 25 HP and she returns to idle', JSON.stringify(rv));
     await page.shot(join(out, 'anchor_revive.png'));
     // both down → lose → Retry
     await page.ev(`(() => { const B = window.__battle; B.hideCommandMenu(); B.heroes.forEach(h => B.applyHit(h, 9999)); })()`);
-    await page.ev(`window.__game.scene.getScene('Battle').echo = 7`);
+    await page.ev(`window.__game.scene.getScene('Battle').heroes[0].echo = 7`);
     await page.waitFor(`window.__battle.battleOver === true`, { timeout: 15000 });
     await sleep(2200);
     const msg = await page.ev(`window.__battle.children.list.filter(o => o.type === 'Text').map(o => o.text).filter(t => /memory fades|Retry/i.test(t))`);
@@ -308,8 +310,8 @@ await withBrowser(async ({ chrome, server }) => {
     await page.tap(...slots.retry);
     await sleep(2500);
     await waitMenu(page, 20000);
-    const snap = await page.ev(`({ hp: window.__battle.heroes.map(h => h.hp), max: window.__battle.heroes.map(h => h.maxHp), echo: window.__battle.echo, ehp: window.__battle.enemies.map(e => e.hp), emax: window.__battle.enemies.map(e => e.maxHp), over: window.__battle.battleOver, active: window.__battle.activeHero && window.__battle.activeHero.type })`);
-    log(snap.hp.every((h, i) => h === snap.max[i]) && snap.ehp.every((h, i) => h === snap.emax[i]) && snap.echo === 0 && !snap.over, 'Retry restores the battle-start snapshot (full HP, Echo as at start, enemy full)', JSON.stringify(snap));
+    const snap = await page.ev(`({ hp: window.__battle.heroes.map(h => h.hp), max: window.__battle.heroes.map(h => h.maxHp), echo: window.__battle.heroes.map(h => h.echo), ehp: window.__battle.enemies.map(e => e.hp), emax: window.__battle.enemies.map(e => e.maxHp), over: window.__battle.battleOver, active: window.__battle.activeHero && window.__battle.activeHero.type })`);
+    log(snap.hp.every((h, i) => h === snap.max[i]) && snap.ehp.every((h, i) => h === snap.emax[i]) && snap.echo.every((e) => e === 0) && !snap.over, 'Retry restores the battle-start snapshot (full HP, Echo as at start, enemy full)', JSON.stringify(snap));
     log(page.errors.length === 0, 'no console errors in down/retry', page.errors.slice(0, 2).join(' | '));
   }
 
@@ -332,9 +334,9 @@ await withBrowser(async ({ chrome, server }) => {
     const e1 = await page.ev(`({ x: window.__battle.enemies[1].container.x, y: window.__battle.enemies[1].container.y, hp: window.__battle.enemies[1].hp, hp0: window.__battle.enemies[0].hp })`);
     await page.tap(e1.x, e1.y - 20);
     await sleep(2200);
-    const d1 = await page.ev(`({ hp1: window.__battle.enemies[1].hp, hp0: window.__battle.enemies[0].hp, echo: window.__battle.echo })`);
+    const d1 = await page.ev(`({ hp1: window.__battle.enemies[1].hp, hp0: window.__battle.enemies[0].hp, echo: window.__battle.heroes[0].echo })`);
     log(d1.hp1 < e1.hp && d1.hp0 === e1.hp0, 'Tapping the 2nd enemy hits that one only (Rhea Strike)', `enemy1 ${e1.hp}→${d1.hp1}, enemy0 ${e1.hp0}→${d1.hp0}; echo ${d1.echo}`);
-    log(d1.echo === 1, 'Strike that lands gives +1 Echo', `echo ${d1.echo}`);
+    log(d1.echo === 1, 'Strike that lands gives +1 Echo to the striker', `echo ${d1.echo}`);
     // Dov's turn: Strike
     await waitMenu(page);
     const heroNow = await B(page, 'B.activeHero.type');

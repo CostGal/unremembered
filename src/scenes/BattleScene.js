@@ -116,8 +116,12 @@ export default class BattleScene extends Phaser.Scene {
 
     this.applyAmbientTint();
 
-    // ?echo=N starts the battle with N Echo (dev).
-    this.echo = Phaser.Math.Clamp((devInt('echo') ?? 0) + effectTotal(this.fragments, 'startEcho'), 0, ui.hud.echo.max);
+    // Each hero has their own Echo (characters.json echoMax, default
+    // ui.hud.echo.max). ?echo=N starts everyone with N (dev); Old Ticket adds to everyone.
+    for (const hero of this.heroes) {
+      hero.echoMax = hero.def.echoMax ?? ui.hud.echo.max;
+      hero.echo = Phaser.Math.Clamp((devInt('echo') ?? 0) + effectTotal(this.fragments, 'startEcho'), 0, hero.echoMax);
+    }
     // Perfect chain (qte.json chain). maxChain is read at the end of the battle (battle grade).
     this.chain = 0;
     this.maxChain = 0;
@@ -408,16 +412,15 @@ export default class BattleScene extends Phaser.Scene {
   // The single place the HUD learns about HP/Echo changes.
   refreshHud() {
     this.hud.update({
-      heroes: this.heroes.map((h) => ({ hp: h.hp, maxHp: h.maxHp, statuses: this.statusList(h) })),
-      echo: this.echo,
+      heroes: this.heroes.map((h) => ({ hp: h.hp, maxHp: h.maxHp, echo: h.echo, echoMax: h.echoMax, statuses: this.statusList(h) })),
     });
   }
 
-  // Dev build only: tap a hero row (or keys 1/2) to take HP, tap the Echo row
-  // (or E/Q) to change Echo. A downed hero's row tap restores full HP.
+  // Dev build only: tap a hero row (or keys 1/2) to take HP, tap a hero's Echo
+  // pips (or E/Q for the active hero, else Rhea) to change Echo. A downed
+  // hero's row tap restores full HP.
   enableHudDebug() {
     const { hpStep, echoStep, keys } = ui.debug;
-    const max = ui.hud.echo.max;
     const hurt = (i) => {
       const hero = this.heroes[i];
       if (!hero) return;
@@ -429,20 +432,22 @@ export default class BattleScene extends Phaser.Scene {
       }
       this.refreshHud();
     };
-    const addEcho = (d, wrap) => {
-      let next = this.echo + d;
-      if (wrap && next > max) next = 0;
-      this.echo = Math.max(0, Math.min(max, next));
+    const addEcho = (hero, d, wrap) => {
+      if (!hero) return;
+      let next = hero.echo + d;
+      if (wrap && next > hero.echoMax) next = 0;
+      hero.echo = Math.max(0, Math.min(hero.echoMax, next));
       this.refreshHud();
     };
+    const keyHero = () => this.activeHero || this.heroes[0];
 
-    this.hud.enableDebugTaps({ onHeroTap: hurt, onEchoTap: () => addEcho(echoStep, true) });
+    this.hud.enableDebugTaps({ onHeroTap: hurt, onEchoTap: (i) => addEcho(this.heroes[i], echoStep, true) });
     const kb = this.input.keyboard;
     if (!kb) return;
     kb.on(`keydown-${keys.hurtRhea}`, () => hurt(0));
     kb.on(`keydown-${keys.hurtDov}`, () => hurt(1));
-    kb.on(`keydown-${keys.echoUp}`, () => addEcho(echoStep, false));
-    kb.on(`keydown-${keys.echoDown}`, () => addEcho(-echoStep, false));
+    kb.on(`keydown-${keys.echoUp}`, () => addEcho(keyHero(), echoStep, false));
+    kb.on(`keydown-${keys.echoDown}`, () => addEcho(keyHero(), -echoStep, false));
   }
 
   revive(entity, hp) {
@@ -587,7 +592,7 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   canUltimate(hero) {
-    return !!hero.def.canUltimate && this.echo >= techniques.recollection.cost;
+    return !!hero.def.canUltimate && hero.echo >= techniques.recollection.cost;
   }
 
   techniqueItems(hero) {
@@ -597,7 +602,7 @@ export default class BattleScene extends Phaser.Scene {
       label: this.fogged(hero) ? statuses.fog.label : techniques[id].name,
       cost: techniques[id].cost,
       // Redacted: covered by a black bar and can't be used.
-      enabled: this.echo >= techniques[id].cost && !this.covered(hero, id),
+      enabled: hero.echo >= techniques[id].cost && !this.covered(hero, id),
       covered: this.covered(hero, id),
       value: id,
     }));
@@ -667,7 +672,7 @@ export default class BattleScene extends Phaser.Scene {
     this.showActiveHero(hero);
     this.hints.show('strike');
     const costs = (hero.def.techniques || []).map((id) => techniques[id].cost);
-    if (costs.length && this.echo >= Math.min(...costs)) this.hints.show('techniques');
+    if (costs.length && hero.echo >= Math.min(...costs)) this.hints.show('techniques');
     const action = await this.chooseAction(hero);
     this.hints.done('strike');
     this.hints.done('techniques');
@@ -675,7 +680,7 @@ export default class BattleScene extends Phaser.Scene {
     this.hideCommandMenu();
 
     const tech = techniques[action.techId];
-    this.spendEcho(tech.cost);
+    this.spendEcho(hero, tech.cost);
 
     if (action.kind === 'strike') await this.playerStrike(hero, action.target);
     else if (action.kind === 'ultimate') await this.playRecollection(hero, action.target);
@@ -1046,12 +1051,13 @@ export default class BattleScene extends Phaser.Scene {
     }
   }
 
-  // Keepsake: the battle pauses for a conversation, then Echo fills and the
-  // Recollection button pulses on Rhea's next turn.
+  // Keepsake: the battle pauses for a conversation, then Rhea's Echo fills
+  // and the Recollection button pulses on her next turn.
   async keepsakeBurn() {
     if (this.enemies.every((e) => e.hp <= 0)) return;
     await this.playDialogueOverlay(battleEvents.keepsake_burn.dialogue);
-    this.gainEcho(ui.hud.echo.max);
+    const rhea = this.heroes.find((h) => h.def.canUltimate) || this.heroes[0];
+    this.gainEcho(rhea, rhea.echoMax);
     const k = battleEvents.keepsake_burn;
     Fx.screenFlash(this, k.flash, qte.flashDepth);
   }
@@ -1273,14 +1279,15 @@ export default class BattleScene extends Phaser.Scene {
     if (hit.unparryable && input === 'tap') Fx.popText(this, x, y + qte.text.riseY, qte.unparryable.tapText, qte.unparryable.tapColor, qte.text);
     playSfx(result.toLowerCase());
     vibrate(cfg.vibrateMs);
-    if (result !== 'MISS') this.hints.show('echo');
+    if (cfg.echo > 0) this.hints.show('echo');
     // Before the counter below, so a PERFECT's own counter already gets the new step.
     // A PERFECT dodge leaves the chain as it is (cfg.chain 0).
     if (cfg.chain !== 0) this.updateChain(result);
-    this.gainEcho(cfg.echo + (result === 'PERFECT' ? effectTotal(this.fragments, 'perfectEchoBonus') : 0));
+    // The hero who parried earns the Echo (their own reserve).
+    this.gainEcho(hero, cfg.echo + (result === 'PERFECT' ? effectTotal(this.fragments, 'perfectEchoBonus') : 0));
     if (result === 'PERFECT') this.stats.perfects += 1;
-    // e.g. Siphon: a missed parry also drains Echo.
-    if (result === 'MISS' && hit.onMiss?.echo) this.gainEcho(hit.onMiss.echo);
+    // e.g. Siphon: a missed parry also drains the hero's Echo.
+    if (result === 'MISS' && hit.onMiss?.echo) this.gainEcho(hero, hit.onMiss.echo);
 
     const storyMult = this.registry.get('settings')?.storyMode ? qte.storyMode.damageMult : 1;
     const braceMult = this.brace ? this.brace.damageMult : 1;
@@ -1363,23 +1370,23 @@ export default class BattleScene extends Phaser.Scene {
     if (hero.hp > 0) hero.body.play(animKey(hero.type, 'idle'));
   }
 
-  // Gains show as a small teal "+N" over the pip they fill.
-  gainEcho(amount) {
-    if (!amount) return;
-    const before = this.echo;
-    this.echo = Phaser.Math.Clamp(this.echo + amount, 0, ui.hud.echo.max);
+  // Echo is per hero. Gains show as a small teal "+N" over the pip they fill.
+  gainEcho(hero, amount) {
+    if (!amount || !hero) return;
+    const before = hero.echo;
+    hero.echo = Phaser.Math.Clamp(hero.echo + amount, 0, hero.echoMax);
     this.refreshHud();
-    const gained = this.echo - before;
+    const gained = hero.echo - before;
     if (gained > 0) {
       playSfx('echo');
-      const pip = this.hud.pipPosition(this.echo - 1);
+      const pip = this.hud.pipPosition(this.heroes.indexOf(hero), hero.echo - 1);
       Fx.damageNumber(this, pip.x, pip.y + ui.damageNumbers.echoOffsetY, `+${gained}`, null, 'echo');
     }
   }
 
-  spendEcho(amount) {
-    if (!amount) return;
-    this.echo = Math.max(0, this.echo - amount);
+  spendEcho(hero, amount) {
+    if (!amount || !hero) return;
+    hero.echo = Math.max(0, hero.echo - amount);
     this.refreshHud();
   }
 
@@ -1406,7 +1413,7 @@ export default class BattleScene extends Phaser.Scene {
         await this.fireBolt(hero, target, tech);
         const dmg = Phaser.Math.Between(tech.dmg[0], tech.dmg[1]);
         this.applyHit(target, dmg, undefined, { type: crit ? 'crit' : 'normal', poise: brk.sources.hit });
-        if (i === 0) this.gainEcho(tech.echoOnHit);
+        if (i === 0) this.gainEcho(hero, tech.echoOnHit);
         if (crit) Fx.popText(this, target.container.x, target.container.y, tech.critText, tech.critColor, qte.text);
         await this.wait(tech.boltIntervalMs);
       }
@@ -1578,7 +1585,7 @@ export default class BattleScene extends Phaser.Scene {
     await this.playAttackAnim(hero, (i) => {
       if (i !== 0) return;
       this.applyHit(target, dmg, undefined, { poise: brk.sources.hit });
-      this.gainEcho(techniques.strike.echoOnHit);
+      this.gainEcho(hero, techniques.strike.echoOnHit);
     });
 
     await this.tweenPromise(hero.container, { x: restX }, DASH_DURATION_MS, 'Cubic.easeInOut');
