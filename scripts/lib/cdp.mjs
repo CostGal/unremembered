@@ -113,6 +113,18 @@ class Page {
     }
   }
 
+  // Raw mouse (for drags / swipes): type = mouseMoved | mousePressed | mouseReleased.
+  async mouse(type, x, y) {
+    this.lastX = x;
+    this.lastY = y;
+    await this.cdp.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' ? 'none' : 'left', buttons: type === 'mousePressed' ? 1 : 0, clickCount: type === 'mouseMoved' ? 0 : 1 });
+  }
+
+  // Runs `source` in every new document before the page's own scripts.
+  async addInitScript(source) {
+    await this.cdp.send('Page.addScriptToEvaluateOnNewDocument', { source });
+  }
+
   async setCpuThrottle(rate) {
     await this.cdp.send('Emulation.setCPUThrottlingRate', { rate });
   }

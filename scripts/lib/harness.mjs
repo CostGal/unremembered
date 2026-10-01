@@ -37,9 +37,12 @@ async function launchShimBrowser() {
   return {
     async newContext({ viewport = { width: 360, height: 640 }, deviceScaleFactor = 1 } = {}) {
       let page = null;
+      const initScripts = [];
       return {
+        addInitScript: async (fn, arg) => initScripts.push(`(${fn.toString()})(${arg === undefined ? '' : JSON.stringify(arg)})`),
         async newPage() {
           const raw = await chrome.newPage({ width: viewport.width, height: viewport.height, dpr: deviceScaleFactor });
+          for (const source of initScripts) await raw.addInitScript(source);
           const handlers = { console: [], pageerror: [], response: [] };
           const cdp = raw.cdp;
           cdp.send('Network.enable');
@@ -56,7 +59,15 @@ async function launchShimBrowser() {
           page = {
             on: (name, fn) => handlers[name]?.push(fn),
             goto: (url) => raw.goto(url),
-            mouse: { click: (x, y) => raw.click(x, y) },
+            mouse: {
+              click: (x, y) => raw.click(x, y),
+              move: async (x, y, { steps = 1 } = {}) => {
+                const [x0, y0] = [raw.lastX ?? x, raw.lastY ?? y];
+                for (let i = 1; i <= steps; i++) await raw.mouse('mouseMoved', x0 + ((x - x0) * i) / steps, y0 + ((y - y0) * i) / steps);
+              },
+              down: () => raw.mouse('mousePressed', raw.lastX ?? 0, raw.lastY ?? 0),
+              up: () => raw.mouse('mouseReleased', raw.lastX ?? 0, raw.lastY ?? 0),
+            },
             async evaluate(fn, arg) {
               const expr = `(${fn.toString()})(${arg === undefined ? '' : JSON.stringify(arg)})`;
               return raw.eval(expr);
