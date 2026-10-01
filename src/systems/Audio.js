@@ -40,15 +40,23 @@ export function unlockAudio() {
     musicBus.connect(master);
     sfxBus.connect(master);
     applyVolumes();
-    // iOS only unlocks after a sound starts inside the gesture.
-    const silent = ctx.createBufferSource();
-    silent.buffer = ctx.createBuffer(1, 1, 22050);
-    silent.connect(ctx.destination);
-    silent.start(0);
     document.addEventListener('visibilitychange', onVisibility);
     if (wantedMusic) playMusic(wantedMusic);
   }
-  if (ctx.state === 'suspended' && document.visibilityState !== 'hidden') ctx.resume().catch(() => {});
+  // Not running yet (first gesture), or 'interrupted' (iOS: a call, Siri, an
+  // app switch): resume inside this gesture. iOS also wants a sound started
+  // inside the gesture before it lets the context run.
+  if (ctx.state !== 'running' && document.visibilityState !== 'hidden') {
+    try {
+      const silent = ctx.createBufferSource();
+      silent.buffer = ctx.createBuffer(1, 1, 22050);
+      silent.connect(ctx.destination);
+      silent.start(0);
+    } catch (err) {
+      // nothing to do: resume() below is the real unlock
+    }
+    ctx.resume().catch(() => {});
+  }
   return ctx;
 }
 

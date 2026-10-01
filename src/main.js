@@ -46,8 +46,10 @@ const onSideways = () => {
 if (sideways.addEventListener) sideways.addEventListener('change', onSideways);
 else if (sideways.addListener) sideways.addListener(onSideways);
 
-// Dev params skip the Title tap, so any first tap also unlocks audio.
-document.addEventListener('pointerdown', () => unlockAudio(), { once: true });
+// Every tap (re)unlocks audio: the first one creates the context (dev params
+// skip the Title tap), later ones resume it after an iOS interruption (a call,
+// Siri, an app switch) that left it stopped, so the music comes back.
+document.addEventListener('pointerdown', () => unlockAudio());
 
 // ?music=<key>: one procedural track on its own with a tiny panel (loaded only then).
 if (devParam('music')) import('./systems/MusicPanel.js').then((m) => m.openMusicPanel(devParam('music')));

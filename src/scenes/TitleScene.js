@@ -24,8 +24,10 @@ export default class TitleScene extends Phaser.Scene {
   // set in type (ui.title), as before.
   build() {
     // The title track is wanted from here: it starts the moment audio unlocks
-    // (the first tap, or earlier where the browser allows) and carries on into the Menu.
+    // (the first tap, or right now where the browser already allows it) and
+    // carries on into the Menu without a restart.
     playSceneMusic('Title');
+    unlockAudio();
     const art = isRealTexture(this, 'title_bg');
     const hasLogo = isRealTexture(this, 'logo');
     const layout = art ? { ...cfg, ...cfg.art.layout } : cfg;
