@@ -16,46 +16,50 @@
     "nala": { "file": "sprites/nala.png", "w": 64, "h": 64, "faces": "right", "scale": 1 }
   },
   "portraits": {
-    "rhea_neutral": { "file": "portraits/rhea_neutral.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
-    "rhea_serious": { "file": "portraits/rhea_serious.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
+    "rhea_neutral": { "file": "portraits/rhea_neutral.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
+    "rhea_serious": { "file": "portraits/rhea_serious.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
     "rhea_confused": {
       "file": "portraits/rhea_confused.png",
-      "w": 418,
-      "h": 560,
+      "w": 299,
+      "h": 400,
       "faces": "right",
       "scale": 1
     },
     "rhea_determined": {
       "file": "portraits/rhea_determined.png",
-      "w": 418,
-      "h": 560,
+      "w": 299,
+      "h": 400,
       "faces": "right",
       "scale": 1
     },
-    "rhea_angry": { "file": "portraits/rhea_angry.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
-    "rhea_pained": { "file": "portraits/rhea_pained.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
-    "rhea_sad": { "file": "portraits/rhea_sad.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
-    "dov_neutral": { "file": "portraits/dov_neutral.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
-    "dov_warm": { "file": "portraits/dov_warm.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
-    "dov_worried": { "file": "portraits/dov_worried.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
-    "dov_fierce": { "file": "portraits/dov_fierce.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
-    "dov_sad": { "file": "portraits/dov_sad.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
-    "clerk_cold": { "file": "portraits/clerk_cold.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
-    "clerk_smug": { "file": "portraits/clerk_smug.png", "w": 418, "h": 560, "faces": "right", "scale": 1 },
+    "rhea_angry": { "file": "portraits/rhea_angry.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
+    "rhea_pained": { "file": "portraits/rhea_pained.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
+    "rhea_sad": { "file": "portraits/rhea_sad.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
+    "dov_neutral": { "file": "portraits/dov_neutral.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
+    "dov_warm": { "file": "portraits/dov_warm.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
+    "dov_worried": { "file": "portraits/dov_worried.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
+    "dov_fierce": { "file": "portraits/dov_fierce.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
+    "dov_sad": { "file": "portraits/dov_sad.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
+    "clerk_cold": { "file": "portraits/clerk_cold.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
+    "clerk_smug": { "file": "portraits/clerk_smug.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
     "clerk_furious": {
       "file": "portraits/clerk_furious.png",
-      "w": 418,
-      "h": 560,
+      "w": 299,
+      "h": 400,
       "faces": "right",
       "scale": 1
     },
     "clerk_desperate": {
       "file": "portraits/clerk_desperate.png",
-      "w": 418,
-      "h": 560,
+      "w": 299,
+      "h": 400,
       "faces": "right",
       "scale": 1
-    }
+    },
+    "nala_calm": { "file": "portraits/nala_calm.png", "w": 264, "h": 310, "displayHeight": 225, "faces": "right", "scale": 1 },
+    "nala_alert": { "file": "portraits/nala_alert.png", "w": 264, "h": 310, "displayHeight": 225, "faces": "right", "scale": 1 },
+    "nala_hissing": { "file": "portraits/nala_hissing.png", "w": 264, "h": 310, "displayHeight": 225, "faces": "right", "scale": 1 },
+    "nala_affectionate": { "file": "portraits/nala_affectionate.png", "w": 264, "h": 310, "displayHeight": 225, "faces": "right", "scale": 1 }
   },
   "backgrounds": {
     "street_rain": { "file": "bg/street_rain.png", "w": 360, "h": 360 },

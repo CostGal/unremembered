@@ -1,0 +1,114 @@
+{
+  "frame_size": [
+    128,
+    128
+  ],
+  "facing": "left",
+  "fx_colors": [
+    "#3fd0c9",
+    "#f1efe8"
+  ],
+  "animations": {
+    "idle": {
+      "sheet": "rhea_idle.png",
+      "frames": 4,
+      "loop": true,
+      "durations_ms": [
+        220,
+        200,
+        220,
+        200
+      ]
+    },
+    "walk": {
+      "sheet": "rhea_walk.png",
+      "frames": 8,
+      "loop": true,
+      "durations_ms": [
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110,
+        110
+      ]
+    },
+    "run": {
+      "sheet": "rhea_run.png",
+      "frames": 8,
+      "loop": true,
+      "durations_ms": [
+        75,
+        75,
+        75,
+        75,
+        75,
+        75,
+        75,
+        75
+      ]
+    },
+    "attack": {
+      "sheet": "rhea_attack.png",
+      "frames": 6,
+      "loop": false,
+      "durations_ms": [
+        110,
+        160,
+        70,
+        90,
+        110,
+        160
+      ]
+    },
+    "cast": {
+      "sheet": "rhea_cast.png",
+      "frames": 6,
+      "loop": false,
+      "durations_ms": [
+        110,
+        100,
+        100,
+        90,
+        90,
+        140
+      ]
+    },
+    "hurt": {
+      "sheet": "rhea_hurt.png",
+      "frames": 3,
+      "loop": false,
+      "durations_ms": [
+        60,
+        130,
+        160
+      ]
+    },
+    "death": {
+      "sheet": "rhea_death.png",
+      "frames": 6,
+      "loop": false,
+      "durations_ms": [
+        110,
+        120,
+        240,
+        80,
+        140,
+        900
+      ]
+    },
+    "victory": {
+      "sheet": "rhea_victory.png",
+      "frames": 4,
+      "loop": true,
+      "durations_ms": [
+        180,
+        160,
+        160,
+        180
+      ]
+    }
+  }
+}

@@ -210,9 +210,11 @@ export default class DialogueScene extends Phaser.Scene {
     if (slot.key !== key) {
       slot.image.setTexture(this.textures.exists(key) ? key : '__MISSING');
       const p = cfg.portrait;
-      slot.image.setScale(p.height / slot.image.height);
+      const def = this.registry.get('manifest')?.portraits?.[key];
+      // Display height comes from data: the entry's own displayHeight, else the shared one.
+      slot.image.setScale((def?.displayHeight || p.height) / slot.image.height);
       // Portraits are drawn facing right; the right-hand side faces left.
-      const faces = this.registry.get('manifest')?.portraits?.[key]?.faces || 'right';
+      const faces = def?.faces || 'right';
       const wantFaces = slot.side === 'left' ? 'right' : 'left';
       // A placeholder's label stays readable.
       const placeholder = !!this.textures.get(slot.image.texture.key).customData.placeholder;
