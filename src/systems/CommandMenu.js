@@ -2,7 +2,7 @@ import { pressButton } from './Button.js';
 
 // The command buttons in the lower screen (2×2 grid, slots from ui.json).
 // show(items) draws one button per item and resolves with the tapped item's
-// value. items: [{slot, label, cost?, enabled?, pulse?, value}]
+// value. items: [{slot, label, cost?, enabled?, covered?, pulse?, value}]
 // A Back item is just an item whose value is null.
 
 export default class CommandMenu {
@@ -83,6 +83,12 @@ export default class CommandMenu {
         })
         .setOrigin(0.5);
       container.add(cost);
+    }
+
+    // Redacted: a black bar over the name and cost.
+    if (item.covered) {
+      const bar = this.scene.add.rectangle(0, 0, b.coverW, b.coverH, Number(b.coverFill)).setStrokeStyle(1, Number(b.coverStroke));
+      container.add(bar);
     }
 
     if (enabled) {

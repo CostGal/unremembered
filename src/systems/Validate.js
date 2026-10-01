@@ -94,6 +94,11 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
         }
       }
     }
+    for (const a of lists.flatMap(([, attacks]) => attacks || [])) {
+      for (const hit of a.hits || [a]) {
+        if (hit.onMiss?.status && !data.statuses?.[hit.onMiss.status]) err(`enemies.${id}.${a.id}: onMiss status "${hit.onMiss.status}" is not in statuses.json`);
+      }
+    }
     for (const p of e.phases || []) {
       if (p.onEnter && !BATTLE_EVENTS.includes(p.onEnter)) err(`enemies.${id}: unknown phase event "${p.onEnter}"`);
     }

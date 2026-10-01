@@ -19,6 +19,7 @@
       "lagTweenMs": 400
     },
     "hpText": { "x": 344, "fontSize": 12 },
+    "statusBadge": { "x": 270, "w": 16, "h": 12, "gap": 2, "fontSize": 10, "fill": "0x0b0d14", "strokeAlpha": 1, "popScale": 1.4, "popMs": 160 },
     "echo": {
       "y": 422,
       "max": 10,
@@ -90,7 +91,11 @@
       "pulseMs": 420,
       "pressScale": 0.93,
       "pressMs": 60,
-      "pressFill": "0x34384c"
+      "pressFill": "0x34384c",
+      "coverFill": "0x000000",
+      "coverStroke": "0x5a5f73",
+      "coverW": 132,
+      "coverH": 46
     },
     "slots": {
       "strike": [94, 486],
@@ -443,7 +448,8 @@
       "echo": { "text": "Good timing charges Echo" },
       "techniques": { "text": "Techniques spend Echo" },
       "chain": { "text": "Chain PERFECTs for bonus damage", "always": true },
-      "break": { "text": "Empty its pips to BREAK it", "always": true }
+      "break": { "text": "Empty its pips to BREAK it", "always": true },
+      "status": { "text": "Statuses fade. Anchor clears them", "always": true }
     }
   },
   "activeHero": { "color": "0x3fd0c9", "size": 7, "gapY": 6, "bobPx": 3, "bobMs": 380, "depth": 905, "nameColor": "#3fd0c9" },

@@ -6,6 +6,7 @@ import environments from '../data/environments.json';
 import allies from '../data/allies.json';
 import battleEvents from '../data/battleEvents.json';
 import brk from '../data/break.json';
+import statuses from '../data/statuses.json';
 import qte from '../data/qte.json';
 import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
@@ -351,6 +352,8 @@ export default class BattleScene extends Phaser.Scene {
     };
 
     this.updateLabel(entity);
+    // Memory statuses (statuses.json): {id: {turns, tech}} on heroes.
+    if (isHero) entity.statuses = {};
     // Poise (break.json): pips under the name; at 0 the enemy is BROKEN.
     if (!isHero && def.poise) {
       entity.poise = def.poise;
@@ -385,7 +388,7 @@ export default class BattleScene extends Phaser.Scene {
   // The single place the HUD learns about HP/Echo changes.
   refreshHud() {
     this.hud.update({
-      heroes: this.heroes.map((h) => ({ hp: h.hp, maxHp: h.maxHp })),
+      heroes: this.heroes.map((h) => ({ hp: h.hp, maxHp: h.maxHp, statuses: this.statusList(h) })),
       echo: this.echo,
     });
   }
@@ -434,6 +437,10 @@ export default class BattleScene extends Phaser.Scene {
   // Downed: the death sheet plays once and holds its last frame. Without one,
   // the entity freezes and dims.
   markDown(entity) {
+    if (entity.isHero) {
+      entity.statuses = {};
+      this.refreshHud();
+    }
     if (entity.bobTween) entity.bobTween.stop();
     if (entity.label) this.tweens.add({ targets: entity.label, alpha: 0, duration: ui.downed.enemyFadeMs });
     if (entity.poiseBar) {
@@ -521,19 +528,21 @@ export default class BattleScene extends Phaser.Scene {
   // Resolves {kind: 'strike' | 'technique' | 'ultimate', techId, target}.
   async chooseAction(hero) {
     const labels = ui.commands.labels;
+    // Fog: the command names read "???" (the buttons still work).
+    const name = (label) => (this.fogged(hero) ? statuses.fog.label : label);
     while (true) {
       const main = [
-        { slot: 'strike', label: labels.strike, value: 'strike', pulse: this.hints.isShowing('strike') },
+        { slot: 'strike', label: name(labels.strike), value: 'strike', pulse: this.hints.isShowing('strike') },
         {
           slot: 'technique',
-          label: labels.technique,
+          label: name(labels.technique),
           value: 'technique',
-          enabled: (hero.def.techniques || []).length > 0,
+          enabled: (hero.def.techniques || []).some((id) => !this.covered(hero, id)),
           pulse: this.hints.isShowing('techniques'),
         },
       ];
       if (this.canUltimate(hero)) {
-        main.push({ slot: 'recollection', label: labels.recollection, value: 'ultimate', pulse: true });
+        main.push({ slot: 'recollection', label: name(labels.recollection), value: 'ultimate', pulse: true });
       }
       const pick = await this.menu.show(main);
 
@@ -565,9 +574,11 @@ export default class BattleScene extends Phaser.Scene {
     const slots = ui.commands.techniqueSlots;
     const items = (hero.def.techniques || []).slice(0, slots.length).map((id, i) => ({
       slot: slots[i],
-      label: techniques[id].name,
+      label: this.fogged(hero) ? statuses.fog.label : techniques[id].name,
       cost: techniques[id].cost,
-      enabled: this.echo >= techniques[id].cost,
+      // Redacted: covered by a black bar and can't be used.
+      enabled: this.echo >= techniques[id].cost && !this.covered(hero, id),
+      covered: this.covered(hero, id),
       value: id,
     }));
     items.push({ slot: 'back', label: ui.commands.labels.back, value: null });
@@ -649,6 +660,7 @@ export default class BattleScene extends Phaser.Scene {
     if (action.kind === 'strike') await this.playerStrike(hero, action.target);
     else if (action.kind === 'ultimate') await this.playRecollection(hero, action.target);
     else await this.runTechnique(hero, action.techId, action.target);
+    this.tickStatuses(hero);
   }
 
   // The hero whose turn it is: a bobbing marker over their head and their
@@ -1208,6 +1220,8 @@ export default class BattleScene extends Phaser.Scene {
     if (dodge && hero.hp > 0) this.playReaction(hero, 'dodge');
     if (dmg > 0 && this.brace) Fx.popText(this, x, y + qte.text.riseY, this.brace.blockText, this.brace.color, qte.text);
     if (cfg.knockback && hero.hp > 0) Fx.knockback(this, hero.container, hero.facing === 'right' ? -cfg.knockback : cfg.knockback);
+    // e.g. Redact: a missed parry also leaves a memory status.
+    if (result === 'MISS' && hit.onMiss?.status && Math.random() < (hit.onMiss.chance ?? 1)) this.applyStatus(hero, hit.onMiss.status);
 
     if (result === 'PERFECT') {
       Fx.sparks(this, x, y + qte.ring.offsetY, cfg.sparks, qte.sparks, qte.ring.depth);
@@ -1429,6 +1443,8 @@ export default class BattleScene extends Phaser.Scene {
       if (target.hp <= 0) this.revive(target, Math.min(target.maxHp, tech.amount));
       else target.hp += amount;
       Fx.damageNumber(this, target.container.x, target.container.y - 80, `${ui.heal.textPrefix}${Math.min(tech.amount, target.maxHp)}`, null, 'heal');
+      // Anchor also clears the target's statuses.
+      if (this.clearStatuses(target)) Fx.popText(this, target.container.x, target.container.y, statuses.ui.clearedText, statuses.ui.clearedColor, qte.text);
       this.refreshHud();
     });
   }
@@ -1594,6 +1610,55 @@ export default class BattleScene extends Phaser.Scene {
 
     if (target.hp <= 0) this.markDown(target);
     else if (react) this.playHurt(target);
+  }
+
+  // ---------- Memory statuses ----------
+
+  // statuses.json: Redacted covers one of the hero's techniques, Fog hides the
+  // command names. turns = the hero's own turns left (they tick after each turn).
+  applyStatus(hero, id) {
+    const def = statuses[id];
+    if (!def || !hero.isHero || hero.hp <= 0) return;
+    let tech = hero.statuses[id]?.tech;
+    if (def.effect === 'cover' && !tech) {
+      const pool = hero.def.techniques || [];
+      if (!pool.length) return;
+      tech = Phaser.Utils.Array.GetRandom(pool);
+    }
+    hero.statuses[id] = { turns: def.turns, tech };
+    Fx.popText(this, hero.container.x, hero.container.y, def.applyText, def.color, qte.text);
+    this.hints.show('status');
+    this.refreshHud();
+  }
+
+  tickStatuses(hero) {
+    const ids = Object.keys(hero.statuses);
+    if (!ids.length) return;
+    for (const id of ids) {
+      hero.statuses[id].turns -= 1;
+      if (hero.statuses[id].turns <= 0) delete hero.statuses[id];
+    }
+    this.refreshHud();
+  }
+
+  // Returns true if there was anything to clear.
+  clearStatuses(hero) {
+    if (!Object.keys(hero.statuses).length) return false;
+    hero.statuses = {};
+    this.refreshHud();
+    return true;
+  }
+
+  statusList(hero) {
+    return Object.entries(hero.statuses || {}).map(([id, s]) => ({ id, turns: s.turns }));
+  }
+
+  fogged(hero) {
+    return Object.keys(hero.statuses).some((id) => statuses[id].effect === 'fog');
+  }
+
+  covered(hero, techId) {
+    return Object.entries(hero.statuses).some(([id, s]) => statuses[id].effect === 'cover' && s.tech === techId);
   }
 
   // ---------- Break gauge ----------
