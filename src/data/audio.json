@@ -38,6 +38,12 @@
       { "type": "noise", "ms": 120, "gain": 0.45, "filterHz": 500 },
       { "type": "osc", "wave": "sine", "from": 140, "to": 45, "ms": 200, "gain": 0.5 }
     ],
+    "thunder": [
+      { "type": "noise", "ms": 1900, "gain": 0.5, "filterHz": 220 },
+      { "type": "noise", "ms": 700, "gain": 0.22, "filterHz": 650 },
+      { "type": "noise", "ms": 1500, "gain": 0.3, "filterHz": 180, "delayMs": 350 },
+      { "type": "osc", "wave": "sine", "from": 75, "to": 32, "ms": 1700, "gain": 0.3 }
+    ],
     "break": [
       { "type": "noise", "ms": 220, "gain": 0.4, "filterHz": 900 },
       { "type": "osc", "wave": "square", "from": 520, "to": 90, "ms": 260, "gain": 0.2 },

@@ -186,6 +186,8 @@ export default class BattleScene extends Phaser.Scene {
     if (env.lights) Fx.lights(this, env.lights);
     if (env.rain) Fx.rain(this, env.rain, area);
     if (env.vignette) Fx.vignette(this, env.vignette, area);
+    // Lightning waits for a quiet moment: never while a parry ring is live.
+    if (env.lightning) this.lightning = Fx.lightning(this, env.lightning, area, () => (this.qteRings?.size || 0) > 0);
   }
 
   // Night (or lamp) light on every combatant, so they sit in the scene.

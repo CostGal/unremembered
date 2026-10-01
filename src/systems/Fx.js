@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import ui from '../data/ui.json';
+import { playSfx } from './Audio.js';
 
 // Floating text stays this far from the screen edges (CLAUDE.md: 16px).
 const EDGE_PAD = 16;
@@ -272,6 +273,33 @@ export function sparks(scene, x, y, count, cfg, depth) {
   emitter.setDepth(depth);
   emitter.explode(count);
   scene.time.delayedCall(cfg.lifeMs + 50, () => emitter.destroy());
+}
+
+// Now and then a flash of lightning over the scene area and, a moment later,
+// thunder (a procedural SFX). cfg = environments.json lightning. busy() = true
+// holds the strike back (e.g. while a parry ring is live). Returns {strike}.
+export function lightning(scene, cfg, area, busy = () => false) {
+  const f = cfg.flash;
+  const rect = scene.add.rectangle(area.x, area.y, area.w, area.h, Number(f.color)).setOrigin(0).setDepth(cfg.depth).setAlpha(0);
+  const pulse = (alpha, ms) => {
+    scene.tweens.killTweensOf(rect);
+    rect.setAlpha(alpha);
+    scene.tweens.add({ targets: rect, alpha: 0, duration: ms });
+  };
+
+  const strike = () => {
+    if (busy()) {
+      scene.time.delayedCall(cfg.retryMs, strike);
+      return;
+    }
+    pulse(f.alpha, f.ms);
+    if (f.flicker) scene.time.delayedCall(f.ms + f.flicker.gapMs, () => pulse(f.flicker.alpha, f.flicker.ms));
+    scene.time.delayedCall(Phaser.Math.Between(...cfg.thunder.delayMs), () => playSfx(cfg.thunder.sfx));
+    next(cfg.gapMs);
+  };
+  const next = (range) => scene.time.delayedCall(Phaser.Math.Between(...range), strike);
+  next(cfg.firstMs);
+  return { strike };
 }
 
 // A word that pops above a character and drifts up. cfg = {fontSize, offsetY, riseY, ms, depth}
