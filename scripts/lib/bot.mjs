@@ -96,7 +96,8 @@ export class Bot {
     else if (has('Dialogue')) await this.tapOnce(180, 560, 200);
     else if (has('Cutscene')) await this.tapOnce(180, 480, 250);
     else if (has('Title')) await this.tapOnce(180, ui.title.tap.y, 500);
-    else if (has('Menu')) await this.tapOnce(180, st.menuPanel ? ui.menu.difficulty.normal.y : ui.menu.firstY, 800);
+    // The difficulty panel asks on every New Game: pick the second entry (Normal).
+    else if (has('Menu')) await this.tapOnce(180, st.menuPanel ? ui.menu.difficulty.firstY + ui.menu.difficulty.spacing : ui.menu.firstY, 800);
     else if (has('End')) await this.tapOnce(180, 600, 800);
     return st;
   }

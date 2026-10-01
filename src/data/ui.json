@@ -1,6 +1,6 @@
 {
   "font": "\"Pixelify Sans\", monospace",
-  "view": { "designW": 360, "designH": 640, "maxW": 420 },
+  "view": { "designW": 360, "designH": 640, "maxW": 448 },
   "fonts": {
     "default": "pixelify",
     "loadTimeoutMs": 1000,
