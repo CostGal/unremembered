@@ -459,6 +459,8 @@ export default class BattleScene extends Phaser.Scene {
     if (entity.isHero) {
       entity.statuses = {};
       this.refreshHud();
+      // A downed hero drops her guard: no counter stance survives a KO.
+      if (this.stance?.hero === entity) this.endStance(false);
     }
     if (entity.bobTween) entity.bobTween.stop();
     if (entity.label) this.tweens.add({ targets: entity.label, alpha: 0, duration: ui.downed.enemyFadeMs });
@@ -595,13 +597,20 @@ export default class BattleScene extends Phaser.Scene {
       slot: slots[i],
       label: this.fogged(hero) ? statuses.fog.label : techniques[id].name,
       cost: techniques[id].cost,
-      // Redacted: covered by a black bar and can't be used.
-      enabled: this.echo >= techniques[id].cost && !this.covered(hero, id),
+      // Redacted: covered by a black bar and can't be used. A heal is greyed
+      // while nobody needs it (no Echo wasted on a full party).
+      enabled: this.echo >= techniques[id].cost && !this.covered(hero, id) && this.healHasTarget(techniques[id]),
       covered: this.covered(hero, id),
       value: id,
     }));
     items.push({ slot: 'back', label: ui.commands.labels.back, value: null });
     return items;
+  }
+
+  // A heal technique has someone to help: a hurt hero, or a downed one if it revives.
+  healHasTarget(tech) {
+    if (tech.type !== 'heal') return true;
+    return this.heroes.some((h) => (h.hp > 0 && h.hp < h.maxHp) || (h.hp <= 0 && tech.canRevive));
   }
 
   // One living enemy = automatic. Otherwise tap a highlighted enemy, or Back (→ null).
@@ -1146,12 +1155,14 @@ export default class BattleScene extends Phaser.Scene {
 
   // One ring at a time, each with its own "1/3" counter and feedback; the next
   // one starts intervalMs after the previous ring's impact, so they never
-  // overlap. An app switch restarts the ring that was running.
+  // overlap. An app switch restarts the ring that was running. When a ring
+  // kills the target, the remaining rings move to the next living enemy; with
+  // none left the sequence ends early.
   async recollectionRings(target, tech) {
     const r = qte.recollection;
     const ringCfg = { ...qte.ring, color: r.ringColor, targetColor: r.ringColor };
-    const x = target.container.x;
-    const y = target.container.y + qte.ring.offsetY;
+    let x = target.container.x;
+    let y = target.container.y + qte.ring.offsetY;
     const c = r.counter;
     const counter = this.add
       .text(x, y - qte.ring.startRadius - c.gap, '', {
@@ -1165,6 +1176,14 @@ export default class BattleScene extends Phaser.Scene {
       .setDepth(qte.ring.depth);
 
     for (let i = 0; i < tech.taps; i++) {
+      if (target.hp <= 0) {
+        const next = this.enemies.find((e) => e.hp > 0);
+        if (!next) break;
+        target = next;
+        x = target.container.x;
+        y = target.container.y + qte.ring.offsetY;
+        counter.setPosition(x, y - qte.ring.startRadius - c.gap);
+      }
       counter.setText(r.counter.text.replace('{i}', i + 1).replace('{n}', tech.taps));
       this.tweens.add({ targets: counter, scale: { from: r.counter.popScale, to: 1 }, duration: r.counter.popMs, ease: 'Back.easeOut' });
       let ring;
@@ -1501,10 +1520,12 @@ export default class BattleScene extends Phaser.Scene {
     if (!target) return;
 
     await this.playMove(hero, tech.anims || ['cast'], () => {
-      const amount = Math.min(tech.amount, target.maxHp - target.hp);
+      // The number shown is what was really restored (for a revive, the revive HP).
+      const before = Math.max(0, target.hp);
       if (target.hp <= 0) this.revive(target, Math.min(target.maxHp, tech.amount));
-      else target.hp += amount;
-      Fx.damageNumber(this, target.container.x, target.container.y - 80, `${ui.heal.textPrefix}${Math.min(tech.amount, target.maxHp)}`, null, 'heal');
+      else target.hp = Math.min(target.maxHp, target.hp + tech.amount);
+      const healed = target.hp - before;
+      Fx.damageNumber(this, target.container.x, target.container.y - 80, `${ui.heal.textPrefix}${healed}`, null, 'heal');
       // Anchor also clears the target's statuses.
       if (this.clearStatuses(target)) Fx.popText(this, target.container.x, target.container.y, statuses.ui.clearedText, statuses.ui.clearedColor, qte.text);
       this.refreshHud();
