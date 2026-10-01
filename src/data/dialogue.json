@@ -3,7 +3,7 @@
     { "speaker": null, "style": "narration", "text": "I wake up with a letter in my hand.", "portrait": null, "todo": true },
     { "speaker": null, "style": "narration", "text": "The handwriting is mine. I don't remember writing it.", "portrait": null, "todo": true },
     { "speaker": null, "style": "letter", "text": "Trust Dov.\nYou won't remember why.", "portrait": null, "todo": true },
-    { "speaker": null, "style": "letter", "text": "Yesterday I delivered a parcel to the Records Office. I saw the Ledger. The next name was Dov's.\nI'm writing this before nightfall. — R.", "portrait": null, "todo": true },
+    { "speaker": null, "style": "letter", "text": "At the Records Office I saw the Ledger. Next: Dov's name.\nWritten before nightfall. — R.", "portrait": null, "todo": true },
     { "speaker": null, "style": "narration", "text": "Who is Dov?", "portrait": null, "todo": true }
   ],
   "meet_dov": [
@@ -14,7 +14,7 @@
     { "speaker": "Rhea", "style": "normal", "text": "I don't have a brother.", "portrait": "rhea_serious", "todo": true },
     { "speaker": "Dov", "style": "normal", "text": "You do. Since last night, you just can't remember him.", "portrait": "dov_sad", "todo": true },
     { "speaker": "Rhea", "style": "normal", "text": "That's what every liar in Veyra says to a courier.", "portrait": "rhea_angry", "todo": true },
-    { "speaker": null, "style": "narration", "text": "A calico cat darts out of the alley, straight past Rhea, and leaps into the stranger's arms.", "portrait": null, "todo": true },
+    { "speaker": null, "style": "narration", "text": "A calico cat darts out of the alley, past Rhea, and leaps into the stranger's arms.", "portrait": null, "todo": true },
     { "speaker": "Dov", "style": "normal", "text": "Nala. Hey, girl. You still know me, don't you?", "portrait": "dov_warm", "todo": true },
     { "speaker": "Rhea", "style": "normal", "text": "She's never let anyone hold her. Not even me.", "portrait": "rhea_confused", "todo": true },
     { "speaker": "Dov", "style": "normal", "text": "Animals don't live in the Reliquary. It can't take me from her.", "portrait": "dov_warm", "todo": true },
@@ -25,7 +25,7 @@
   ],
   "after_b1": [
     { "speaker": "Rhea", "style": "normal", "text": "What did you mean... they took you last night?", "portrait": "rhea_serious", "todo": true },
-    { "speaker": "Dov", "style": "normal", "text": "Every night the King takes one of us. Last night it was me. Everyone I ever met forgot me at once.", "portrait": "dov_sad", "todo": true },
+    { "speaker": "Dov", "style": "normal", "text": "Every night the King takes one of us. Last night it was me. Everyone I knew forgot me.", "portrait": "dov_sad", "todo": true },
     { "speaker": "Dov", "style": "normal", "text": "Including you.", "portrait": "dov_sad", "todo": true },
     { "speaker": "Rhea", "style": "normal", "text": "The letter. I saw the Ledger at the Records Office. Your name was on it.", "portrait": "rhea_serious", "todo": true },
     { "speaker": "Dov", "style": "normal", "text": "The Ledger lists who goes next. If we steal it before tonight...", "portrait": "dov_fierce", "todo": true },
