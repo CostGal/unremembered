@@ -8,7 +8,7 @@ import battleEvents from '../data/battleEvents.json';
 import qte from '../data/qte.json';
 import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
-import { playMusic, playSfx, vibrate } from '../systems/Audio.js';
+import { playMusic, playSfx, setMusicIntensity, setMusicWarm, vibrate } from '../systems/Audio.js';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
 import CommandMenu from '../systems/CommandMenu.js';
@@ -70,6 +70,8 @@ export default class BattleScene extends Phaser.Scene {
     this.nala = null;
     this.setTimeScale(1);
     playMusic(this.battleDef.music || null);
+    setMusicIntensity(0);
+    setMusicWarm(false);
     this.tutorialSlow = !!this.battleDef.tutorial;
     this.pendingEvents = [];
     this.timeScale = 1;
@@ -884,6 +886,8 @@ export default class BattleScene extends Phaser.Scene {
     const pct = (enemy.hp / enemy.maxHp) * 100;
     while ((enemy.phase || 0) < phases.length - 1 && pct <= phases[enemy.phase || 0].untilHpPct) {
       enemy.phase = (enemy.phase || 0) + 1;
+      // The track plays harder in later phases (phases[n].musicIntensity, else evenly spread).
+      setMusicIntensity(phases[enemy.phase].musicIntensity ?? enemy.phase / (phases.length - 1));
       const onEnter = phases[enemy.phase].onEnter;
       if (onEnter) this.pendingEvents.push(onEnter);
     }
@@ -999,6 +1003,7 @@ export default class BattleScene extends Phaser.Scene {
     }
     Fx.popText(this, hero.container.x, hero.container.y, tech.name, r.textColor, qte.text);
     playSfx('ultimate');
+    setMusicWarm(true);
     const castDone = this.playCastLoop(hero);
     await this.wait(r.tint.fadeMs);
 
@@ -1006,6 +1011,7 @@ export default class BattleScene extends Phaser.Scene {
     await this.recollectionRings(target, tech);
     this.tapHint.setVisible(false);
     castDone.stop();
+    setMusicWarm(false);
 
     this.tweens.add({ targets: overlay, fillAlpha: 0, duration: r.tint.fadeMs, onComplete: () => overlay.destroy() });
     if (memoryBg) this.tweens.add({ targets: memoryBg, alpha: 0, duration: r.tint.fadeMs, onComplete: () => memoryBg.destroy() });

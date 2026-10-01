@@ -1,7 +1,8 @@
 const KEY = 'unremembered:settings';
 
 const DEFAULTS = {
-  musicVolume: 1,
+  // Music sits a little under the SFX by default (the SFX are what you play to).
+  musicVolume: 0.75,
   sfxVolume: 1,
   storyMode: false,
   // Set once the first New Game asked "How do you like your fights?".

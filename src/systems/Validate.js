@@ -7,6 +7,8 @@
 // options.sheetExists(fileName) -> bool: checks sheet files on disk (Node only).
 // Returns {errors: [...], warnings: [...]}.
 
+import { compileTrack } from './MusicData.js';
+
 const STEP_TYPES = ['cutscene', 'dialogue', 'battle', 'end'];
 const SHOT_FX = ['crystal_particles', 'rain', 'flash', 'lights_out', 'dissolve_layer', 'embers', 'eyes_glow'];
 const SHOT_MOVES = ['none', 'pan_left', 'pan_right', 'zoom_in', 'zoom_out'];
@@ -132,6 +134,28 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
         if (def.optional) warn(`${at}: ${def.sheet} not delivered yet (optional, placeholder)`);
         else err(`${at}: ${def.sheet} is missing (add the file or mark the animation "optional": true)`);
       }
+    }
+  }
+
+  // Procedural music (data/music.json): every track must compile (chords, tokens,
+  // pattern / layer / section references) and be 32–64 bars long.
+  const { music } = data;
+  if (music) {
+    for (const [key, def] of Object.entries(music.tracks || {})) {
+      const at = `music.${key}`;
+      try {
+        for (const l of Object.values(def.layers)) if (!music.instruments[l.inst]) err(`${at}: layer instrument "${l.inst}" is not in music.instruments`);
+        if (!music.scales[def.scale]) err(`${at}: unknown scale "${def.scale}"`);
+        if (def.warmScale && !music.scales[def.warmScale]) err(`${at}: unknown warmScale "${def.warmScale}"`);
+        const compiled = compileTrack(music, key);
+        const bars = compiled.bars.length;
+        if (bars < 32 || bars > 64) warn(`${at}: ${bars} bars (aim for 32–64)`);
+      } catch (e) {
+        err(`${at}: ${e.message}`);
+      }
+    }
+    for (const [key, battle] of Object.entries(battles)) {
+      if (battle.music && !music.tracks[battle.music]) warn(`battles.${key}: music "${battle.music}" has no procedural track (needs the .mp3 or silence)`);
     }
   }
 

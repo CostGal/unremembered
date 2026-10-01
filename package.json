@@ -12,7 +12,9 @@
     "sim": "node scripts/sim.mjs",
     "playtest": "node scripts/playtest.mjs",
     "perf": "node scripts/perf.mjs",
-    "cutscene-check": "node scripts/cutscene-check.mjs"
+    "cutscene-check": "node scripts/cutscene-check.mjs",
+    "music-check": "node scripts/music-check.mjs",
+    "music-perf": "node scripts/music-perf.mjs"
   },
   "dependencies": {
     "phaser": "^3.90.0"

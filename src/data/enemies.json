@@ -49,6 +49,7 @@
       },
       {
         "untilHpPct": 0,
+        "musicIntensity": 1,
         "onEnter": "keepsake_burn",
         "attacks": [
           { "id": "stamp", "weight": 2, "telegraphMs": 700, "dmg": 15 },

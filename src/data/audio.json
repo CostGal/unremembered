@@ -6,6 +6,7 @@
     "scenes": { "Menu": "title", "Cutscene": "cutscene", "Dialogue": "cutscene", "End": "ending" },
     "prefetch": ["title", "cutscene", "battle", "boss", "ending"]
   },
+  "master": { "threshold": -6, "knee": 8, "ratio": 10, "attack": 0.004, "release": 0.18 },
   "blip": { "minGapMs": 35, "attackMs": 2 },
   "sfx": {
     "hit": [

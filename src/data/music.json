@@ -1,0 +1,351 @@
+{
+  "_doc": [
+    "Procedural music (systems/Music.js). Used when public/assets/audio/music/<key>.mp3 does not exist.",
+    "Grid: 16 steps per bar (16th notes), 4/4. A track = bpm + key + scale + layers + patterns + sections + form.",
+    "Chords are roman numerals relative to the root: lower case = minor, UPPER = major, b/# prefix, suffix 7 | M7 | 9 | dim | sus2 | sus4. Warm variant: minor i/iv/v become major.",
+    "Pattern = list of bars (cycled by bar-in-section), each bar 16 space-separated tokens, '-' = empty bar.",
+    "  chord mode : r 3 5 7 = chord tone, R T F S = same one octave up; ! accent, ~ soft; '.' rest",
+    "  scale mode : 1-7 = scale degree; ' = octave up, , = octave down; ! accent, ~ soft",
+    "  drum mode  : x normal, X accent, o ghost",
+    "layer.range = [min,max] intensity window; layer.warm = 'only' | 'off'. section.use maps layer id -> pattern name | true | level."
+  ],
+
+  "engine": {
+    "lookaheadMs": 200,
+    "tickMs": 40,
+    "maxVoices": 22,
+    "humanizeMs": 5,
+    "snapAvoidNotes": true,
+    "gain": 0.9,
+    "intensitySlewPerSec": 1.2,
+    "warmSlewPerSec": 2.5,
+    "warmFilterMult": 1.9,
+    "reverb": { "enabled": true, "seconds": 1.2, "decay": 2.8, "darken": 0.6 },
+    "delay": { "enabled": true, "beats": 0.75, "feedback": 0.32, "lowpassHz": 2400 },
+    "rainBuffer": { "seconds": 4 },
+    "noiseBuffer": { "seconds": 2 }
+  },
+
+  "scales": {
+    "minor": [0, 2, 3, 5, 7, 8, 10],
+    "harmonicMinor": [0, 2, 3, 5, 7, 8, 11],
+    "major": [0, 2, 4, 5, 7, 9, 11],
+    "dorian": [0, 2, 3, 5, 7, 9, 10]
+  },
+
+  "instruments": {
+    "pad": { "type": "pad", "wave": "sawtooth", "detune": 9, "attack": 1.1, "release": 1.4, "cutoff": 760, "q": 0.6, "gain": 0.03, "reverb": 0.55, "delay": 0 },
+    "drone": { "type": "pad", "wave": "sawtooth", "detune": 5, "attack": 3.2, "release": 3.4, "cutoff": 260, "q": 0.5, "gain": 0.05, "reverb": 0.5, "delay": 0 },
+    "sub": { "type": "bass", "wave": "sine", "cutoff": 900, "envMul": 1, "decay": 0.1, "len": 14, "gain": 0.2, "subMix": 0, "reverb": 0.05, "delay": 0 },
+    "bass": { "type": "bass", "wave": "sawtooth", "cutoff": 520, "envMul": 2.6, "decay": 0.2, "len": 1.5, "gain": 0.16, "subMix": 0.7, "reverb": 0.04, "delay": 0 },
+    "bassHeavy": { "type": "bass", "wave": "square", "cutoff": 460, "envMul": 3.2, "decay": 0.16, "len": 1.4, "gain": 0.17, "subMix": 0.8, "reverb": 0.03, "delay": 0 },
+    "pluck": { "type": "pluck", "wave": "triangle", "cutoff": 2600, "envMul": 1, "decay": 0.22, "gain": 0.075, "reverb": 0.45, "delay": 0.4 },
+    "lead": { "type": "pluck", "wave": "square", "cutoff": 2100, "envMul": 1, "decay": 0.3, "gain": 0.05, "reverb": 0.4, "delay": 0.45 },
+    "stab": { "type": "pluck", "wave": "sawtooth", "cutoff": 1500, "envMul": 1, "decay": 0.16, "gain": 0.06, "reverb": 0.3, "delay": 0.2 },
+    "musicbox": { "type": "bell", "partials": [[1, 1, 1], [4, 0.28, 0.35], [9, 0.1, 0.18]], "decay": 1.3, "gain": 0.085, "reverb": 0.7, "delay": 0.35 },
+    "bell": { "type": "bell", "partials": [[1, 1, 1], [2.76, 0.4, 0.5], [5.4, 0.16, 0.25]], "decay": 2.2, "gain": 0.07, "reverb": 0.85, "delay": 0.3 },
+    "kick": { "type": "kick", "from": 135, "to": 44, "sweep": 0.07, "decay": 0.26, "gain": 0.45, "reverb": 0, "delay": 0 },
+    "boom": { "type": "kick", "from": 78, "to": 34, "sweep": 0.5, "decay": 2.2, "gain": 0.4, "reverb": 0.4, "delay": 0 },
+    "snare": { "type": "snare", "freq": 1900, "q": 0.8, "decay": 0.15, "toneHz": 190, "toneDecay": 0.09, "gain": 0.2, "reverb": 0.25, "delay": 0 },
+    "hat": { "type": "hat", "hp": 7500, "decay": 0.045, "gain": 0.05, "reverb": 0.1, "delay": 0 },
+    "tom": { "type": "kick", "from": 160, "to": 78, "sweep": 0.12, "decay": 0.28, "gain": 0.3, "reverb": 0.3, "delay": 0 },
+    "crash": { "type": "hat", "hp": 4200, "decay": 1.5, "gain": 0.07, "reverb": 0.5, "delay": 0 },
+    "swell": { "type": "swell", "dur": 7, "from": 250, "to": 4800, "q": 1.4, "gain": 0.06, "reverb": 0.7, "delay": 0 },
+    "rain": { "type": "rain", "hp": 520, "lp": 7200, "gain": 0.05, "reverb": 0, "delay": 0 }
+  },
+
+  "tracks": {
+    "title": {
+      "bpm": 70,
+      "root": "A",
+      "scale": "minor",
+      "warmScale": "major",
+      "gain": 0.72,
+      "layers": {
+        "pad": { "inst": "pad", "oct": 3, "voicing": "r 5 T" },
+        "sub": { "inst": "sub", "oct": 2, "mode": "chord" },
+        "arp": { "inst": "pluck", "oct": 4, "mode": "chord", "params": { "gain": 0.05 } },
+        "motif": { "inst": "musicbox", "oct": 4, "mode": "scale" },
+        "chime": { "inst": "bell", "oct": 5, "mode": "scale", "params": { "gain": 0.045 } },
+        "rain": { "inst": "rain", "params": { "gain": 0.045 } }
+      },
+      "patterns": {
+        "subHold": ["r . . . . . . . . . . . . . . ."],
+        "subPulse": ["r . . . . . . . . . . . 5~ . . .", "r . . . . . . . . . . . . . . ."],
+        "arpSlow": ["r~ . 5~ . T~ . 5~ . r~ . 5~ . T~ . 5~ ."],
+        "m1": [
+          "3 . . . 5 . . . 1' . . . 7 . 5 .",
+          "6 . . . 1' . . . 3' . . . 1' . 6 .",
+          "5 . . . 3 . 1 . 3 . . . 5 . . .",
+          "2' . . . 7 . . . 5 . 7 . 2' . . ."
+        ],
+        "m2": [
+          "3 . . . 5 . . . 1' . . . 3' . 1' .",
+          "6 . . . 1' . . . 6 . . . 3 . 4 .",
+          "4 . . . 6 . . . 1' . . . 6 . 4 .",
+          "5 . . . 2' . . . 5 . . . 2' . . ."
+        ],
+        "m3": [
+          "6 . . 4 . . 1' . . . 6 . . . 4 .",
+          "3' . . . 1' . . . 6 . . . 1' . 3' .",
+          "5' . . . 3' . . . 1' . . . 5 . 3 .",
+          "2' . . . 5 . . . 2' . . . 4' . 2' .",
+          "6 . . . 4' . . . 6' . . . 4' . 1' .",
+          "3' . . . 6' . . . 3' . . . 1' . 6 .",
+          "5' . . . 3' . . . 1' . . . 3' . 5' .",
+          "2' . . . 7 . . . 5 . . . 2' . . ."
+        ],
+        "chimeA": [
+          "1' . . . . . . . . . . . 5 . . .",
+          "- ",
+          ". . . . . . . . 3' . . . . . . .",
+          "-"
+        ],
+        "chimeB": [
+          "- ",
+          ". . . . . . 5' . . . . . . . . .",
+          "-",
+          "1'' . . . . . . . . . 3' . . . . ."
+        ]
+      },
+      "sections": {
+        "intro": { "bars": 4, "chords": ["i", "i", "bVI", "bVI"], "filter": [0.55, 0.9], "use": { "pad": true, "sub": "subHold", "rain": 1, "chime": "chimeA" } },
+        "A": { "bars": 8, "chords": ["i", "bVI", "bIII", "bVII", "i", "bVI", "iv", "V"], "filter": [0.9, 1.0], "use": { "pad": true, "sub": "subPulse", "motif": ["m1", "m1", "m1", "m1", "m2", "m2", "m2", "m2"], "rain": 0.8 } },
+        "B": { "bars": 8, "chords": ["iv", "bVI", "i", "V", "iv", "bVI", "bIII", "bVII"], "filter": [1.0, 1.25], "use": { "pad": true, "sub": "subPulse", "arp": "arpSlow", "motif": "m3", "rain": 0.7, "chime": "chimeB" } },
+        "A2": { "bars": 8, "chords": ["i", "bVI", "bIII", "bVII", "iv", "bVI", "i", "V"], "filter": [1.1, 0.95], "use": { "pad": true, "sub": "subPulse", "arp": "arpSlow", "motif": ["m1", "m1", "m1", "m1", "m2", "m2", "m2", "m2"], "rain": 0.8, "chime": "chimeA" } },
+        "outro": { "bars": 4, "chords": ["i", "i", "bVI", "V"], "filter": [0.95, 0.5], "use": { "pad": true, "sub": "subHold", "rain": 1, "chime": "chimeB" } }
+      },
+      "form": ["intro", "A", "B", "A2", "outro"]
+    },
+
+    "cutscene": {
+      "bpm": 60,
+      "root": "D",
+      "scale": "minor",
+      "warmScale": "major",
+      "gain": 1.25,
+      "layers": {
+        "pad": { "inst": "pad", "oct": 3, "voicing": "r 5 T", "params": { "attack": 2.4, "release": 2.8, "cutoff": 640, "gain": 0.028 } },
+        "drone": { "inst": "drone", "oct": 2, "voicing": "r 5" },
+        "chime": { "inst": "bell", "oct": 5, "mode": "scale", "params": { "gain": 0.055, "decay": 3 } },
+        "boom": { "inst": "boom", "mode": "drum" },
+        "swell": { "inst": "swell", "mode": "drum" }
+      },
+      "patterns": {
+        "boomA": ["x . . . . . . . . . . . . . . .", "-", "-", "-"],
+        "boomB": ["X . . . . . . . . . . . . . . .", "-", "-", "-", "x . . . . . . . . . . . . . . .", "-", "-", "-"],
+        "swellEnd": ["-", "-", "-", "-", "-", "-", "x . . . . . . . . . . . . . . .", "-"],
+        "ch1": [
+          ". . . . . . . . 5 . . . . . . .",
+          "-",
+          "1' . . . . . . . . . . . . . . .",
+          ". . . . . . . . . . . . 3' . . .",
+          "-",
+          ". . . . 5 . . . . . . . . . . .",
+          "-",
+          "-"
+        ],
+        "ch2": [
+          "-",
+          ". . . . . . . . . . . . 2' . . .",
+          "4' . . . . . . . . . . . . . . .",
+          "-",
+          ". . . . . . . . 6 . . . . . . .",
+          "-",
+          "1' . . . . . . . . . . . . . . .",
+          "-"
+        ]
+      },
+      "sections": {
+        "dawn": { "bars": 8, "chords": ["i", "i", "i", "i", "bVI", "bVI", "V", "V"], "filter": [0.7, 1.0], "use": { "pad": true, "drone": true, "chime": "ch1" } },
+        "rise": { "bars": 8, "chords": ["iv", "iv", "bVI", "bVI", "i", "i", "V", "V"], "filter": [1.0, 1.4], "use": { "pad": true, "drone": true, "chime": "ch2", "boom": "boomA", "swell": "swellEnd" } },
+        "dark": { "bars": 8, "chords": ["i", "i", "bII", "bII", "i", "i", "V", "V"], "filter": [1.2, 0.8], "use": { "pad": true, "drone": true, "chime": "ch1", "boom": "boomB" } },
+        "fade": { "bars": 8, "chords": ["bVI", "bVI", "iv", "iv", "i", "i", "i", "i"], "filter": [0.9, 0.5], "use": { "pad": true, "drone": true, "chime": "ch2" } }
+      },
+      "form": ["dawn", "rise", "dark", "fade"]
+    },
+
+    "battle": {
+      "bpm": 110,
+      "root": "D",
+      "scale": "minor",
+      "warmScale": "major",
+      "gain": 0.7,
+      "layers": {
+        "pad": { "inst": "pad", "oct": 3, "voicing": "r 5 T", "params": { "attack": 0.35, "release": 0.6, "cutoff": 1100, "gain": 0.02 } },
+        "bass": { "inst": "bass", "oct": 2, "mode": "chord" },
+        "arp": { "inst": "pluck", "oct": 4, "mode": "chord", "warm": "off" },
+        "arpWarm": { "inst": "pluck", "oct": 5, "mode": "chord", "warm": "only", "params": { "gain": 0.06 } },
+        "lead": { "inst": "lead", "oct": 4, "mode": "scale" },
+        "shimmer": { "inst": "bell", "oct": 6, "mode": "scale", "warm": "only", "params": { "gain": 0.05 } },
+        "kick": { "inst": "kick", "mode": "drum" },
+        "snare": { "inst": "snare", "mode": "drum" },
+        "hat": { "inst": "hat", "mode": "drum" },
+        "tom": { "inst": "tom", "mode": "drum" },
+        "crash": { "inst": "crash", "mode": "drum" }
+      },
+      "patterns": {
+        "ostA": ["r . r . R . r . r . r . R . 5 ."],
+        "ostB": ["r . r . r . 5 . r . r . 5 . 7 .", "r . r . R . r . r . r . 5 . R ."],
+        "ostC": ["r . . . . . r . . . 5 . . . . ."],
+        "arpA": ["r . 5 . T . 5 . r . 5 . T . F ."],
+        "arpB": ["r . . 5 . . T . . F . . T . 5 .", "r . 5 . T . 5 . r . F . T . 5 ."],
+        "arpHigh": ["R . . . T . . . F . . . T . . ."],
+        "leadA": [
+          "5 . . 3 . . 1 . 3 . . 5 . . . .",
+          "3 . . 1 . . 6, . 1 . . 3 . . . .",
+          "5 . . 3 . . 1 . 3 . . 5 . . 6 .",
+          "7 . . 5 . . 4 . 5 . . . . . . ."
+        ],
+        "leadB": [
+          "6 . . . 5 . 4 . 3 . . . 1 . . .",
+          "6 . . . 5 . 4 . 3 . . . 4 . 5 .",
+          "7 . . . 6 . 5 . 4 . . . 5 . . .",
+          "7 . . . 5 . . . 2' . . . . . . ."
+        ],
+        "shimA": ["1' . . . . . . . 5' . . . . . . .", "-"],
+        "kA": ["x . . . . . . x . . x . . . . ."],
+        "kB": ["x . . . x . . . x . . . x . . ."],
+        "sA": [". . . . x . . . . . . . x . . ."],
+        "hA": ["x . o . x . o . x . o . x . o ."],
+        "hB": ["x . x . x . x . x . x . x . x ."],
+        "tomFill": ["-", "-", "-", "-", "-", "-", "-", ". . . . . . . . . . . . x x x x"],
+        "sFill": ["-", "-", "-", "-", "-", "-", "-", ". . . . . . . . . . . . . o x X"],
+        "crashA": ["x . . . . . . . . . . . . . . .", "-", "-", "-", "-", "-", "-", "-"],
+        "hBreak": ["x . . . x . . . x . . . x . . ."]
+      },
+      "sections": {
+        "intro": { "bars": 4, "chords": ["i", "i", "i", "V"], "filter": [0.6, 1.0], "use": { "pad": true, "bass": "ostC", "hat": "hBreak", "arp": "arpHigh" } },
+        "A": { "bars": 8, "chords": ["i", "i", "bVI", "bVII", "i", "i", "bVI", "V"], "filter": [0.9, 1.0], "use": { "pad": true, "bass": "ostA", "arp": "arpA", "lead": "leadA", "kick": "kA", "snare": "sA", "hat": "hA", "tom": "tomFill", "shimmer": "shimA", "arpWarm": "arpHigh", "crash": "crashA" } },
+        "B": { "bars": 8, "chords": ["iv", "iv", "bVI", "bVII", "iv", "iv", "V", "V"], "filter": [1.0, 1.25], "use": { "pad": true, "bass": "ostB", "arp": "arpB", "lead": "leadB", "kick": "kB", "snare": ["sA", "sA", "sA", "sA", "sA", "sA", "sA", "sFill"], "hat": "hB", "tom": "tomFill", "shimmer": "shimA", "arpWarm": "arpHigh", "crash": "crashA" } },
+        "C": { "bars": 8, "chords": ["bVI", "bVII", "i", "i", "bVI", "bVII", "V", "V"], "filter": [0.8, 0.6], "use": { "pad": true, "bass": "ostC", "arp": "arpHigh", "hat": "hBreak", "shimmer": "shimA", "arpWarm": "arpHigh" } },
+        "A2": { "bars": 8, "chords": ["i", "i", "bVI", "bVII", "i", "bVII", "bVI", "V"], "filter": [1.0, 1.3], "use": { "pad": true, "bass": "ostB", "arp": "arpB", "lead": ["leadA", "leadB"], "kick": "kB", "snare": "sA", "hat": "hB", "tom": "tomFill", "shimmer": "shimA", "arpWarm": "arpHigh", "crash": "crashA" } },
+        "outro": { "bars": 4, "chords": ["i", "i", "bVII", "V"], "filter": [1.0, 0.7], "use": { "pad": true, "bass": "ostC", "kick": "kA", "snare": "sA", "hat": "hA", "arp": "arpA" } }
+      },
+      "form": ["intro", "A", "B", "C", "A2", "B", "outro"]
+    },
+
+    "boss": {
+      "bpm": 124,
+      "root": "F",
+      "scale": "harmonicMinor",
+      "warmScale": "major",
+      "gain": 0.58,
+      "layers": {
+        "pad": { "inst": "pad", "oct": 2, "voicing": "r 5 T", "params": { "attack": 0.5, "release": 0.8, "cutoff": 620, "gain": 0.028 } },
+        "padHot": { "inst": "pad", "oct": 3, "voicing": "3 7 F", "range": [0.5, 1.01], "params": { "attack": 0.4, "release": 0.8, "cutoff": 1300, "gain": 0.018, "voices": 1 } },
+        "bass": { "inst": "bassHeavy", "oct": 2, "mode": "chord" },
+        "bassHot": { "inst": "bass", "oct": 3, "mode": "chord", "range": [0.5, 1.01], "params": { "gain": 0.07, "subMix": 0 } },
+        "stab": { "inst": "stab", "oct": 4, "mode": "chord", "warm": "off" },
+        "stabWarm": { "inst": "pluck", "oct": 4, "mode": "chord", "warm": "only", "params": { "gain": 0.06 } },
+        "arpHot": { "inst": "pluck", "oct": 5, "mode": "chord", "range": [0.5, 1.01], "params": { "gain": 0.05 } },
+        "lead": { "inst": "lead", "oct": 4, "mode": "scale", "params": { "gain": 0.045 } },
+        "shimmer": { "inst": "bell", "oct": 6, "mode": "scale", "warm": "only", "params": { "gain": 0.05 } },
+        "kick": { "inst": "kick", "mode": "drum", "range": [0, 0.5], "params": { "gain": 0.5 } },
+        "kickHot": { "inst": "kick", "mode": "drum", "range": [0.5, 1.01], "params": { "gain": 0.55 } },
+        "snare": { "inst": "snare", "mode": "drum", "params": { "gain": 0.24 } },
+        "hat": { "inst": "hat", "mode": "drum", "range": [0, 0.5] },
+        "hatHot": { "inst": "hat", "mode": "drum", "range": [0.5, 1.01], "params": { "gain": 0.055 } },
+        "tom": { "inst": "tom", "mode": "drum" },
+        "crash": { "inst": "crash", "mode": "drum" }
+      },
+      "patterns": {
+        "bA": ["r . r r . r . r r . r . r r 5 ."],
+        "bB": ["r . r r . r . r r . r . 5 . 7 .", "r . r r . r . r r . r . r r 5 ."],
+        "bC": ["r . . . . . r . . . . . 5 . . ."],
+        "bHot": ["R . . R . . R . . . R . . R . ."],
+        "stabA": ["r . . . . . . . . . R . . . . .", "R . . . . . . . . . . . . . . ."],
+        "stabB": ["r . . . . . R . . . . . F . . .", "R . . . . . . . . . . . S . . ."],
+        "arpHotA": ["r . 5 . T . F . R . F . T . 5 ."],
+        "leadA": [
+          "5 . . . 4 . . . 3 . . . 1 . . .",
+          "5 . . 6 . . 5 . . . 4 . . . 3 .",
+          "7 . . . 6 . . . 5 . . . . . . .",
+          "5 . . . 2' . . . 7 . . . 5 . . ."
+        ],
+        "leadB": [
+          "1' . . . 7 . . . 6 . . . 5 . . .",
+          "6 . . . 5 . . . 4 . . . 5 . 6 .",
+          "7 . . . 6 . 5 . 4 . . . 3 . . .",
+          "5 . . . . . 7 . . . 5 . . . . ."
+        ],
+        "shimA": ["1' . . . . . . . 5' . . . . . . .", "-"],
+        "kA": ["x . . x . . x . . . x . . x . ."],
+        "kHotA": ["x . . x . . x . x . x . . x . x"],
+        "sA": [". . . . X . . . . . . . X . . ."],
+        "hA": ["x . x . x . x . x . x . x . x ."],
+        "hHotA": ["x x o x x x o x x x o x x x o x"],
+        "tomFill": ["-", "-", "-", "-", "-", "-", "-", ". . . . . . . . . . x . x x x x"],
+        "tomFillHot": ["-", "-", "-", ". . . . . . . . . . . . x . x .", "-", "-", "-", ". . . . . . x . x . x . x x x x"],
+        "crashA": ["x . . . . . . . . . . . . . . .", "-", "-", "-", "-", "-", "-", "-"],
+        "hBreak": ["x . . . x . . . x . . . x . . ."]
+      },
+      "sections": {
+        "intro": { "bars": 4, "chords": ["i", "i", "bVI", "V"], "filter": [0.6, 1.0], "use": { "pad": true, "padHot": true, "bass": "bC", "bassHot": "bHot", "snare": "sA", "hat": "hBreak", "hatHot": "hHotA", "kickHot": "kHotA", "stab": "stabA", "stabWarm": "stabA" } },
+        "A": { "bars": 8, "chords": ["i", "i", "bVI", "V", "i", "i", "iv", "V"], "filter": [0.9, 1.0], "use": { "pad": true, "padHot": true, "bass": "bA", "bassHot": "bHot", "stab": "stabA", "stabWarm": "stabA", "arpHot": "arpHotA", "lead": "leadA", "kick": "kA", "kickHot": "kHotA", "snare": "sA", "hat": "hA", "hatHot": "hHotA", "tom": "tomFill", "shimmer": "shimA", "crash": "crashA" } },
+        "B": { "bars": 8, "chords": ["bVI", "V", "i", "i", "bVI", "V", "iv", "V"], "filter": [1.0, 1.3], "use": { "pad": true, "padHot": true, "bass": "bB", "bassHot": "bHot", "stab": "stabB", "stabWarm": "stabB", "arpHot": "arpHotA", "lead": "leadB", "kick": "kA", "kickHot": "kHotA", "snare": "sA", "hat": "hA", "hatHot": "hHotA", "tom": "tomFillHot", "shimmer": "shimA", "crash": "crashA" } },
+        "C": { "bars": 8, "chords": ["iv", "iv", "V", "V", "bVI", "bVI", "V", "V"], "filter": [0.7, 0.55], "use": { "pad": true, "padHot": true, "bass": "bC", "bassHot": "bHot", "snare": "sA", "hat": "hBreak", "hatHot": "hHotA", "kickHot": "kHotA", "arpHot": "arpHotA", "shimmer": "shimA" } },
+        "A2": { "bars": 8, "chords": ["i", "i", "bVI", "V", "i", "bVI", "iv", "V"], "filter": [1.0, 1.35], "use": { "pad": true, "padHot": true, "bass": "bB", "bassHot": "bHot", "stab": "stabB", "stabWarm": "stabB", "arpHot": "arpHotA", "lead": ["leadA", "leadB"], "kick": "kA", "kickHot": "kHotA", "snare": "sA", "hat": "hA", "hatHot": "hHotA", "tom": "tomFillHot", "shimmer": "shimA", "crash": "crashA" } },
+        "outro": { "bars": 4, "chords": ["i", "i", "iv", "V"], "filter": [1.0, 0.7], "use": { "pad": true, "padHot": true, "bass": "bC", "bassHot": "bHot", "kick": "kA", "kickHot": "kHotA", "snare": "sA", "hat": "hA", "hatHot": "hHotA", "stab": "stabA", "stabWarm": "stabA" } }
+      },
+      "form": ["intro", "A", "B", "C", "A2", "B", "outro"]
+    },
+
+    "ending": {
+      "bpm": 64,
+      "root": "C",
+      "scale": "major",
+      "warmScale": "major",
+      "gain": 0.85,
+      "layers": {
+        "pad": { "inst": "pad", "oct": 3, "voicing": "r 5 T", "params": { "attack": 1.6, "release": 2, "cutoff": 900, "gain": 0.03 } },
+        "sub": { "inst": "sub", "oct": 2, "mode": "chord", "params": { "gain": 0.17 } },
+        "arp": { "inst": "pluck", "oct": 4, "mode": "chord", "params": { "gain": 0.04 } },
+        "motif": { "inst": "musicbox", "oct": 5, "mode": "scale" },
+        "chime": { "inst": "bell", "oct": 6, "mode": "scale", "params": { "gain": 0.04 } }
+      },
+      "patterns": {
+        "subHold": ["r . . . . . . . . . . . . . . ."],
+        "arpSlow": ["r~ . 5~ . T~ . 5~ . r~ . 5~ . T~ . 5~ ."],
+        "me1": [
+          "3 . . . 5 . . . 6 . . . 5 . 3 .",
+          "4 . . . 6 . . . 1' . . . 6 . 4 .",
+          "5 . . . 3 . . . 1 . . . 3 . 5 .",
+          "2' . . . 7 . . . 5 . . . 7 . 2' ."
+        ],
+        "me2": [
+          "6 . . . 1' . . . 3' . . . 1' . 6 .",
+          "6 . . . 4' . . . 1' . . . 6 . 4 .",
+          "5 . . . 1' . . . 3' . . . 5' . 3' .",
+          "7 . . . 2' . . . 4' . . . 2' . 7 ."
+        ],
+        "me3": [
+          "3' . . . . . . . 1' . . . . . . .",
+          "4' . . . . . . . 6 . . . . . . .",
+          "5 . . . . . . . 3 . . . . . . .",
+          "2' . . . . . . . 7 . . . . . . .",
+          "3' . . . . . . . 1' . . . . . . .",
+          "4' . . . . . . . 6 . . . . . . .",
+          "4 . . . 1' . . . 4' . . . . . . .",
+          "3' . . . . . . . 5' . . . . . . ."
+        ],
+        "meEnd": [
+          "5' . . . . . . . 3' . . . . . . .",
+          "1' . . . . . . . . . . . . . . .",
+          "-",
+          "-"
+        ],
+        "chA": ["-", ". . . . . . . . 5' . . . . . . .", "-", "1'' . . . . . . . . . . . . . . ."],
+        "chB": [". . . . . . 3' . . . . . . . . .", "-", "-", ". . . . . . . . . . 5' . . . . ."]
+      },
+      "sections": {
+        "intro": { "bars": 4, "chords": ["vi", "vi", "IV", "IV"], "filter": [0.55, 0.85], "use": { "pad": true, "sub": "subHold", "chime": "chA" } },
+        "A": { "bars": 8, "chords": ["vi", "IV", "I", "V", "vi", "IV", "I", "V"], "filter": [0.85, 1.0], "use": { "pad": true, "sub": "subHold", "motif": ["me1", "me1", "me1", "me1", "me2", "me2", "me2", "me2"] } },
+        "B": { "bars": 8, "chords": ["IV", "V", "vi", "I", "IV", "V", "vi", "V"], "filter": [1.0, 1.25], "use": { "pad": true, "sub": "subHold", "arp": "arpSlow", "motif": "me2", "chime": "chB" } },
+        "C": { "bars": 8, "chords": ["vi", "IV", "I", "V", "vi", "IV", "iv", "I"], "filter": [1.1, 0.8], "use": { "pad": true, "sub": "subHold", "arp": "arpSlow", "motif": "me3", "chime": "chA" } },
+        "outro": { "bars": 4, "chords": ["I", "I", "IM7", "IM7"], "filter": [0.9, 0.6], "use": { "pad": true, "sub": "subHold", "motif": "meEnd", "chime": "chB" } }
+      },
+      "form": ["intro", "A", "B", "C", "outro"]
+    }
+  }
+}

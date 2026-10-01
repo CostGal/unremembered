@@ -45,6 +45,9 @@ else if (sideways.addListener) sideways.addListener(onSideways);
 // Dev params skip the Title tap, so any first tap also unlocks audio.
 document.addEventListener('pointerdown', () => unlockAudio(), { once: true });
 
+// ?music=<key>: one procedural track on its own with a tiny panel (loaded only then).
+if (devParam('music')) import('./systems/MusicPanel.js').then((m) => m.openMusicPanel(devParam('music')));
+
 // ?fps=1: a small FPS meter (current / lowest in the last 5 s) over the game.
 if (devParam('fps') === '1') {
   const meter = document.createElement('div');

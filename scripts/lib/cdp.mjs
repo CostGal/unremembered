@@ -153,7 +153,21 @@ export async function launchChrome({ headless = true } = {}) {
   }
 
   const sockets = [];
+  let browserSession = null;
   return {
+    // Browser-level commands (e.g. SystemInfo.getProcessInfo) need the browser target.
+    async browser() {
+      if (browserSession) return browserSession;
+      const { webSocketDebuggerUrl } = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
+      const ws = new WebSocket(webSocketDebuggerUrl);
+      await new Promise((resolve, reject) => {
+        ws.addEventListener('open', resolve, { once: true });
+        ws.addEventListener('error', reject, { once: true });
+      });
+      sockets.push(ws);
+      browserSession = new Session(ws);
+      return browserSession;
+    },
     async newPage({ width = 360, height = 640, dpr = 1, cpu = 1 } = {}) {
       const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json();
       const ws = new WebSocket(target.webSocketDebuggerUrl);
