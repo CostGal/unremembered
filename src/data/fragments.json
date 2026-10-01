@@ -1,0 +1,39 @@
+{
+  "count": 3,
+  "screen": {
+    "title": { "text": "A memory returns…", "y": 70, "fontSize": 24, "color": "#f0c060" },
+    "hint": { "text": "Pick one. It lasts the whole run", "y": 108, "fontSize": 14, "color": "#8a8fa3" },
+    "card": {
+      "x": 30,
+      "w": 300,
+      "h": 96,
+      "firstY": 190,
+      "spacing": 110,
+      "fill": "0x232636",
+      "stroke": "0x5a5f73",
+      "pickStroke": "0xf0c060",
+      "iconSize": 56,
+      "iconX": 62,
+      "nameX": 100,
+      "nameFontSize": 18,
+      "nameColor": "#f1efe8",
+      "textFontSize": 13,
+      "textColor": "#b9b5a8",
+      "textWrap": 220,
+      "iconFontSize": 32
+    },
+    "pressMs": 80,
+    "fadeMs": 250,
+    "otherAlpha": 0.25,
+    "popScale": 1.06,
+    "doneDelayMs": 1000
+  },
+  "pool": {
+    "old_ticket": { "name": "Old Ticket", "text": "Start each battle with 2 Echo", "short": "T", "color": "#3fd0c9", "effects": { "startEcho": 2 } },
+    "cat_hair": { "name": "Cat Hair", "text": "Nala can be used twice per battle", "short": "C", "color": "#e8883a", "effects": { "nalaExtraUses": 1 } },
+    "worn_glove": { "name": "Worn Glove", "text": "PERFECT window +20ms", "short": "G", "color": "#f0c060", "effects": { "perfectWindowMs": 20 } },
+    "dovs_scarf": { "name": "Dov's Scarf", "text": "Dov has +15 max HP", "short": "S", "color": "#e0a040", "effects": { "dovMaxHp": 15 } },
+    "ink_stain": { "name": "Ink Stain", "text": "Blast crit chance 40%", "short": "I", "color": "#9db4c8", "effects": { "blastCritChance": 0.4 } },
+    "echo_shard": { "name": "Echo Shard", "text": "+1 extra Echo on PERFECT", "short": "E", "color": "#3fd0c9", "effects": { "perfectEchoBonus": 1 } }
+  }
+}

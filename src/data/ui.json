@@ -19,6 +19,7 @@
       "lagTweenMs": 400
     },
     "hpText": { "x": 344, "fontSize": 12 },
+    "fragments": { "x": 284, "y": 422, "size": 16, "gap": 4, "fontSize": 12, "fill": "0x0b0d14" },
     "statusBadge": { "x": 270, "w": 16, "h": 12, "gap": 2, "fontSize": 10, "fill": "0x0b0d14", "strokeAlpha": 1, "popScale": 1.4, "popMs": 160 },
     "echo": {
       "y": 422,

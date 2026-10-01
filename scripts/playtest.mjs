@@ -45,6 +45,7 @@ async function playthrough(browser, url, label) {
         if (a.includes('Cutscene')) note('cutscene:origin');
         // (The Keepsake dialogue plays over the paused boss battle.)
         if (st.dialogue) note(`dialogue:${st.dialogue.id}`);
+        if (st.reward) note(`reward:${st.reward.id}`);
         if (st.battle && a.includes('Battle')) note(`battle:${st.battle.id}`);
         if (a.includes('End')) {
           note('end');

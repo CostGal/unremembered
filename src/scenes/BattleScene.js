@@ -20,6 +20,7 @@ import ResultCard from '../systems/ResultCard.js';
 import TutorialHints from '../systems/TutorialHints.js';
 import * as Qte from '../systems/Qte.js';
 import { devInt } from '../systems/DevParams.js';
+import { effectMax, effectTotal, ownedFragments } from '../systems/Fragments.js';
 import { animKey, hasSheet, playLoop, playOnce, SheetDriver, trace } from '../systems/SpriteAnims.js';
 import { whenReady } from '../systems/Assets.js';
 
@@ -71,6 +72,8 @@ export default class BattleScene extends Phaser.Scene {
     this.manifest = this.registry.get('manifest');
     this.animationSets = this.registry.get('animationSets') || {};
     this.battleOver = false;
+    // Fragments picked this run (fragments.json): passives for every battle.
+    this.fragments = ownedFragments(this.registry);
     // Scene instances are reused (Retry, battle -> battle), so reset state here.
     this.tutorialPrompt = null;
     this.stance = null;
@@ -101,6 +104,10 @@ export default class BattleScene extends Phaser.Scene {
       this.createEntity(key, key, characters[key], layout.heroes[key], 'right', true)
     );
 
+    const dov = this.heroes.find((h) => h.type === 'dov');
+    dov.maxHp += effectTotal(this.fragments, 'dovMaxHp');
+    dov.hp = dov.maxHp;
+
     const enemyKeys = this.battleDef.enemies;
     const slots = this.enemySlots(enemyKeys);
     this.enemies = enemyKeys.map((key, i) =>
@@ -110,13 +117,14 @@ export default class BattleScene extends Phaser.Scene {
     this.applyAmbientTint();
 
     // ?echo=N starts the battle with N Echo (dev).
-    this.echo = Phaser.Math.Clamp(devInt('echo') ?? 0, 0, ui.hud.echo.max);
+    this.echo = Phaser.Math.Clamp((devInt('echo') ?? 0) + effectTotal(this.fragments, 'startEcho'), 0, ui.hud.echo.max);
     // Perfect chain (qte.json chain). maxChain is read at the end of the battle (battle grade).
     this.chain = 0;
     this.maxChain = 0;
     // Stats for the result card (grade.json): maxChain is above.
     this.stats = { perfects: 0, damageTaken: 0, turns: 0 };
     this.hud = new Hud(this, ui.hud, ui.font, this.heroes);
+    this.hud.setFragments(this.fragments);
     this.refreshHud();
     if (import.meta.env.DEV) {
       this.enableHudDebug();
@@ -217,7 +225,7 @@ export default class BattleScene extends Phaser.Scene {
     const faces = anims ? animSet.facing || 'left' : sprite.faces || 'right';
     container.setScale(faces !== 'right' ? -1 : 1, 1);
     this.checkLayout('nala', feetY, sprite.h);
-    this.nala = { container, image, glow, anims, def, used: false, ring: null };
+    this.nala = { container, image, glow, anims, def, used: false, usesLeft: 1 + effectTotal(this.fragments, 'nalaExtraUses'), ring: null };
     if (!anims || anims.idle.placeholder) this.idleBob(container);
 
     image.setInteractive({ useHandCursor: true });
@@ -251,7 +259,8 @@ export default class BattleScene extends Phaser.Scene {
   nalaHiss() {
     const nala = this.nala;
     if (!nala?.ring || nala.used) return;
-    nala.used = true;
+    nala.usesLeft -= 1;
+    nala.used = nala.usesLeft <= 0;
     const { ring, enemy, def } = nala;
     this.nalaStopWatching();
     ring.cancel();
@@ -748,7 +757,9 @@ export default class BattleScene extends Phaser.Scene {
 
   parryWindows() {
     const storyMode = this.registry.get('settings')?.storyMode;
-    return storyMode ? Qte.scaledWindows(qte.windows, qte.storyMode.windowMult) : qte.windows;
+    // Worn Glove: a wider PERFECT window.
+    const windows = { ...qte.windows, perfectMs: qte.windows.perfectMs + effectTotal(this.fragments, 'perfectWindowMs') };
+    return storyMode ? Qte.scaledWindows(windows, qte.storyMode.windowMult) : windows;
   }
 
   // The ring closes at T. The enemy holds its windup pose through the
@@ -1205,7 +1216,7 @@ export default class BattleScene extends Phaser.Scene {
     // Before the counter below, so a PERFECT's own counter already gets the new step.
     // A PERFECT dodge leaves the chain as it is (cfg.chain 0).
     if (cfg.chain !== 0) this.updateChain(result);
-    this.gainEcho(cfg.echo);
+    this.gainEcho(cfg.echo + (result === 'PERFECT' ? effectTotal(this.fragments, 'perfectEchoBonus') : 0));
     if (result === 'PERFECT') this.stats.perfects += 1;
     // e.g. Siphon: a missed parry also drains Echo.
     if (result === 'MISS' && hit.onMiss?.echo) this.gainEcho(hit.onMiss.echo);
@@ -1329,7 +1340,7 @@ export default class BattleScene extends Phaser.Scene {
     let total = Phaser.Math.Between(tech.hits[0], tech.hits[1]);
     const fire = async () => {
       for (let i = 0; i < total && target.hp > 0; i++) {
-        const crit = Math.random() < tech.critChance && total < tech.maxHits;
+        const crit = Math.random() < Math.max(tech.critChance, effectMax(this.fragments, 'blastCritChance')) && total < tech.maxHits;
         if (crit) total += 1;
         await this.fireBolt(hero, target, tech);
         const dmg = Phaser.Math.Between(tech.dmg[0], tech.dmg[1]);
