@@ -33,6 +33,11 @@
     "ultimate": [
       { "type": "osc", "wave": "sine", "from": 220, "to": 880, "ms": 700, "gain": 0.3 },
       { "type": "osc", "wave": "triangle", "from": 330, "to": 1320, "ms": 700, "gain": 0.15, "delayMs": 80 }
+    ],
+    "break": [
+      { "type": "noise", "ms": 220, "gain": 0.4, "filterHz": 900 },
+      { "type": "osc", "wave": "square", "from": 520, "to": 90, "ms": 260, "gain": 0.2 },
+      { "type": "osc", "wave": "triangle", "from": 880, "to": 440, "ms": 200, "gain": 0.12, "delayMs": 60 }
     ]
   }
 }

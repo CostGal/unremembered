@@ -83,6 +83,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
 
   for (const [id, e] of Object.entries(enemies)) {
     if (!assets.sprites?.[e.body]) err(`enemies.${id}: body sprite "${e.body}" is not in assets.json sprites`);
+    if (e.poise !== undefined && !(Number.isInteger(e.poise) && e.poise > 0)) err(`enemies.${id}: poise must be a positive integer`);
     const lists = e.phases ? e.phases.map((p, i) => [`phases[${i}]`, p.attacks]) : [['attacks', e.attacks]];
     for (const [where, attacks] of lists) {
       if (!attacks?.length) err(`enemies.${id}.${where}: no attacks`);

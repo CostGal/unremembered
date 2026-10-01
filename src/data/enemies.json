@@ -2,6 +2,7 @@
   "blank": {
     "name": "Blank",
     "hp": 80,
+    "poise": 6,
     "body": "blank",
     "attack": { "type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15, "windupPx": 4 },
     "hollow": false,
@@ -13,6 +14,7 @@
   "hollow": {
     "name": "Hollow",
     "hp": 110,
+    "poise": 8,
     "body": "hollow",
     "attack": { "type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15, "windupPx": 4 },
     "hollow": true,
@@ -31,6 +33,7 @@
   "clerk": {
     "name": "The Clerk",
     "hp": 430,
+    "poise": 20,
     "body": "clerk",
     "attack": { "type": "lunge", "windupT": 0.3, "distance": 14, "squash": 0.15, "windupPx": 6 },
     "hollow": false,

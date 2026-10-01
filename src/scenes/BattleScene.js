@@ -5,6 +5,7 @@ import enemies from '../data/enemies.json';
 import environments from '../data/environments.json';
 import allies from '../data/allies.json';
 import battleEvents from '../data/battleEvents.json';
+import brk from '../data/break.json';
 import qte from '../data/qte.json';
 import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
@@ -13,6 +14,7 @@ import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
 import CommandMenu from '../systems/CommandMenu.js';
 import Hud from '../systems/Hud.js';
+import PoiseBar from '../systems/PoiseBar.js';
 import TutorialHints from '../systems/TutorialHints.js';
 import * as Qte from '../systems/Qte.js';
 import { devInt } from '../systems/DevParams.js';
@@ -345,6 +347,13 @@ export default class BattleScene extends Phaser.Scene {
     };
 
     this.updateLabel(entity);
+    // Poise (break.json): pips under the name; at 0 the enemy is BROKEN.
+    if (!isHero && def.poise) {
+      entity.poise = def.poise;
+      entity.maxPoise = def.poise;
+      entity.broken = false;
+      entity.poiseBar = new PoiseBar(this, label, def.poise);
+    }
     // The code bob stands in for idle until a real idle sheet lands.
     if (!anims || anims.idle.placeholder) entity.bobTween = this.idleBob(container);
 
@@ -423,6 +432,10 @@ export default class BattleScene extends Phaser.Scene {
   markDown(entity) {
     if (entity.bobTween) entity.bobTween.stop();
     if (entity.label) this.tweens.add({ targets: entity.label, alpha: 0, duration: ui.downed.enemyFadeMs });
+    if (entity.poiseBar) {
+      entity.poiseBar.setBroken(false);
+      this.tweens.add({ targets: entity.poiseBar.objects, alpha: 0, duration: ui.downed.enemyFadeMs });
+    }
 
     // The death sheet holds its last frame; an enemy then fades out.
     if (hasSheet(entity.anims, 'death')) {
@@ -659,6 +672,10 @@ export default class BattleScene extends Phaser.Scene {
   // Each hit of the attack is its own parry ring on the targeted hero.
   // A hero in a counter stance draws the attack.
   async enemyTurn(enemy) {
+    if (enemy.broken) {
+      await this.skipBrokenTurn(enemy);
+      return;
+    }
     const livingHeroes = this.heroes.filter((h) => h.hp > 0);
     if (livingHeroes.length === 0) return;
     const stanceHero = this.stance && this.stance.hero.hp > 0 ? this.stance.hero : null;
@@ -929,6 +946,8 @@ export default class BattleScene extends Phaser.Scene {
       setMusicIntensity(phases[enemy.phase].musicIntensity ?? enemy.phase / (phases.length - 1));
       const onEnter = phases[enemy.phase].onEnter;
       if (onEnter) this.pendingEvents.push(onEnter);
+      // A new phase brings the poise back (a broken enemy recovers at the end of its stunned turn).
+      if (enemy.maxPoise && !enemy.broken) this.refillPoise(enemy);
     }
   }
 
@@ -1103,7 +1122,7 @@ export default class BattleScene extends Phaser.Scene {
       Fx.sparks(this, target.container.x, target.container.y, cfg.sparks, { ...qte.sparks, color: r.ringColor }, qte.ring.depth);
       Fx.shake(this, cfg.shake, cfg.hitstopMs * 2);
     }
-    if (target.hp > 0) this.applyHit(target, dmg, r.textColor);
+    if (target.hp > 0) this.applyHit(target, dmg, r.textColor, { poise: brk.sources.hit });
   }
 
   // Loops the cast sheet (cast_in first) until stop(); cast_out on stop.
@@ -1242,7 +1261,7 @@ export default class BattleScene extends Phaser.Scene {
   // lands on its impact frame; otherwise straight away.
   async playCounter(hero, enemy, dmg) {
     const counter = () => {
-      if (enemy.hp > 0) this.applyHit(enemy, dmg);
+      if (enemy.hp > 0) this.applyHit(enemy, dmg, undefined, { poise: brk.sources.counter });
     };
     if (!hasSheet(hero.anims, 'parry')) {
       trace(`fallback:parry:${hero.type}`);
@@ -1295,7 +1314,7 @@ export default class BattleScene extends Phaser.Scene {
         if (crit) total += 1;
         await this.fireBolt(hero, target, tech);
         const dmg = Phaser.Math.Between(tech.dmg[0], tech.dmg[1]);
-        this.applyHit(target, dmg, undefined, { type: crit ? 'crit' : 'normal' });
+        this.applyHit(target, dmg, undefined, { type: crit ? 'crit' : 'normal', poise: brk.sources.hit });
         if (i === 0) this.gainEcho(tech.echoOnHit);
         if (crit) Fx.popText(this, target.container.x, target.container.y, tech.critText, tech.critColor, qte.text);
         await this.wait(tech.boltIntervalMs);
@@ -1378,7 +1397,7 @@ export default class BattleScene extends Phaser.Scene {
       const base = Phaser.Math.Between(tech.counterDmg[0], tech.counterDmg[1]);
       const dmg = Math.round(base * (result === 'PERFECT' ? tech.perfectMult : 1));
       Fx.popText(this, hero.container.x, hero.container.y, tech.counterText, tech.color, qte.text);
-      this.applyHit(enemy, dmg, tech.color);
+      this.applyHit(enemy, dmg, tech.color, { poise: brk.sources.stanceCounter });
     };
 
     if (!stance.done || !inGuard()) {
@@ -1465,7 +1484,7 @@ export default class BattleScene extends Phaser.Scene {
     const dmg = Phaser.Math.Between(hero.def.strike[0], hero.def.strike[1]);
     await this.playAttackAnim(hero, (i) => {
       if (i !== 0) return;
-      this.applyHit(target, dmg);
+      this.applyHit(target, dmg, undefined, { poise: brk.sources.hit });
       this.gainEcho(techniques.strike.echoOnHit);
     });
 
@@ -1548,8 +1567,10 @@ export default class BattleScene extends Phaser.Scene {
 
   // react: false = the caller plays its own reaction instead of hurt.
   // type = damage number style (ui.json damageNumbers); heroes' damage is "hurt".
-  applyHit(target, dmg, color, { react = true, type = null } = {}) {
+  // poise = poise damage to an enemy (break.json sources). A broken enemy takes break.damageMult.
+  applyHit(target, dmg, color, { react = true, type = null, poise = 0 } = {}) {
     if (!target.isHero) dmg = this.chainDamage(dmg);
+    if (target.broken) dmg = Math.round(dmg * brk.damageMult);
     const images = [target.body, ...Object.values(target.parts).map((p) => p.img)];
     Fx.flash(this, images, 60);
     Fx.shake(this, 2, 80);
@@ -1562,10 +1583,49 @@ export default class BattleScene extends Phaser.Scene {
     else {
       this.chargeDamage(target, dmg);
       this.checkPhase(target);
+      if (poise) this.hitPoise(target, poise);
     }
 
     if (target.hp <= 0) this.markDown(target);
     else if (react) this.playHurt(target);
+  }
+
+  // ---------- Break gauge ----------
+
+  hitPoise(enemy, amount) {
+    if (!enemy.maxPoise || enemy.hp <= 0 || enemy.broken) return;
+    enemy.poise = Math.max(0, enemy.poise - amount);
+    enemy.poiseBar.set(enemy.poise);
+    this.hints.show('break');
+    if (enemy.poise === 0) this.breakEnemy(enemy);
+  }
+
+  // BROKEN: it skips its next action and takes extra damage until that turn is over.
+  breakEnemy(enemy) {
+    const fx = brk.fx;
+    enemy.broken = true;
+    enemy.poiseBar.setBroken(true);
+    Fx.popText(this, enemy.container.x, enemy.container.y, fx.text, fx.color, { ...qte.text, fontSize: fx.fontSize, offsetY: fx.offsetY });
+    Fx.shake(this, fx.shake, fx.shakeMs);
+    Fx.screenFlash(this, fx.flash, qte.flashDepth);
+    Fx.sparks(this, enemy.container.x, enemy.container.y, fx.sparks, { ...qte.sparks, color: fx.sparkColor }, qte.ring.depth);
+    playSfx(fx.sfx);
+    vibrate(qte.results.PERFECT.vibrateMs);
+  }
+
+  // The broken enemy's turn: it does nothing, then recovers with full poise.
+  async skipBrokenTurn(enemy) {
+    await this.wait(brk.stunMs);
+    if (enemy.hp <= 0) return;
+    this.refillPoise(enemy);
+    Fx.popText(this, enemy.container.x, enemy.container.y, brk.recoverText.text, brk.recoverText.color, qte.text);
+  }
+
+  refillPoise(enemy) {
+    enemy.broken = false;
+    enemy.poise = enemy.maxPoise;
+    enemy.poiseBar.setBroken(false);
+    enemy.poiseBar.set(enemy.poise);
   }
 
   tweenPromise(target, props, duration, ease = 'Linear') {
