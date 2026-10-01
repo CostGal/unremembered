@@ -22,7 +22,7 @@
     {"text": "He came back for the crystal that held his name.", "bg": "reliquary", "bg2": "aurelian_exile", "split": "vertical", "tint": "0x505a78", "bg2View": {"focus": [0.62,0.3]}},
     {"text": "They had taught him what the engine could do. Now he would teach them.", "bg": "reliquary", "fx": ["flash", "crystal_particles"], "move": "zoom_in"},
     {"text": "That night, every light in Veyra went dark.", "bg": "city", "fx": ["lights_out"]},
-    {"text": "The world fell silent. We call it the Hush.", "bg": "city", "fx": ["flash", "lights_out"], "durationMs": 5000},
+    {"text": "The world fell silent. We call it the Hush.", "bg": "city", "fx": ["flash", "lights_out"], "sfx": "hush", "durationMs": 5000},
     {"text": "Since then, every night, one of us is unremembered.", "bg": "city", "tint": "0x6070b0", "fx": ["rain"]},
     {"text": "They still live, but no one can recall their face.", "bg": "street_rain", "layers": [{"img": "blank", "x": 0.62, "y": 0.58, "scale": 2, "flip": true}], "fx": ["rain"]},
     {"text": "From what is taken, the King shapes monsters: the Hollows.", "bg": "street_rain", "layers": [{"img": "hollow", "x": 0.3, "y": 0.58, "scale": 2},{"img": "hollow", "x": 0.7, "y": 0.52, "scale": 2}], "move": "zoom_in", "fx": ["rain"]},

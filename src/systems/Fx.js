@@ -148,11 +148,16 @@ export function glowTexture(scene, radius) {
 // cfg.far / cfg.near = {count, speed, wind, landY: [min, max], alpha: [min, max],
 // length, color, depth, splash?}; cfg.splash = {count, lifeMs, alpha, color}.
 // count is the max alive particles per emitter; keep the total <= 150.
-export function rain(scene, cfg, area) {
+// opts.fill: no ground line — drops fall through the whole area and end
+// anywhere in its lower part (cfg.fillLandPct of the height), no splashes.
+// For pictures without a floor (cutscene, dialogue), so the rain covers the
+// screen instead of a band.
+export function rain(scene, cfg, area, { fill = false } = {}) {
   const emitters = [];
+  const fillPct = cfg.fillLandPct || [0.4, 1];
 
   let splash = null;
-  if (cfg.splash) {
+  if (cfg.splash && !fill) {
     splash = scene.add.particles(0, 0, splashTexture(scene), {
       emitting: false,
       lifespan: cfg.splash.lifeMs,
@@ -169,8 +174,9 @@ export function rain(scene, cfg, area) {
     if (!layer) continue;
 
     const spawnY = area.y - layer.length;
-    const lifeMin = ((layer.landY[0] - spawnY) / layer.speed) * 1000;
-    const lifeMax = ((layer.landY[1] - spawnY) / layer.speed) * 1000;
+    const landY = fill ? [area.y + area.h * fillPct[0], area.y + area.h * fillPct[1]] : layer.landY;
+    const lifeMin = ((landY[0] - spawnY) / layer.speed) * 1000;
+    const lifeMax = ((landY[1] - spawnY) / layer.speed) * 1000;
     // Spawn upwind so the slant still covers the whole width.
     const drift = (layer.wind * lifeMax) / 1000;
     const xMin = area.x + Math.min(0, -drift);

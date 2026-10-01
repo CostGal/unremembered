@@ -233,9 +233,11 @@
         "textColor": "#2a2230",
         "align": "center",
         "showName": false,
-        "portraits": false
+        "portraits": false,
+        "sfx": "letter"
       }
     },
+    "nameSfx": { "▯▯▯": "glitch" },
     "nextBlinkAlpha": 0.2
   },
   "cutscene": {
@@ -244,8 +246,11 @@
     "pixelArtMaxW": 360,
     "focusMin": 0.08,
     "text": { "y": 506, "fontSize": 17, "color": "#f1efe8", "lineSpacing": 6, "wrap": 312 },
+    "panel": { "padX": 14, "padY": 10, "minW": 180, "fill": "0x0b0d14", "alpha": 0.6, "stroke": "0x3fd0c9", "strokeAlpha": 0.35 },
     "defaultDurationMs": 4500,
     "fadeOutMs": 500,
+    "fxSfx": { "crystal_particles": "crystal_hum", "lights_out": "lights_out", "flash": null },
+    "rainAmbience": "rain",
     "splitLine": 2,
     "splitColor": "0x000000",
     "depth": { "picture": 0, "fx": 10, "bars": 20, "text": 30, "hold": 40 },

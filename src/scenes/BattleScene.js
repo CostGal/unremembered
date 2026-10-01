@@ -10,7 +10,7 @@ import statuses from '../data/statuses.json';
 import qte from '../data/qte.json';
 import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
-import { playMusic, playSfx, setMusicIntensity, setMusicWarm, vibrate } from '../systems/Audio.js';
+import { playAmbience, playMusic, playSfx, setMusicIntensity, setMusicWarm, vibrate } from '../systems/Audio.js';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
 import { mirrorEdges, rect as viewRect } from '../systems/View.js';
@@ -191,6 +191,7 @@ export default class BattleScene extends Phaser.Scene {
     const area = { x: view.x, y: 0, w: view.w, h: layout.sceneBottom };
     if (env.lights) Fx.lights(this, env.lights);
     if (env.rain) Fx.rain(this, env.rain, area);
+    playAmbience(env.ambience || null);
     if (env.vignette) Fx.vignette(this, env.vignette, area);
     // Lightning waits for a quiet moment: never while a parry ring is live.
     if (env.lightning) this.lightning = Fx.lightning(this, env.lightning, area, () => (this.qteRings?.size || 0) > 0);
@@ -738,7 +739,13 @@ export default class BattleScene extends Phaser.Scene {
     const sheet = this.enemyAttackSheet(enemy, attack, hits.length);
     for (let k = 0; k < hits.length; k++) {
       if (target.hp <= 0 || enemy.hp <= 0) break;
-      const hit = { ...hits[k], unparryable: hits[k].unparryable ?? attack.unparryable ?? false };
+      const hit = {
+        ...hits[k],
+        unparryable: hits[k].unparryable ?? attack.unparryable ?? false,
+        // Sounds can be set per hit or once for the whole attack.
+        sfx: hits[k].sfx ?? attack.sfx,
+        impactSfx: hits[k].impactSfx ?? attack.impactSfx,
+      };
       const result = await this.enemyHit(enemy, target, hit, sheet, k);
       if (result === 'CANCEL') break;
     }
@@ -805,6 +812,8 @@ export default class BattleScene extends Phaser.Scene {
         unparryable: hit.unparryable,
       });
       const icon = hit.unparryable ? this.showUnparryableIcon(x, y) : null;
+      // The attack's own sound as it winds up (enemies.json hit.sfx), e.g. the Clerk's ledger pages.
+      if (hit.sfx && k === 0) playSfx(hit.sfx);
       const watched = this.nalaWatch(enemy, ring);
 
       const abort = { aborted: false };
@@ -1044,6 +1053,7 @@ export default class BattleScene extends Phaser.Scene {
   // fires as a normal hit. Enough damage during the charge cancels it.
   startCharge(enemy, attack) {
     const c = battleEvents.charge;
+    if (attack.chargeSfx) playSfx(attack.chargeSfx);
     const glow = this.add
       .image(enemy.container.x, enemy.container.y, Fx.glowTexture(this, c.glowRadius))
       .setBlendMode(Phaser.BlendModes.ADD)
@@ -1240,6 +1250,8 @@ export default class BattleScene extends Phaser.Scene {
 
     if (cfg.text) Fx.popText(this, x, y, cfg.text, cfg.color, qte.text);
     if (cfg.flash) Fx.screenFlash(this, cfg.flash, qte.flashDepth);
+    // The prop lands (the Clerk's stamp), parried or not.
+    if (hit.impactSfx) playSfx(hit.impactSfx);
     if (hit.unparryable && input === 'tap') Fx.popText(this, x, y + qte.text.riseY, qte.unparryable.tapText, qte.unparryable.tapColor, qte.text);
     playSfx(result.toLowerCase());
     vibrate(cfg.vibrateMs);

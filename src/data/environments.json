@@ -1,6 +1,7 @@
 {
   "street_rain": {
     "ambientTint": "0xa8b4e0",
+    "ambience": "rain",
     "vignette": { "color": "0x04050b", "alpha": 0.6, "inner": 0.5, "bands": 5, "depth": 880 },
     "lights": {
       "depth": 1,
@@ -26,6 +27,7 @@
       "thunder": { "sfx": "thunder", "delayMs": [400, 1500] }
     },
     "rain": {
+      "fillLandPct": [0.45, 1],
       "far": {
         "count": 50,
         "speed": 360,
@@ -52,6 +54,7 @@
   },
   "records_office": {
     "ambientTint": "0xe0d6c4",
+    "ambience": "office",
     "vignette": { "color": "0x0a0806", "alpha": 0.55, "inner": 0.5, "bands": 5, "depth": 880 }
   }
 }

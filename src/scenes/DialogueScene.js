@@ -3,7 +3,7 @@ import dialogue from '../data/dialogue.json';
 import environments from '../data/environments.json';
 import ui from '../data/ui.json';
 import voices from '../data/voices.json';
-import { playBlip, playSceneMusic } from '../systems/Audio.js';
+import { playAmbience, playBlip, playSceneMusic, playSfx } from '../systems/Audio.js';
 import * as Fx from '../systems/Fx.js';
 import { whenReady } from '../systems/Assets.js';
 import { mirrorEdges, rect as viewRect } from '../systems/View.js';
@@ -78,8 +78,10 @@ export default class DialogueScene extends Phaser.Scene {
     const env = environments[this.bgKey] || {};
     const v = viewRect();
     const area = { x: v.x, y: 0, w: v.w, h: cfg.bg.size };
-    if (env.rain) Fx.rain(this, env.rain, area);
+    // Rain falls over the whole screen (behind the text box and portraits).
+    if (env.rain) Fx.rain(this, env.rain, v, { fill: true });
     if (env.vignette) Fx.vignette(this, { ...env.vignette, depth: 0 }, area);
+    if (env.ambience) playAmbience(env.ambience);
     // Fade the picture into the ink below it.
     this.add.rectangle(v.x, cfg.bg.size - cfg.bg.fadeH, v.w, cfg.bg.fadeH, Number(ui.dialogue.box.fill), cfg.bg.fadeAlpha).setOrigin(0);
   }
@@ -155,6 +157,9 @@ export default class DialogueScene extends Phaser.Scene {
     this.nextMark.setColor(style.textColor);
 
     const speaker = style.showName ? line.speaker : null;
+    // Story sounds: a style's sfx (the letter unfolding), a speaker's (the glitch of a forgotten name).
+    const sfx = line.sfx !== undefined ? line.sfx : cfg.nameSfx[speaker] || style.sfx;
+    if (sfx) playSfx(sfx);
     this.nameText.setText(speaker || '');
     this.nameText.setColor(cfg.nameColors[speaker] || cfg.nameColors.default);
 

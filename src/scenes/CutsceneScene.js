@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import cutsceneOrigin from '../data/cutscene_origin.json';
 import environments from '../data/environments.json';
 import ui from '../data/ui.json';
-import { playSceneMusic } from '../systems/Audio.js';
+import { playAmbience, playSceneMusic, playSfx } from '../systems/Audio.js';
 import * as Fx from '../systems/Fx.js';
 import { whenReady } from '../systems/Assets.js';
 import { devInt } from '../systems/DevParams.js';
@@ -54,6 +54,14 @@ export default class CutsceneScene extends Phaser.Scene {
     const g = cfg.gradient;
     this.add.image(view.x, g.y, Fx.gradientTexture(this, view.w, 640 - g.y, g.color, g.alpha)).setOrigin(0).setDepth(g.depth);
 
+    // A faint panel behind the line, sized to each shot's full text.
+    const p = cfg.panel;
+    this.textPanel = this.add
+      .rectangle(180, cfg.text.y, p.minW, 0, Number(p.fill), p.alpha)
+      .setOrigin(0.5, 0)
+      .setStrokeStyle(1, Number(p.stroke), p.strokeAlpha)
+      .setDepth(cfg.depth.text - 1)
+      .setVisible(false);
     this.text = this.add
       .text(180, cfg.text.y, '', {
         fontFamily: ui.font,
@@ -169,6 +177,10 @@ export default class CutsceneScene extends Phaser.Scene {
 
     this.applyMove(stage, shot.move, duration);
     for (const fx of shot.fx || []) this.applyFx(fx, stage, layers, duration, shot);
+    // Sound: the shot's own sfx, else the first of its fx that has one (ui.json fxSfx).
+    const sfx = shot.sfx !== undefined ? shot.sfx : (shot.fx || []).map((fx) => cfg.fxSfx[fx]).find(Boolean);
+    if (sfx) playSfx(sfx);
+    playAmbience((shot.fx || []).includes('rain') ? cfg.rainAmbience : null);
 
     this.typeText(shot.text || '');
     this.shotTimer = this.time.delayedCall(duration, () => {
@@ -252,7 +264,7 @@ export default class CutsceneScene extends Phaser.Scene {
     if (fx === 'flash') {
       Fx.screenFlash(this, f.flash, cfg.depth.fx);
     } else if (fx === 'rain') {
-      for (const e of Fx.rain(this, environments.street_rain.rain, area)) keep(e.setDepth(cfg.depth.fx));
+      for (const e of Fx.rain(this, environments.street_rain.rain, area, { fill: true })) keep(e.setDepth(cfg.depth.fx));
     } else if (fx === 'crystal_particles' || fx === 'embers') {
       const p = f[fx];
       const emitter = this.add.particles(0, 0, sparkTexture(this, p.size), {
@@ -320,6 +332,12 @@ export default class CutsceneScene extends Phaser.Scene {
   typeText(text) {
     this.fullText = text;
     this.shown = 0;
+    // Measure the whole line once, so the panel doesn't grow while typing.
+    this.text.setText(text);
+    const p = cfg.panel;
+    this.textPanel.setVisible(text.length > 0);
+    this.textPanel.setSize(Math.max(p.minW, this.text.width + p.padX * 2), this.text.height + p.padY * 2);
+    this.textPanel.setPosition(180, cfg.text.y - p.padY);
     this.text.setText('');
     this.typing = text.length > 0;
     if (this.typeEvent) this.typeEvent.remove();
@@ -345,6 +363,7 @@ export default class CutsceneScene extends Phaser.Scene {
   finish() {
     if (this.done) return;
     this.done = true;
+    playAmbience(null);
     this.cameras.main.fadeOut(cfg.fadeOutMs, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
       const runner = this.registry.get('runner');
