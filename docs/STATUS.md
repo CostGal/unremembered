@@ -83,3 +83,7 @@ A `reward` step in `chapter1.json` (after b1 and after b3, since b2 was dropped)
 ## Lightning (#56)
 `environments.json` `street_rain.lightning`: a rare flash over the scene area (~80ms + a weaker flicker) and a procedural thunder rumble (`audio.json` `thunder`) 0.4-1.5s later. First strike after 7-16s, then every 14-28s; it waits (retry 1.5s) while a parry ring is live, so it never covers a QTE. Add `lightning` to another environment to give it storms.
 
+## Mobile pass, automated part (#38, Thu 1/10)
+`npm run mobile-check` runs the automatable half of the CLAUDE.md mobile checklist on emulated phones (iPhone 13, iPhone SE, Pixel 5, viewports cut to Instagram's in-app toolbars, touch input): game fully visible, silent-mode hint, touch/selection/zoom/long-press guards, Title tap, tap targets (>= 56 px, >= 16 px from edges), app switch pause/resume with state intact, landscape overlay + pause. 36/36 passed. `npm run playtest -- --story` plays the whole chapter in Story Mode (passed). `npm run perf`: 4G + 4x CPU load to Title 3.3-3.5 s (target 3 s; it was 2.1 s before the title art, portraits and music engine; today's features add ~0.25 s). Halving the title art was tried and rejected: visibly softer on 3x screens. FPS with rain + FX: 39 avg at 1x CPU, 21 at 4x (headless software WebGL, pessimistic).
+Still needs real phones: the Instagram in-app browser itself, iOS silent switch, PERFECT feel/latency, real FPS on an older Android, real 4G load. Then tag `v0.1-jam` Saturday.
+

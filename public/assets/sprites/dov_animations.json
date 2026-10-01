@@ -2,8 +2,8 @@
   "frame_size": [128, 128],
   "facing": "left",
   "animations": {
-    "idle": {"frames": 4, "sheet": "dov_idle.png", "optional": true, "durations_ms": [280, 260, 280, 260], "loop": true},
-    "attack": {"frames": 8, "sheet": "dov_attack.png", "optional": true, "durations_ms": [120, 100, 90, 60, 50, 80, 110, 150],
+    "idle": {"frames": 4, "sheet": "dov_idle.png", "durations_ms": [280, 260, 280, 260], "loop": true},
+    "attack": {"frames": 11, "sheet": "dov_attack.png", "durations_ms": [110, 100, 90, 60, 50, 80, 90, 110, 100, 90, 140],
                "loop": false, "windupFrame": 2, "impactFrames": [4]}
   }
 }

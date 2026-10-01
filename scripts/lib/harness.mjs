@@ -92,8 +92,10 @@ export async function startServer() {
 // A 360×640 phone-sized page. Collects console errors and page errors into
 // page.errors (resource 404s for not-yet-delivered art are expected and kept
 // apart in page.missing).
-export async function openPage(browser, url, { cpuThrottle = 1 } = {}) {
+// settings: written to localStorage before the game boots (e.g. {storyMode: true}).
+export async function openPage(browser, url, { cpuThrottle = 1, settings = null } = {}) {
   const context = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 1 });
+  if (settings) await context.addInitScript((s) => localStorage.setItem('unremembered:settings', JSON.stringify(s)), settings);
   const page = await context.newPage();
   page.errors = [];
   page.missing = [];
