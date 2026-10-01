@@ -262,7 +262,9 @@ function simulateBattle(battleId, profileName, story, rnd) {
       enemy.charge = null;
     } else {
       const list = enemy.def.phases ? enemy.def.phases[enemy.phase].attacks : enemy.def.attacks;
-      attack = pickWeighted(list, rnd);
+      // The parry tutorial teaches the tap first: no red ring until it's done.
+      const open = st.tutorialSlow ? list.filter((a) => !a.unparryable) : list;
+      attack = pickWeighted(open.length ? open : list, rnd);
       if (attack.chargeTurns) {
         st.archives += 1;
         enemy.charge = { attack, turnsLeft: attack.chargeTurns, dealt: 0 };
@@ -270,7 +272,8 @@ function simulateBattle(battleId, profileName, story, rnd) {
         return;
       }
     }
-    for (const hit of attack.hits || [attack]) {
+    for (const h of attack.hits || [attack]) {
+      const hit = { ...h, unparryable: h.unparryable ?? attack.unparryable ?? false };
       if (target.hp <= 0 || enemy.hp <= 0) break;
       const slow = st.tutorialSlow ? qte.tutorial.timeScale : 1;
       st.ms += (hit.telegraphMs + (hit.feint?.pauseMs || 0)) / slow + T.hitResolveMs;
@@ -281,22 +284,28 @@ function simulateBattle(battleId, profileName, story, rnd) {
       }
       const res = roll(qteOdds(profile, windowMult()), rnd);
       st.qtes[res] += 1;
-      if (res === 'PERFECT') st.chain += 1;
-      else if (res === 'MISS') st.chain = 0;
+      // A red ring (unparryable) is answered with a swipe: same odds, but a dodge
+      // has its own results (no counter, less Echo) and isn't a parry for Return to Sender.
+      const dodged = !!hit.unparryable;
+      const cfg = dodged ? { ...qte.results[res], ...qte.dodge.results[res] } : qte.results[res];
+      if (cfg.chain !== 0) {
+        if (res === 'PERFECT') st.chain += 1;
+        else if (res === 'MISS') st.chain = 0;
+      }
       st.maxChain = Math.max(st.maxChain, st.chain);
-      gain(qte.results[res].echo);
+      gain(cfg.echo);
       if (res === 'MISS' && hit.onMiss?.echo) gain(hit.onMiss.echo);
-      const dmg = Math.round(hit.dmg * qte.results[res].damageMult * dmgTakenMult * (st.brace ? st.brace.damageMult : 1));
+      const dmg = Math.round(hit.dmg * cfg.damageMult * dmgTakenMult * (st.brace ? st.brace.damageMult : 1));
       target.hp = Math.max(0, target.hp - dmg);
       if (st.tutorialSlow && res !== 'MISS') st.tutorialSlow = false;
       if (st.stance?.hero === target) {
         const s = st.stance;
         st.stance = null;
-        if (res !== 'MISS' && target.hp > 0) {
+        if (!dodged && res !== 'MISS' && target.hp > 0) {
           hitEnemy(enemy, Math.round(between(rnd, s.tech.counterDmg) * (res === 'PERFECT' ? s.tech.perfectMult : 1)));
           st.ms += T.counterMs;
         }
-      } else if (res === 'PERFECT' && enemy.hp > 0) {
+      } else if (res === 'PERFECT' && !dodged && enemy.hp > 0) {
         hitEnemy(enemy, qte.results.PERFECT.counterDmg);
       }
     }

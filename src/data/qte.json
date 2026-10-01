@@ -57,6 +57,22 @@
       "vibrateMs": 30
     }
   },
+  "dodge": {
+    "swipe": { "minPx": 40, "maxMs": 250 },
+    "results": {
+      "PERFECT": { "echo": 1, "counterDmg": 0, "chain": 0, "text": "DODGE", "color": "#f1efe8", "hitstopMs": 0, "shake": 0, "sparks": 8 },
+      "GOOD": { "echo": 0, "text": "DODGE", "color": "#b9b5a8" }
+    }
+  },
+  "unparryable": {
+    "ringColor": "0xd8505a",
+    "targetColor": "0xd8505a",
+    "hint": "Swipe to dodge!",
+    "tapText": "CAN'T PARRY",
+    "tapColor": "#d8505a",
+    "icon": { "text": "!", "color": "#d8505a", "fontSize": 32, "offsetY": -70, "stroke": "#f1efe8", "strokeThickness": 4, "pulseMs": 260 },
+    "lesson": { "text": "Red ring:\nSWIPE to dodge", "attempts": 2 }
+  },
   "text": { "fontSize": 20, "offsetY": -64, "riseY": 18, "ms": 700, "depth": 1000 },
   "sparks": { "color": "0x3fd0c9", "speed": [60, 160], "lifeMs": 320, "size": 2 },
   "flashDepth": 960,

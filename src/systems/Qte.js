@@ -18,13 +18,17 @@ export function scaledWindows(windows, mult) {
   return { ...windows, perfectMs: windows.perfectMs * mult, goodMs: windows.goodMs * mult };
 }
 
-// Shows the ring at (x, y) and resolves with {result, dtMs} once the tap is
-// judged: at T for an early tap, at the tap for a late one, at T + goodMs if
+// Shows the ring at (x, y) and resolves with {result, dtMs, input} once the tap
+// is judged: at T for an early tap, at the tap for a late one, at T + goodMs if
 // there is no tap (MISS). 'CANCEL' (Nala) and 'INTERRUPTED' (app hidden, see
 // interruptRings) are never judgements. impactAt = the performance.now() time of T.
 // feint = {atPct, pauseMs}: the ring freezes at atPct of its travel for
 // pauseMs, so T moves pauseMs later.
-export function runRing(scene, { x, y, telegraphMs, feint, windows, ring }) {
+// swipe = {minPx, maxMs} (enemy attacks only): a gesture that travels minPx
+// within maxMs is a dodge (input 'swipe'), anything else a parry ('tap'). Both
+// are judged on the touch-down time; the result waits until the gesture is
+// classified. unparryable: a tap is always a MISS, only a swipe can answer.
+export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe = null, unparryable = false }) {
   const start = performance.now();
   const pauseAt = feint ? feint.atPct * telegraphMs : Infinity;
   const pauseMs = feint ? feint.pauseMs : 0;
@@ -47,13 +51,31 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring }) {
       const dtMs = time - impactAt;
       const result = judge(dtMs, windows);
       if (!result) return;
-      judged = { result, dtMs };
+      judged = { result, dtMs, input: 'tap' };
+      if (swipe) judged.pending = { pointer, at: performance.now() };
       pointer.qteUsedAt = pointer.downTime;
+    };
+
+    // The gesture is a swipe or a tap: from here the judgement can resolve.
+    const settle = (input) => {
+      if (!judged?.pending) return;
+      delete judged.pending;
+      judged.input = input;
+      if (input === 'tap' && unparryable) judged.result = 'MISS';
+    };
+    const isSwipe = (pointer) => pointer.getDistance() >= swipe.minPx && gestureMs(pointer) <= swipe.maxMs;
+    const onMove = (pointer) => {
+      if (judged?.pending?.pointer === pointer && isSwipe(pointer)) settle('swipe');
+    };
+    const onUp = (pointer) => {
+      if (judged?.pending?.pointer === pointer) settle(isSwipe(pointer) ? 'swipe' : 'tap');
     };
 
     const detach = () => {
       liveRings(scene).delete(handle);
       scene.input.off('pointerdown', onDown);
+      scene.input.off('pointermove', onMove);
+      scene.input.off('pointerup', onUp);
       scene.events.off('update', onUpdate);
       scene.events.off('shutdown', detach);
     };
@@ -79,8 +101,10 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring }) {
       g.lineStyle(ring.lineWidth, t >= 1 ? target : color, 1);
       g.strokeCircle(x, y, radius);
 
-      if (judged && now >= impactAt) finish(judged);
-      else if (!judged && now > impactAt + windows.goodMs) finish({ result: 'MISS', dtMs: null });
+      // Held still past the swipe time: it was a tap.
+      if (judged?.pending && now - judged.pending.at > swipe.maxMs) settle('tap');
+      if (judged && !judged.pending && now >= impactAt) finish(judged);
+      else if (!judged && now > impactAt + windows.goodMs) finish({ result: 'MISS', dtMs: null, input: null });
     };
 
     // e.g. Nala cancels the attack: resolves at once with result 'CANCEL'.
@@ -99,13 +123,17 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring }) {
     };
 
     scene.input.on('pointerdown', onDown);
+    if (swipe) {
+      scene.input.on('pointermove', onMove);
+      scene.input.on('pointerup', onUp);
+    }
     scene.events.on('update', onUpdate);
     // Leaving the scene mid-ring (e.g. a restart) must not leave listeners behind.
     scene.events.once('shutdown', detach);
     onUpdate();
   });
 
-  const handle = { promise, impactAt, cancel: () => cancel(), interrupt: () => interrupt() };
+  const handle = { promise, impactAt, unparryable, cancel: () => cancel(), interrupt: () => interrupt() };
   liveRings(scene).add(handle);
   return handle;
 }
@@ -118,6 +146,13 @@ export function interruptRings(scene) {
 function liveRings(scene) {
   if (!scene.qteRings) scene.qteRings = new Set();
   return scene.qteRings;
+}
+
+// How long the pointer has been down (its last move or up vs its down).
+function gestureMs(pointer) {
+  const end = pointer.isDown ? pointer.moveTime : pointer.upTime;
+  const ms = end - pointer.downTime;
+  return Number.isFinite(ms) && ms >= 0 && ms < 1000 ? ms : 0;
 }
 
 // The pointer event's own timestamp is closest to the real touch. Fall back to

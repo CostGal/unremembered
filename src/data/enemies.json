@@ -7,7 +7,7 @@
     "hollow": false,
     "attacks": [
       { "id": "punch", "weight": 1, "telegraphMs": 900, "dmg": 10 },
-      { "id": "lunge", "weight": 1, "telegraphMs": 600, "dmg": 8 }
+      { "id": "lunge", "weight": 1, "telegraphMs": 600, "dmg": 8, "unparryable": true }
     ]
   },
   "hollow": {
@@ -67,6 +67,7 @@
             "weight": 1,
             "chargeTurns": 2,
             "interruptDmg": 40,
+            "unparryable": true,
             "telegraphMs": 900,
             "dmg": 30
           }
