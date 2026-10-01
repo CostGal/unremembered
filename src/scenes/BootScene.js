@@ -6,8 +6,7 @@ import enemies from '../data/enemies.json';
 import { setVolumes } from '../systems/Audio.js';
 import { loadSettings } from '../systems/Settings.js';
 import { fetchAnimationSets } from '../systems/SpriteAnims.js';
-
-const FONT_TIMEOUT_MS = 1000;
+import { applyFont, loadFont } from '../systems/Fonts.js';
 
 export default class BootScene extends Phaser.Scene {
   constructor() {
@@ -17,28 +16,17 @@ export default class BootScene extends Phaser.Scene {
   async create() {
     // Only the font blocks the first screen; the animation sets are fetched
     // by the Loader with the sprite sheets.
-    await this.loadFont();
+    const settings = loadSettings();
+    await loadFont(applyFont(settings));
 
     this.registry.set('manifest', manifest);
     if (import.meta.env.DEV) {
       fetchAnimationSets([...Object.keys(characters), ...Object.keys(enemies), ...Object.keys(allies)]).then(validateInDev);
     }
-    const settings = loadSettings();
     this.registry.set('settings', settings);
     setVolumes(settings);
 
     this.scene.start('Preload');
-  }
-
-  async loadFont() {
-    try {
-      await Promise.race([
-        document.fonts.load('16px "Pixelify Sans"'),
-        new Promise((resolve) => setTimeout(resolve, FONT_TIMEOUT_MS)),
-      ]);
-    } catch (err) {
-      // missing font file never blocks the game — falls back to the CSS stack
-    }
   }
 }
 

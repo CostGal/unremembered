@@ -7,6 +7,7 @@ const DEFAULTS = {
   musicVolume: 1,
   sfxVolume: 1,
   difficulty: 'normal',
+  font: 'pixelify',
 };
 
 export function loadSettings() {

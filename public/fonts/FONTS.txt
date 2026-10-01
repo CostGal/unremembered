@@ -1,0 +1,12 @@
+Fonts shipped with the game (all under the SIL Open Font License 1.1, see OFL.txt):
+
+- Pixelify Sans (PixelifySans-Regular-latin.woff2)
+  Copyright 2021 The Pixelify Sans Project Authors (https://github.com/eifetx/Pixelify-Sans)
+- Handjet (Handjet-Regular-latin.woff2, Handjet-Regular-greek.woff2)
+  Copyright 2022 The Handjet Project Authors (https://github.com/rosettatype/handjet)
+- Tiny5 (Tiny5-Regular-latin.woff2, Tiny5-Regular-greek.woff2)
+  Copyright 2023 The Tiny5 Project Authors (https://github.com/Gissio/font_tiny5)
+
+The subsets are the ones served by Google Fonts (latin, plus greek for the
+fonts that have it). Handjet and Tiny5 are optional (Settings > Font); only
+Pixelify Sans is preloaded.

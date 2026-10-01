@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import ui from '../data/ui.json';
 import { playSceneMusic, unlockAudio } from '../systems/Audio.js';
 import { rect as viewRect } from '../systems/View.js';
+import { saveSettings } from '../systems/Settings.js';
+import { requestFullscreen, titleLine, wantsFullscreen } from '../systems/Fullscreen.js';
 import { addText } from '../systems/Button.js';
 import { isRealTexture, whenReady } from '../systems/Assets.js';
 import * as Fx from '../systems/Fx.js';
@@ -46,13 +48,39 @@ export default class TitleScene extends Phaser.Scene {
     this.tweens.add({ targets: tap, alpha: cfg.tap.pulseAlpha, duration: cfg.tap.pulseMs, yoyo: true, repeat: -1 });
 
     addText(this, 180, layout.silent.y, cfg.silent.text, cfg.silent).setDepth(cfg.art.textDepth);
+    this.buildFullscreenLine();
 
     this.input.once('pointerdown', () => {
       unlockAudio();
+      // Inside the tap, where the browser allows it and the player hasn't turned it off.
+      if (wantsFullscreen(this.registry.get('settings'))) requestFullscreen();
       this.scene.start('Menu');
     });
     // For the load-time check (scripts/perf.mjs): the title takes taps now.
     performance.mark('title-interactive');
+  }
+
+  // Bottom line: "Fullscreen: On/Off" (a toggle, remembered in settings) where
+  // the Fullscreen API works; a tip where it can't (iOS, in-app browsers).
+  buildFullscreenLine() {
+    const f = cfg.fullscreen;
+    const settings = this.registry.get('settings') || {};
+    const line = titleLine(settings);
+    if (!line) return;
+    const text = addText(this, 180, f.y, line.text, f).setDepth(cfg.art.textDepth);
+    if (!line.toggle) return;
+    const on = () => settings.fullscreen !== false;
+    const paint = () => text.setText(on() ? f.on : f.off).setColor(on() ? f.activeColor : f.color);
+    paint();
+    // A tap here flips the setting and must not count as "Tap to start".
+    const hit = this.add.zone(180, f.y, f.hitW, f.hitH).setInteractive({ useHandCursor: true }).setDepth(cfg.art.textDepth + 1);
+    hit.on('pointerdown', (pointer, x, y, event) => {
+      event.stopPropagation();
+      settings.fullscreen = !on();
+      this.registry.set('settings', { ...settings });
+      saveSettings(settings);
+      paint();
+    });
   }
 
   buildArt() {

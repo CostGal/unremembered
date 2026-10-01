@@ -312,7 +312,7 @@ export function lightning(scene, cfg, area, busy = () => false) {
 export function popText(scene, x, y, text, color, cfg) {
   const label = scene.add
     .text(x, y + cfg.offsetY, text, {
-      fontFamily: '"Pixelify Sans", monospace',
+      fontFamily: ui.font,
       fontSize: `${cfg.fontSize}px`,
       color,
       stroke: '#0b0d14',

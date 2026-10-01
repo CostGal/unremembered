@@ -1,6 +1,17 @@
 {
   "font": "\"Pixelify Sans\", monospace",
   "view": { "designW": 360, "designH": 640, "maxW": 420 },
+  "fonts": {
+    "default": "pixelify",
+    "loadTimeoutMs": 1000,
+    "greekTag": " (Greek)",
+    "list": [
+      { "id": "pixelify", "label": "Pixelify Sans", "family": "\"Pixelify Sans\", monospace", "greek": false },
+      { "id": "handjet", "label": "Handjet", "family": "\"Handjet\", monospace", "greek": true },
+      { "id": "tiny5", "label": "Tiny5", "family": "\"Tiny5\", monospace", "greek": true },
+      { "id": "system", "label": "System", "family": "sans-serif", "greek": true }
+    ]
+  },
   "hud": {
     "panel": { "x": 0, "y": 360, "w": 360, "h": 80, "color": "0x12151f", "borderColor": "0x2a2e3d" },
     "textColor": "#f1efe8",
@@ -348,7 +359,19 @@
       "pulseAlpha": 0.35,
       "pulseMs": 700
     },
-    "silent": { "text": "🔈 Turn off silent mode for sound", "y": 566, "fontSize": 12, "color": "#8a8f9e" }
+    "silent": { "text": "🔈 Turn off silent mode for sound", "y": 566, "fontSize": 12, "color": "#8a8f9e" },
+    "fullscreen": {
+      "y": 602,
+      "fontSize": 13,
+      "color": "#8a8f9e",
+      "activeColor": "#3fd0c9",
+      "hitW": 300,
+      "hitH": 56,
+      "on": "Fullscreen: On",
+      "off": "Fullscreen: Off",
+      "ios": "Add to Home Screen to play full screen",
+      "inApp": "Open in your browser to play full screen"
+    }
   },
   "menu": {
     "title": { "text": "UNREMEMBERED", "y": 110, "fontSize": 30, "color": "#3fd0c9" },
@@ -378,19 +401,20 @@
   },
   "settings": {
     "title": { "text": "Settings", "y": 90, "fontSize": 26, "color": "#f1efe8" },
-    "firstY": 210,
-    "spacing": 90,
-    "button": { "w": 300, "h": 64, "fontSize": 17 },
+    "firstY": 186,
+    "spacing": 76,
+    "button": { "w": 300, "h": 62, "fontSize": 17 },
     "volumeSteps": [1, 0.75, 0.5, 0.25, 0],
     "labels": {
       "musicVolume": "Music: {v}",
       "sfxVolume": "Sound FX: {v}",
       "difficulty": "Difficulty: {v}",
+      "font": "Font: {v}",
       "back": "Back"
     },
     "hint": {
       "text": "{hint}",
-      "y": 470,
+      "y": 478,
       "fontSize": 12,
       "color": "#8a8fa3",
       "wrap": 300
