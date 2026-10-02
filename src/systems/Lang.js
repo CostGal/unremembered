@@ -9,6 +9,7 @@ import allies from '../data/allies.json';
 import breakData from '../data/break.json';
 import grade from '../data/grade.json';
 import levels from '../data/levels.json';
+import crit from '../data/crit.json';
 import el from '../data/lang/el.json';
 
 // Languages: English is the data as written; another language is an overlay
@@ -19,7 +20,7 @@ import el from '../data/lang/el.json';
 // string the overlay doesn't have stays English. Text objects pick up the
 // language when they are created, like the font (scenes restart on a switch).
 
-const MODULES = { ui, credits, qte, techniques, fragments, statuses, battleEvents, allies, break: breakData, grade, levels };
+const MODULES = { ui, credits, qte, techniques, fragments, statuses, battleEvents, allies, break: breakData, grade, levels, crit };
 const OVERLAYS = { el };
 export const LANGUAGES = ui.languages.list;
 

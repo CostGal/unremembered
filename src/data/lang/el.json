@@ -378,5 +378,6 @@
       "hud": "Επ{n}"
     },
     "upgradeDetail": { "cost": "{n} Echo", "hits": "{a}\u2013{b} βολές", "hitsSame": "{a} βολές", "critChance": "{pct}% κρίσιμο" }
-  }
+  },
+  "crit": { "text": "ΚΡΙΤ!" }
 }

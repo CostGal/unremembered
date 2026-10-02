@@ -174,6 +174,22 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   }
   for (const [id, e] of Object.entries(enemies)) for (const t of e.immune || []) if (!techniques[t]) err(`enemies.${id}: immune "${t}" is not in techniques.json`);
 
+  // crit.json: Strike / enemy-hit crit chance and damage multiplier, plus the pop text.
+  const critData = data.crit;
+  if (!critData) err('crit.json: missing');
+  else {
+    for (const side of ['hero', 'enemy']) {
+      const c = critData[side];
+      if (!c) err(`crit.json: "${side}" is required`);
+      else {
+        if (!(typeof c.chance === 'number' && c.chance >= 0 && c.chance <= 1)) err(`crit.json: ${side}.chance must be a number in [0, 1]`);
+        if (!(typeof c.mult === 'number' && c.mult > 0)) err(`crit.json: ${side}.mult must be a number > 0`);
+      }
+    }
+    if (typeof critData.text !== 'string' || !critData.text) err('crit.json: "text" is required');
+    if (typeof critData.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(critData.color)) err('crit.json: "color" must be a #rrggbb string');
+  }
+
   // break.json: poise weights per damage source + the golden line's look.
   const brk = data.break;
   if (!brk) err('break.json: missing');

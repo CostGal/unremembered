@@ -28,6 +28,7 @@ const D = {
   techniques: read('src/data/techniques.json'),
   qte: read('src/data/qte.json'),
   brk: read('src/data/break.json'),
+  crit: read('src/data/crit.json'),
   grade: read('src/data/grade.json'),
   levels: read('src/data/levels.json'),
   statuses: read('src/data/statuses.json'),
@@ -343,7 +344,9 @@ function simulateBattle(battleId, profileName, story, rnd) {
     }
     // Strike (an immune target takes nothing and gives no Echo).
     if (strikeTarget) {
-      hitEnemy(strikeTarget, between(rnd, hero.strike), 'strike');
+      const isCrit = rnd() < D.crit.hero.chance;
+      const base = between(rnd, hero.strike);
+      hitEnemy(strikeTarget, isCrit ? Math.round(base * D.crit.hero.mult) : base, 'strike', isCrit);
       gain(hero, tech.strike.echoOnHit);
     } else st.immuneSeen = true;
     st.ms += T.dashMs * 2 + sheetMs(hero.id, 'attack', T.attackMs);
@@ -401,6 +404,8 @@ function simulateBattle(battleId, profileName, story, rnd) {
     if (attack.melee) st.ms += T.meleeMs;
     for (const h of attack.hits || [attack]) {
       const hit = { ...h, unparryable: h.unparryable ?? attack.unparryable ?? false };
+      // crit.json enemy: per hit, before the parry's damage multiplier (same in Story Mode).
+      if (rnd() < D.crit.enemy.chance) hit.dmg = Math.round(hit.dmg * D.crit.enemy.mult);
       if (target.hp <= 0 || enemy.hp <= 0) break;
       const slow = st.tutorialSlow ? qte.tutorial.timeScale : 1;
       st.ms += (hit.telegraphMs + (hit.feint?.pauseMs || 0)) / slow + T.hitResolveMs;

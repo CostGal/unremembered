@@ -8,6 +8,7 @@ import allies from '../data/allies.json';
 import battleEvents from '../data/battleEvents.json';
 import dialogues from '../data/dialogue.json';
 import brk from '../data/break.json';
+import crit from '../data/crit.json';
 import statuses from '../data/statuses.json';
 import qte from '../data/qte.json';
 import techniques from '../data/techniques.json';
@@ -949,6 +950,11 @@ export default class BattleScene extends Phaser.Scene {
           sfx: hits[k].sfx ?? attack.sfx,
           impactSfx: hits[k].impactSfx ?? attack.impactSfx,
         };
+        // crit.json enemy: rolled per hit; the bigger hit only shows if damage gets through.
+        if (Math.random() < crit.enemy.chance) {
+          hit.crit = true;
+          hit.dmg = Math.round(hit.dmg * crit.enemy.mult);
+        }
         const result = await this.enemyHit(enemy, target, hit, sheet, k);
         if (result === 'CANCEL') break;
       }
@@ -1628,7 +1634,9 @@ export default class BattleScene extends Phaser.Scene {
     // MISS -> hurt, each only if the character has that sheet.
     const dodge = (result === 'GOOD' || (result === 'PERFECT' && dodged)) && hero.hp > 0 && hasSheet(hero.anims, 'dodge');
     const hpBefore = hero.hp;
-    if (dmg > 0) this.applyHit(hero, dmg, undefined, { react: !dodge });
+    const showCrit = !!hit.crit && dmg > 0;
+    if (dmg > 0) this.applyHit(hero, dmg, undefined, { react: !dodge, type: showCrit ? 'crit' : null });
+    if (showCrit) Fx.popText(this, x, y + qte.text.riseY, crit.text, crit.color, qte.text);
     // e.g. Siphon: the enemy keeps a share of the life it took (enemies.json lifesteal).
     if (hit.lifesteal && dmg > 0 && enemy.hp > 0) {
       this.healEnemy(enemy, Math.round(Math.min(dmg, hpBefore) * hit.lifesteal), battleEvents.lifesteal.text, battleEvents.lifesteal.color);
@@ -1989,12 +1997,16 @@ export default class BattleScene extends Phaser.Scene {
     await this.meleeApproach(hero, target);
 
     // A Strike deals its damage once, on the first impact frame.
-    const dmg = Phaser.Math.Between(hero.strike[0], hero.strike[1]);
+    // crit.json hero: a chance to hit harder (never against an immune target).
+    const isCrit = Math.random() < crit.hero.chance && !this.isImmune(target, 'strike');
+    const base = Phaser.Math.Between(hero.strike[0], hero.strike[1]);
+    const dmg = isCrit ? Math.round(base * crit.hero.mult) : base;
     await this.playAttackAnim(hero, (i) => {
       if (i !== 0) return;
       if (this.isImmune(target, 'strike')) this.passThrough(target);
       else {
-        this.applyHit(target, dmg, undefined, { poiseSource: 'strike' });
+        this.applyHit(target, dmg, undefined, { poiseSource: 'strike', type: isCrit ? 'crit' : null, crit: isCrit });
+        if (isCrit) Fx.popText(this, target.container.x, target.container.y, crit.text, crit.color, qte.text);
         this.gainEcho(hero, techniques.strike.echoOnHit);
       }
     });
