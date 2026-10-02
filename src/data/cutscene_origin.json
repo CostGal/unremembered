@@ -29,7 +29,6 @@
     {"text": "Steel passes through a Hollow like smoke.", "bg": null, "layers": [{"img": "hollow", "x": 0.5, "y": 0.5, "scale": 2}], "fx": ["flash"]},
     {"text": "Only a memory can wound a memory.", "bg": null, "fx": ["crystal_particles"]},
     {"text": "So we learned to burn our own. We call it Echo.", "bg": null, "layers": [{"img": "rhea_body", "x": 0.5, "y": 0.5, "scale": 2, "flip": true}], "fx": ["crystal_particles"]},
-    {"text": "What you burn, you never get back.", "bg": null, "fx": ["crystal_particles"]},
     {"text": "Seven years after the Hush.", "bg": null, "durationMs": 3500}
   ]
 }

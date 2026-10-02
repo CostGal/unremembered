@@ -1,4 +1,4 @@
-# Unremembered — Story Bible v2 (cohesion pass 2/10)
+# Unremembered — Story Bible v1 (locked 28/9)
 
 Dialogue lines are open until **Thu 1/10**. Everything else below is locked for the jam. Changes go to Post-jam issues.
 
@@ -21,8 +21,7 @@ Dialogue lines are open until **Thu 1/10**. Everything else below is locked for 
 2. What you burn is gone **for you**. Others still remember it. Only Aurelian can erase something from everyone.
 3. **The present makes new sparks.** Every moment of a fight becomes a fresh memory, which is why Echo refills in battle.
 4. Burn everything and you become a **Blank**: an empty shell that attacks the living.
-5. Your technique is shaped by your strongest memory. (Dov's Anchor is Rhea as a small child on his shoulders at the lantern festival.)
-6. **Hollows are made of what was taken.** Breaking one lets pieces drift free, and sometimes they find their way home. This is the in-fiction reason for the "A memory returns" reward. The Hollows in Chapter 1 are made of Dov: Nala hisses at the dust because she knows it.
+5. Your technique is shaped by your strongest memory.
 - **Keepsakes:** precious memories a fighter holds in reserve. Burning one gives a flood of Echo.
 - **Recollection:** the ultimate. The user pulls the fight into one of their memories.
 
@@ -32,20 +31,19 @@ Dialogue lines are open until **Thu 1/10**. Everything else below is locked for 
 - **Nala:** calico cat (white/orange/black). She was **Dov's cat**. Animals are untouched by the Reliquary, so she still knows him, which is the proof Rhea needs. In battle she senses Hollows.
 - **Blanks:** people who burned everything. Grey raincoats, smooth featureless faces. Slow and tragic.
 - **Hollows:** monsters made from stolen lives, shaped from memory-dust.
-- **The Clerk (boss):** a Forgotten former royal archivist. Twenty-seven years ago he struck Aurelian's name from every page in Veyra and was proud of it. When Aurelian returned, the Clerk's own name was the first he unwrote. Now he keeps the **Ledger** (the list of who will be erased next) because he was promised he would be remembered when it is full. Tall and thin. Attacks with stamps and filing.
+- **The Clerk (boss):** a Forgotten former royal archivist who serves Aurelian because he was promised he would be remembered again. Tall and thin, holds the **Ledger**: the list of who will be erased next. Attacks with stamps and filing.
 - **Aurelian:** only a silhouette at the end of the demo.
 
 ## Chapter 1 — flow
-Threads that must pay off: the Unwriting, "she saw a stranger", Hollows made from what is taken, Echo costs you, the letter.
-1. **Origin cutscene** (below). Ends: "What you burn, you never get back." then "Seven years after the Hush."
-2. **The letter.** Rhea wakes holding a letter in her own handwriting: "Trust Dov. You won't remember why." Yesterday, on a delivery to the Records Office, she saw the Ledger, and Dov's name was next. The ink is still wet.
-3. **Meet Dov.** A stranger says he is her brother. He recounts yesterday: she came home white as paper, they tried to reach the Records Office, Hollows pinned them until midnight, then she looked at him and asked who he was. She doesn't believe him until Nala runs to him. Dust gathers into a Hollow; Dov says it is made of him.
-4. **Battle 1 — Blank + Hollow** (tutorial: Strike + parry).
-5. **After B1.** Something came loose when the Hollow broke: Hollows are what the King took, and pieces drift free (the reward screen). The Forgotten stop belonging to anyone; Dov still belongs to Rhea. His Echo is her on his shoulders at the lantern festival, which she cannot remember. Plan: steal the Ledger before tonight.
-6. **Battle 2 — Hollows** (Nala saves). Reward.
-7. **Records Office.** The Clerk was the archivist of the Unwriting. The King unwrote him first and put a pen in his hand: fill the Ledger and get your name back. Rhea: the Reliquary promised no one would be forgotten, and you believe him? Clerk: it is the only promise I have left. He calls Dov filed and forgotten and raises the stamp.
-8. **Boss — The Clerk.** At phase 2 Rhea burns her last Keepsake: **today, the only memories she has of Dov**. Recollection wins the fight. "What you burn, you never get back."
-9. **Ending.** The Ledger falls open, tonight's page blank. Rhea turns to Dov and asks "Who are you?". His name glitches to ▯▯▯. Nala looks up at Rhea. Rhea finds the letter in her coat, reads it, asks "Are you Dov?", and trusts him without knowing why (the cutscene's "saw a stranger" beat, answered). The silhouette of Aurelian watches from the empty plinth. "Chapter 2: The Gallery — locked". End of Demo.
+1. **Origin cutscene** (below).
+2. **The letter.** Rhea wakes holding a letter in her own handwriting: "Trust Dov. You won't remember why." Yesterday, on a delivery to the Records Office, she saw the Ledger, and Dov's name was next. She wrote the letter before nightfall.
+3. **Meet Dov.** A stranger says he is her brother. She doesn't believe him until Nala runs to him.
+4. **Battle 1 — Blanks** (tutorial: Strike + parry).
+5. **After B1.** Plan: steal the Ledger from the Records Office before tonight's name is erased.
+6. **Battle 2 — Blanks + Hollows** (first Nala save).
+7. **Records Office.** The Clerk.
+8. **Boss — The Clerk.** At phase 2 Rhea burns her last Keepsake: **today, the only memories she has of Dov**. Recollection wins the fight.
+9. **Ending.** Rhea holds the Ledger, turns to Dov and asks "Who are you?". His name glitches to ▯▯▯ in the dialogue box. The silhouette of Aurelian appears. "Chapter 2: The Gallery — locked". End of Demo.
 
 ## Cutscene script — "Origin"
 Narrated by Rhea. ~2.5 min. Tap = next shot, hold = skip.
@@ -82,8 +80,7 @@ Visual keys: `city`, `reliquary`, `battlefield`, `council`, `statue`, `street_ra
 | 27 | Steel passes through a Hollow like smoke. | black + Hollow sprite, slash passes through |
 | 28 | Only a memory can wound a memory. | black + teal spark |
 | 29 | So we learned to burn our own. We call it Echo. | black + Rhea sprite glowing teal |
-| 30 | What you burn, you never get back. | black + crystal particles |
-| 31 | Seven years after the Hush. | black, then → dialogue "letter" |
+| 30 | Seven years after the Hush. | black, then → dialogue "letter" |
 
 ## Sprite prompts (pixler.dev)
 All: "side-view pixel art RPG battle sprite, … 64px tall, clean outline, transparent background". Use `rhea.png` as the style reference for all the others.
