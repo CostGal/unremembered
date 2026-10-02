@@ -5,7 +5,7 @@
     "textColor": "#f1efe8",
     "activeColor": "#3fd0c9",
     "lowHp": { "pct": 0.25, "color": "0xff4050", "pad": 2, "alphaMin": 0.15, "alphaMax": 0.9, "pulseMs": 380, "nameColor": "#ff8a80" },
-    "rows": { "firstY": 374, "spacing": 22, "downedAlpha": 0.4 },
+    "rows": { "firstY": 371, "spacing": 34, "downedAlpha": 0.4 },
     "name": { "x": 16, "fontSize": 14 },
     "hpBar": {
       "x": 72,
@@ -19,21 +19,24 @@
       "lagTweenMs": 400
     },
     "hpText": { "x": 344, "fontSize": 12 },
-    "fragments": { "x": 284, "y": 422, "size": 16, "gap": 4, "fontSize": 12, "fill": "0x0b0d14" },
+    "fragments": { "x": 284, "y": 418, "size": 14, "gap": 4, "fontSize": 11, "fill": "0x0b0d14" },
     "statusBadge": { "x": 270, "w": 16, "h": 12, "gap": 2, "fontSize": 10, "fill": "0x0b0d14", "strokeAlpha": 1, "popScale": 1.4, "popMs": 160 },
     "echo": {
-      "y": 422,
+      "offsetY": 13,
       "max": 10,
       "label": "Echo",
       "labelX": 16,
-      "labelFontSize": 14,
+      "labelFontSize": 10,
+      "labelColor": "#8a8fa3",
       "pipX": 72,
       "pipW": 16,
-      "pipH": 8,
+      "pipH": 7,
       "pipGap": 4,
       "fullColor": "0x3fd0c9",
       "emptyColor": "0x1f2a33",
       "emptyStroke": "0x2f4450",
+      "lockedColor": "0x141820",
+      "lockedStroke": "0x3a3f52",
       "pulseScale": 1.5,
       "pulseMs": 120,
       "fillStaggerMs": 60,
@@ -44,8 +47,8 @@
       "glowPeriodMs": 700
     },
     "chain": {
-      "x": 72,
-      "y": 434,
+      "x": 284,
+      "y": 384,
       "fontSize": 11,
       "label": "CHAIN x{n}",
       "color": "#f0c060",
@@ -58,6 +61,7 @@
       "breakFadeMs": 200
     }
   },
+  "enemyStatus": { "offsetY": -16, "fontSize": 11, "color": "#f0c060", "stroke": "#0b0d14", "strokeThickness": 3 },
   "battleLayout": {
     "sceneBottom": 360,
     "labelGap": 6,
@@ -155,6 +159,7 @@
   "battleEnd": {
     "victoryText": "Victory",
     "loseText": "The memory fades…",
+    "errorText": "The memory slips…",
     "continueText": "Tap to continue",
     "retryText": "Retry",
     "textY": 300,
@@ -418,7 +423,8 @@
       "crit": { "color": "#f0c060", "fontSize": 20 },
       "hurt": { "color": "#ff8a80", "fontSize": 16 },
       "heal": { "color": "#8ee6a8", "fontSize": 17 },
-      "echo": { "color": "#3fd0c9", "fontSize": 13 }
+      "echo": { "color": "#3fd0c9", "fontSize": 13 },
+      "guarded": { "color": "#8a8fa3", "fontSize": 14 }
     },
     "popScale": 1.5,
     "popMs": 130,
@@ -446,8 +452,8 @@
     },
     "hints": {
       "strike": { "text": "Tap Strike to attack" },
-      "echo": { "text": "Good timing charges Echo" },
-      "techniques": { "text": "Techniques spend Echo" },
+      "echo": { "text": "PERFECT parries charge Echo" },
+      "techniques": { "text": "Techniques spend your Echo" },
       "chain": { "text": "Chain PERFECTs for bonus damage", "always": true },
       "break": { "text": "Empty its pips to BREAK it", "always": true },
       "status": { "text": "Statuses fade. Anchor clears them", "always": true }

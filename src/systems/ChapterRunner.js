@@ -17,6 +17,9 @@ export default class ChapterRunner {
     scene.registry.set('runner', runner);
     // Fragments picked between battles last for one run.
     scene.registry.set('fragments', []);
+    // Parry assist (BattleScene.parryAssist) starts fresh too.
+    scene.registry.set('parryAssistMs', 0);
+    scene.registry.set('parryMissStreak', 0);
     runner.index = Math.max(-1, Math.min(steps.length - 1, (devInt('step') ?? 0) - 1));
     runner.next(scene);
     return runner;

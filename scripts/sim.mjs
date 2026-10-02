@@ -28,6 +28,7 @@ const D = {
   brk: read('src/data/break.json'),
   grade: read('src/data/grade.json'),
   statuses: read('src/data/statuses.json'),
+  battleEvents: read('src/data/battleEvents.json'),
   allies: read('src/data/allies.json'),
   chapter: read('src/data/chapter1.json'),
   dialogue: read('src/data/dialogue.json'),
@@ -119,7 +120,7 @@ function pickWeighted(list, rnd) {
   const total = list.reduce((s, i) => s + (i.weight || 1), 0);
   let r = rnd() * total;
   for (const item of list) {
-    r -= item.weight || 1;
+    r -= item.weight ?? 1;
     if (r <= 0) return item;
   }
   return list[list.length - 1];
@@ -135,12 +136,14 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const dmgTakenMult = story ? qte.storyMode.damageMult : 1;
   const think = D.sim.thinkMs[profileName];
 
-  const heroes = ['rhea', 'dov'].map((id) => ({ id, def: D.characters[id], hp: D.characters[id].hp, max: D.characters[id].hp, redacted: null }));
+  const heroes = ['rhea', 'dov'].map((id) => ({ id, def: D.characters[id], hp: D.characters[id].hp, max: D.characters[id].hp, redacted: null, echo: 0, echoMax: D.characters[id].echoMax ?? echoMax }));
   const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: D.enemies[id].hp, max: D.enemies[id].hp, phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false }));
 
   // A tutorial battle also costs the time to read its hint banners.
-  const st = { echo: 0, ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
-  const gain = (n) => (st.echo = Math.max(0, Math.min(echoMax, st.echo + n)));
+  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  // Echo is per hero (each has their own reserve).
+  const gain = (hero, n) => (hero.echo = Math.max(0, Math.min(hero.echoMax, hero.echo + n)));
+  const rhea = heroes[0];
   const living = (list) => list.filter((e) => e.hp > 0);
 
   // Perfect chain (qte.json chain): +stepPct% per step on every player hit; the
@@ -153,19 +156,21 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const hitEnemy = (enemy, rawDmg, poiseDmg = 0) => {
     let dmg = chainDmg(rawDmg);
     if (enemy.broken) dmg = Math.round(dmg * D.brk.damageMult);
-    enemy.hp = Math.max(0, enemy.hp - dmg);
-    if (enemy.charge) {
-      enemy.charge.dealt += dmg;
-      if (enemy.charge.dealt >= enemy.charge.attack.interruptDmg || enemy.hp <= 0) {
-        if (enemy.hp > 0) st.archiveInterrupts += 1;
-        enemy.charge = null;
-      }
+    // A charging enemy's guard absorbs part of the hit; Exposed (Recollection) adds.
+    if (enemy.charge?.attack.guardMult) {
+      const full = dmg;
+      dmg = Math.round(dmg * enemy.charge.attack.guardMult);
+      enemy.charge.mitigated += full - dmg;
     }
+    if (enemy.exposed) dmg = Math.round(dmg * enemy.exposed.mult);
+    enemy.hp = Math.max(0, enemy.hp - dmg);
+    if (enemy.hp <= 0) enemy.charge = null;
     const phases = enemy.def.phases;
     if (phases && enemy.hp > 0) {
       const pct = (enemy.hp / enemy.max) * 100;
       while (enemy.phase < phases.length - 1 && pct <= phases[enemy.phase].untilHpPct) {
         enemy.phase += 1;
+        enemy.turnsInPhase = 0;
         if (phases[enemy.phase].onEnter) st.pending.push(phases[enemy.phase].onEnter);
         if (enemy.def.poise && !enemy.broken) enemy.poise = enemy.def.poise;
       }
@@ -175,6 +180,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
       if (enemy.poise === 0) {
         enemy.broken = true;
         st.breaks += 1;
+        // A BREAK is the one thing that cancels a charge.
+        if (enemy.charge) {
+          st.archiveInterrupts += 1;
+          enemy.charge = null;
+        }
       }
     }
   };
@@ -191,7 +201,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
       if (ev === 'keepsake_burn' && living(enemies).length) {
         st.keepsake = true;
         st.ms += T.keepsakeMs;
-        gain(echoMax);
+        // The Keepsake unlocks Rhea's last pips, then fills them.
+        rhea.echoMax = Math.max(rhea.echoMax, D.battleEvents.keepsake_burn.echoMax || rhea.echoMax);
+        gain(rhea, rhea.echoMax);
+      } else if (D.battleEvents[ev]?.dialogue && living(enemies).length) {
+        st.ms += T.insightMs;
       }
     }
   };
@@ -210,41 +224,41 @@ function simulateBattle(battleId, profileName, story, rnd) {
     const hurt = heroes.filter((h) => h.hp > 0 && h.hp < h.max * D.sim.policy.anchorBelow);
 
     // Recollection when full.
-    if (hero.def.canUltimate && st.echo >= tech.recollection.cost) {
-      st.echo -= tech.recollection.cost;
+    if (hero.def.canUltimate && hero.echo >= tech.recollection.cost) {
+      hero.echo -= tech.recollection.cost;
       st.recollections += 1;
       const r = tech.recollection;
       for (let i = 0; i < r.taps && target.hp > 0; i++) {
         const res = roll(qteOdds(profile, storyMult), rnd);
         hitEnemy(target, r.dmg[res.toLowerCase()], D.brk.sources.hit);
       }
+      if (r.applies && target.hp > 0) target.exposed = { mult: D.statuses[r.applies.status].damageTakenMult, turns: r.applies.turns };
       st.ms += T.recollectionFadeMs * 2 + r.taps * (qte.recollection.ringMs + r.intervalMs);
       return;
     }
-    // Full Echo is kept for Rhea's Recollection (its button pulses).
-    const saving = hero.id !== 'rhea' && st.echo >= tech.recollection.cost && heroes[0].hp > 0;
-    const can = (id) => !saving && hero.def.techniques?.includes(id) && st.echo >= tech[id].cost && hero.redacted?.tech !== id;
+    const can = (id) => hero.def.techniques?.includes(id) && hero.echo >= tech[id].cost && hero.redacted?.tech !== id;
 
     if (hero.id === 'dov') {
       if ((down || hurt.length) && can('anchor')) {
-        st.echo -= tech.anchor.cost;
+        hero.echo -= tech.anchor.cost;
         const t = down || hurt.sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
         t.hp = Math.min(t.max, (t.hp > 0 ? t.hp : 0) + tech.anchor.amount);
         t.redacted = null; // Anchor clears statuses
         st.ms += T.castMs;
         return;
       }
-      const charging = enemies.some((e) => e.charge);
-      if (D.sim.policy.braceOnArchive && charging && can('brace') && st.echo - tech.brace.cost >= 0) {
-        st.echo -= tech.brace.cost;
+      // Brace on the turn the charge is about to release.
+      const charging = enemies.some((e) => e.charge && e.charge.turnsLeft <= 1);
+      if (D.sim.policy.braceOnArchive && charging && can('brace')) {
+        hero.echo -= tech.brace.cost;
         st.brace = tech.brace;
         st.ms += T.castMs;
         return;
       }
     }
     if (hero.id === 'rhea') {
-      if (can('blast') && st.echo >= D.sim.policy.blastAtEcho) {
-        st.echo -= tech.blast.cost;
+      if (can('blast') && hero.echo >= D.sim.policy.blastAtEcho) {
+        hero.echo -= tech.blast.cost;
         const b = tech.blast;
         let total = between(rnd, b.hits);
         let bolts = 0;
@@ -252,14 +266,14 @@ function simulateBattle(battleId, profileName, story, rnd) {
           const crit = rnd() < b.critChance && total < b.maxHits;
           if (crit) total += 1;
           hitEnemy(target, between(rnd, b.dmg), D.brk.sources.hit);
-          if (i === 0) gain(b.echoOnHit || 0);
+          if (i === 0) gain(hero, b.echoOnHit || 0);
           bolts += 1;
         }
         st.ms += sheetMs('rhea', 'blast', 900) + bolts * (b.boltFlightMs + b.boltIntervalMs);
         return;
       }
-      if (can('return_to_sender') && st.echo < (tech.blast?.cost ?? Infinity) && rnd() < D.sim.policy.returnToSenderChance) {
-        st.echo -= tech.return_to_sender.cost;
+      if (can('return_to_sender') && hero.echo < (tech.blast?.cost ?? Infinity) && rnd() < D.sim.policy.returnToSenderChance) {
+        hero.echo -= tech.return_to_sender.cost;
         st.stance = { hero, tech: tech.return_to_sender };
         st.ms += T.castMs;
         return;
@@ -267,11 +281,15 @@ function simulateBattle(battleId, profileName, story, rnd) {
     }
     // Strike.
     hitEnemy(target, between(rnd, hero.def.strike), D.brk.sources.hit);
-    gain(tech.strike.echoOnHit);
+    gain(hero, tech.strike.echoOnHit);
     st.ms += T.dashMs * 2 + sheetMs(hero.id, 'attack', T.attackMs);
   };
 
   const enemyTurn = (enemy) => {
+    enemyAct(enemy);
+    if (enemy.exposed && --enemy.exposed.turns <= 0) enemy.exposed = null;
+  };
+  const enemyAct = (enemy) => {
     if (enemy.broken) {
       enemy.broken = false;
       enemy.poise = enemy.def.poise;
@@ -283,6 +301,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
     const stanceHero = st.stance && st.stance.hero.hp > 0 ? st.stance.hero : null;
     const target = stanceHero || targets[Math.floor(rnd() * targets.length)];
     let attack;
+    let mitigated = 0;
     if (enemy.charge) {
       enemy.charge.turnsLeft -= 1;
       if (enemy.charge.turnsLeft > 0) {
@@ -290,15 +309,21 @@ function simulateBattle(battleId, profileName, story, rnd) {
         return;
       }
       attack = enemy.charge.attack;
+      mitigated = enemy.charge.mitigated;
       enemy.charge = null;
     } else {
-      const list = enemy.def.phases ? enemy.def.phases[enemy.phase].attacks : enemy.def.attacks;
+      const phase = enemy.def.phases ? enemy.def.phases[enemy.phase] : null;
+      const list = phase ? phase.attacks : enemy.def.attacks;
       // The parry tutorial teaches the tap first: no red ring until it's done.
-      const open = st.tutorialSlow ? list.filter((a) => !a.unparryable) : list;
-      attack = pickWeighted(open.length ? open : list, rnd);
+      const open = st.tutorialSlow || battle.redRings === false ? list.filter((a) => !a.unparryable) : list;
+      // A phase's "opening" fixes its first turns' attacks.
+      const n = enemy.turnsInPhase || 0;
+      enemy.turnsInPhase = n + 1;
+      const fixedId = phase?.opening?.[n];
+      attack = (fixedId && (open.length ? open : list).find((a) => a.id === fixedId)) || pickWeighted(open.length ? open : list, rnd);
       if (attack.chargeTurns) {
         st.archives += 1;
-        enemy.charge = { attack, turnsLeft: attack.chargeTurns, dealt: 0 };
+        enemy.charge = { attack, turnsLeft: attack.chargeTurns, mitigated: 0 };
         st.ms += T.chargeMs;
         return;
       }
@@ -324,13 +349,13 @@ function simulateBattle(battleId, profileName, story, rnd) {
         else if (res === 'MISS') st.chain = 0;
       }
       st.maxChain = Math.max(st.maxChain, st.chain);
-      gain(cfg.echo);
-      if (res === 'MISS' && hit.onMiss?.echo) gain(hit.onMiss.echo);
+      gain(target, cfg.echo);
+      if (res === 'MISS' && hit.onMiss?.echo) gain(target, hit.onMiss.echo);
       const dmg = Math.round(hit.dmg * cfg.damageMult * dmgTakenMult * (st.brace ? st.brace.damageMult : 1));
       st.damageTaken += Math.min(dmg, target.hp);
       target.hp = Math.max(0, target.hp - dmg);
       // A missed parry can leave a memory status (Fog has no effect on the numbers).
-      const status = res === 'MISS' && hit.onMiss?.status;
+      const status = res === 'MISS' && battle.statuses !== false && hit.onMiss?.status;
       if (status === 'redacted' && rnd() < (hit.onMiss.chance ?? 1) && target.hp > 0 && target.def.techniques?.length) {
         const pool = target.def.techniques;
         target.redacted = { tech: target.redacted?.tech ?? pool[Math.floor(rnd() * pool.length)], turns: D.statuses.redacted.turns };
@@ -349,6 +374,13 @@ function simulateBattle(battleId, profileName, story, rnd) {
       }
     }
     st.brace = null;
+    // A released charge heals part of what its guard absorbed; the first
+    // release queues Rhea's insight dialogue (time only).
+    if (enemy.hp > 0 && attack.healMitigatedPct && mitigated > 0) enemy.hp = Math.min(enemy.max, enemy.hp + Math.round(mitigated * attack.healMitigatedPct));
+    if (enemy.hp > 0 && attack.onRelease && !enemy.released) {
+      enemy.released = true;
+      st.pending.push(attack.onRelease);
+    }
   };
 
   while (true) {
@@ -357,7 +389,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
     for (const hero of heroes) {
       if (hero.hp <= 0) continue;
       playerTurn(hero);
-      st.echoCurve.push(st.echo);
+      st.echoCurve.push(rhea.echo);
       afterTurn();
       if (!living(enemies).length) return { ...st, win: true, ms: st.ms + T.victoryMs, grade: gradeOf() };
     }
@@ -443,7 +475,7 @@ if (JSON_OUT) {
   const pct = (x) => `${(x * 100).toFixed(1)}%`.padStart(6);
   const f1 = (x) => x.toFixed(1).padStart(5);
   console.log(`runs per cell: ${RUNS}   QTE model: ${Object.entries(D.sim.profilesSolved).map(([k, v]) => `${k} bias=${v.bias}ms sigma=${v.sigma}ms lapse=${(v.lapse * 100).toFixed(0)}% -> normal ${odds(v, 1)} / story ${odds(v, D.qte.storyMode.windowMult)}`).join(', ')}\n`);
-  console.log('mode    battle        profile    win    rounds  min (p10–p90)       avgEcho  recoll  archive  interrupt  breaks  P/G/M seen            score  rank S/A/B/C   perf chain dmg turns');
+  console.log('mode    battle        profile    win    rounds  min (p10–p90)       avgEcho  recoll  archive  interrupt  breaks  P/G/M seen            score  rank ' + D.grade.ranks.map((k) => k.id).join('/') + '   perf chain dmg turns');
   for (const r of rows) {
     console.log(
       `${r.mode.padEnd(7)} ${r.battle.padEnd(13)} ${r.profile.padEnd(10)} ${pct(r.win)}  ${f1(r.rounds)}  ${f1(r.minutes)} (${r.p10.toFixed(1)}–${r.p90.toFixed(1)})   ${f1(r.avgEcho)}   ${r.recollections.toFixed(2)}    ${r.archives.toFixed(2)}    ${r.archives ? pct(r.interruptRate) : '   –  '}    ${r.breaks.toFixed(2)}   ${pct(r.qte.PERFECT)}/${pct(r.qte.GOOD)}/${pct(r.qte.MISS)}   ${r.score.toFixed(0).padStart(4)}   ${D.grade.ranks.map((k) => Math.round(r.ranks[k.id] * 100).toString().padStart(3)).join('/')}   ${r.gradeStats.perfects.toFixed(1).padStart(4)} ${r.gradeStats.maxChain.toFixed(1).padStart(4)} ${r.gradeStats.damageTaken.toFixed(0).padStart(4)} ${r.gradeStats.turns.toFixed(1).padStart(4)}`

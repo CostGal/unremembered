@@ -34,9 +34,9 @@ export function probe(page) {
         redRings: [...(b.qteRings || [])].filter((r) => r.unparryable).map((r) => r.impactAt),
         nala: b.nala ? { watching: !!b.nala.ring, used: b.nala.used, x: b.nala.container.x, y: b.nala.container.y } : null,
         hero: b.activeHero?.type || null,
-        heroes: (b.heroes || []).map((h) => ({ id: h.type, hp: h.hp, maxHp: h.maxHp })),
+        heroes: (b.heroes || []).map((h) => ({ id: h.type, hp: h.hp, maxHp: h.maxHp, echo: h.echo })),
         enemies: (b.enemies || []).map((e) => ({ id: e.id, type: e.type, hp: e.hp, maxHp: e.maxHp, x: e.container.x, y: e.container.y, phase: e.phase || 0, charging: !!e.charge })),
-        echo: b.echo,
+        echo: (b.heroes || []).map((h) => h.echo).join('|'),
       };
     }
     const d = g.scene.getScene('Dialogue');

@@ -1,5 +1,6 @@
 {
-  "keepsake_burn": { "dialogue": "keepsake_burn", "flash": { "color": "0x3fd0c9", "alpha": 0.45, "ms": 500 } },
+  "keepsake_burn": { "dialogue": "keepsake_burn", "echoMax": 10, "flash": { "color": "0x3fd0c9", "alpha": 0.45, "ms": 500 } },
+  "archive_insight": { "dialogue": "archive_insight" },
   "charge": {
     "glowRadius": 90,
     "glowColor": "0x3fd0c9",
@@ -9,10 +10,11 @@
     "counterOffsetY": -2,
     "counterFontSize": 12,
     "counterColor": "#3fd0c9",
-    "counterText": "Interrupt: {n}/{max}",
+    "counterText": "Archive in {n} · guarded",
     "startText": "Archive…",
     "chargingText": "Charging…",
-    "interruptText": "Interrupted!",
+    "brokenText": "Archive lost!",
+    "healText": "Archived",
     "textColor": "#3fd0c9",
     "chargingMs": 700
   }

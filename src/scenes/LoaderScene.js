@@ -75,16 +75,21 @@ export default class LoaderScene extends Phaser.Scene {
     }
 
     this.busy = true;
-    this.loadSection(next).then(() => {
-      this.done.add(next);
-      this.busy = false;
-      this.waiters = this.waiters.filter((w) => {
-        if (!w.sections.every((s) => this.done.has(s))) return true;
-        w.resolve();
-        return false;
+    // A section that throws (a sheet JSON with the wrong shape, a bad texture)
+    // is logged and counted as done: the game goes on with whatever loaded,
+    // instead of every scene waiting on "Loading…" forever.
+    this.loadSection(next)
+      .catch((err) => console.error(`loader: section ${next} failed`, err))
+      .then(() => {
+        this.done.add(next);
+        this.busy = false;
+        this.waiters = this.waiters.filter((w) => {
+          if (!w.sections.every((s) => this.done.has(s))) return true;
+          w.resolve();
+          return false;
+        });
+        this.pump();
       });
-      this.pump();
-    });
   }
 
   async loadSection(section) {
@@ -102,7 +107,11 @@ export default class LoaderScene extends Phaser.Scene {
         }
       }
       const finish = () => {
-        this.finish(section);
+        try {
+          this.finish(section);
+        } catch (err) {
+          console.error(`loader: finishing section ${section} failed`, err);
+        }
         resolve();
       };
       if (this.load.list.size === 0) {

@@ -26,9 +26,13 @@ export function scaledWindows(windows, mult) {
 // pauseMs, so T moves pauseMs later.
 // swipe = {minPx, maxMs} (enemy attacks only): a gesture that travels minPx
 // within maxMs is a dodge (input 'swipe'), anything else a parry ('tap'). Both
-// are judged on the touch-down time; the result waits until the gesture is
-// classified. unparryable: a tap is always a MISS, only a swipe can answer.
-export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe = null, unparryable = false }) {
+// are judged on the touch-down time. unparryable: a tap is always a MISS, only
+// a swipe can answer, so the result waits until the gesture is classified.
+// On a parryable ring every touch is a parry, judged and shown at T (a parry
+// beats a dodge for the player, and the feedback never waits for finger-up).
+// onImpact: called once at T when no tap has come yet (the hit visibly lands;
+// a late tap can still make it a GOOD).
+export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe = null, unparryable = false, onImpact = null }) {
   const start = performance.now();
   const pauseAt = feint ? feint.atPct * telegraphMs : Infinity;
   const pauseMs = feint ? feint.pauseMs : 0;
@@ -42,6 +46,7 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
   let interrupt = () => {};
   const promise = new Promise((resolve) => {
     let judged = null;
+    let impacted = false;
 
     const onDown = (pointer) => {
       if (judged) return;
@@ -52,7 +57,7 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
       const result = judge(dtMs, windows);
       if (!result) return;
       judged = { result, dtMs, input: 'tap' };
-      if (swipe) judged.pending = { pointer, at: performance.now() };
+      if (swipe && unparryable) judged.pending = { pointer, at: performance.now() };
       pointer.qteUsedAt = pointer.downTime;
     };
 
@@ -103,6 +108,10 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
 
       // Held still past the swipe time: it was a tap.
       if (judged?.pending && now - judged.pending.at > swipe.maxMs) settle('tap');
+      if (!judged && !impacted && now >= impactAt) {
+        impacted = true;
+        if (onImpact) onImpact();
+      }
       if (judged && !judged.pending && now >= impactAt) finish(judged);
       else if (!judged && now > impactAt + windows.goodMs) finish({ result: 'MISS', dtMs: null, input: null });
     };
@@ -123,7 +132,7 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
     };
 
     scene.input.on('pointerdown', onDown);
-    if (swipe) {
+    if (swipe && unparryable) {
       scene.input.on('pointermove', onMove);
       scene.input.on('pointerup', onUp);
     }

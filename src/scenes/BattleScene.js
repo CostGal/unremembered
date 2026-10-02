@@ -116,8 +116,12 @@ export default class BattleScene extends Phaser.Scene {
 
     this.applyAmbientTint();
 
-    // ?echo=N starts the battle with N Echo (dev).
-    this.echo = Phaser.Math.Clamp((devInt('echo') ?? 0) + effectTotal(this.fragments, 'startEcho'), 0, ui.hud.echo.max);
+    // Each hero has their own Echo (characters.json echoMax, default
+    // ui.hud.echo.max). ?echo=N starts everyone with N (dev); Old Ticket adds to everyone.
+    for (const hero of this.heroes) {
+      hero.echoMax = hero.def.echoMax ?? ui.hud.echo.max;
+      hero.echo = Phaser.Math.Clamp((devInt('echo') ?? 0) + effectTotal(this.fragments, 'startEcho'), 0, hero.echoMax);
+    }
     // Perfect chain (qte.json chain). maxChain is read at the end of the battle (battle grade).
     this.chain = 0;
     this.maxChain = 0;
@@ -146,7 +150,16 @@ export default class BattleScene extends Phaser.Scene {
       onEnd: (result) => this.onBattleEnd(result),
     });
 
-    machine.run(this.heroes, this.enemies);
+    // An exception anywhere in the turn loop used to be a silent unhandled
+    // rejection and a frozen battle. Now it ends the battle with Retry. The
+    // scene instance is reused, so a loop from before a restart is ignored.
+    this.runId = (this.runId || 0) + 1;
+    const runId = this.runId;
+    machine.run(this.heroes, this.enemies).catch((err) => {
+      if (runId !== this.runId || !this.scene.isActive()) return;
+      console.error('battle: turn loop failed', err);
+      if (!this.battleOver) this.onBattleEnd('ERROR');
+    });
   }
 
   // ---------- App switch ----------
@@ -399,16 +412,15 @@ export default class BattleScene extends Phaser.Scene {
   // The single place the HUD learns about HP/Echo changes.
   refreshHud() {
     this.hud.update({
-      heroes: this.heroes.map((h) => ({ hp: h.hp, maxHp: h.maxHp, statuses: this.statusList(h) })),
-      echo: this.echo,
+      heroes: this.heroes.map((h) => ({ hp: h.hp, maxHp: h.maxHp, echo: h.echo, echoMax: h.echoMax, statuses: this.statusList(h) })),
     });
   }
 
-  // Dev build only: tap a hero row (or keys 1/2) to take HP, tap the Echo row
-  // (or E/Q) to change Echo. A downed hero's row tap restores full HP.
+  // Dev build only: tap a hero row (or keys 1/2) to take HP, tap a hero's Echo
+  // pips (or E/Q for the active hero, else Rhea) to change Echo. A downed
+  // hero's row tap restores full HP.
   enableHudDebug() {
     const { hpStep, echoStep, keys } = ui.debug;
-    const max = ui.hud.echo.max;
     const hurt = (i) => {
       const hero = this.heroes[i];
       if (!hero) return;
@@ -420,20 +432,22 @@ export default class BattleScene extends Phaser.Scene {
       }
       this.refreshHud();
     };
-    const addEcho = (d, wrap) => {
-      let next = this.echo + d;
-      if (wrap && next > max) next = 0;
-      this.echo = Math.max(0, Math.min(max, next));
+    const addEcho = (hero, d, wrap) => {
+      if (!hero) return;
+      let next = hero.echo + d;
+      if (wrap && next > hero.echoMax) next = 0;
+      hero.echo = Math.max(0, Math.min(hero.echoMax, next));
       this.refreshHud();
     };
+    const keyHero = () => this.activeHero || this.heroes[0];
 
-    this.hud.enableDebugTaps({ onHeroTap: hurt, onEchoTap: () => addEcho(echoStep, true) });
+    this.hud.enableDebugTaps({ onHeroTap: hurt, onEchoTap: (i) => addEcho(this.heroes[i], echoStep, true) });
     const kb = this.input.keyboard;
     if (!kb) return;
     kb.on(`keydown-${keys.hurtRhea}`, () => hurt(0));
     kb.on(`keydown-${keys.hurtDov}`, () => hurt(1));
-    kb.on(`keydown-${keys.echoUp}`, () => addEcho(echoStep, false));
-    kb.on(`keydown-${keys.echoDown}`, () => addEcho(-echoStep, false));
+    kb.on(`keydown-${keys.echoUp}`, () => addEcho(keyHero(), echoStep, false));
+    kb.on(`keydown-${keys.echoDown}`, () => addEcho(keyHero(), -echoStep, false));
   }
 
   revive(entity, hp) {
@@ -451,6 +465,9 @@ export default class BattleScene extends Phaser.Scene {
     if (entity.isHero) {
       entity.statuses = {};
       this.refreshHud();
+    } else {
+      entity.exposed = null;
+      this.updateEnemyStatus(entity);
     }
     if (entity.bobTween) entity.bobTween.stop();
     if (entity.label) this.tweens.add({ targets: entity.label, alpha: 0, duration: ui.downed.enemyFadeMs });
@@ -578,7 +595,7 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   canUltimate(hero) {
-    return !!hero.def.canUltimate && this.echo >= techniques.recollection.cost;
+    return !!hero.def.canUltimate && hero.echo >= techniques.recollection.cost;
   }
 
   techniqueItems(hero) {
@@ -588,7 +605,7 @@ export default class BattleScene extends Phaser.Scene {
       label: this.fogged(hero) ? statuses.fog.label : techniques[id].name,
       cost: techniques[id].cost,
       // Redacted: covered by a black bar and can't be used.
-      enabled: this.echo >= techniques[id].cost && !this.covered(hero, id),
+      enabled: hero.echo >= techniques[id].cost && !this.covered(hero, id),
       covered: this.covered(hero, id),
       value: id,
     }));
@@ -658,7 +675,7 @@ export default class BattleScene extends Phaser.Scene {
     this.showActiveHero(hero);
     this.hints.show('strike');
     const costs = (hero.def.techniques || []).map((id) => techniques[id].cost);
-    if (costs.length && this.echo >= Math.min(...costs)) this.hints.show('techniques');
+    if (costs.length && hero.echo >= Math.min(...costs)) this.hints.show('techniques');
     const action = await this.chooseAction(hero);
     this.hints.done('strike');
     this.hints.done('techniques');
@@ -666,7 +683,7 @@ export default class BattleScene extends Phaser.Scene {
     this.hideCommandMenu();
 
     const tech = techniques[action.techId];
-    this.spendEcho(tech.cost);
+    this.spendEcho(hero, tech.cost);
 
     if (action.kind === 'strike') await this.playerStrike(hero, action.target);
     else if (action.kind === 'ultimate') await this.playRecollection(hero, action.target);
@@ -696,9 +713,15 @@ export default class BattleScene extends Phaser.Scene {
     return g;
   }
 
+  // An enemy's turn, then its own statuses (Exposed) tick down.
+  async enemyTurn(enemy) {
+    await this.enemyAct(enemy);
+    this.tickEnemyStatus(enemy);
+  }
+
   // Each hit of the attack is its own parry ring on the targeted hero.
   // A hero in a counter stance draws the attack.
-  async enemyTurn(enemy) {
+  async enemyAct(enemy) {
     if (enemy.broken) {
       await this.skipBrokenTurn(enemy);
       return;
@@ -708,17 +731,20 @@ export default class BattleScene extends Phaser.Scene {
     const stanceHero = this.stance && this.stance.hero.hp > 0 ? this.stance.hero : null;
     const target = stanceHero || Phaser.Utils.Array.GetRandom(livingHeroes);
     let attack;
+    let mitigated = 0;
     if (enemy.charge) {
       enemy.charge.turnsLeft -= 1;
+      this.updateChargeCounter(enemy);
       if (enemy.charge.turnsLeft > 0) {
         Fx.popText(this, enemy.container.x, enemy.container.y, battleEvents.charge.chargingText, battleEvents.charge.textColor, qte.text);
         await this.wait(battleEvents.charge.chargingMs);
         return;
       }
       attack = enemy.charge.attack;
+      mitigated = enemy.charge.mitigated;
       await this.endCharge(enemy);
     } else {
-      attack = pickWeighted(this.pickableAttacks(enemy));
+      attack = this.pickAttack(enemy);
       if (attack.chargeTurns) {
         this.startCharge(enemy, attack);
         await this.wait(battleEvents.charge.chargingMs);
@@ -738,12 +764,34 @@ export default class BattleScene extends Phaser.Scene {
     if (sheet) await sheet.finish();
     this.tapHint.setVisible(false);
     this.brace = null;
+
+    // A released charge heals part of what its guard absorbed, and the first
+    // release of the battle can queue a story beat (e.g. Rhea's insight).
+    if (enemy.hp > 0 && attack.healMitigatedPct && mitigated > 0) this.healEnemy(enemy, Math.round(mitigated * attack.healMitigatedPct));
+    if (enemy.hp > 0 && attack.onRelease && !enemy.released?.[attack.id]) {
+      enemy.released = { ...(enemy.released || {}), [attack.id]: true };
+      this.pendingEvents.push(attack.onRelease);
+    }
   }
 
-  // The parry tutorial teaches the tap first: no red-ring attack until it's done.
+  // A phase's "opening" (enemies.json) fixes the attack of that phase's first
+  // turns (the Clerk charges Archive on his second); after that, weighted.
+  pickAttack(enemy) {
+    const phase = enemy.def.phases?.[enemy.phase || 0];
+    const n = enemy.turnsInPhase || 0;
+    enemy.turnsInPhase = n + 1;
+    const id = phase?.opening?.[n];
+    const fixed = id ? this.pickableAttacks(enemy).find((a) => a.id === id) : null;
+    return fixed || pickWeighted(this.pickableAttacks(enemy));
+  }
+
+  // The parry tutorial teaches the tap first: no red-ring attack until it's
+  // done. A battle with "redRings": false (battles.json) never throws one, so
+  // the swipe lesson waits for a later fight.
   pickableAttacks(enemy) {
     const attacks = this.enemyAttacks(enemy);
-    const parryable = this.tutorialSlow ? attacks.filter((a) => !a.unparryable) : attacks;
+    const noRed = this.tutorialSlow || this.battleDef.redRings === false;
+    const parryable = noRed ? attacks.filter((a) => !a.unparryable) : attacks;
     return parryable.length ? parryable : attacks;
   }
 
@@ -759,9 +807,38 @@ export default class BattleScene extends Phaser.Scene {
 
   parryWindows() {
     const storyMode = this.registry.get('settings')?.storyMode;
-    // Worn Glove: a wider PERFECT window.
-    const windows = { ...qte.windows, perfectMs: qte.windows.perfectMs + effectTotal(this.fragments, 'perfectWindowMs') };
+    // Worn Glove: a wider PERFECT window. Assist: see parryAssist().
+    const extra = effectTotal(this.fragments, 'perfectWindowMs');
+    const assist = this.parryAssist();
+    const windows = { ...qte.windows, perfectMs: qte.windows.perfectMs + extra + assist, goodMs: qte.windows.goodMs + assist };
     return storyMode ? Qte.scaledWindows(windows, qte.storyMode.windowMult) : windows;
+  }
+
+  // Invisible help for a player who keeps missing (qte.json assist): every
+  // missStreak MISSes in a row widen both windows by stepMs, up to maxMs; a
+  // PERFECT takes it all back. Kept in the registry, so it carries across
+  // battles and a Retry. Enemy parries only (not Recollection's rings).
+  parryAssist() {
+    return this.registry.get('parryAssistMs') || 0;
+  }
+
+  trackParryAssist(result) {
+    const a = qte.assist;
+    if (!a) return;
+    let streak = this.registry.get('parryMissStreak') || 0;
+    let assist = this.parryAssist();
+    if (result === 'MISS') {
+      streak += 1;
+      if (streak >= a.missStreak) {
+        streak = 0;
+        assist = Math.min(a.maxMs, assist + a.stepMs);
+      }
+    } else {
+      streak = 0;
+      if (result === 'PERFECT') assist = 0;
+    }
+    this.registry.set('parryMissStreak', streak);
+    this.registry.set('parryAssistMs', assist);
   }
 
   // The ring closes at T. The enemy holds its windup pose through the
@@ -796,6 +873,9 @@ export default class BattleScene extends Phaser.Scene {
         ring: hit.unparryable ? { ...qte.ring, color: red.ringColor, targetColor: red.targetColor } : qte.ring,
         swipe: qte.dodge.swipe,
         unparryable: hit.unparryable,
+        // No tap by T: the hit visibly lands now, the judgement (a late GOOD
+        // or a MISS) follows when the window closes.
+        onImpact: () => target.hp > 0 && this.playHurt(target),
       });
       const icon = hit.unparryable ? this.showUnparryableIcon(x, y) : null;
       const watched = this.nalaWatch(enemy, ring);
@@ -831,6 +911,7 @@ export default class BattleScene extends Phaser.Scene {
       if (input === 'swipe' && result !== 'MISS') dodgeLesson.learned = true;
     }
     this.tapHint.setText(qte.hint.text);
+    this.trackParryAssist(result);
     await this.applyParryResult(result, enemy, target, hit, input);
     await attackDone;
     return result;
@@ -989,6 +1070,7 @@ export default class BattleScene extends Phaser.Scene {
       setMusicIntensity(phases[enemy.phase].musicIntensity ?? enemy.phase / (phases.length - 1));
       const onEnter = phases[enemy.phase].onEnter;
       if (onEnter) this.pendingEvents.push(onEnter);
+      enemy.turnsInPhase = 0;
       // A new phase brings the poise back (a broken enemy recovers at the end of its stunned turn).
       if (enemy.maxPoise && !enemy.broken) this.refillPoise(enemy);
     }
@@ -998,16 +1080,20 @@ export default class BattleScene extends Phaser.Scene {
     while (this.pendingEvents.length && !this.battleOver) {
       const event = this.pendingEvents.shift();
       if (event === 'keepsake_burn') await this.keepsakeBurn();
+      else if (battleEvents[event]?.dialogue && this.enemies.some((e) => e.hp > 0)) await this.playDialogueOverlay(battleEvents[event].dialogue);
     }
   }
 
-  // Keepsake: the battle pauses for a conversation, then Echo fills and the
-  // Recollection button pulses on Rhea's next turn.
+  // Keepsake: the battle pauses for a conversation, then Rhea's Echo fills
+  // and the Recollection button pulses on her next turn.
   async keepsakeBurn() {
     if (this.enemies.every((e) => e.hp <= 0)) return;
     await this.playDialogueOverlay(battleEvents.keepsake_burn.dialogue);
-    this.gainEcho(ui.hud.echo.max);
+    const rhea = this.heroes.find((h) => h.def.canUltimate) || this.heroes[0];
     const k = battleEvents.keepsake_burn;
+    // The burnt Keepsake unlocks the last pips: Recollection is reachable only from here.
+    if (k.echoMax) rhea.echoMax = Math.max(rhea.echoMax, k.echoMax);
+    this.gainEcho(rhea, rhea.echoMax);
     Fx.screenFlash(this, k.flash, qte.flashDepth);
   }
 
@@ -1033,8 +1119,10 @@ export default class BattleScene extends Phaser.Scene {
   // ---------- Archive (charged attack) ----------
 
   // First pick: the enemy starts charging instead of attacking. It charges
-  // for chargeTurns enemy turns (glow + damage-to-interrupt counter), then
-  // fires as a normal hit. Enough damage during the charge cancels it.
+  // for chargeTurns of its turns (glow + countdown), guarded: it takes only
+  // guardMult of every hit and keeps count of what the guard absorbed. Then
+  // it fires as a normal hit and heals healMitigatedPct of that. Only a
+  // BREAK (poise to 0) cancels a charge.
   startCharge(enemy, attack) {
     const c = battleEvents.charge;
     const glow = this.add
@@ -1050,7 +1138,7 @@ export default class BattleScene extends Phaser.Scene {
     // The charge sheet (archive_charge: _in -> loop -> _out) if there is one.
     const loop = attack.chargeAnim && hasSheet(enemy.anims, attack.chargeAnim) ? this.loopWithInOut(enemy, attack.chargeAnim) : null;
     if (!loop) trace(`fallback:charge:${enemy.type}`);
-    enemy.charge = { attack, turnsLeft: attack.chargeTurns, dealt: 0, glow, glowTween, counter, loop };
+    enemy.charge = { attack, turnsLeft: attack.chargeTurns, mitigated: 0, glow, glowTween, counter, loop };
     this.updateChargeCounter(enemy);
     Fx.popText(this, enemy.container.x, enemy.container.y, c.startText, c.textColor, qte.text);
   }
@@ -1058,19 +1146,49 @@ export default class BattleScene extends Phaser.Scene {
   updateChargeCounter(enemy) {
     const ch = enemy.charge;
     const c = battleEvents.charge;
-    ch.counter.setText(c.counterText.replace('{n}', ch.dealt).replace('{max}', ch.attack.interruptDmg));
+    ch.counter.setText(c.counterText.replace('{n}', ch.turnsLeft));
   }
 
-  // Party damage during a charge counts toward the interrupt.
-  chargeDamage(enemy, dmg) {
-    const ch = enemy.charge;
-    if (!ch) return;
-    ch.dealt += dmg;
-    this.updateChargeCounter(enemy);
-    if (ch.dealt >= ch.attack.interruptDmg || enemy.hp <= 0) {
-      if (enemy.hp > 0) Fx.popText(this, enemy.container.x, enemy.container.y, battleEvents.charge.interruptText, battleEvents.charge.textColor, qte.text);
-      this.endCharge(enemy, true);
+  // The charge heals part of what its guard absorbed (shown like Anchor's number).
+  healEnemy(enemy, amount) {
+    const healed = Math.min(amount, enemy.maxHp - enemy.hp);
+    if (healed <= 0) return;
+    enemy.hp += healed;
+    this.updateLabel(enemy);
+    Fx.damageNumber(this, enemy.container.x, enemy.container.y - 80, `${ui.heal.textPrefix}${healed}`, null, 'heal');
+    Fx.popText(this, enemy.container.x, enemy.container.y, battleEvents.charge.healText, battleEvents.charge.textColor, qte.text);
+  }
+
+  // Exposed (Recollection): the enemy takes damageTakenMult until its turns run out.
+  applyEnemyStatus(enemy, id, turns) {
+    const def = statuses[id];
+    if (!def || enemy.isHero || enemy.hp <= 0) return;
+    enemy.exposed = { id, mult: def.damageTakenMult, turns };
+    Fx.popText(this, enemy.container.x, enemy.container.y, def.applyText, def.color, qte.text);
+    this.updateEnemyStatus(enemy);
+  }
+
+  tickEnemyStatus(enemy) {
+    if (!enemy.exposed) return;
+    enemy.exposed.turns -= 1;
+    if (enemy.exposed.turns <= 0) enemy.exposed = null;
+    this.updateEnemyStatus(enemy);
+  }
+
+  updateEnemyStatus(enemy) {
+    const s = ui.enemyStatus;
+    if (!enemy.exposed || enemy.hp <= 0) {
+      enemy.statusText?.destroy();
+      enemy.statusText = null;
+      return;
     }
+    if (!enemy.statusText) {
+      enemy.statusText = this.add
+        .text(enemy.container.x, enemy.label.y - enemy.label.height + s.offsetY, '', { fontFamily: ui.font, fontSize: `${s.fontSize}px`, color: s.color, stroke: s.stroke, strokeThickness: s.strokeThickness })
+        .setOrigin(0.5, 1)
+        .setDepth(layout.labelDepth);
+    }
+    enemy.statusText.setText(statuses[enemy.exposed.id].label.replace('{n}', enemy.exposed.turns));
   }
 
   // Resolves once the charge sheet's _out has played. interrupted = back to
@@ -1111,6 +1229,8 @@ export default class BattleScene extends Phaser.Scene {
     this.tapHint.setVisible(true);
     await this.recollectionRings(target, tech);
     this.tapHint.setVisible(false);
+    // The memory leaves its mark: the target takes more damage for a few turns.
+    if (tech.applies && target.hp > 0) this.applyEnemyStatus(target, tech.applies.status, tech.applies.turns);
     castDone.stop();
     setMusicWarm(false);
 
@@ -1228,14 +1348,15 @@ export default class BattleScene extends Phaser.Scene {
     if (hit.unparryable && input === 'tap') Fx.popText(this, x, y + qte.text.riseY, qte.unparryable.tapText, qte.unparryable.tapColor, qte.text);
     playSfx(result.toLowerCase());
     vibrate(cfg.vibrateMs);
-    if (result !== 'MISS') this.hints.show('echo');
+    if (cfg.echo > 0) this.hints.show('echo');
     // Before the counter below, so a PERFECT's own counter already gets the new step.
     // A PERFECT dodge leaves the chain as it is (cfg.chain 0).
     if (cfg.chain !== 0) this.updateChain(result);
-    this.gainEcho(cfg.echo + (result === 'PERFECT' ? effectTotal(this.fragments, 'perfectEchoBonus') : 0));
+    // The hero who parried earns the Echo (their own reserve).
+    this.gainEcho(hero, cfg.echo + (result === 'PERFECT' ? effectTotal(this.fragments, 'perfectEchoBonus') : 0));
     if (result === 'PERFECT') this.stats.perfects += 1;
-    // e.g. Siphon: a missed parry also drains Echo.
-    if (result === 'MISS' && hit.onMiss?.echo) this.gainEcho(hit.onMiss.echo);
+    // e.g. Siphon: a missed parry also drains the hero's Echo.
+    if (result === 'MISS' && hit.onMiss?.echo) this.gainEcho(hero, hit.onMiss.echo);
 
     const storyMult = this.registry.get('settings')?.storyMode ? qte.storyMode.damageMult : 1;
     const braceMult = this.brace ? this.brace.damageMult : 1;
@@ -1318,23 +1439,23 @@ export default class BattleScene extends Phaser.Scene {
     if (hero.hp > 0) hero.body.play(animKey(hero.type, 'idle'));
   }
 
-  // Gains show as a small teal "+N" over the pip they fill.
-  gainEcho(amount) {
-    if (!amount) return;
-    const before = this.echo;
-    this.echo = Phaser.Math.Clamp(this.echo + amount, 0, ui.hud.echo.max);
+  // Echo is per hero. Gains show as a small teal "+N" over the pip they fill.
+  gainEcho(hero, amount) {
+    if (!amount || !hero) return;
+    const before = hero.echo;
+    hero.echo = Phaser.Math.Clamp(hero.echo + amount, 0, hero.echoMax);
     this.refreshHud();
-    const gained = this.echo - before;
+    const gained = hero.echo - before;
     if (gained > 0) {
       playSfx('echo');
-      const pip = this.hud.pipPosition(this.echo - 1);
+      const pip = this.hud.pipPosition(this.heroes.indexOf(hero), hero.echo - 1);
       Fx.damageNumber(this, pip.x, pip.y + ui.damageNumbers.echoOffsetY, `+${gained}`, null, 'echo');
     }
   }
 
-  spendEcho(amount) {
-    if (!amount) return;
-    this.echo = Math.max(0, this.echo - amount);
+  spendEcho(hero, amount) {
+    if (!amount || !hero) return;
+    hero.echo = Math.max(0, hero.echo - amount);
     this.refreshHud();
   }
 
@@ -1361,7 +1482,7 @@ export default class BattleScene extends Phaser.Scene {
         await this.fireBolt(hero, target, tech);
         const dmg = Phaser.Math.Between(tech.dmg[0], tech.dmg[1]);
         this.applyHit(target, dmg, undefined, { type: crit ? 'crit' : 'normal', poise: brk.sources.hit });
-        if (i === 0) this.gainEcho(tech.echoOnHit);
+        if (i === 0) this.gainEcho(hero, tech.echoOnHit);
         if (crit) Fx.popText(this, target.container.x, target.container.y, tech.critText, tech.critColor, qte.text);
         await this.wait(tech.boltIntervalMs);
       }
@@ -1533,7 +1654,7 @@ export default class BattleScene extends Phaser.Scene {
     await this.playAttackAnim(hero, (i) => {
       if (i !== 0) return;
       this.applyHit(target, dmg, undefined, { poise: brk.sources.hit });
-      this.gainEcho(techniques.strike.echoOnHit);
+      this.gainEcho(hero, techniques.strike.echoOnHit);
     });
 
     await this.tweenPromise(hero.container, { x: restX }, DASH_DURATION_MS, 'Cubic.easeInOut');
@@ -1617,12 +1738,21 @@ export default class BattleScene extends Phaser.Scene {
   // type = damage number style (ui.json damageNumbers); heroes' damage is "hurt".
   // poise = poise damage to an enemy (break.json sources). A broken enemy takes break.damageMult.
   applyHit(target, dmg, color, { react = true, type = null, poise = 0 } = {}) {
+    let kind = type;
     if (!target.isHero) dmg = this.chainDamage(dmg);
     if (target.broken) dmg = Math.round(dmg * brk.damageMult);
+    // A charging enemy's guard absorbs part of the hit (and remembers how much).
+    if (target.charge?.attack.guardMult) {
+      const full = dmg;
+      dmg = Math.round(dmg * target.charge.attack.guardMult);
+      target.charge.mitigated += full - dmg;
+      kind = kind || 'guarded';
+    }
+    if (target.exposed) dmg = Math.round(dmg * target.exposed.mult);
     const images = [target.body, ...Object.values(target.parts).map((p) => p.img)];
     Fx.flash(this, images, 60);
     Fx.shake(this, 2, 80);
-    Fx.damageNumber(this, target.container.x, target.container.y - 80, dmg, color, type || (target.isHero ? 'hurt' : 'normal'));
+    Fx.damageNumber(this, target.container.x, target.container.y - 80, dmg, color, kind || (target.isHero ? 'hurt' : 'normal'));
     playSfx('hit');
 
     if (target.isHero) this.stats.damageTaken += Math.min(dmg, target.hp);
@@ -1630,7 +1760,6 @@ export default class BattleScene extends Phaser.Scene {
     this.updateLabel(target);
     if (target.isHero) this.refreshHud();
     else {
-      this.chargeDamage(target, dmg);
       this.checkPhase(target);
       if (poise) this.hitPoise(target, poise);
     }
@@ -1643,9 +1772,11 @@ export default class BattleScene extends Phaser.Scene {
 
   // statuses.json: Redacted covers one of the hero's techniques, Fog hides the
   // command names. turns = the hero's own turns left (they tick after each turn).
+  // A battle with "statuses": false (battles.json) never applies one: the
+  // first fight teaches the parry, not FOG on a missed parry.
   applyStatus(hero, id) {
     const def = statuses[id];
-    if (!def || !hero.isHero || hero.hp <= 0) return;
+    if (!def || !hero.isHero || hero.hp <= 0 || this.battleDef.statuses === false) return;
     let tech = hero.statuses[id]?.tech;
     if (def.effect === 'cover' && !tech) {
       const pool = hero.def.techniques || [];
@@ -1709,6 +1840,11 @@ export default class BattleScene extends Phaser.Scene {
     Fx.sparks(this, enemy.container.x, enemy.container.y, fx.sparks, { ...qte.sparks, color: fx.sparkColor }, qte.ring.depth);
     playSfx(fx.sfx);
     vibrate(qte.results.PERFECT.vibrateMs);
+    // A BREAK is the one thing that stops a charge (the player finds this out).
+    if (enemy.charge) {
+      Fx.popText(this, enemy.container.x, enemy.container.y + qte.text.riseY, battleEvents.charge.brokenText, battleEvents.charge.textColor, qte.text);
+      this.endCharge(enemy, true);
+    }
   }
 
   // The broken enemy's turn: it does nothing, then recovers with full poise.
@@ -1750,7 +1886,7 @@ export default class BattleScene extends Phaser.Scene {
 
     const style = { fontFamily: ui.font, fontSize: `${cfg.fontSize}px`, color: cfg.color, stroke: cfg.stroke, strokeThickness: cfg.strokeThickness };
     const message = this.add
-      .text(180, cfg.textY, result === 'WIN' ? cfg.victoryText : cfg.loseText, style)
+      .text(180, cfg.textY, result === 'WIN' ? cfg.victoryText : result === 'ERROR' ? cfg.errorText : cfg.loseText, style)
       .setOrigin(0.5)
       .setDepth(cfg.depth)
       .setAlpha(0);
@@ -1794,10 +1930,10 @@ export default class BattleScene extends Phaser.Scene {
 }
 
 function pickWeighted(list) {
-  const total = list.reduce((sum, item) => sum + (item.weight || 1), 0);
+  const total = list.reduce((sum, item) => sum + (item.weight ?? 1), 0);
   let r = Math.random() * total;
   for (const item of list) {
-    r -= item.weight || 1;
+    r -= item.weight ?? 1;
     if (r <= 0) return item;
   }
   return list[list.length - 1];

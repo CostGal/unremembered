@@ -25,14 +25,14 @@
         "weight": 1,
         "telegraphMs": 800,
         "dmg": 4,
-        "onMiss": { "echo": -2, "status": "redacted" },
+        "onMiss": { "echo": -2 },
         "priority": "P2"
       }
     ]
   },
   "clerk": {
     "name": "The Clerk",
-    "hp": 430,
+    "hp": 260,
     "poise": 20,
     "body": "clerk",
     "attack": { "type": "lunge", "windupT": 0.3, "distance": 14, "squash": 0.15, "windupPx": 6 },
@@ -41,12 +41,26 @@
     "phases": [
       {
         "untilHpPct": 50,
+        "opening": ["stamp", "archive"],
         "attacks": [
           { "id": "stamp", "weight": 2, "telegraphMs": 800, "dmg": 15 },
           {
             "id": "file_away",
             "weight": 1,
             "hits": [{ "telegraphMs": 700, "dmg": 10 }, { "telegraphMs": 600, "dmg": 10 }]
+          },
+          {
+            "id": "archive",
+            "anim": "archive_release",
+            "chargeAnim": "archive_charge",
+            "weight": 0,
+            "chargeTurns": 4,
+            "guardMult": 0.6,
+            "healMitigatedPct": 0.5,
+            "onRelease": "archive_insight",
+            "unparryable": true,
+            "telegraphMs": 900,
+            "dmg": 35
           }
         ]
       },
@@ -69,11 +83,13 @@
             "anim": "archive_release",
             "chargeAnim": "archive_charge",
             "weight": 1,
-            "chargeTurns": 2,
-            "interruptDmg": 40,
+            "chargeTurns": 4,
+            "guardMult": 0.6,
+            "healMitigatedPct": 0.5,
+            "onRelease": "archive_insight",
             "unparryable": true,
             "telegraphMs": 900,
-            "dmg": 30
+            "dmg": 35
           }
         ]
       }
