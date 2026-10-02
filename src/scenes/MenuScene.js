@@ -3,10 +3,11 @@ import chapter1 from '../data/chapter1.json';
 import qte from '../data/qte.json';
 import ui from '../data/ui.json';
 import { playSceneMusic } from '../systems/Audio.js';
-import { addText, makeButton } from '../systems/Button.js';
+import { addText, makeGlassButton } from '../systems/Button.js';
 import { saveSettings } from '../systems/Settings.js';
 import { difficultyDef, difficultyIds, normalizeDifficulty } from '../systems/Difficulty.js';
 import ChapterRunner from '../systems/ChapterRunner.js';
+import { isRealTexture, whenReady } from '../systems/Assets.js';
 import * as Fx from '../systems/Fx.js';
 import { rect as viewRect } from '../systems/View.js';
 
@@ -22,11 +23,80 @@ export default class MenuScene extends Phaser.Scene {
     // Scene instances are reused (End -> Menu), so reset state here.
     this.panel = null;
     playSceneMusic('Menu');
-    addText(this, 180, cfg.title.y, cfg.title.text, cfg.title);
+    whenReady(this, () => this.build());
+  }
+
+  // The Title's key art carries on behind the Menu (darkened, same drift,
+  // rain and motes), the logo on top and a stack of glass buttons that slide
+  // in one by one; New Game is the teal one and breathes. Without the art:
+  // the flat background and the title set in type.
+  build() {
+    if (isRealTexture(this, 'title_bg')) this.buildBackdrop();
+    Fx.motes(this, cfg.motes);
+    if (isRealTexture(this, 'logo')) {
+      const l = cfg.logo;
+      const logo = this.add.image(180, 640 * l.topPct, 'logo').setOrigin(0.5, 0).setDepth(l.depth);
+      logo.setScale((360 * l.widthPct) / logo.width);
+    } else {
+      addText(this, 180, cfg.title.y, cfg.title.text, cfg.title).setDepth(cfg.logo.depth);
+    }
 
     cfg.items.forEach((item, i) => {
       const y = cfg.firstY + i * cfg.spacing;
-      makeButton(this, 180, y, cfg.button, item.label, () => this.choose(item, y));
+      const variant = item.id === 'new' ? 'primary' : item.locked ? 'locked' : 'normal';
+      const button = makeGlassButton(this, 180, y, cfg.button, cfg.glass, variant, item.label, () => this.choose(item, y));
+      button.container.setDepth(cfg.buttonDepth);
+      const delay = cfg.enter.delayMs + i * cfg.enter.staggerMs;
+      this.enter(button.body, delay);
+      if (item.id === 'new') this.pulse(y, delay + cfg.enter.ms);
+    });
+  }
+
+  buildBackdrop() {
+    const b = cfg.backdrop;
+    const view = viewRect();
+    const bg = this.add.image(180, 320, 'title_bg').setDepth(b.depth);
+    const cover = Math.max(view.w / bg.width, view.h / bg.height);
+    bg.setScale(cover);
+    this.tweens.add({
+      targets: bg,
+      scale: cover * b.drift.zoom,
+      x: 180 + b.drift.x,
+      y: 320 + b.drift.y,
+      duration: b.drift.ms,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+    this.add.rectangle(view.x, view.y, view.w, view.h, Number(b.dim.color), b.dim.alpha).setOrigin(0).setDepth(b.depth);
+    const g = b.gradient;
+    this.add.image(view.x, g.y, Fx.gradientTexture(this, view.w, 640 - g.y, g.color, g.alpha)).setOrigin(0).setDepth(b.depth);
+    Fx.rain(this, cfg.rain, view);
+  }
+
+  // The drawn part slides in from the right and fades up; the hit area is
+  // already in place, so a quick tap still works.
+  enter(body, delay) {
+    const e = cfg.enter;
+    body.setAlpha(0).setX(e.offsetX);
+    this.tweens.add({ targets: body, x: 0, alpha: 1, delay, duration: e.ms, ease: 'Cubic.easeOut' });
+  }
+
+  // A soft teal halo behind New Game, breathing.
+  pulse(y, delay) {
+    const p = cfg.pulse;
+    const { w, h } = cfg.button;
+    const halo = this.add.graphics().setDepth(cfg.buttonDepth - 1).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
+    halo.fillStyle(Number(p.color), 1);
+    halo.fillRoundedRect(180 - w / 2 - p.pad, y - h / 2 - p.pad, w + p.pad * 2, h + p.pad * 2, cfg.glass.radius + p.pad);
+    this.tweens.add({
+      targets: halo,
+      alpha: { from: p.alpha[0], to: p.alpha[1] },
+      delay,
+      duration: p.ms,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
     });
   }
 
@@ -48,7 +118,12 @@ export default class MenuScene extends Phaser.Scene {
     const d = cfg.difficulty;
     const v = viewRect();
     const blocker = this.add.rectangle(v.x, v.y, v.w, v.h, Number(d.dim.color), d.dim.alpha).setOrigin(0).setInteractive();
-    const box = this.add.rectangle(180, d.box.y, d.box.w, d.box.h, Number(d.box.fill)).setStrokeStyle(2, Number(d.box.stroke));
+    const bx = d.box;
+    const box = this.add.graphics();
+    box.fillStyle(Number(bx.fill), bx.fillAlpha);
+    box.fillRoundedRect(180 - bx.w / 2, bx.y - bx.h / 2, bx.w, bx.h, bx.radius);
+    box.lineStyle(2, Number(bx.stroke), bx.strokeAlpha);
+    box.strokeRoundedRect(180 - bx.w / 2, bx.y - bx.h / 2, bx.w, bx.h, bx.radius);
     const title = addText(this, 180, d.title.y, d.title.text, d.title);
     const pick = (difficulty) => {
       const next = normalizeDifficulty({ ...settings, difficulty, difficultyChosen: true });
@@ -57,9 +132,9 @@ export default class MenuScene extends Phaser.Scene {
       ChapterRunner.start(this, chapter1);
     };
     const buttons = difficultyIds().map((id, i) => {
-      const button = makeButton(this, 180, d.firstY + i * d.spacing, d.button, difficultyDef({ difficulty: id }).pick, () => pick(id));
       // The current choice is marked.
-      if (id === settings.difficulty) button.rect.setStrokeStyle(2, Number(d.currentStroke));
+      const variant = id === settings.difficulty ? 'current' : 'normal';
+      const button = makeGlassButton(this, 180, d.firstY + i * d.spacing, d.button, cfg.glass, variant, difficultyDef({ difficulty: id }).pick, () => pick(id));
       return button.container;
     });
     const hint = addText(this, 180, d.hint.y, d.hint.text, d.hint);

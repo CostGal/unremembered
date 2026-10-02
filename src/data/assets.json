@@ -86,7 +86,7 @@
     "background": ["ui", "cutscene", "sprites", "backgrounds", "portraits", "sheets"],
     "deps": { "sheets": ["sprites"] },
     "scenes": {
-      "Title": ["ui"],
+      "Title": ["ui"], "Menu": ["ui"],
       "Cutscene": ["cutscene", "sprites", "backgrounds"],
       "Dialogue": ["portraits", "backgrounds"],
       "Battle": ["sprites", "backgrounds", "sheets"],

@@ -380,9 +380,38 @@
   },
   "menu": {
     "title": { "text": "UNREMEMBERED", "y": 110, "fontSize": 30, "color": "#3fd0c9" },
-    "firstY": 230,
-    "spacing": 76,
-    "button": { "w": 280, "h": 60, "fontSize": 18 },
+    "firstY": 246,
+    "spacing": 72,
+    "button": { "w": 280, "h": 58, "fontSize": 18 },
+    "backdrop": {
+      "dim": { "color": "0x0b0d14", "alpha": 0.5 },
+      "drift": { "zoom": 1.06, "x": -6, "y": -4, "ms": 14000 },
+      "gradient": { "y": 150, "color": "0x0b0d14", "alpha": 0.9 },
+      "depth": 0
+    },
+    "logo": { "widthPct": 0.8, "topPct": 0.045, "depth": 20 },
+    "rain": {
+      "near": { "count": 40, "speed": 520, "wind": -30, "landY": [560, 660], "alpha": [0.1, 0.3], "length": 8, "color": "0xc2dcf0", "depth": 15 }
+    },
+    "motes": { "count": 12, "color": "0x3fd0c9", "size": 2, "area": { "x": 20, "y": 140, "w": 320, "h": 460 }, "speedY": [4, 14], "driftX": 5, "lifeMs": 5000, "alpha": 0.8, "frequency": 420, "depth": 16 },
+    "buttonDepth": 30,
+    "glass": {
+      "radius": 8,
+      "strokeW": 2,
+      "accentW": 4,
+      "accentInset": 8,
+      "highlight": { "color": "0xffffff", "alpha": 0.14, "inset": 6 },
+      "pressScale": 0.94,
+      "pressMs": 60,
+      "variants": {
+        "primary": { "fill": "0x3fd0c9", "fillAlpha": 0.92, "pressFill": "0x7fe6e0", "stroke": "0xa8f2ed", "strokeAlpha": 1, "accent": null, "textColor": "#0b0d14" },
+        "normal":  { "fill": "0x111726", "fillAlpha": 0.66, "pressFill": "0x24304a", "stroke": "0x3fd0c9", "strokeAlpha": 0.5, "accent": "0x3fd0c9", "textColor": "#f1efe8" },
+        "locked":  { "fill": "0x0d1019", "fillAlpha": 0.55, "pressFill": "0x1c2130", "stroke": "0x5a5f73", "strokeAlpha": 0.5, "accent": "0xe0a040", "accentAlpha": 0.55, "textColor": "#8a8fa3" },
+        "current": { "fill": "0x14303a", "fillAlpha": 0.85, "pressFill": "0x24304a", "stroke": "0x3fd0c9", "strokeAlpha": 1, "accent": "0x3fd0c9", "textColor": "#3fd0c9" }
+      }
+    },
+    "enter": { "staggerMs": 70, "ms": 320, "offsetX": 40, "delayMs": 120 },
+    "pulse": { "color": "0x3fd0c9", "pad": 6, "alpha": [0.08, 0.4], "ms": 1100 },
     "items": [
       { "id": "new", "label": "New Game" },
       { "id": "chapter2", "label": "Chapter 2 🔒", "locked": true },
@@ -393,12 +422,11 @@
     "difficulty": {
       "depth": 100,
       "dim": { "color": "0x04050b", "alpha": 0.8 },
-      "box": { "y": 336, "w": 320, "h": 344, "fill": "0x12151f", "stroke": "0x2a2e3d" },
+      "box": { "y": 336, "w": 320, "h": 344, "fill": "0x111726", "fillAlpha": 0.94, "stroke": "0x3fd0c9", "strokeAlpha": 0.6, "radius": 10 },
       "title": { "text": "How do you like your fights?", "y": 206, "fontSize": 18, "color": "#f1efe8", "wrap": 280 },
       "button": { "w": 280, "h": 56, "fontSize": 17 },
       "firstY": 268,
       "spacing": 68,
-      "currentStroke": "0x3fd0c9",
       "hint": { "text": "You can change this any time in Settings.", "y": 470, "fontSize": 12, "color": "#8a8fa3", "wrap": 280 }
     },
     "lockedText": "Coming soon",
