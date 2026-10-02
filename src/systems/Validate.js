@@ -272,6 +272,29 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       }
     }
   }
+  // defend: an enemy's chance (qte.json enemyDefendChance) to parry a Strike or dodge a technique, by technique id.
+  for (const [id, e] of Object.entries(enemies)) {
+    const d = e.defend;
+    if (!d) continue;
+    for (const kind of ['parry', 'dodge']) {
+      if (d[kind] !== undefined && !Array.isArray(d[kind])) err(`enemies.${id}.defend.${kind}: must be a list of technique ids`);
+      for (const t of d[kind] || []) if (!techniques[t]) err(`enemies.${id}.defend.${kind}: "${t}" is not in techniques.json`);
+    }
+    if (d.parry?.length) {
+      const r = d.reparry;
+      if (!(r && r.telegraphMs > 0)) err(`enemies.${id}.defend.reparry.telegraphMs must be > 0 (a parried Strike is answered with a ring)`);
+      if (!(r && typeof r.dmg === 'number' && r.dmg >= 0)) err(`enemies.${id}.defend.reparry.dmg must be a number >= 0`);
+      if (r?.melee !== undefined && typeof r.melee !== 'boolean') err(`enemies.${id}.defend.reparry.melee must be true or false`);
+    }
+    const bd = battleEvents.defend;
+    if (!(bd && typeof bd.parryText === 'string' && bd.parryText && typeof bd.dodgeText === 'string' && bd.dodgeText && bd.color && bd.sidestepPx >= 0 && bd.sidestepMs > 0)) {
+      err('battleEvents.defend: parryText, dodgeText, color, sidestepPx and sidestepMs are required');
+    }
+  }
+  for (const id of data.qte?.difficulties?.order || []) {
+    const c = data.qte.difficulties[id]?.enemyDefendChance;
+    if (!(typeof c === 'number' && c >= 0 && c <= 1)) err(`qte.difficulties.${id}.enemyDefendChance must be a number in [0, 1]`);
+  }
   const melee = ui.battleLayout?.melee;
   for (const k of ['gap', 'approachMs', 'returnMs', 'reachDefault']) if (typeof melee?.[k] !== 'number' || melee[k] < 0) err(`ui.battleLayout.melee.${k} must be a number >= 0`);
   const party = ui.battleLayout?.defaultParty;

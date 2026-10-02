@@ -152,7 +152,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: D.enemies[id].hp, max: D.enemies[id].hp, phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false }));
 
   // A tutorial battle also costs the time to read its hint banners.
-  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], flags: [], playerHits: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], flags: [], playerHits: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   // Echo is per hero (each has their own reserve).
   const gain = (hero, n) => (hero.echo = Math.max(0, Math.min(hero.echoMax, hero.echo + n)));
   const rhea = heroes.find((h) => h.id === 'rhea'); // may be absent (battles.json party)
@@ -211,6 +211,34 @@ function simulateBattle(battleId, profileName, story, rnd) {
     return { ...computeGrade(stats, battleId, D.grade), stats };
   };
   const windowMult = () => storyMult * (st.tutorialSlow ? 1 / qte.tutorial.timeScale : 1);
+
+  // enemies.json defend + qte.json enemyDefendChance (story 0): mirrors BattleScene.rollDefendAs.
+  const defendChance = qte.difficulties[story ? 'story' : 'normal'].enemyDefendChance;
+  const defends = (enemy, kind, techId) => !!enemy.def.defend?.[kind]?.includes(techId) && enemy.hp > 0 && !enemy.broken && !enemy.charge && rnd() < defendChance;
+  // A parried Strike is answered with a ring on the hero (reparry): judged like any enemy hit,
+  // a PERFECT earns the usual counter (applyHit on the enemy, so no parry roll, not a counted player hit).
+  const reparry = (hero, enemy) => {
+    const rp = enemy.def.defend.reparry;
+    st.ms += rp.telegraphMs + T.hitResolveMs + (rp.melee ? T.meleeMs : 0);
+    const res = roll(qteOdds(profile, windowMult()), rnd);
+    st.qtes[res] += 1;
+    const cfg = qte.results[res];
+    if (cfg.chain !== 0) {
+      if (res === 'PERFECT') st.chain += 1;
+      else if (res === 'MISS') st.chain = 0;
+    }
+    st.maxChain = Math.max(st.maxChain, st.chain);
+    gain(hero, cfg.echo);
+    const dmg = Math.round(rp.dmg * cfg.damageMult * dmgTakenMult);
+    st.damageTaken += Math.min(dmg, hero.hp);
+    hero.hp = Math.max(0, hero.hp - dmg);
+    if (res === 'PERFECT' && enemy.hp > 0) {
+      const was = st.playerAction;
+      st.playerAction = false;
+      hitEnemy(enemy, cfg.counterDmg, 'counter');
+      st.playerAction = was;
+    }
+  };
 
   const afterTurn = () => {
     while (st.pending.length) {
@@ -312,8 +340,13 @@ function simulateBattle(battleId, profileName, story, rnd) {
       // Tremor (hits every enemy) when there's a crowd or a Strike-immune target.
       if (can('tremor') && (targets.length > 1 || !strikeTarget)) {
         hero.echo -= tk('tremor').cost;
-        for (const e of targets) hitEnemy(e, between(rnd, tk('tremor').dmg), 'ability');
-        gain(hero, tk('tremor').echoOnHit || 0);
+        let landed = 0;
+        for (const e of targets) {
+          if (defends(e, 'dodge', 'tremor')) continue;
+          hitEnemy(e, between(rnd, tk('tremor').dmg), 'ability');
+          landed += 1;
+        }
+        if (landed) gain(hero, tk('tremor').echoOnHit || 0);
         st.ms += sheetMs('dov', 'attack', T.attackMs);
         return;
       }
@@ -325,11 +358,14 @@ function simulateBattle(battleId, profileName, story, rnd) {
         const b = tk('blast');
         let total = between(rnd, b.hits);
         let bolts = 0;
+        const dodged = defends(target, 'dodge', 'blast'); // once per cast: the whole volley misses
         for (let i = 0; i < total && target.hp > 0; i++) {
           const crit = rnd() < b.critChance && total < b.maxHits;
           if (crit) total += 1;
-          hitEnemy(target, between(rnd, b.dmg), 'multiHit', crit);
-          if (i === 0) gain(hero, b.echoOnHit || 0);
+          if (!dodged) {
+            hitEnemy(target, between(rnd, b.dmg), 'multiHit', crit);
+            if (i === 0) gain(hero, b.echoOnHit || 0);
+          }
           bolts += 1;
         }
         st.ms += sheetMs('rhea', 'blast', 900) + bolts * (b.boltFlightMs + b.boltIntervalMs);
@@ -346,6 +382,12 @@ function simulateBattle(battleId, profileName, story, rnd) {
     if (strikeTarget) {
       const isCrit = rnd() < D.crit.hero.chance;
       const base = between(rnd, hero.strike);
+      if (defends(strikeTarget, 'parry', 'strike')) {
+        st.parries += 1;
+        st.ms += T.dashMs * 2 + sheetMs(hero.id, 'attack', T.attackMs);
+        reparry(hero, strikeTarget);
+        return;
+      }
       hitEnemy(strikeTarget, isCrit ? Math.round(base * D.crit.hero.mult) : base, 'strike', isCrit);
       gain(hero, tech.strike.echoOnHit);
     } else st.immuneSeen = true;

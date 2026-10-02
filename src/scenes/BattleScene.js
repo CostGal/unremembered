@@ -1752,26 +1752,33 @@ export default class BattleScene extends Phaser.Scene {
 
   async runTechnique(hero, techId, target) {
     const tech = this.techOf(hero, techId);
-    if (tech.type === 'blast') await this.playBlast(hero, target, tech);
+    if (tech.type === 'blast') await this.playBlast(hero, target, tech, techId);
     else if (tech.type === 'counterStance') await this.startStance(hero, tech);
     else if (tech.type === 'heal') await this.playHeal(hero, tech);
     else if (tech.type === 'brace') await this.playBrace(hero, tech);
-    else if (tech.type === 'quake') await this.playQuake(hero, tech);
+    else if (tech.type === 'quake') await this.playQuake(hero, tech, techId);
   }
 
   // Tremor (Dov): he slams the ground and the shockwave hits every living
   // enemy (Hollows too: it's an Echo move). One cast is one player hit for Echo.
-  async playQuake(hero, tech) {
+  async playQuake(hero, tech, techId) {
     await this.playMove(hero, tech.anims || ['cast'], () => {
       Fx.popText(this, hero.container.x, hero.container.y, tech.castText, tech.color, qte.text);
       Fx.shake(this, tech.shake, tech.shakeMs);
       Fx.screenFlash(this, tech.flash, qte.flashDepth);
       const targets = this.enemies.filter((e) => e.hp > 0);
+      let landed = 0;
       for (const enemy of targets) {
         Fx.sparks(this, enemy.container.x, enemy.container.y + enemy.height / 2, tech.sparks.count, tech.sparks, ui.battleLayout.labelDepth);
+        // enemies.json defend.dodge: rolled once per cast per enemy; a dodged enemy takes nothing.
+        if (this.rollDodge(enemy, techId)) {
+          this.popDefend(enemy, 'dodge');
+          continue;
+        }
         this.applyHit(enemy, Phaser.Math.Between(tech.dmg[0], tech.dmg[1]), undefined, { poiseSource: 'ability' });
+        landed += 1;
       }
-      if (targets.length) this.gainEcho(hero, tech.echoOnHit);
+      if (landed) this.gainEcho(hero, tech.echoOnHit);
     });
   }
 
@@ -1779,13 +1786,20 @@ export default class BattleScene extends Phaser.Scene {
   // bolt (up to maxHits). With a blast sheet the bolts fly while the anim holds
   // its aim frame.
   // Echo: one landed volley is one player hit (+echoOnHit), not one per bolt.
-  async playBlast(hero, target, tech) {
+  async playBlast(hero, target, tech, techId) {
     let total = Phaser.Math.Between(tech.hits[0], tech.hits[1]);
+    // enemies.json defend.dodge: rolled once per cast; the whole volley misses (the bolts still fly).
+    const dodged = this.rollDodge(target, techId);
     const fire = async () => {
       for (let i = 0; i < total && target.hp > 0; i++) {
         const crit = Math.random() < Math.max(tech.critChance, effectMax(this.fragments, 'blastCritChance')) && total < tech.maxHits;
         if (crit) total += 1;
         await this.fireBolt(hero, target, tech);
+        if (dodged) {
+          if (i === 0) this.popDefend(target, 'dodge');
+          await this.wait(tech.boltIntervalMs);
+          continue;
+        }
         const dmg = Phaser.Math.Between(tech.dmg[0], tech.dmg[1]);
         this.applyHit(target, dmg, undefined, { type: crit ? 'crit' : 'normal', poiseSource: 'multiHit', crit });
         if (i === 0) this.gainEcho(hero, tech.echoOnHit);
@@ -1991,8 +2005,9 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   // Back to its own spot. A fallen attacker stays where it fell.
-  async meleeReturn(attacker) {
-    if (attacker.hp <= 0) return;
+  // `force`: a hero struck down at the spot (by a riposte) still goes home.
+  async meleeReturn(attacker, force = false) {
+    if (attacker.hp <= 0 && !force) return;
     await this.tweenPromise(attacker.container, { x: attacker.restX, y: attacker.restY }, layout.melee.returnMs, 'Cubic.easeInOut');
     this.resumeBob(attacker);
   }
@@ -2005,9 +2020,11 @@ export default class BattleScene extends Phaser.Scene {
     const isCrit = Math.random() < crit.hero.chance && !this.isImmune(target, 'strike');
     const base = Phaser.Math.Between(hero.strike[0], hero.strike[1]);
     const dmg = isCrit ? Math.round(base * crit.hero.mult) : base;
+    let parry = null;
     await this.playAttackAnim(hero, (i) => {
       if (i !== 0) return;
       if (this.isImmune(target, 'strike')) this.passThrough(target);
+      else if (this.rollParry(target, 'strike')) parry = this.popDefend(target, 'parry');
       else {
         this.applyHit(target, dmg, undefined, { poiseSource: 'strike', type: isCrit ? 'crit' : null, crit: isCrit });
         if (isCrit) Fx.popText(this, target.container.x, target.container.y, crit.text, crit.color, qte.text);
@@ -2015,7 +2032,75 @@ export default class BattleScene extends Phaser.Scene {
       }
     });
 
-    await this.meleeReturn(hero);
+    // A parried Strike deals nothing; the enemy answers at once, while the hero is still at the melee spot.
+    if (parry) {
+      await parry;
+      if (hero.hp > 0 && target.hp > 0) await this.reparry(target, hero);
+    }
+
+    await this.meleeReturn(hero, true);
+  }
+
+  // ---------- Enemy defence (enemies.json "defend", qte.json enemyDefendChance) ----------
+
+  // Never while dead, broken or charging (the guard is its own defence).
+  canDefend(enemy) {
+    return !!enemy.def.defend && enemy.hp > 0 && !enemy.broken && !enemy.charge;
+  }
+
+  rollDefend() {
+    return Math.random() < this.difficulty.enemyDefendChance;
+  }
+
+  // kind = 'parry' | 'dodge'; techId = the technique id listed in def.defend[kind].
+  // Called once per action (per enemy), at the moment the roll matters.
+  rollDefendAs(enemy, kind, techId) {
+    return this.canDefend(enemy) && !!enemy.def.defend[kind]?.includes(techId) && this.rollDefend();
+  }
+
+  rollParry(enemy, techId) {
+    return this.rollDefendAs(enemy, 'parry', techId);
+  }
+
+  rollDodge(enemy, techId) {
+    return this.rollDefendAs(enemy, 'dodge', techId);
+  }
+
+  // The defender's reaction sheet (clerk_parry / clerk_dodge) and the text over it.
+  // Without the sheet it sidesteps away from the hero for a moment. Returns the reaction's promise.
+  popDefend(enemy, kind) {
+    const d = battleEvents.defend;
+    const name = kind === 'parry' ? 'parry' : 'dodge';
+    Fx.popText(this, enemy.container.x, enemy.container.y, d[`${name}Text`], d.color, qte.text);
+    if (hasSheet(enemy.anims, name)) return this.playReaction(enemy, name);
+    trace(`fallback:${name}:${enemy.type}`);
+    const c = enemy.container;
+    const dir = enemy.facing === 'right' ? -1 : 1;
+    return new Promise((resolve) => {
+      this.tweens.add({ targets: c, x: c.x + dir * d.sidestepPx, duration: d.sidestepMs, yoyo: true, onComplete: resolve });
+    });
+  }
+
+  // The riposte after a parried Strike: a ring on the hero, with its own telegraph and damage.
+  // Judged like any enemy attack (PERFECT = the usual counter + Echo). The counter is applyHit
+  // on the enemy, never a Strike, so it can't be parried in turn.
+  async reparry(enemy, hero) {
+    const rp = enemy.def.defend.reparry;
+    const hit = { id: 'reparry', telegraphMs: rp.telegraphMs, dmg: rp.dmg, unparryable: false };
+    // Not a counted player hit (applyHit would mark the PERFECT counter as one).
+    const wasPlayerAction = this.playerAction;
+    this.playerAction = false;
+    const restoreDepth = this.bringInFront(enemy, hero);
+    this.tapHint.setVisible(true);
+    try {
+      if (rp.melee) await this.meleeApproach(enemy, hero);
+      await this.enemyHit(enemy, hero, hit, null, 0);
+    } finally {
+      this.tapHint.setVisible(false);
+      if (rp.melee) await this.meleeReturn(enemy);
+      restoreDepth();
+      this.playerAction = wasPlayerAction;
+    }
   }
 
   // enemies.json "immune": ["strike"] (Hollows): steel passes through like smoke.

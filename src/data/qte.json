@@ -22,7 +22,8 @@
       "windowMult": 1.5,
       "damageMult": 0.5,
       "enemyHpMult": 1,
-      "echoMult": 1
+      "echoMult": 1,
+      "enemyDefendChance": 0
     },
     "normal": {
       "label": "Normal",
@@ -31,7 +32,8 @@
       "windowMult": 1,
       "damageMult": 1,
       "enemyHpMult": 1,
-      "echoMult": 1
+      "echoMult": 1,
+      "enemyDefendChance": 0.1
     },
     "unforgettable": {
       "label": "Unforgettable",
@@ -40,7 +42,8 @@
       "windowMult": 0.65,
       "damageMult": 1.5,
       "enemyHpMult": 1.35,
-      "echoMult": 0.5
+      "echoMult": 0.5,
+      "enemyDefendChance": 0.15
     }
   },
   "chain": {

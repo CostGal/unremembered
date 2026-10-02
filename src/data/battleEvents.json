@@ -19,5 +19,12 @@
     "chargingMs": 700
   },
   "lifesteal": { "text": "Siphoned", "color": "#5fcf86" },
+  "defend": {
+    "parryText": "PARRIED",
+    "dodgeText": "DODGE",
+    "color": "#c8c2b4",
+    "sidestepPx": 14,
+    "sidestepMs": 120
+  },
   "refuse": { "ms": 900, "color": "#e0a040", "text": "Dov won't fight back" }
 }

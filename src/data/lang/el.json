@@ -313,6 +313,7 @@
     }
   },
   "battleEvents": {
+    "defend": { "parryText": "ΑΠΟΚΡΟΥΣΗ", "dodgeText": "ΑΠΟΦΥΓΗ" },
     "refuse": { "text": "Ο Dov δεν αντεπιτίθεται" },
     "lifesteal": { "text": "Ρούφηξε" },
     "charge": {

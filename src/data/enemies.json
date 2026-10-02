@@ -46,6 +46,7 @@
     "attack": { "type": "lunge", "windupT": 0.3, "distance": 14, "squash": 0.15, "windupPx": 6 },
     "hollow": false,
     "boss": true,
+    "defend": { "parry": ["strike"], "dodge": ["blast", "tremor"], "reparry": { "telegraphMs": 350, "dmg": 22, "melee": false } },
     "phases": [
       {
         "untilHpPct": 50,
