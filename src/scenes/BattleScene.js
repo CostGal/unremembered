@@ -1545,6 +1545,23 @@ export default class BattleScene extends Phaser.Scene {
     else if (tech.type === 'counterStance') await this.startStance(hero, tech);
     else if (tech.type === 'heal') await this.playHeal(hero, tech);
     else if (tech.type === 'brace') await this.playBrace(hero, tech);
+    else if (tech.type === 'quake') await this.playQuake(hero, tech);
+  }
+
+  // Tremor (Dov): he slams the ground and the shockwave hits every living
+  // enemy (Hollows too: it's an Echo move). One cast is one player hit for Echo.
+  async playQuake(hero, tech) {
+    await this.playMove(hero, tech.anims || ['cast'], () => {
+      Fx.popText(this, hero.container.x, hero.container.y, tech.castText, tech.color, qte.text);
+      Fx.shake(this, tech.shake, tech.shakeMs);
+      Fx.screenFlash(this, tech.flash, qte.flashDepth);
+      const targets = this.enemies.filter((e) => e.hp > 0);
+      for (const enemy of targets) {
+        Fx.sparks(this, enemy.container.x, enemy.container.y + enemy.height / 2, tech.sparks.count, tech.sparks, ui.battleLayout.labelDepth);
+        this.applyHit(enemy, Phaser.Math.Between(tech.dmg[0], tech.dmg[1]), undefined, { poise: brk.sources.hit });
+      }
+      if (targets.length) this.gainEcho(hero, tech.echoOnHit);
+    });
   }
 
   // Blast: 3–6 bolts; every bolt has a chance to crit, and each crit adds a

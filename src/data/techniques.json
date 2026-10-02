@@ -27,6 +27,21 @@
     "counterText": "Return to Sender!",
     "color": "#3fd0c9"
   },
+  "tremor": {
+    "name": "Tremor",
+    "cost": 3,
+    "type": "quake",
+    "target": "all",
+    "anims": ["attack", "cast"],
+    "dmg": [7, 9],
+    "echoOnHit": 1,
+    "castText": "Tremor!",
+    "color": "#e0a040",
+    "shake": 5,
+    "shakeMs": 220,
+    "flash": { "color": "0xe0a040", "alpha": 0.3, "ms": 220 },
+    "sparks": { "count": 14, "color": "0xe0a040", "speed": [60, 170], "lifeMs": 420, "size": 3 }
+  },
   "anchor": {
     "name": "Anchor",
     "cost": 4,

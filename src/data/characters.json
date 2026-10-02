@@ -26,6 +26,6 @@
     "attack": { "type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15 },
     "strike": [7, 9],
     "turnEcho": 1,
-    "techniques": ["anchor", "brace"]
+    "techniques": ["tremor", "anchor", "brace"]
   }
 }

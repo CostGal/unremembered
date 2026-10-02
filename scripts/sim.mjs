@@ -261,6 +261,14 @@ function simulateBattle(battleId, profileName, story, rnd) {
         st.ms += T.castMs;
         return;
       }
+      // Tremor (hits every enemy) when there's a crowd or a Strike-immune target.
+      if (can('tremor') && (targets.length > 1 || !strikeTarget)) {
+        hero.echo -= tech.tremor.cost;
+        for (const e of targets) hitEnemy(e, between(rnd, tech.tremor.dmg), D.brk.sources.hit);
+        gain(hero, tech.tremor.echoOnHit || 0);
+        st.ms += sheetMs('dov', 'attack', T.attackMs);
+        return;
+      }
     }
     if (hero.id === 'rhea') {
       if (can('blast') && hero.echo >= D.sim.policy.blastAtEcho) {

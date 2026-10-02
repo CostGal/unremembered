@@ -14,7 +14,7 @@ const qte = JSON.parse(readFileSync(join(root, 'src/data/qte.json'), 'utf8'));
 const slots = ui.commands.slots;
 const TAP_ZONE = [180, 590];
 
-export const ROTATION = { rhea: ['blast', 'return_to_sender', 'strike'], dov: ['brace', 'anchor', 'strike'] };
+export const ROTATION = { rhea: ['blast', 'return_to_sender', 'strike'], dov: ['tremor', 'brace', 'anchor', 'strike'] };
 
 // Everything the bot needs, in one evaluate() round trip.
 export function probe(page) {
