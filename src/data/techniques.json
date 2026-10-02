@@ -1,5 +1,5 @@
 {
-  "strike": { "name": "Strike", "cost": 0, "type": "strike", "target": "enemy", "echoOnHit": 1 },
+  "strike": { "name": "Strike", "cost": 0, "type": "strike", "target": "enemy", "echoOnHit": 1, "immuneText": "IMMUNE", "immuneColor": "#9db4c8" },
   "blast": {
     "name": "Blast",
     "cost": 4,

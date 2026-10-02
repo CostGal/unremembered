@@ -145,6 +145,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const gain = (hero, n) => (hero.echo = Math.max(0, Math.min(hero.echoMax, hero.echo + n)));
   const rhea = heroes[0];
   const living = (list) => list.filter((e) => e.hp > 0);
+  const immune = (enemy, techId) => !!enemy.def.immune?.includes(techId);
 
   // Perfect chain (qte.json chain): +stepPct% per step on every player hit; the
   // fraction rounds by chance, as in BattleScene.chainDamage.
@@ -218,8 +219,13 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const playerTurnInner = (hero) => {
     st.ms += think + (living(enemies).length > 1 ? D.sim.timing.targetMs : 0);
     if (st.stance?.hero === hero) st.stance = null;
+    // The present makes new sparks: characters.json turnEcho at the start of the turn.
+    gain(hero, hero.def.turnEcho || 0);
     const targets = living(enemies).sort((a, b) => a.hp - b.hp);
-    const target = targets[0];
+    // Techniques go to the weakest Strike-immune enemy (Hollow) first; Strike
+    // goes to the weakest enemy it can hurt (or passes through if there is none).
+    const target = targets.find((e) => immune(e, 'strike')) || targets[0];
+    const strikeTarget = targets.find((e) => !immune(e, 'strike'));
     const down = heroes.find((h) => h.hp <= 0);
     const hurt = heroes.filter((h) => h.hp > 0 && h.hp < h.max * D.sim.policy.anchorBelow);
 
@@ -279,9 +285,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
         return;
       }
     }
-    // Strike.
-    hitEnemy(target, between(rnd, hero.def.strike), D.brk.sources.hit);
-    gain(hero, tech.strike.echoOnHit);
+    // Strike (an immune target takes nothing and gives no Echo).
+    if (strikeTarget) {
+      hitEnemy(strikeTarget, between(rnd, hero.def.strike), D.brk.sources.hit);
+      gain(hero, tech.strike.echoOnHit);
+    }
     st.ms += T.dashMs * 2 + sheetMs(hero.id, 'attack', T.attackMs);
   };
 

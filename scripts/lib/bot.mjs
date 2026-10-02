@@ -35,7 +35,7 @@ export function probe(page) {
         nala: b.nala ? { watching: !!b.nala.ring, used: b.nala.used, x: b.nala.container.x, y: b.nala.container.y } : null,
         hero: b.activeHero?.type || null,
         heroes: (b.heroes || []).map((h) => ({ id: h.type, hp: h.hp, maxHp: h.maxHp, echo: h.echo })),
-        enemies: (b.enemies || []).map((e) => ({ id: e.id, type: e.type, hp: e.hp, maxHp: e.maxHp, x: e.container.x, y: e.container.y, phase: e.phase || 0, charging: !!e.charge })),
+        enemies: (b.enemies || []).map((e) => ({ id: e.id, type: e.type, hp: e.hp, maxHp: e.maxHp, x: e.container.x, y: e.container.y, phase: e.phase || 0, charging: !!e.charge, strikeImmune: !!e.def?.immune?.includes('strike') })),
         echo: (b.heroes || []).map((h) => h.echo).join('|'),
       };
     }
@@ -151,9 +151,12 @@ export class Bot {
       this.events.push('retry');
       return { slot: 'retry' };
     }
-    // Target prompt (only Back on screen): the weakest living enemy.
+    // Target prompt (only Back on screen): the weakest living enemy (for a
+    // Strike, the weakest one it can hurt: Hollows are immune).
     if (items.length === 1 && values[0] === null) {
-      const living = b.enemies.filter((e) => e.hp > 0).sort((a, c) => a.hp - c.hp);
+      const living = b.enemies
+        .filter((e) => e.hp > 0)
+        .sort((a, c) => (this.striking ? a.strikeImmune - c.strikeImmune : 0) || a.hp - c.hp);
       return living[0] ? { x: living[0].x, y: living[0].y } : { slot: 'back' };
     }
     if (values.includes('ultimate')) return { slot: 'ultimate' };
@@ -161,6 +164,7 @@ export class Bot {
     if (values.includes('technique')) {
       if (this.forceStrike) {
         this.forceStrike = false;
+        this.striking = true;
         return { slot: 'strike' };
       }
       const rot = (this.rotation || ROTATION)[b.hero] || ['strike'];
@@ -169,7 +173,8 @@ export class Bot {
       // Anchor only when someone needs it.
       if (this.want === 'anchor' && !this.alwaysAnchor && !b.heroes.some((h) => h.hp < h.maxHp * 0.6)) this.want = 'strike';
       const tech = items.find((i) => i.value === 'technique');
-      return this.want === 'strike' || !tech?.enabled ? { slot: 'strike' } : { slot: 'technique' };
+      this.striking = this.want === 'strike' || !tech?.enabled;
+      return this.striking ? { slot: 'strike' } : { slot: 'technique' };
     }
     // Technique submenu: the wanted one if affordable, else Back -> Strike.
     const wanted = items.find((i) => i.value === this.want && i.enabled);

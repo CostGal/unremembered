@@ -699,6 +699,10 @@ export default class BattleScene extends Phaser.Scene {
     // A stance that was never tested ends when its owner acts again.
     if (this.stance?.hero === hero) this.endStance(false);
 
+    // The present makes new sparks (STORY.md, Echo rule 3): a little Echo
+    // every turn, so a fight against Strike-immune Hollows can still be won.
+    this.gainEcho(hero, hero.def.turnEcho || 0);
+
     this.showActiveHero(hero);
     this.hints.show('strike');
     const costs = (hero.def.techniques || []).map((id) => techniques[id].cost);
@@ -1742,11 +1746,27 @@ export default class BattleScene extends Phaser.Scene {
     const dmg = Phaser.Math.Between(hero.def.strike[0], hero.def.strike[1]);
     await this.playAttackAnim(hero, (i) => {
       if (i !== 0) return;
-      this.applyHit(target, dmg, undefined, { poise: brk.sources.hit });
-      this.gainEcho(hero, techniques.strike.echoOnHit);
+      if (this.isImmune(target, 'strike')) this.passThrough(target);
+      else {
+        this.applyHit(target, dmg, undefined, { poise: brk.sources.hit });
+        this.gainEcho(hero, techniques.strike.echoOnHit);
+      }
     });
 
     await this.tweenPromise(hero.container, { x: restX }, DASH_DURATION_MS, 'Cubic.easeInOut');
+  }
+
+  // enemies.json "immune": ["strike"] (Hollows): steel passes through like smoke.
+  isImmune(target, techId) {
+    return !!target.def.immune?.includes(techId);
+  }
+
+  // An immune hit: no damage, no Echo, no poise. The body flickers and "IMMUNE" pops up.
+  passThrough(target) {
+    const s = techniques.strike;
+    Fx.flash(this, [target.body, ...Object.values(target.parts).map((p) => p.img)], 60);
+    Fx.popText(this, target.container.x, target.container.y, s.immuneText, s.immuneColor, qte.text);
+    playSfx('miss');
   }
 
   // onImpact(i, count) fires on each impact frame of a sheet attack, or once

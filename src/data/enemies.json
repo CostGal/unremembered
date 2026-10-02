@@ -13,11 +13,12 @@
   },
   "hollow": {
     "name": "Hollow",
-    "hp": 110,
+    "hp": 80,
     "poise": 8,
     "body": "hollow",
     "attack": { "type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15, "windupPx": 4 },
     "hollow": true,
+    "immune": ["strike"],
     "attacks": [
       { "id": "claw", "weight": 3, "telegraphMs": 700, "dmg": 12, "onMiss": { "status": "fog", "chance": 0.3 } },
       {
