@@ -156,7 +156,7 @@ export class Bot {
       const living = b.enemies.filter((e) => e.hp > 0).sort((a, c) => a.hp - c.hp);
       return living[0] ? { x: living[0].x, y: living[0].y } : { slot: 'back' };
     }
-    if (values.includes('ultimate')) return { slot: 'recollection' };
+    if (values.includes('ultimate')) return { slot: 'ultimate' };
 
     if (values.includes('technique')) {
       if (this.forceStrike) {

@@ -24,7 +24,10 @@
       "w": 196,
       "h": 8,
       "bgColor": "0x2a2e3d",
-      "fillColor": "0xd8505a",
+      "fillColor": "0x5fcf86",
+      "midColor": "0xe0b040",
+      "lowColor": "0xd8505a",
+      "midPct": 0.5,
       "lagColor": "0xf1efe8",
       "tweenMs": 300,
       "lagDelayMs": 250,
@@ -34,18 +37,18 @@
     "fragments": { "x": 284, "y": 418, "size": 14, "gap": 4, "fontSize": 11, "fill": "0x0b0d14" },
     "statusBadge": { "x": 270, "w": 16, "h": 12, "gap": 2, "fontSize": 10, "fill": "0x0b0d14", "strokeAlpha": 1, "popScale": 1.4, "popMs": 160 },
     "echo": {
-      "offsetY": 13,
+      "offsetY": 14,
       "max": 10,
       "label": "Echo",
       "labelX": 16,
-      "labelFontSize": 10,
-      "labelColor": "#8a8fa3",
+      "labelFontSize": 12,
+      "labelColor": "#7fc4bf",
       "pipX": 72,
       "pipW": 16,
-      "pipH": 7,
+      "pipH": 10,
       "pipGap": 4,
       "fullColor": "0x3fd0c9",
-      "emptyColor": "0x1f2a33",
+      "emptyColor": "0x22333d",
       "emptyStroke": "0x2f4450",
       "lockedColor": "0x141820",
       "lockedStroke": "0x3a3f52",
@@ -92,7 +95,7 @@
   "commands": {
     "button": {
       "w": 156,
-      "h": 58,
+      "h": 60,
       "fontSize": 16,
       "fill": "0x232636",
       "stroke": "0x5a5f73",
@@ -115,12 +118,15 @@
       "coverH": 46
     },
     "slots": {
-      "strike": [94, 486],
-      "technique": [266, 486],
-      "recollection": [94, 548],
-      "back": [266, 548],
+      "strike": [94, 476],
+      "technique": [266, 476],
+      "recollection": [94, 546],
+      "back": [266, 546],
+      "ultimate": [180, 546],
       "retry": [180, 540]
     },
+    "slotWidths": { "ultimate": 328 },
+    "progress": { "inset": 4, "radius": 5, "color": "0x3fd0c9", "alpha": 0.3 },
     "prompt": { "x": 180, "y": 458, "fontSize": 14, "text": "Choose a target" },
     "techniqueSlots": ["strike", "technique", "recollection"],
     "labels": {
@@ -128,7 +134,8 @@
       "technique": "Technique",
       "recollection": "Recollection",
       "back": "Back",
-      "cost": "{n} Echo"
+      "cost": "{n} Echo",
+      "ultimateProgress": "{n}/{max} Echo"
     },
     "targetTint": "0xfff066"
   },
@@ -194,7 +201,7 @@
     "nextMark": { "w": 10, "h": 7 },
     "nameBoxes": { "wPct": 0.55, "hPct": 0.8, "lineHeightPct": 1.1, "gap": 3, "stroke": 2 },
     "nextBlinkMs": 450,
-    "bg": { "size": 360, "fadeH": 24, "fadeAlpha": 0.6 },
+    "bg": { "size": 360, "fadeH": 24, "fadeAlpha": 0.6, "reflection": { "alpha": 0.35, "fadeH": 96, "ink": "0x0b0d14" } },
     "overlayDim": { "color": "0x04050b", "alpha": 0.55 },
     "box": {
       "x": 12,
@@ -378,38 +385,44 @@
       "inApp": "Open in your browser to play full screen"
     }
   },
-  "menu": {
-    "title": { "text": "UNREMEMBERED", "y": 110, "fontSize": 30, "color": "#3fd0c9" },
-    "firstY": 246,
-    "spacing": 72,
-    "button": { "w": 280, "h": 58, "fontSize": 18 },
+  "glass": {
+    "radius": 8,
+    "strokeW": 2,
+    "accentW": 4,
+    "accentInset": 8,
+    "highlight": { "color": "0xffffff", "alpha": 0.14, "inset": 6 },
+    "pressScale": 0.94,
+    "pressMs": 60,
+    "variants": {
+      "primary": { "fill": "0x3fd0c9", "fillAlpha": 0.92, "pressFill": "0x7fe6e0", "stroke": "0xa8f2ed", "strokeAlpha": 1, "accent": null, "textColor": "#0b0d14" },
+      "normal":  { "fill": "0x111726", "fillAlpha": 0.66, "pressFill": "0x24304a", "stroke": "0x3fd0c9", "strokeAlpha": 0.5, "accent": "0x3fd0c9", "textColor": "#f1efe8" },
+      "locked":  { "fill": "0x0d1019", "fillAlpha": 0.55, "pressFill": "0x1c2130", "stroke": "0x5a5f73", "strokeAlpha": 0.5, "accent": "0xe0a040", "accentAlpha": 0.55, "textColor": "#8a8fa3" },
+      "secondary": { "fill": "0x111726", "fillAlpha": 0.5, "pressFill": "0x24304a", "stroke": "0x8a8fa3", "strokeAlpha": 0.45, "accent": null, "textColor": "#c9cbd6" },
+      "disabled": { "fill": "0x0d1019", "fillAlpha": 0.7, "pressFill": "0x0d1019", "stroke": "0x3a3d4a", "strokeAlpha": 0.8, "accent": null, "textColor": "#80859a" },
+      "teaser": { "fill": "0x0d1019", "fillAlpha": 0.7, "pressFill": "0x0d1019", "stroke": "0x3fd0c9", "strokeAlpha": 0.3, "accent": null, "textColor": "#d8dae3" },
+      "current": { "fill": "0x14303a", "fillAlpha": 0.85, "pressFill": "0x24304a", "stroke": "0x3fd0c9", "strokeAlpha": 1, "accent": "0x3fd0c9", "textColor": "#3fd0c9" }
+    }
+  },
+  "keyArt": {
+    "uiDepth": 30,
     "backdrop": {
       "dim": { "color": "0x0b0d14", "alpha": 0.5 },
       "drift": { "zoom": 1.06, "x": -6, "y": -4, "ms": 14000 },
       "gradient": { "y": 150, "color": "0x0b0d14", "alpha": 0.9 },
       "depth": 0
     },
-    "logo": { "widthPct": 0.8, "topPct": 0.045, "depth": 20 },
     "rain": {
       "near": { "count": 40, "speed": 520, "wind": -30, "landY": [560, 660], "alpha": [0.1, 0.3], "length": 8, "color": "0xc2dcf0", "depth": 15 }
     },
-    "motes": { "count": 12, "color": "0x3fd0c9", "size": 2, "area": { "x": 20, "y": 140, "w": 320, "h": 460 }, "speedY": [4, 14], "driftX": 5, "lifeMs": 5000, "alpha": 0.8, "frequency": 420, "depth": 16 },
+    "motes": { "count": 12, "color": "0x3fd0c9", "size": 2, "area": { "x": 20, "y": 140, "w": 320, "h": 460 }, "speedY": [4, 14], "driftX": 5, "lifeMs": 5000, "alpha": 0.8, "frequency": 420, "depth": 16 }
+  },
+  "menu": {
+    "title": { "text": "UNREMEMBERED", "y": 110, "fontSize": 30, "color": "#3fd0c9" },
+    "firstY": 246,
+    "spacing": 72,
+    "button": { "w": 280, "h": 58, "fontSize": 18 },
+    "logo": { "widthPct": 0.8, "topPct": 0.045, "depth": 20 },
     "buttonDepth": 30,
-    "glass": {
-      "radius": 8,
-      "strokeW": 2,
-      "accentW": 4,
-      "accentInset": 8,
-      "highlight": { "color": "0xffffff", "alpha": 0.14, "inset": 6 },
-      "pressScale": 0.94,
-      "pressMs": 60,
-      "variants": {
-        "primary": { "fill": "0x3fd0c9", "fillAlpha": 0.92, "pressFill": "0x7fe6e0", "stroke": "0xa8f2ed", "strokeAlpha": 1, "accent": null, "textColor": "#0b0d14" },
-        "normal":  { "fill": "0x111726", "fillAlpha": 0.66, "pressFill": "0x24304a", "stroke": "0x3fd0c9", "strokeAlpha": 0.5, "accent": "0x3fd0c9", "textColor": "#f1efe8" },
-        "locked":  { "fill": "0x0d1019", "fillAlpha": 0.55, "pressFill": "0x1c2130", "stroke": "0x5a5f73", "strokeAlpha": 0.5, "accent": "0xe0a040", "accentAlpha": 0.55, "textColor": "#8a8fa3" },
-        "current": { "fill": "0x14303a", "fillAlpha": 0.85, "pressFill": "0x24304a", "stroke": "0x3fd0c9", "strokeAlpha": 1, "accent": "0x3fd0c9", "textColor": "#3fd0c9" }
-      }
-    },
     "enter": { "staggerMs": 70, "ms": 320, "offsetX": 40, "delayMs": 120 },
     "pulse": { "color": "0x3fd0c9", "pad": 6, "alpha": [0.08, 0.4], "ms": 1100 },
     "items": [
@@ -458,6 +471,7 @@
     "title": { "y": 80, "fontSize": 28, "color": "#3fd0c9" },
     "firstY": 150,
     "lineH": 26,
+    "panel": { "y": 322, "w": 312, "h": 404, "fill": "0x111726", "fillAlpha": 0.72, "stroke": "0x3fd0c9", "strokeAlpha": 0.35, "radius": 10 },
     "roleFontSize": 12,
     "roleColor": "#8a8fa3",
     "nameFontSize": 16,

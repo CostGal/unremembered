@@ -48,6 +48,7 @@ export default class Hud {
     const row = { y, warn, bg, lag, fill, label, value, hp: hero.hp, maxHp: hero.maxHp, shown: { hp: hero.hp }, low: false, active: false, badges: [], badgeSig: '' };
     this.setBarWidths(row, hero.hp);
     this.setHpText(row, hero.hp);
+    this.paintHp(row, hero.hp);
     this.buildEcho(row, hero.echoMax ?? this.cfg.echo.max);
     return row;
   }
@@ -130,6 +131,7 @@ export default class Hud {
 
     const target = this.barWidth(row, hero.hp);
     this.scene.tweens.killTweensOf([row.fill, row.lag, row.shown]);
+    this.paintHp(row, hero.hp);
 
     this.scene.tweens.add({ targets: row.fill, width: target, duration: hpBar.tweenMs, ease: 'Cubic.easeOut' });
     if (dropped) {
@@ -213,6 +215,14 @@ export default class Hud {
     const row = this.rows[Math.max(0, Math.min(this.rows.length - 1, r))];
     const { pip } = row.pips[Math.max(0, Math.min(row.pips.length - 1, i))];
     return { x: pip.x, y: pip.y };
+  }
+
+  // Green while healthy, amber under hpBar.midPct, red under lowHp.pct.
+  paintHp(row, hp) {
+    const { hpBar, lowHp } = this.cfg;
+    const pct = row.maxHp > 0 ? hp / row.maxHp : 0;
+    const c = pct < lowHp.pct ? hpBar.lowColor : pct < hpBar.midPct ? hpBar.midColor : hpBar.fillColor;
+    row.fill.setFillStyle(color(c));
   }
 
   barWidth(row, hp) {

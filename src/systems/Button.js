@@ -49,7 +49,9 @@ export function pressButton(scene, container, rect, b, onTap, paint = null) {
 // an invisible Rectangle the size of the button. Returns {container, rect,
 // text, body, setVariant}; body holds what is drawn, so an entrance can move
 // it while the hit area stays put.
-export function makeGlassButton(scene, x, y, size, glass, variant, label, onTap) {
+// opts.instant: onTap runs on the tap itself and the dip is only a visual
+// (rows that change a value in place, e.g. Settings; rapid taps all count).
+export function makeGlassButton(scene, x, y, size, glass, variant, label, onTap, opts = {}) {
   const container = scene.add.container(x, y);
   const body = scene.add.container(0, 0);
   const g = scene.add.graphics();
@@ -81,7 +83,25 @@ export function makeGlassButton(scene, x, y, size, glass, variant, label, onTap)
   paint(false);
 
   rect.setInteractive({ useHandCursor: true });
-  rect.on('pointerdown', () => pressButton(scene, container, rect, glass, onTap, paint));
+  rect.on('pointerdown', () => {
+    if (!opts.instant) {
+      pressButton(scene, container, rect, glass, onTap, paint);
+      return;
+    }
+    playSfx('menu');
+    onTap();
+    paint(true);
+    scene.tweens.killTweensOf(container);
+    container.setScale(1);
+    scene.tweens.add({
+      targets: container,
+      scale: glass.pressScale,
+      duration: glass.pressMs,
+      yoyo: true,
+      ease: 'Quad.easeOut',
+      onComplete: () => rect.active && paint(false),
+    });
+  });
   const setVariant = (name) => {
     v = glass.variants[name];
     paint(false);
