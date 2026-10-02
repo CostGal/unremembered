@@ -88,7 +88,7 @@ await withBrowser(async ({ chrome, server }) => {
 
   // ---------- hidden mid-Recollection ----------
   if (want('recollection')) {
-    const page = await battle(chrome, server, 'boss_clerk', '&echo=10');
+    const page = await battle(chrome, server, 'boss_clerk', '&echo=10&level=5');
     await waitMenu(page);
     await page.ev(`(() => { const B = window.__battle; B.hideCommandMenu(); window.__results.length = 0; window.__dmg = []; const o = B.recollectionHit.bind(B); B.recollectionHit = (t, r, tech) => { window.__dmg.push(r); return o(t, r, tech); }; window.__hp0 = B.enemies[0].hp; window.__done = null; B.playRecollection(B.heroes[0], B.enemies[0]).then(() => { window.__done = true; }); })()`);
     await page.waitFor(`window.__battle.qteRings && window.__battle.qteRings.size > 0`, { timeout: 8000 });

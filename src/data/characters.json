@@ -14,7 +14,7 @@
       ]
     },
     "strike": [5, 6],
-    "echoMax": 8,
+    "echoPips": 10,
     "turnEcho": 1,
     "techniques": ["blast", "return_to_sender"],
     "canUltimate": true
@@ -25,6 +25,8 @@
     "body": "dov",
     "attack": { "type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15 },
     "strike": [7, 9],
+    "echoMax": 5,
+    "echoPips": 5,
     "turnEcho": 1,
     "techniques": ["tremor", "anchor", "brace"]
   }

@@ -10,7 +10,6 @@
   "thinkMs": { "non-gamer": 3500, "average": 2200, "good": 1400 },
   "policy": {
     "anchorBelow": 0.4,
-    "blastAtEcho": 3,
     "returnToSenderChance": 0.5,
     "braceOnArchive": true,
     "nalaTapChance": { "non-gamer": 0.7, "average": 0.85, "good": 0.95 }

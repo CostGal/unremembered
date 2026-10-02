@@ -17,7 +17,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { root } from './lib/harness.mjs';
 import { computeGrade } from '../src/systems/Grade.js';
-import { chapterXpBefore, growth, learned, levelFor } from '../src/systems/Recall.js';
+import { chapterXpBefore, echoMaxFor, growth, learned, levelFor, techniqueAt } from '../src/systems/Recall.js';
 
 const read = (p) => JSON.parse(readFileSync(join(root, p), 'utf8'));
 const D = {
@@ -145,7 +145,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
     const def = D.characters[id];
     const g = growth(id, level, D.levels);
     const hp = def.hp + g.hp;
-    return { id, def, hp, max: hp, strike: [def.strike[0] + g.strike, def.strike[1] + g.strike], techniques: learned(id, level, def.techniques, D.levels), redacted: null, echo: 0, echoMax: def.echoMax ?? echoMax };
+    return { id, def, hp, max: hp, strike: [def.strike[0] + g.strike, def.strike[1] + g.strike], techniques: learned(id, level, def.techniques, D.levels), redacted: null, echo: 0, echoMax: echoMaxFor(id, level, D.levels) ?? def.echoMax ?? echoMax };
   });
   const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: D.enemies[id].hp, max: D.enemies[id].hp, phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false }));
 
@@ -252,13 +252,15 @@ function simulateBattle(battleId, profileName, story, rnd) {
       st.ms += T.recollectionFadeMs * 2 + r.taps * (qte.recollection.ringMs + r.intervalMs);
       return;
     }
-    const can = (id) => hero.techniques.includes(id) && hero.echo >= tech[id].cost && hero.redacted?.tech !== id;
+    // Techniques as they are at this Recall level (techniques.json `levels`).
+    const tk = (id) => techniqueAt(id, level, tech);
+    const can = (id) => hero.techniques.includes(id) && hero.echo >= tk(id).cost && hero.redacted?.tech !== id;
 
     if (hero.id === 'dov') {
       if ((down || hurt.length) && can('anchor')) {
-        hero.echo -= tech.anchor.cost;
+        hero.echo -= tk('anchor').cost;
         const t = down || hurt.sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
-        t.hp = Math.min(t.max, (t.hp > 0 ? t.hp : 0) + tech.anchor.amount);
+        t.hp = Math.min(t.max, (t.hp > 0 ? t.hp : 0) + tk('anchor').amount);
         t.redacted = null; // Anchor clears statuses
         st.ms += T.castMs;
         return;
@@ -266,24 +268,25 @@ function simulateBattle(battleId, profileName, story, rnd) {
       // Brace on the turn the charge is about to release.
       const charging = enemies.some((e) => e.charge && e.charge.turnsLeft <= 1);
       if (D.sim.policy.braceOnArchive && charging && can('brace')) {
-        hero.echo -= tech.brace.cost;
-        st.brace = tech.brace;
+        hero.echo -= tk('brace').cost;
+        st.brace = tk('brace');
         st.ms += T.castMs;
         return;
       }
       // Tremor (hits every enemy) when there's a crowd or a Strike-immune target.
       if (can('tremor') && (targets.length > 1 || !strikeTarget)) {
-        hero.echo -= tech.tremor.cost;
-        for (const e of targets) hitEnemy(e, between(rnd, tech.tremor.dmg), D.brk.sources.hit);
-        gain(hero, tech.tremor.echoOnHit || 0);
+        hero.echo -= tk('tremor').cost;
+        for (const e of targets) hitEnemy(e, between(rnd, tk('tremor').dmg), D.brk.sources.hit);
+        gain(hero, tk('tremor').echoOnHit || 0);
         st.ms += sheetMs('dov', 'attack', T.attackMs);
         return;
       }
     }
     if (hero.id === 'rhea') {
-      if (can('blast') && hero.echo >= D.sim.policy.blastAtEcho) {
-        hero.echo -= tech.blast.cost;
-        const b = tech.blast;
+      // Blast whenever it is affordable (its cost is per level: 1 Echo at Recall 1).
+      if (can('blast')) {
+        hero.echo -= tk('blast').cost;
+        const b = tk('blast');
         let total = between(rnd, b.hits);
         let bolts = 0;
         for (let i = 0; i < total && target.hp > 0; i++) {
@@ -296,9 +299,9 @@ function simulateBattle(battleId, profileName, story, rnd) {
         st.ms += sheetMs('rhea', 'blast', 900) + bolts * (b.boltFlightMs + b.boltIntervalMs);
         return;
       }
-      if (can('return_to_sender') && hero.echo < (tech.blast?.cost ?? Infinity) && rnd() < D.sim.policy.returnToSenderChance) {
-        hero.echo -= tech.return_to_sender.cost;
-        st.stance = { hero, tech: tech.return_to_sender };
+      if (can('return_to_sender') && hero.echo < (tk('blast')?.cost ?? Infinity) && rnd() < D.sim.policy.returnToSenderChance) {
+        hero.echo -= tk('return_to_sender').cost;
+        st.stance = { hero, tech: tk('return_to_sender') };
         st.ms += T.castMs;
         return;
       }

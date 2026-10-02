@@ -34,14 +34,37 @@ export function learned(heroId, level, techniqueIds, cfg) {
   return (techniqueIds || []).filter((id) => (learn[id] ?? 1) <= level);
 }
 
+// A hero's Echo capacity at a Recall level (levels.json echoMax[hero][level-1];
+// a level past the table uses its last entry). null = the hero has no table,
+// so the caller falls back to characters.json / ui.hud.echo.max.
+export function echoMaxFor(heroId, level, cfg) {
+  const table = cfg.echoMax?.[heroId];
+  if (!table?.length) return null;
+  return table[Math.max(0, Math.min(table.length, level) - 1)];
+}
+
+// A technique's definition at a Recall level: the base def with the highest
+// `levels[k]` (k <= level) shallow-merged on top. Without `levels`, the def itself.
+export function techniqueAt(techId, level, techniques) {
+  const base = techniques[techId];
+  if (!base?.levels) return base;
+  const ks = Object.keys(base.levels)
+    .map(Number)
+    .filter((k) => k <= level)
+    .sort((a, b) => a - b);
+  const { levels: _levels, ...rest } = base;
+  return ks.length ? { ...rest, ...base.levels[String(ks[ks.length - 1])] } : rest;
+}
+
 // Memories a battle gives: the sum of its enemies' xp (enemies.json).
 export function battleXp(enemyKeys, enemies) {
   return enemyKeys.reduce((sum, key) => sum + (enemies[key]?.xp || 0), 0);
 }
 
 // The levels gained going from one Memories total to another, each with what
-// every hero remembers there: [{level, learned: {heroId: [techIds]}}].
-export function levelUps(fromXp, toXp, cfg) {
+// every hero remembers there, and (given techniques.json) which of their known
+// techniques grow there: [{level, learned: {heroId: [techIds]}, upgraded: {heroId: [techIds]}}].
+export function levelUps(fromXp, toXp, cfg, techniques = {}) {
   const out = [];
   for (let level = levelFor(fromXp, cfg) + 1; level <= levelFor(toXp, cfg); level++) {
     const learnedHere = {};
@@ -49,7 +72,17 @@ export function levelUps(fromXp, toXp, cfg) {
       const ids = Object.keys(list).filter((id) => list[id] === level);
       if (ids.length) learnedHere[hero] = ids;
     }
-    out.push({ level, learned: learnedHere });
+    const upgradedHere = {};
+    for (const [hero, list] of Object.entries(cfg.learn)) {
+      const ids = Object.keys(list).filter((id) => {
+        if (list[id] >= level) return false; // not known yet, or just learned now
+        const was = techniqueAt(id, level - 1, techniques);
+        const now = techniqueAt(id, level, techniques);
+        return was && JSON.stringify(was) !== JSON.stringify(now);
+      });
+      if (ids.length) upgradedHere[hero] = ids;
+    }
+    out.push({ level, learned: learnedHere, upgraded: upgradedHere });
   }
   return out;
 }

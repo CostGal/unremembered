@@ -105,7 +105,7 @@ await withBrowser(async ({ chrome, server }) => {
       await ready(page);
       await sleep(1500);
       res['rain + hit FX (b1, bot)'] = stats(await botSample(page, 25000));
-      page = await open(chrome, `${server.url}?battle=boss_clerk&echo=10&fps=1`, { cpu });
+      page = await open(chrome, `${server.url}?battle=boss_clerk&echo=10&level=5&fps=1`, { cpu });
       await ready(page);
       await sleep(1500);
       res['Recollection (gold tint + rings)'] = stats(await botSample(page, 14000, { PERFECT: 0.6, GOOD: 0.3, MISS: 0.1 }));

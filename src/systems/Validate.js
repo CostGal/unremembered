@@ -8,6 +8,7 @@
 // Returns {errors: [...], warnings: [...]}.
 
 import { compileTrack } from './MusicData.js';
+import { echoMaxFor, learned, techniqueAt } from './Recall.js';
 
 const STEP_TYPES = ['cutscene', 'dialogue', 'battle', 'reward', 'end'];
 const SHOT_FX = ['crystal_particles', 'rain', 'flash', 'lights_out', 'dissolve_layer', 'embers', 'eyes_glow'];
@@ -116,6 +117,31 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       for (const [t, lv] of Object.entries(list)) {
         if (!characters[hero]?.techniques?.includes(t)) err(`levels.learn.${hero}.${t}: not in characters.${hero}.techniques`);
         if (!(Number.isInteger(lv) && lv >= 1 && lv <= xpAt.length)) err(`levels.learn.${hero}.${t}: level must be 1..${xpAt.length}`);
+      }
+    }
+    // Echo capacity per Recall level: whole numbers, one per level, and every
+    // technique a hero knows at a level must be castable with that level's cap
+    // (Recollection is gated by the Keepsake instead).
+    const echoCap = data.ui?.hud?.echo?.max;
+    for (const [hero, table] of Object.entries(levels.echoMax || {})) {
+      if (!characters[hero]) err(`levels.echoMax.${hero}: no such character`);
+      if (!Array.isArray(table) || table.length !== xpAt.length) err(`levels.echoMax.${hero}: needs one entry per Recall level (${xpAt.length})`);
+      for (const [i, v] of (Array.isArray(table) ? table : []).entries()) {
+        if (!(Number.isInteger(v) && v >= 1 && v <= (echoCap ?? Infinity))) err(`levels.echoMax.${hero}[${i}]: must be a whole number 1..${echoCap}`);
+      }
+    }
+    for (const [hero, c] of Object.entries(characters)) {
+      for (let level = 1; level <= xpAt.length; level++) {
+        const cap = echoMaxFor(hero, level, levels) ?? c.echoMax ?? echoCap;
+        for (const id of learned(hero, level, c.techniques, levels)) {
+          const cost = techniqueAt(id, level, techniques)?.cost;
+          if (cost > cap) err(`Recall ${level}: ${hero}'s ${id} costs ${cost} Echo but their Echo cap is ${cap}`);
+        }
+      }
+    }
+    for (const [id, t] of Object.entries(techniques)) {
+      for (const k of Object.keys(t.levels || {})) {
+        if (!(Number.isInteger(Number(k)) && Number(k) >= 1 && Number(k) <= xpAt.length)) err(`techniques.${id}.levels.${k}: level must be a whole number 1..${xpAt.length}`);
       }
     }
     for (const [id, e] of Object.entries(enemies)) if (!(Number.isInteger(e.xp) && e.xp >= 0)) err(`enemies.${id}: xp must be a whole number >= 0`);

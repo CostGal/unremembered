@@ -25,7 +25,7 @@ import { addPauseButton, pauseScene } from '../systems/PauseButton.js';
 import * as Qte from '../systems/Qte.js';
 import { devInt } from '../systems/DevParams.js';
 import { effectMax, effectTotal, ownedFragments } from '../systems/Fragments.js';
-import { battleXp, growth, learned, levelFor, xpForLevel } from '../systems/Recall.js';
+import { battleXp, echoMaxFor, growth, learned, levelFor, techniqueAt, xpForLevel } from '../systems/Recall.js';
 import RecallCard from '../systems/RecallCard.js';
 import { animKey, hasSheet, playLoop, playOnce, SheetDriver, trace } from '../systems/SpriteAnims.js';
 import { whenReady } from '../systems/Assets.js';
@@ -140,10 +140,13 @@ export default class BattleScene extends Phaser.Scene {
 
     this.applyAmbientTint();
 
-    // Each hero has their own Echo (characters.json echoMax, default
-    // ui.hud.echo.max). ?echo=N starts everyone with N (dev); Old Ticket adds to everyone.
+    // Each hero has their own Echo: its capacity comes from the Recall level
+    // (levels.json echoMax), else characters.json echoMax, else ui.hud.echo.max;
+    // echoPips is how many pips the HUD draws. ?echo=N starts everyone with N
+    // (dev, clamped to the cap); Old Ticket adds to everyone.
     for (const hero of this.heroes) {
-      hero.echoMax = hero.def.echoMax ?? ui.hud.echo.max;
+      hero.echoMax = echoMaxFor(hero.type, this.level, levels) ?? hero.def.echoMax ?? ui.hud.echo.max;
+      hero.echoPips = hero.def.echoPips;
       hero.echo = Phaser.Math.Clamp((devInt('echo') ?? 0) + effectTotal(this.fragments, 'startEcho'), 0, hero.echoMax);
     }
     // Perfect chain (qte.json chain). maxChain is read at the end of the battle (battle grade).
@@ -614,7 +617,7 @@ export default class BattleScene extends Phaser.Scene {
 
       const techId = await this.menu.show(this.techniqueItems(hero));
       if (!techId) continue;
-      if (techniques[techId].target !== 'enemy') return { kind: 'technique', techId };
+      if (this.techOf(hero, techId).target !== 'enemy') return { kind: 'technique', techId };
       const target = await this.pickEnemy();
       if (target) return { kind: 'technique', techId, target };
     }
@@ -636,15 +639,20 @@ export default class BattleScene extends Phaser.Scene {
     return !!hero.def.canUltimate && hero.echo >= techniques.recollection.cost;
   }
 
+  // A hero's technique as it is at their Recall level (techniques.json `levels`).
+  techOf(hero, id) {
+    return techniqueAt(id, hero.level ?? this.level, techniques);
+  }
+
   techniqueItems(hero) {
     const slots = ui.commands.techniqueSlots;
     const items = hero.techniques.slice(0, slots.length).map((id, i) => ({
       slot: slots[i],
-      label: this.fogged(hero) ? statuses.fog.label : techniques[id].name,
-      cost: techniques[id].cost,
+      label: this.fogged(hero) ? statuses.fog.label : this.techOf(hero, id).name,
+      cost: this.techOf(hero, id).cost,
       // Redacted: covered by a black bar and can't be used. A heal is greyed
       // while nobody needs it (no Echo wasted on a full party).
-      enabled: hero.echo >= techniques[id].cost && !this.covered(hero, id) && this.healHasTarget(techniques[id]),
+      enabled: hero.echo >= this.techOf(hero, id).cost && !this.covered(hero, id) && this.healHasTarget(this.techOf(hero, id)),
       covered: this.covered(hero, id),
       value: id,
     }));
@@ -723,7 +731,7 @@ export default class BattleScene extends Phaser.Scene {
 
     this.showActiveHero(hero);
     this.hints.show('strike');
-    const costs = hero.techniques.map((id) => techniques[id].cost);
+    const costs = hero.techniques.map((id) => this.techOf(hero, id).cost);
     if (costs.length && hero.echo >= Math.min(...costs)) this.hints.show('techniques');
     const action = await this.chooseAction(hero);
     this.hints.done('strike');
@@ -731,7 +739,7 @@ export default class BattleScene extends Phaser.Scene {
     this.showActiveHero(null);
     this.hideCommandMenu();
 
-    const tech = techniques[action.techId];
+    const tech = this.techOf(hero, action.techId);
     this.spendEcho(hero, tech.cost);
 
     const restoreDepth = this.bringInFront(hero, action.target);
@@ -1558,7 +1566,7 @@ export default class BattleScene extends Phaser.Scene {
   // ---------- Techniques (techniques.json) ----------
 
   async runTechnique(hero, techId, target) {
-    const tech = techniques[techId];
+    const tech = this.techOf(hero, techId);
     if (tech.type === 'blast') await this.playBlast(hero, target, tech);
     else if (tech.type === 'counterStance') await this.startStance(hero, tech);
     else if (tech.type === 'heal') await this.playHeal(hero, tech);

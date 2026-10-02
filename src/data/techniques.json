@@ -9,6 +9,12 @@
     "hits": [3, 6],
     "dmg": [3, 4],
     "critChance": 0.3,
+    "levels": {
+      "1": { "cost": 1, "hits": [2, 2], "critChance": 0 },
+      "2": { "cost": 2, "hits": [3, 3], "critChance": 0 },
+      "3": { "cost": 3, "hits": [3, 5], "critChance": 0.2 },
+      "4": { "cost": 3, "hits": [3, 6], "critChance": 0.3 }
+    },
     "maxHits": 10,
     "boltIntervalMs": 110,
     "boltFlightMs": 160,
@@ -29,7 +35,7 @@
   },
   "tremor": {
     "name": "Tremor",
-    "cost": 3,
+    "cost": 5,
     "type": "quake",
     "target": "all",
     "anims": ["attack", "cast"],
