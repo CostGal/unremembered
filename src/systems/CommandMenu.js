@@ -1,4 +1,5 @@
-import { pressButton } from './Button.js';
+import ui from '../data/ui.json';
+import { makeGlassButton } from './Button.js';
 
 // The command buttons in the lower screen (2×2 grid, slots from ui.json).
 // show(items) draws one button per item and resolves with the tapped item's
@@ -54,47 +55,50 @@ export default class CommandMenu {
     this.promptText.setVisible(false);
   }
 
+  // A glass button (ui.glass). variant: item.variant, else normal / disabled.
+  // item.progress = {value, max}: a bar fills the button from the left (the
+  // Recollection teaser).
   makeButton(item, onTap) {
     const b = this.cfg.button;
     const [x, y] = this.cfg.slots[item.slot];
+    const w = this.cfg.slotWidths?.[item.slot] ?? b.w;
     const enabled = item.enabled !== false;
-    const container = this.scene.add.container(x, y).setDepth(b.depth || 0);
+    const variant = item.variant || (enabled ? 'normal' : 'disabled');
+    const button = makeGlassButton(this.scene, x, y, { w, h: b.h, fontSize: b.fontSize }, ui.glass, variant, item.label, onTap);
+    const { container, rect, text, body } = button;
+    container.setDepth(b.depth || 0);
 
-    const rect = this.scene.add
-      .rectangle(0, 0, b.w, b.h, Number(enabled ? b.fill : b.disabledFill))
-      .setStrokeStyle(2, Number(enabled ? b.stroke : b.disabledStroke));
+    if (item.progress) {
+      const p = this.cfg.progress;
+      const inner = w - p.inset * 2;
+      const pct = Math.max(0, Math.min(1, item.progress.value / item.progress.max));
+      const bar = this.scene.add.graphics();
+      bar.fillStyle(Number(p.color), p.alpha);
+      if (pct > 0) bar.fillRoundedRect(-w / 2 + p.inset, -b.h / 2 + p.inset, inner * pct, b.h - p.inset * 2, p.radius);
+      body.addAt(bar, 1);
+    }
+
     const hasCost = item.cost !== undefined && item.cost !== null;
-    const text = this.scene.add
-      .text(0, hasCost ? b.labelOffsetY : 0, item.label, {
-        fontFamily: this.font,
-        fontSize: `${b.fontSize}px`,
-        color: enabled ? b.textColor : b.disabledTextColor,
-      })
-      .setOrigin(0.5);
-    container.add([rect, text]);
-
     if (hasCost) {
-      const costLabel = this.cfg.labels.cost.replace('{n}', item.cost);
+      text.setY(b.labelOffsetY);
+      const costLabel = typeof item.cost === 'string' ? item.cost : this.cfg.labels.cost.replace('{n}', item.cost);
       const cost = this.scene.add
         .text(0, b.costOffsetY, costLabel, {
           fontFamily: this.font,
           fontSize: `${b.costFontSize}px`,
-          color: enabled ? b.costColor : b.disabledTextColor,
+          color: enabled || item.progress ? b.costColor : b.disabledTextColor,
         })
         .setOrigin(0.5);
-      container.add(cost);
+      body.add(cost);
     }
 
     // Redacted: a black bar over the name and cost.
     if (item.covered) {
       const bar = this.scene.add.rectangle(0, 0, b.coverW, b.coverH, Number(b.coverFill)).setStrokeStyle(1, Number(b.coverStroke));
-      container.add(bar);
+      body.add(bar);
     }
 
-    if (enabled) {
-      rect.setInteractive({ useHandCursor: true });
-      rect.on('pointerdown', () => pressButton(this.scene, container, rect, b, onTap));
-    }
+    if (!enabled) rect.disableInteractive();
 
     let pulse = null;
     if (item.pulse && enabled) {

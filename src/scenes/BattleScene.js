@@ -578,9 +578,7 @@ export default class BattleScene extends Phaser.Scene {
           pulse: this.hints.isShowing('techniques'),
         },
       ];
-      if (this.canUltimate(hero)) {
-        main.push({ slot: 'recollection', label: name(labels.recollection), value: 'ultimate', pulse: true });
-      }
+      main.push(this.ultimateItem(hero, name(labels.recollection)));
       const pick = await this.menu.show(main);
 
       if (pick === 'strike') {
@@ -601,6 +599,18 @@ export default class BattleScene extends Phaser.Scene {
       const target = await this.pickEnemy();
       if (target) return { kind: 'technique', techId, target };
     }
+  }
+
+  // Row 2 of the main menu: Recollection. Ready (Rhea at full Echo): the
+  // teal button, pulsing. Otherwise a dimmed teaser that fills with Rhea's
+  // Echo, on either hero's turn, so the ultimate and what charges it are
+  // visible from the first fight.
+  ultimateItem(hero, label) {
+    if (this.canUltimate(hero)) return { slot: 'ultimate', label, value: 'ultimate', pulse: true, variant: 'primary' };
+    const rhea = this.heroes.find((h) => h.def.canUltimate) || this.heroes[0];
+    const max = techniques.recollection.cost;
+    const cost = ui.commands.labels.ultimateProgress.replace('{n}', Math.min(rhea.echo, max)).replace('{max}', max);
+    return { slot: 'ultimate', label, enabled: false, variant: 'teaser', cost, progress: { value: rhea.echo, max } };
   }
 
   canUltimate(hero) {

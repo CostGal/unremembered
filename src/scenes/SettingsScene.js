@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import ui from '../data/ui.json';
 import { setVolumes } from '../systems/Audio.js';
-import { addText, makeButton } from '../systems/Button.js';
+import { addText, makeGlassButton } from '../systems/Button.js';
+import { whenReady } from '../systems/Assets.js';
+import { keyArtBackdrop } from '../systems/Backdrop.js';
 import { saveSettings } from '../systems/Settings.js';
 import { difficultyDef, difficultyIds, normalizeDifficulty } from '../systems/Difficulty.js';
 import { applyFont, fontDef, fontIds, fontLabel, loadFont, restyleScene } from '../systems/Fonts.js';
@@ -17,18 +19,28 @@ export default class SettingsScene extends Phaser.Scene {
   }
 
   create() {
+    whenReady(this, () => this.build());
+  }
+
+  // Over the same key-art backdrop as the Menu, in its glass buttons.
+  build() {
     this.settings = normalizeDifficulty(this.registry.get('settings'));
-    addText(this, 180, cfg.title.y, cfg.title.text, cfg.title);
+    keyArtBackdrop(this);
+    const depth = ui.keyArt.uiDepth;
+    addText(this, 180, cfg.title.y, cfg.title.text, cfg.title).setDepth(depth);
 
     const rows = ['musicVolume', 'sfxVolume', 'difficulty', 'font'];
     this.buttons = rows.map((key, i) =>
-      makeButton(this, 180, cfg.firstY + i * cfg.spacing, cfg.button, '', () => this.change(key))
+      makeGlassButton(this, 180, cfg.firstY + i * cfg.spacing, cfg.button, ui.glass, 'normal', '', () => this.change(key), { instant: true })
     );
-    rows.forEach((key, i) => (this.buttons[i].key = key));
-    this.hint = addText(this, 180, cfg.hint.y, '', cfg.hint);
+    rows.forEach((key, i) => {
+      this.buttons[i].key = key;
+      this.buttons[i].container.setDepth(depth);
+    });
+    this.hint = addText(this, 180, cfg.hint.y, '', cfg.hint).setDepth(depth);
     this.refresh();
 
-    makeButton(this, 180, cfg.backY, cfg.button, cfg.labels.back, () => this.scene.start('Menu'));
+    makeGlassButton(this, 180, cfg.backY, cfg.button, ui.glass, 'secondary', cfg.labels.back, () => this.scene.start('Menu')).container.setDepth(depth);
   }
 
   change(key) {

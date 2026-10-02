@@ -75,8 +75,9 @@ export default class DialogueScene extends Phaser.Scene {
     const bg = this.add.image(180, cfg.bg.size / 2, this.bgKey).setDisplaySize(cfg.bg.size, cfg.bg.size);
     // Wider screens: the picture's edges continue (mirrored) into the margins.
     mirrorEdges(this, bg);
-    const env = environments[this.bgKey] || {};
     const v = viewRect();
+    this.buildReflection(v);
+    const env = environments[this.bgKey] || {};
     const area = { x: v.x, y: 0, w: v.w, h: cfg.bg.size };
     // Rain falls over the whole screen (behind the text box and portraits).
     if (env.rain) Fx.rain(this, env.rain, v, { fill: true });
@@ -84,6 +85,18 @@ export default class DialogueScene extends Phaser.Scene {
     if (env.ambience) playAmbience(env.ambience);
     // Fade the picture into the ink below it.
     this.add.rectangle(v.x, cfg.bg.size - cfg.bg.fadeH, v.w, cfg.bg.fadeH, Number(ui.dialogue.box.fill), cfg.bg.fadeAlpha).setOrigin(0);
+  }
+
+  // Under the picture, down to the text box: the picture mirrored (a wet
+  // floor), faint and fading into the ink, so there is no empty band.
+  buildReflection(v) {
+    const r = cfg.bg.reflection;
+    const size = cfg.bg.size;
+    const image = this.add.image(180, size, this.bgKey).setOrigin(0.5, 0).setDisplaySize(size, size).setFlipY(true).setAlpha(r.alpha);
+    mirrorEdges(this, image);
+    const ink = r.ink;
+    this.add.image(v.x, size, Fx.gradientTexture(this, v.w, r.fadeH, ink, 1)).setOrigin(0);
+    this.add.rectangle(v.x, size + r.fadeH, v.w, v.h - size - r.fadeH, Number(ink)).setOrigin(0);
   }
 
   // A cutout (e.g. aurelian_exile) in black on the background: it fades in once

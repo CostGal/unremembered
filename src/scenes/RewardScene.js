@@ -3,6 +3,8 @@ import fragments from '../data/fragments.json';
 import ui from '../data/ui.json';
 import { playSfx } from '../systems/Audio.js';
 import { drawChoices } from '../systems/Fragments.js';
+import { whenReady } from '../systems/Assets.js';
+import { glassPanel, keyArtBackdrop } from '../systems/Backdrop.js';
 
 const cfg = fragments.screen;
 
@@ -14,6 +16,11 @@ export default class RewardScene extends Phaser.Scene {
   }
 
   create() {
+    whenReady(this, () => this.build());
+  }
+
+  // Over the Menu's key-art backdrop, the fragments as glass cards.
+  build() {
     this.picked = false;
     const owned = this.registry.get('fragments') || [];
     const choices = drawChoices(owned);
@@ -22,10 +29,12 @@ export default class RewardScene extends Phaser.Scene {
       return;
     }
 
+    keyArtBackdrop(this);
     const t = cfg.title;
-    this.add.text(180, t.y, t.text, { fontFamily: ui.font, fontSize: `${t.fontSize}px`, color: t.color }).setOrigin(0.5);
+    const depth = ui.keyArt.uiDepth;
+    this.add.text(180, t.y, t.text, { fontFamily: ui.font, fontSize: `${t.fontSize}px`, color: t.color }).setOrigin(0.5).setDepth(depth);
     const h = cfg.hint;
-    this.add.text(180, h.y, h.text, { fontFamily: ui.font, fontSize: `${h.fontSize}px`, color: h.color }).setOrigin(0.5);
+    this.add.text(180, h.y, h.text, { fontFamily: ui.font, fontSize: `${h.fontSize}px`, color: h.color }).setOrigin(0.5).setDepth(depth);
 
     this.cards = choices.map((id, i) => this.buildCard(id, cfg.card.firstY + i * cfg.card.spacing));
   }
@@ -33,8 +42,10 @@ export default class RewardScene extends Phaser.Scene {
   buildCard(id, y) {
     const c = cfg.card;
     const def = fragments.pool[id];
-    const container = this.add.container(180, y);
-    const rect = this.add.rectangle(0, 0, c.w, c.h, Number(c.fill)).setStrokeStyle(2, Number(c.stroke));
+    const container = this.add.container(180, y).setDepth(ui.keyArt.uiDepth);
+    const panel = glassPanel(this, 0, 0, c.w, c.h, c);
+    // The tap area (invisible).
+    const rect = this.add.rectangle(0, 0, c.w, c.h, 0x000000, 0);
     const iconX = c.iconX - 180;
     const icon = this.add.rectangle(iconX, 0, c.iconSize, c.iconSize, 0x0b0d14).setStrokeStyle(2, Number(def.color.replace('#', '0x')));
     const letter = this.add
@@ -47,21 +58,22 @@ export default class RewardScene extends Phaser.Scene {
     const text = this.add
       .text(nameX, 6, def.text, { fontFamily: ui.font, fontSize: `${c.textFontSize}px`, color: c.textColor, wordWrap: { width: c.textWrap } })
       .setOrigin(0, 0);
-    container.add([rect, icon, letter, name, text]);
+    container.add([panel, icon, letter, name, text, rect]);
 
     rect.setInteractive({ useHandCursor: true });
-    rect.on('pointerdown', () => this.pick(id, container, rect));
+    rect.on('pointerdown', () => this.pick(id, container));
     return { id, container, rect };
   }
 
-  pick(id, container, rect) {
+  pick(id, container) {
     if (this.picked) return;
     this.picked = true;
     playSfx('menu');
     const owned = this.registry.get('fragments') || [];
     this.registry.set('fragments', [...owned, id]);
 
-    rect.setStrokeStyle(2, Number(cfg.card.pickStroke));
+    const c = cfg.card;
+    container.add(glassPanel(this, 0, 0, c.w, c.h, { ...c, fillAlpha: 0, stroke: c.pickStroke, strokeAlpha: 1 }));
     this.tweens.add({ targets: container, scale: cfg.popScale, duration: cfg.pressMs, yoyo: true });
     const others = this.cards.filter((card) => card.container !== container).map((card) => card.container);
     this.tweens.add({ targets: others, alpha: cfg.otherAlpha, duration: cfg.fadeMs });
