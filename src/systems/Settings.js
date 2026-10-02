@@ -8,6 +8,7 @@ const DEFAULTS = {
   sfxVolume: 1,
   difficulty: 'normal',
   font: 'pixelify',
+  lang: 'en',
 };
 
 export function loadSettings() {

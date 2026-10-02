@@ -1,13 +1,14 @@
 {
   "font": "\"Pixelify Sans\", monospace",
   "view": { "designW": 360, "designH": 640, "maxW": 448 },
+  "languages": { "default": "en", "list": [{ "id": "en", "label": "English" }, { "id": "el", "label": "Ελληνικά", "font": "handjet" }] },
   "fonts": {
     "default": "pixelify",
     "loadTimeoutMs": 1000,
-    "greekTag": " (Greek)",
+    "greekTag": " (Greek)", "greekSample": "Aa Ωω άέ 0",
     "list": [
       { "id": "pixelify", "label": "Pixelify Sans", "family": "\"Pixelify Sans\", monospace", "greek": false },
-      { "id": "handjet", "label": "Handjet", "family": "\"Handjet\", monospace", "greek": true },
+      { "id": "handjet", "label": "Handjet", "family": "\"Handjet UI\", \"Handjet\", monospace", "greek": true },
       { "id": "tiny5", "label": "Tiny5", "family": "\"Tiny5\", monospace", "greek": true },
       { "id": "system", "label": "System", "family": "sans-serif", "greek": true }
     ]
@@ -450,26 +451,27 @@
     "lockedColor": "#e0a040"
   },
   "settings": {
-    "title": { "text": "Settings", "y": 90, "fontSize": 26, "color": "#f1efe8" },
-    "firstY": 186,
-    "spacing": 76,
-    "button": { "w": 300, "h": 62, "fontSize": 17 },
+    "title": { "text": "Settings", "y": 92, "fontSize": 26, "color": "#f1efe8" },
+    "firstY": 166,
+    "spacing": 66,
+    "button": { "w": 300, "h": 58, "fontSize": 17 },
     "volumeSteps": [1, 0.75, 0.5, 0.25, 0],
     "labels": {
       "musicVolume": "Music: {v}",
       "sfxVolume": "Sound FX: {v}",
       "difficulty": "Difficulty: {v}",
       "font": "Font: {v}",
+      "language": "Language: {v}",
       "back": "Back"
     },
     "hint": {
       "text": "{hint}",
-      "y": 478,
+      "y": 490,
       "fontSize": 12,
       "color": "#8a8fa3",
       "wrap": 300
     },
-    "backY": 540
+    "backY": 546
   },
   "end": {
     "title": { "y": 80, "fontSize": 28, "color": "#3fd0c9" },

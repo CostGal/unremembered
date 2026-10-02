@@ -18,7 +18,8 @@ const BATTLE_EVENTS = ['keepsake_burn'];
 // and a few symbols. Anything else on screen renders in a system font.
 // Allowed on purpose: 🔒 🔈 (emoji, meant to), ▯ (a forgotten name, drawn as boxes).
 const FONT_OK = /^[\x20-\x7E\u00A0-\u00FF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u2026\u00D7\u00B7\u2032\u2033\u20AC\u{1F512}\u{1F508}\u25AF\n]*$/u;
-const FONT_SKIP_KEYS = new Set(['font', 'fontFamily']);
+// languages: each name is shown in its own language's font; greekSample is never drawn.
+const FONT_SKIP_KEYS = new Set(['font', 'fontFamily', 'languages', 'greekSample']);
 
 function* uiStrings(value, path = 'ui') {
   if (typeof value === 'string') yield [path, value];
