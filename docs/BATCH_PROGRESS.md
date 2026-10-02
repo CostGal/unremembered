@@ -21,3 +21,4 @@ Order: A1 #141 · #128+A5 #142 · #129+#139 · A2 #143 · A3 #144 · A4 #145 · 
 | A11 #151 | done | cf1ef2e | STATUS.md Story v2 section, CLAUDE.md examples updated |
 | Phase 1 | PR | – | https://github.com/CostGal/unremembered/pull/161 (25 commits; validate/build/sim/playtest/mobile-check green). Phase 2 continues on claude/story-v2-phase2 |
 | P2 #135 | done | 6bf5801 | validate 0/0, build ok, sim 100% (b3 non-gamer 99.9% as before), boss interrupt 77-86%, chapter 16.4 min; headless b1: BREAK x3, shards ok; battle lab 10/10 |
+| P2 #137 | done | 69b3d0c | validate 0/0, build ok, sim chapter 16.6 min non-gamer; headless b1/b3/boss WIN, approach/return positions exact, ring timing unchanged, battle lab 10/10 |
