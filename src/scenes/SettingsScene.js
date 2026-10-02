@@ -6,7 +6,8 @@ import { whenReady } from '../systems/Assets.js';
 import { keyArtBackdrop } from '../systems/Backdrop.js';
 import { saveSettings } from '../systems/Settings.js';
 import { difficultyDef, difficultyIds, normalizeDifficulty } from '../systems/Difficulty.js';
-import { applyFont, fontDef, fontIds, fontLabel, loadFont, restyleScene } from '../systems/Fonts.js';
+import { activeFontDef, applyFont, fontIds, fontLabel, loadFont, restyleScene } from '../systems/Fonts.js';
+import { LANGUAGES, applyLanguage, langDef } from '../systems/Lang.js';
 
 const cfg = ui.settings;
 
@@ -18,8 +19,22 @@ export default class SettingsScene extends Phaser.Scene {
     super('Settings');
   }
 
+  // fromPause: opened over the pause menu (PauseScene); Back returns there.
+  init(data) {
+    this.fromPause = !!data?.fromPause;
+  }
+
   create() {
     whenReady(this, () => this.build());
+  }
+
+  back() {
+    if (!this.fromPause) {
+      this.scene.start('Menu');
+      return;
+    }
+    this.scene.stop();
+    this.scene.wake('Pause');
   }
 
   // Over the same key-art backdrop as the Menu, in its glass buttons.
@@ -29,7 +44,7 @@ export default class SettingsScene extends Phaser.Scene {
     const depth = ui.keyArt.uiDepth;
     addText(this, 180, cfg.title.y, cfg.title.text, cfg.title).setDepth(depth);
 
-    const rows = ['musicVolume', 'sfxVolume', 'difficulty', 'font'];
+    const rows = ['musicVolume', 'sfxVolume', 'difficulty', 'font', 'language'];
     this.buttons = rows.map((key, i) =>
       makeGlassButton(this, 180, cfg.firstY + i * cfg.spacing, cfg.button, ui.glass, 'normal', '', () => this.change(key), { instant: true })
     );
@@ -40,7 +55,7 @@ export default class SettingsScene extends Phaser.Scene {
     this.hint = addText(this, 180, cfg.hint.y, '', cfg.hint).setDepth(depth);
     this.refresh();
 
-    makeGlassButton(this, 180, cfg.backY, cfg.button, ui.glass, 'secondary', cfg.labels.back, () => this.scene.start('Menu')).container.setDepth(depth);
+    makeGlassButton(this, 180, cfg.backY, cfg.button, ui.glass, 'secondary', cfg.labels.back, () => this.back()).container.setDepth(depth);
   }
 
   change(key) {
@@ -49,9 +64,20 @@ export default class SettingsScene extends Phaser.Scene {
       const ids = difficultyIds();
       s.difficulty = ids[(ids.indexOf(s.difficulty) + 1) % ids.length];
       s.storyMode = s.difficulty === 'story';
+    } else if (key === 'language') {
+      const ids = LANGUAGES.map((l) => l.id);
+      s.lang = ids[(ids.indexOf(langDef(s).id) + 1) % ids.length];
+      // Every string and the font change: rebuild this screen in the new language.
+      applyLanguage(s);
+      this.registry.set('settings', normalizeDifficulty(s));
+      saveSettings(s);
+      loadFont(applyFont(s)).then(() => this.scene.isActive() && this.scene.restart({ fromPause: this.fromPause }));
+      return;
     } else if (key === 'font') {
-      const ids = fontIds();
-      s.font = ids[(ids.indexOf(fontDef(s).id) + 1) % ids.length];
+      // In a language with its own font (Greek), only the fonts that have its glyphs.
+      const greekOnly = !!langDef(s).font;
+      const ids = fontIds().filter((id) => !greekOnly || ui.fonts.list.find((f) => f.id === id).greek);
+      s.font = ids[(ids.indexOf(activeFontDef(s).id) + 1) % ids.length];
       // Preview at once: this screen is redrawn in the new font (after its file is in).
       loadFont(applyFont(s)).then(() => this.scene.isActive() && restyleScene(this));
     } else {
@@ -69,7 +95,14 @@ export default class SettingsScene extends Phaser.Scene {
     const l = cfg.labels;
     for (const b of this.buttons) {
       const v = this.settings[b.key];
-      const shown = b.key === 'difficulty' ? difficultyDef(this.settings).label : b.key === 'font' ? fontLabel(fontDef(this.settings)) : `${Math.round(v * 100)}%`;
+      const shown =
+        b.key === 'difficulty'
+          ? difficultyDef(this.settings).label
+          : b.key === 'font'
+            ? fontLabel(activeFontDef(this.settings))
+            : b.key === 'language'
+              ? langDef(this.settings).label
+              : `${Math.round(v * 100)}%`;
       b.text.setText(l[b.key].replace('{v}', shown));
     }
     this.hint.setText(cfg.hint.text.replace('{hint}', difficultyDef(this.settings).hint));

@@ -14,7 +14,7 @@
     {"text": "Through the Reliquary, every memory of him was torn from every mind.", "bg": "reliquary", "layers": [{"img": "aurelian_king", "x": 0.5, "y": 0.6, "scale": 0.56}], "fx": ["dissolve_layer", "crystal_particles"]},
     {"text": "His statues fell. His name was chiseled from the stone.", "bg": "statue"},
     {"text": "Even those who loved him forgot he had ever lived.", "bg": "statue", "move": "zoom_in"},
-    {"text": "For twenty years, he wandered the ruins beyond the wall.", "bg": "battlefield", "tint": "0x6070b0", "layers": [{"img": "aurelian_exile_kneel", "x": 0.5, "y": 0.48, "scale": 0.42}]},
+    {"text": "For twenty years, he wandered the ruins beyond the wall.", "bg": "battlefield", "ambience": "wind", "tint": "0x6070b0", "layers": [{"img": "aurelian_exile_kneel", "x": 0.5, "y": 0.48, "scale": 0.42}]},
     {"text": "Once, he came back in secret, to see his daughter.", "bg": "street_rain", "layers": [{"img": "aurelian_exile", "x": 0.3, "y": 0.54, "scale": 0.34}], "fx": ["rain"]},
     {"text": "She looked straight at him, and saw a stranger.", "bg": "street_rain", "bg2": "exile_close", "split": "vertical", "fx": ["rain"], "bg2View": {"focus": [0.5,0.4]}},
     {"text": "That was the day his grief became hatred.", "bg": "exile_close", "move": "zoom_in", "fx": ["eyes_glow"]},

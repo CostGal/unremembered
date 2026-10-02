@@ -7,6 +7,7 @@ import { setVolumes } from '../systems/Audio.js';
 import { loadSettings } from '../systems/Settings.js';
 import { fetchAnimationSets } from '../systems/SpriteAnims.js';
 import { applyFont, loadFont } from '../systems/Fonts.js';
+import { applyLanguage } from '../systems/Lang.js';
 
 export default class BootScene extends Phaser.Scene {
   constructor() {
@@ -17,6 +18,7 @@ export default class BootScene extends Phaser.Scene {
     // Only the font blocks the first screen; the animation sets are fetched
     // by the Loader with the sprite sheets.
     const settings = loadSettings();
+    applyLanguage(settings);
     await loadFont(applyFont(settings));
 
     this.registry.set('manifest', manifest);

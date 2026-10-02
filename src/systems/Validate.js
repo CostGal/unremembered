@@ -18,7 +18,8 @@ const BATTLE_EVENTS = ['keepsake_burn'];
 // and a few symbols. Anything else on screen renders in a system font.
 // Allowed on purpose: 🔒 🔈 (emoji, meant to), ▯ (a forgotten name, drawn as boxes).
 const FONT_OK = /^[\x20-\x7E\u00A0-\u00FF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u2026\u00D7\u00B7\u2032\u2033\u20AC\u{1F512}\u{1F508}\u25AF\n]*$/u;
-const FONT_SKIP_KEYS = new Set(['font', 'fontFamily']);
+// languages: each name is shown in its own language's font; greekSample is never drawn.
+const FONT_SKIP_KEYS = new Set(['font', 'fontFamily', 'languages', 'greekSample']);
 
 function* uiStrings(value, path = 'ui') {
   if (typeof value === 'string') yield [path, value];
@@ -37,6 +38,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   const { chapter1 = [], cutscenes = {}, dialogue = {}, battles = {}, enemies = {}, characters = {}, allies = {} } = data;
   const { techniques = {}, assets = {}, ui = {}, battleEvents = {}, animationSets = {} } = data;
   const backgrounds = assets.backgrounds || {};
+  const beds = data.audio?.ambience?.beds;
   const anyAsset = { ...assets.sprites, ...assets.portraits, ...backgrounds, ...assets.cutscene, ...assets.ui };
 
   // Chapter steps
@@ -152,7 +154,11 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       for (const fx of shot.fx || []) if (!SHOT_FX.includes(fx)) err(`${at}: unknown fx "${fx}"`);
       if (shot.move && !SHOT_MOVES.includes(shot.move)) err(`${at}: unknown move "${shot.move}"`);
       if (shot.split && !SPLITS.includes(shot.split)) err(`${at}: unknown split "${shot.split}"`);
+      if (beds && shot.ambience && !beds[shot.ambience]) err(`${at}: ambience "${shot.ambience}" is not in audio.json ambience.beds`);
     });
+  }
+  for (const [bg, bed] of Object.entries(ui.cutscene?.ambienceByBg || {})) {
+    if (beds && bed && !beds[bed]) err(`ui.cutscene.ambienceByBg.${bg}: "${bed}" is not in audio.json ambience.beds`);
   }
 
   // Animation sheets (ART_BRIEF output contract)

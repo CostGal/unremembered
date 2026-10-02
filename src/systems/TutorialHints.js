@@ -26,11 +26,11 @@ export default class TutorialHints {
     const b = cfg.banner;
     const scene = this.scene;
     const text = scene.add
-      .text(180, b.y, hint.text, { fontFamily: ui.font, fontSize: `${b.fontSize}px`, color: b.color, align: 'center', wordWrap: { width: b.w - 24 } })
+      .text(b.x, b.y, hint.text, { fontFamily: ui.font, fontSize: `${b.fontSize}px`, color: b.color, align: 'center', wordWrap: { width: b.w - 24 } })
       .setOrigin(0.5)
       .setDepth(b.depth + 1);
     const box = scene.add
-      .rectangle(180, b.y, b.w, text.height + b.padY * 2, Number(b.fill), b.alpha)
+      .rectangle(b.x, b.y, b.w, text.height + b.padY * 2, Number(b.fill), b.alpha)
       .setStrokeStyle(1, Number(b.stroke))
       .setDepth(b.depth);
     const parts = [box, text];
