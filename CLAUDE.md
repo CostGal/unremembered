@@ -266,7 +266,7 @@ Behaviour:
 
 ## Assets pipeline
 - `_art/` holds source art: raw downloads and PSDs. Commit it, but the game never loads from it — only `public/assets/` is served/bundled.
-- Sprites come from pixler.dev as transparent PNGs, pre-sized to their canvas — **128×128 for every character, 256×256 for Quill, the boss (key `clerk`)**. Render at `scale: 1`, never fractional; the canvas size *is* the display size.
+- Sprites come from pixler.dev as transparent PNGs, pre-sized to their canvas — **128×128 for every character, 256×256 for Quill, the boss (key `clerk`)**. Sprites render at an INTEGER `displayScale` from `characters.json` / `enemies.json` (default 1; Warden Hollow 2), never fractional. Size differences between characters come from the art canvas, not from scaling.
 - Backgrounds are 360×360 canvases, also rendered at `scale: 1`. In battle, darken them ~20% (a flat black overlay at ~20% alpha) so characters read clearly against them.
 - Register every sprite in `assets.json`: `key, file, scale, faces ("left"|"right")`. A part sprite (see Attack rig, below) also carries `pivot: [x, y]` in local canvas pixels.
 - **Facing:** in-game, heroes face right and enemies face left. Flip based on `faces`.

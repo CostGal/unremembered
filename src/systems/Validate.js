@@ -258,7 +258,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   // lifesteal: the share of damage dealt that an enemy heals. tint: 0xRRGGBB.
   for (const [group, defs] of [['characters', characters], ['enemies', enemies]]) {
     for (const [id, def] of Object.entries(defs)) {
-      if (def.displayScale !== undefined && !(Number.isInteger(def.displayScale) && def.displayScale > 0)) err(`${group}.${id}: displayScale must be a positive integer`);
+      if (def.displayScale !== undefined && !(Number.isInteger(def.displayScale) && def.displayScale > 0)) err(`${group}.${id}: displayScale must be a positive INTEGER (never fractional: a fractional scale breaks the pixel grid, CLAUDE.md pixel rule)`);
       if (def.reach !== undefined && !(typeof def.reach === 'number' && def.reach > 0)) err(`${group}.${id}: reach must be a positive number (half the body art width, px)`);
       if (def.tint !== undefined && !(typeof def.tint === 'string' && /^0x[0-9a-fA-F]{6}$/.test(def.tint))) err(`${group}.${id}: tint must be a hex string like "0x9aa8b8"`);
     }
