@@ -15,3 +15,4 @@ Order: A1 #141 · #128+A5 #142 · #129+#139 · A2 #143 · A3 #144 · A4 #145 · 
 | A4 #145 | done | 4a2f5bc | validate 0/0, build ok, sim b0_duel 100% ~4.6 rounds ~1 min; headless run: refuse → wake → nala, INTERRUPTED end, Recall 2 card, Retry replays events |
 | A6 #146 | done | 3de5710 | validate 0/0, build ok, sim 100% (Recall 2 preview 7.6 rounds non-gamer); headless: break banner first, WIN |
 | A7 #147 | done | bc7a344 | validate 0/0, build ok, sim 100% at Recall 2 (7.9 rounds non-gamer); headless: b2_start before first menu, b2_immune after IMMUNE, Nala prompt, WIN |
+| #131+A8 #148 | done | ffc71a5 | validate 0/0, build ok; warden 2x (slots gate 262/330 + 196/346, hollow in front), hp 100 after tuning; sim b3_gate @Recall3 non-gamer 97.9% (A10 tunes to 100%); headless WIN real+fake, lifesteal seen, targeting ok |
