@@ -51,7 +51,7 @@
         "untilHpPct": 50,
         "opening": ["stamp", "archive"],
         "attacks": [
-          { "id": "stamp", "melee": true, "impactSfx": "stamp", "weight": 2, "telegraphMs": 800, "dmg": 15 },
+          { "id": "stamp", "melee": true, "impactSfx": "stamp", "weight": 2, "telegraphMs": 800, "feint": { "atPct": 0.6, "pauseMs": 350, "resumeSpeed": 1.6 }, "feintChance": 0.3, "dmg": 15 },
           {
             "id": "file_away", "melee": true, "sfx": "ledger",
             "weight": 1,
@@ -77,14 +77,14 @@
         "musicIntensity": 1,
         "onEnter": "keepsake_burn",
         "attacks": [
-          { "id": "stamp", "melee": true, "impactSfx": "stamp", "weight": 2, "telegraphMs": 700, "dmg": 15 },
+          { "id": "stamp", "melee": true, "impactSfx": "stamp", "weight": 2, "telegraphMs": 700, "feint": { "atPct": 0.6, "pauseMs": 350, "resumeSpeed": 1.6 }, "feintChance": 0.3, "dmg": 15 },
           {
             "id": "redact",
             "melee": true,
             "weight": 2,
             "telegraphMs": 800,
             "onMiss": { "status": "redacted" },
-            "feint": { "atPct": 0.6, "pauseMs": 400 },
+            "feint": { "atPct": 0.6, "pauseMs": 400, "resumeSpeed": 1.6 },
             "dmg": 15
           },
           {

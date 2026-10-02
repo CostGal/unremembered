@@ -955,6 +955,10 @@ export default class BattleScene extends Phaser.Scene {
           hit.crit = true;
           hit.dmg = Math.round(hit.dmg * crit.enemy.mult);
         }
+        // enemies.json feintChance (hit or attack level): the feint only comes some of the time.
+        // A hit without feintChance keeps its feint every time.
+        const feintChance = hits[k].feintChance ?? attack.feintChance;
+        if (hit.feint && feintChance !== undefined && !(Math.random() < feintChance)) delete hit.feint;
         const result = await this.enemyHit(enemy, target, hit, sheet, k);
         if (result === 'CANCEL') break;
       }

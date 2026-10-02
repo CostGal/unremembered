@@ -222,6 +222,14 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
         for (const hit of a.hits || [a]) {
           if (!(hit.telegraphMs > 0)) err(`enemies.${id}.${where}.${a.id}: telegraphMs missing`);
           if (typeof hit.dmg !== 'number') err(`enemies.${id}.${where}.${a.id}: dmg missing`);
+          const f = hit.feint;
+          if (f) {
+            if (!(f.atPct > 0 && f.atPct < 1)) err(`enemies.${id}.${where}.${a.id}: feint.atPct must be in (0, 1)`);
+            if (!(f.pauseMs >= 0)) err(`enemies.${id}.${where}.${a.id}: feint.pauseMs must be >= 0`);
+            if (f.resumeSpeed !== undefined && !(f.resumeSpeed > 0)) err(`enemies.${id}.${where}.${a.id}: feint.resumeSpeed must be > 0`);
+          }
+          const fc = hit.feintChance ?? a.feintChance;
+          if (fc !== undefined && !(fc >= 0 && fc <= 1)) err(`enemies.${id}.${where}.${a.id}: feintChance must be in [0, 1]`);
         }
       }
     }

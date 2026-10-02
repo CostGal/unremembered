@@ -408,7 +408,13 @@ function simulateBattle(battleId, profileName, story, rnd) {
       if (rnd() < D.crit.enemy.chance) hit.dmg = Math.round(hit.dmg * D.crit.enemy.mult);
       if (target.hp <= 0 || enemy.hp <= 0) break;
       const slow = st.tutorialSlow ? qte.tutorial.timeScale : 1;
-      st.ms += (hit.telegraphMs + (hit.feint?.pauseMs || 0)) / slow + T.hitResolveMs;
+      // A feint (enemies.json) pauses the ring, then finishes the rest resumeSpeed x faster; feintChance rolls per hit.
+      let feint = hit.feint;
+      const feintChance = h.feintChance ?? attack.feintChance;
+      if (feint && feintChance !== undefined && !(rnd() < feintChance)) feint = null;
+      const tele = hit.telegraphMs;
+      const ringMs = feint ? feint.atPct * tele + feint.pauseMs + ((1 - feint.atPct) * tele) / (feint.resumeSpeed ?? 1) : tele;
+      st.ms += ringMs / slow + T.hitResolveMs;
       // Nala cancels the first Hollow attack (the scripted player always taps her).
       if (!st.nalaUsed && enemy.def.hollow && rnd() < D.sim.policy.nalaTapChance[profileName]) {
         st.nalaUsed = true;

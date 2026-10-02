@@ -22,8 +22,9 @@ export function scaledWindows(windows, mult) {
 // is judged: at T for an early tap, at the tap for a late one, at T + goodMs if
 // there is no tap (MISS). 'CANCEL' (Nala) and 'INTERRUPTED' (app hidden, see
 // interruptRings) are never judgements. impactAt = the performance.now() time of T.
-// feint = {atPct, pauseMs}: the ring freezes at atPct of its travel for
-// pauseMs, so T moves pauseMs later.
+// feint = {atPct, pauseMs, resumeSpeed = 1}: the ring freezes at atPct of its
+// travel for pauseMs, then covers the rest resumeSpeed times faster:
+// T = start + atPct*tele + pauseMs + (1 - atPct)*tele/resumeSpeed.
 // swipe = {minPx, maxMs} (enemy attacks only): a gesture that travels minPx
 // within maxMs is a dodge (input 'swipe'), anything else a parry ('tap'). Both
 // are judged on the touch-down time. unparryable: a tap is always a MISS, only
@@ -36,12 +37,14 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
   const start = performance.now();
   const pauseAt = feint ? feint.atPct * telegraphMs : Infinity;
   const pauseMs = feint ? feint.pauseMs : 0;
-  const impactAt = start + telegraphMs + pauseMs;
+  const resumeSpeed = feint ? feint.resumeSpeed ?? 1 : 1;
+  const impactAt = start + telegraphMs + pauseMs + (feint ? (telegraphMs - pauseAt) / resumeSpeed - (telegraphMs - pauseAt) : 0);
 
   const g = scene.add.graphics().setDepth(ring.depth);
   const target = Number(ring.targetColor);
   const color = Number(ring.color);
 
+  let radiusNow = ring.startRadius; // current ring radius (QA reads it)
   let cancel = () => {};
   let interrupt = () => {};
   const promise = new Promise((resolve) => {
@@ -96,9 +99,11 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
     const onUpdate = () => {
       const now = performance.now();
       const elapsed = now - start;
-      const travel = elapsed < pauseAt ? elapsed : Math.max(pauseAt, elapsed - pauseMs);
+      // Before the freeze: linear. Frozen for pauseMs. After: the rest at resumeSpeed (1 = today's path).
+      const travel = elapsed < pauseAt ? elapsed : Math.max(pauseAt, pauseAt + (elapsed - pauseAt - pauseMs) * resumeSpeed);
       const t = Math.min(1, travel / telegraphMs);
       const radius = ring.startRadius + (ring.endRadius - ring.startRadius) * t;
+      radiusNow = radius;
 
       g.clear();
       g.lineStyle(ring.lineWidth, target, ring.targetAlpha);
@@ -142,7 +147,7 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
     onUpdate();
   });
 
-  const handle = { promise, impactAt, unparryable, cancel: () => cancel(), interrupt: () => interrupt() };
+  const handle = { promise, impactAt, startAt: start, telegraphMs, unparryable, radius: () => radiusNow, cancel: () => cancel(), interrupt: () => interrupt() };
   liveRings(scene).add(handle);
   return handle;
 }
