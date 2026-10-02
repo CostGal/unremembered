@@ -8,7 +8,7 @@ Orchestrated batch: every `who:claude-auto` issue of the Story v2 prompt, one So
 | Phase | Branch | PR | Base |
 |---|---|---|---|
 | 1 — Story v2 | `claude/blissful-allen-frelxh` (25 commits, 12 issue commits) | [#161](https://github.com/CostGal/unremembered/pull/161) | `main` |
-| 2 — polish | `claude/story-v2-phase2` (stacked, 9 issue commits) | #162 (see the PR list) | `claude/blissful-allen-frelxh` |
+| 2 — polish | `claude/story-v2-phase2` (stacked, 9 issue commits) | [#162](https://github.com/CostGal/unremembered/pull/162) | `claude/blissful-allen-frelxh` |
 
 Merge order in the morning: **#161 first, then #162** (or merge #162 into #161's branch and that into main). Every Phase 2 issue is one commit; to drop one, `git revert <hash>` on the Phase 2 branch:
 

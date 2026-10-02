@@ -30,3 +30,4 @@ Order: A1 #141 · #128+A5 #142 · #129+#139 · A2 #143 · A3 #144 · A4 #145 · 
 | P2 #140 | done | 39297fb | validate 0/0, build ok; headless b1/boss WIN, drift visible, shadows on floor; mobile-check 36/36; battle lab 10/10; art list in the report |
 | P2 #133 | done | 4ed950a | flag off: timing unchanged, playtest real pass (319 s, 0 retries), mobile-check 36/36; flag on: 14/14 input checks (swipe=dodge, tap=parry, red ring tap=CAN'T PARRY). Pre-existing lab fail 'PERFECT gives +2 Echo' (Rhea cap 1 at level 1 in ?battle= runs) |
 | Phase 2 | report | – | docs/BATCH_REPORT_4.md written; final gate on Phase 2 head: validate 0/0, build ok, sim 16.8 min non-gamer (b3 99.9%), playtest real + story pass, mobile-check 36/36 |
+| Phase 2 | PR | – | https://github.com/CostGal/unremembered/pull/162 (stacked on #161). Batch complete 01:05 Sat. |
