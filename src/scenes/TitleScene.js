@@ -39,13 +39,15 @@ export default class TitleScene extends Phaser.Scene {
       const l = cfg.art.logo;
       const logo = this.add.image(180, 640 * l.topPct, 'logo').setOrigin(0.5, 0).setDepth(l.depth);
       logo.setScale((360 * l.widthPct) / logo.width);
+      this.logo = logo;
     } else {
-      addText(this, 180, layout.logo.y, cfg.fallbackText, { fontSize: cfg.fallbackFontSize, color: cfg.fallbackColor }).setDepth(cfg.art.logo.depth);
+      this.logo = addText(this, 180, layout.logo.y, cfg.fallbackText, { fontSize: cfg.fallbackFontSize, color: cfg.fallbackColor }).setDepth(cfg.art.logo.depth);
     }
     if (!art) addText(this, 180, cfg.subtitle.y, cfg.subtitle.text, cfg.subtitle);
 
     const tap = addText(this, 180, layout.tap.y, cfg.tap.text, cfg.tap).setDepth(cfg.art.textDepth);
     this.tweens.add({ targets: tap, alpha: cfg.tap.pulseAlpha, duration: cfg.tap.pulseMs, yoyo: true, repeat: -1 });
+    this.tapText = tap;
 
     addText(this, 180, layout.silent.y, cfg.silent.text, cfg.silent).setDepth(cfg.art.textDepth);
     this.buildFullscreenLine();
@@ -54,10 +56,22 @@ export default class TitleScene extends Phaser.Scene {
       unlockAudio();
       // Inside the tap, where the browser allows it and the player hasn't turned it off.
       if (wantsFullscreen(this.registry.get('settings'))) requestFullscreen();
-      this.scene.start('Menu');
+      this.leave();
     });
     // For the load-time check (scripts/perf.mjs): the title takes taps now.
     performance.mark('title-interactive');
+  }
+
+  // Browsers only allow sound after the first tap, so the title track starts
+  // on it: the Title stays up for a beat (logo pulse, "Tap to start" fades)
+  // so the music is heard here, then the Menu carries it on (same track).
+  leave() {
+    const l = cfg.leave;
+    this.tweens.killTweensOf(this.tapText);
+    this.tweens.add({ targets: this.tapText, alpha: 0, duration: l.fadeMs });
+    const s = this.logo.scaleX;
+    this.tweens.add({ targets: this.logo, scale: s * l.logoPulseScale, duration: l.logoPulseMs, yoyo: true, ease: 'Sine.easeInOut' });
+    this.time.delayedCall(l.delayMs, () => this.scene.start('Menu'));
   }
 
   // Bottom line: "Fullscreen: On/Off" (a toggle, remembered in settings) where
@@ -76,6 +90,8 @@ export default class TitleScene extends Phaser.Scene {
     const hit = this.add.zone(180, f.y, f.hitW, f.hitH).setInteractive({ useHandCursor: true }).setDepth(cfg.art.textDepth + 1);
     hit.on('pointerdown', (pointer, x, y, event) => {
       event.stopPropagation();
+      // Any gesture is a chance to start the sound.
+      unlockAudio();
       settings.fullscreen = !on();
       this.registry.set('settings', { ...settings });
       saveSettings(settings);

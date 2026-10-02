@@ -372,6 +372,7 @@
       "pulseAlpha": 0.35,
       "pulseMs": 700
     },
+    "leave": { "delayMs": 1200, "fadeMs": 400, "logoPulseScale": 1.04, "logoPulseMs": 300 },
     "silent": { "text": "🔈 Turn off silent mode for sound", "y": 566, "fontSize": 12, "color": "#8a8f9e" },
     "fullscreen": {
       "y": 602,
