@@ -14,6 +14,19 @@ const SHOT_FX = ['crystal_particles', 'rain', 'flash', 'lights_out', 'dissolve_l
 const SHOT_MOVES = ['none', 'pan_left', 'pan_right', 'zoom_in', 'zoom_out'];
 const SPLITS = ['none', 'vertical', 'horizontal'];
 const BATTLE_EVENTS = ['keepsake_burn'];
+// Pixelify Sans (latin subset) covers ASCII, Latin-1, the dashes/quotes/ellipsis
+// and a few symbols. Anything else on screen renders in a system font.
+// Allowed on purpose: 🔒 🔈 (emoji, meant to), ▯ (a forgotten name, drawn as boxes).
+const FONT_OK = /^[\x20-\x7E\u00A0-\u00FF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u2026\u00D7\u00B7\u2032\u2033\u20AC\u{1F512}\u{1F508}\u25AF\n]*$/u;
+const FONT_SKIP_KEYS = new Set(['font', 'fontFamily']);
+
+function* uiStrings(value, path = 'ui') {
+  if (typeof value === 'string') yield [path, value];
+  else if (Array.isArray(value)) for (const [i, v] of value.entries()) yield* uiStrings(v, `${path}[${i}]`);
+  else if (value && typeof value === 'object') {
+    for (const [k, v] of Object.entries(value)) if (!FONT_SKIP_KEYS.has(k)) yield* uiStrings(v, `${path}.${k}`);
+  }
+}
 
 export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {}) {
   const errors = [];
@@ -70,6 +83,19 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       if (line.style && !styles[line.style]) err(`${at}: unknown style "${line.style}"`);
     });
   }
+
+  // On-screen text vs the shipped font (warnings only)
+  const fontCheck = (at, text) => {
+    if (typeof text === 'string' && !FONT_OK.test(text)) {
+      const bad = [...new Set([...text].filter((ch) => !FONT_OK.test(ch)))].join(' ');
+      warn(`${at}: "${bad}" is not in Pixelify Sans (renders in the system font)`);
+    }
+  };
+  for (const [id, lines] of Object.entries(dialogue)) {
+    if (Array.isArray(lines)) lines.forEach((line, i) => fontCheck(`dialogue.${id}[${i}]`, line.text));
+  }
+  for (const [id, cs] of Object.entries(cutscenes)) (cs.shots || []).forEach((shot, i) => fontCheck(`cutscene_${id}.shots[${i}]`, shot.text));
+  for (const [path, text] of uiStrings(ui)) fontCheck(path, text);
 
   // Heroes, enemies, allies
   for (const [id, c] of Object.entries(characters)) {

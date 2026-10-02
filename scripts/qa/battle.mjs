@@ -113,7 +113,7 @@ await withBrowser(async ({ chrome, server }) => {
 
   // ============ F-QTE story mode ============
   if (want('story')) {
-    const page = await battle(chrome, server, 'boss_clerk', { settings: { storyMode: true, difficultyChosen: true } });
+    const page = await battle(chrome, server, 'boss_clerk', { settings: { difficulty: 'story', storyMode: true, difficultyChosen: true } });
     await waitMenu(page);
     const cases = [
       ['story PERFECT +120 ms (window 135)', [120], 'PERFECT', 0],

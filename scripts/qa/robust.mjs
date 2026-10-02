@@ -189,10 +189,12 @@ await withBrowser(async ({ chrome, server }) => {
     await sleep(1200);
     const sc = await p2.scenes();
     log(sc.includes('Menu') && sc.filter((s) => s === 'Menu').length === 1, 'double tap on Title: one Menu, no extra action', sc.join('+'));
-    // double tap New Game (normal/story chosen) → one cutscene
-    await p2.ev(`window.__game.registry.set('settings', { ...window.__game.registry.get('settings'), difficultyChosen: true })`);
+    // double tap New Game, then double tap a difficulty → one cutscene
     await p2.tap(180, ui.menu.firstY);
     await p2.tap(180, ui.menu.firstY);
+    await sleep(400);
+    await p2.tap(180, ui.menu.difficulty.firstY + ui.menu.difficulty.spacing);
+    await p2.tap(180, ui.menu.difficulty.firstY + ui.menu.difficulty.spacing);
     await sleep(1500);
     const sc2 = await p2.scenes();
     log(sc2.filter((s) => s === 'Cutscene').length === 1 && !sc2.includes('Menu'), 'double tap on New Game: one chapter start', sc2.join('+'));

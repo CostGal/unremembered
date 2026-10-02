@@ -1,27 +1,28 @@
+import { normalizeDifficulty } from './Difficulty.js';
+
 const KEY = 'unremembered:settings';
 
+// Fresh-install defaults: full music and SFX, Normal difficulty.
 const DEFAULTS = {
-  // Music sits a little under the SFX by default (the SFX are what you play to).
-  musicVolume: 0.75,
+  musicVolume: 1,
   sfxVolume: 1,
-  storyMode: false,
-  // Set once the first New Game asked "How do you like your fights?".
-  difficultyChosen: false,
+  difficulty: 'normal',
+  font: 'pixelify',
 };
 
 export function loadSettings() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return { ...DEFAULTS };
-    return { ...DEFAULTS, ...JSON.parse(raw) };
+    if (!raw) return normalizeDifficulty({ ...DEFAULTS });
+    return normalizeDifficulty({ ...DEFAULTS, ...JSON.parse(raw) });
   } catch (err) {
-    return { ...DEFAULTS };
+    return normalizeDifficulty({ ...DEFAULTS });
   }
 }
 
 export function saveSettings(settings) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(settings));
+    localStorage.setItem(KEY, JSON.stringify(normalizeDifficulty(settings)));
   } catch (err) {
     // localStorage unavailable — settings just won't persist
   }

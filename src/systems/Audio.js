@@ -40,15 +40,24 @@ export function unlockAudio() {
     musicBus.connect(master);
     sfxBus.connect(master);
     applyVolumes();
-    // iOS only unlocks after a sound starts inside the gesture.
-    const silent = ctx.createBufferSource();
-    silent.buffer = ctx.createBuffer(1, 1, 22050);
-    silent.connect(ctx.destination);
-    silent.start(0);
     document.addEventListener('visibilitychange', onVisibility);
     if (wantedMusic) playMusic(wantedMusic);
+    if (wantedAmbience) startAmbience(wantedAmbience, audioData.ambience.beds[wantedAmbience]);
   }
-  if (ctx.state === 'suspended' && document.visibilityState !== 'hidden') ctx.resume().catch(() => {});
+  // Not running yet (first gesture), or 'interrupted' (iOS: a call, Siri, an
+  // app switch): resume inside this gesture. iOS also wants a sound started
+  // inside the gesture before it lets the context run.
+  if (ctx.state !== 'running' && document.visibilityState !== 'hidden') {
+    try {
+      const silent = ctx.createBufferSource();
+      silent.buffer = ctx.createBuffer(1, 1, 22050);
+      silent.connect(ctx.destination);
+      silent.start(0);
+    } catch (err) {
+      // nothing to do: resume() below is the real unlock
+    }
+    ctx.resume().catch(() => {});
+  }
   return ctx;
 }
 
@@ -168,6 +177,99 @@ export function playBlip(voice) {
   source.stop(end + 0.02);
 }
 
+// ---------- Ambience ----------
+
+// A looping bed from audio.json ambience.beds (rain, city, office…): noise
+// through filters and/or a low tone, each with a slow gain wobble. One bed at
+// a time; playAmbience(null) fades it out. Goes through the SFX bus.
+let ambience = null; // {key, nodes: [], gain}
+
+export function playAmbience(key) {
+  if (ambience && ambience.key === key) return;
+  stopAmbience();
+  const layers = key && audioData.ambience.beds[key];
+  if (!layers) return;
+  wantedAmbience = key;
+  if (!ctx) return;
+  startAmbience(key, layers);
+}
+
+let wantedAmbience = null;
+
+function startAmbience(key, layers) {
+  const fade = audioData.ambience.fadeMs / 1000;
+  const now = ctx.currentTime;
+  const out = ctx.createGain();
+  out.gain.setValueAtTime(0, now);
+  out.gain.linearRampToValueAtTime(1, now + fade);
+  out.connect(sfxBus);
+  const nodes = [out];
+  for (const layer of layers) {
+    const g = ctx.createGain();
+    g.gain.value = layer.gain;
+    g.connect(out);
+    let source;
+    let tail = g;
+    if (layer.type === 'noise') {
+      source = ctx.createBufferSource();
+      source.buffer = getNoise();
+      source.loop = true;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = layer.filterHz;
+      tail = lp;
+      lp.connect(g);
+      if (layer.highpassHz) {
+        const hp = ctx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = layer.highpassHz;
+        hp.connect(lp);
+        tail = hp;
+      }
+      source.connect(tail);
+    } else {
+      source = ctx.createOscillator();
+      source.type = layer.wave;
+      source.frequency.value = layer.hz;
+      source.connect(g);
+    }
+    if (layer.wobble) {
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 1000 / layer.wobble.periodMs;
+      const depth = ctx.createGain();
+      depth.gain.value = layer.gain * layer.wobble.depth;
+      lfo.connect(depth);
+      depth.connect(g.gain);
+      lfo.start(now);
+      nodes.push(lfo);
+    }
+    source.start(now, layer.type === 'noise' ? Math.random() * 0.8 : 0);
+    nodes.push(source);
+  }
+  ambience = { key, nodes, gain: out };
+}
+
+export function stopAmbience() {
+  wantedAmbience = null;
+  if (!ambience) return;
+  const { nodes, gain } = ambience;
+  ambience = null;
+  if (!ctx) return;
+  const fade = audioData.ambience.fadeMs / 1000;
+  const t = ctx.currentTime;
+  gain.gain.setValueAtTime(gain.gain.value, t);
+  gain.gain.linearRampToValueAtTime(0, t + fade);
+  for (const n of nodes) {
+    if (n.stop) {
+      try {
+        n.stop(t + fade + 0.05);
+      } catch (err) {
+        // already stopped
+      }
+    }
+  }
+}
+
 function getNoise() {
   if (!noiseBuffer) {
     noiseBuffer = ctx.createBuffer(1, ctx.sampleRate / 2, ctx.sampleRate);
@@ -183,6 +285,8 @@ function getNoise() {
 export function playSceneMusic(sceneKey) {
   const key = audioData.music.scenes[sceneKey];
   if (key) playMusic(key);
+  // The scene's ambience bed (audio.json music.ambience), none by default.
+  if (sceneKey in audioData.music.ambience) playAmbience(audioData.music.ambience[sceneKey]);
 }
 
 // Crossfades to the track `key` (null = fade to silence). Asking for the

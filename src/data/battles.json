@@ -5,7 +5,7 @@
     "tutorial": true,
     "redRings": false,
     "statuses": false,
-    "nala": true,
+    "nala": false,
     "music": "battle"
   },
   "b3_hollows": { "bg": "street_rain", "enemies": ["hollow", "hollow"], "nala": true, "music": "battle" },

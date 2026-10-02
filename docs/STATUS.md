@@ -95,3 +95,16 @@ Each hero has **their own Echo** (`hero.echo`, max `characters.json echoMax`, de
 - **Recollection**: 60/40/20 per ring and the target is **Exposed** (`statuses.json`, ×1.3 damage taken for its next 3 turns). Rhea's Echo caps at 8 (`characters.json echoMax`) until the Keepsake raises it to 10 (`battleEvents.keepsake_burn.echoMax`) and fills it: the ultimate is reachable only from there. Locked pips are drawn dim.
 - Clerk HP 260, boss par 14. `npm run sim` (normal): non-gamer 17 rounds / 100% win, average 14, good 12.
 
+
+## Session Thu 1/10 (autonomous batch: every `who:claude-auto` issue)
+Done in one batch (#84 #110 #111 #109 #107 #97 #96 #95 #98 #99 #93 #91 #113 #104 #100 #81 #82 #83 #105 #106). Decisions that change the spec:
+- **Difficulty replaces Story Mode** (#95/#96/#97): `qte.json difficulties` = story / normal / unforgettable, each with `windowMult`, `damageMult`, `enemyHpMult`, `echoMult` (Echo fractions carry over). `settings.difficulty` holds the id; an old `storyMode: true` maps to `story`. New Game asks every time; Settings cycles it. Fresh defaults: music 100 %, SFX 100 %, Normal.
+- **Wider view on wide viewports** (#107): `systems/View.js`. The canvas grows from 360 up to `ui.view.maxW` (448) when the viewport is wider than 9:16 (iPhone Chrome, Instagram toolbars); every camera is shifted so x 0–360 stays the design space. Cover images span the view, 360 px pixel-art backgrounds continue as mirrored edges (`mirrorEdges`), full-screen rects/flashes use `View.rect()`. Floating text clamps with `View.clampX`. Keep designing at 360×640.
+- **Cutscene pictures always cover** (#111): a `focus` scales the image up as needed and the position is clamped; the eyes_glow fx is picture-relative (`shot.eyes` = 0–1 on the image).
+- **Rain fill mode** (#113): `Fx.rain(scene, cfg, area, {fill: true})` for pictures without a floor (cutscene, dialogue); the battle keeps its ground line.
+- **Story SFX + ambience** (#100): `audio.json sfx` (crystal_hum, lights_out, hush, letter, glitch, ledger, archive, stamp) and `audio.json ambience.beds` (rain, city, office). Hooks: `ui.cutscene.fxSfx` + a shot's `sfx`; `ui.dialogue.nameSfx` + a style's `sfx`; `enemies.json` attack `sfx` / `impactSfx` / `chargeSfx`; `environments.<bg>.ambience`.
+- **Fonts** (#105): `ui.fonts.list`; Handjet and Tiny5 (Greek subsets) self-hosted; `ui.font` is swapped at runtime by `systems/Fonts.js`. Pixelify Sans stays the default and the only preloaded one.
+- **Full screen / PWA** (#106): `public/manifest.webmanifest` + icons, `systems/Fullscreen.js`. Android: Title toggle "Fullscreen: On/Off" (default on), entered on the Tap-to-start. iOS / in-app browsers: a one-line tip (Add to Home Screen / open in the browser); from the home screen the game launches full screen. No service worker.
+- **Nala** sits out b1 (#93); first joins b3. **Shot 1** opens on `city` (#91).
+- `npm run validate` warns on on-screen characters outside Pixelify Sans (#83). Dev scripts find Playwright's Chromium and pass `--no-sandbox` as root (#84), so `cutscene-check` / `music-check` run in the cloud container.
+- Known: the cloud container's headless Chromium renders no audio, so `scripts/qa/audio.mjs` level checks read 0 there (unrelated to the code).

@@ -3,11 +3,29 @@
     "dir": "assets/audio/music/",
     "ext": ".mp3",
     "crossfadeMs": 500,
-    "scenes": { "Menu": "title", "Cutscene": "cutscene", "Dialogue": "cutscene", "End": "ending" },
+    "scenes": { "Title": "title", "Menu": "title", "Cutscene": "cutscene", "Dialogue": "cutscene", "End": "ending" },
+    "ambience": { "Title": null, "Menu": null, "Cutscene": null, "Dialogue": null, "End": null },
     "prefetch": ["title", "cutscene", "battle", "boss", "ending"]
   },
   "master": { "threshold": -6, "knee": 8, "ratio": 10, "attack": 0.004, "release": 0.18 },
   "blip": { "minGapMs": 35, "attackMs": 2 },
+  "ambience": {
+    "fadeMs": 1200,
+    "beds": {
+      "rain": [
+        { "type": "noise", "filterHz": 2600, "highpassHz": 500, "gain": 0.035, "wobble": { "depth": 0.3, "periodMs": 3800 } },
+        { "type": "noise", "filterHz": 600, "highpassHz": 80, "gain": 0.02, "wobble": { "depth": 0.2, "periodMs": 6100 } }
+      ],
+      "city": [
+        { "type": "noise", "filterHz": 320, "highpassHz": 60, "gain": 0.03, "wobble": { "depth": 0.35, "periodMs": 5200 } },
+        { "type": "osc", "wave": "sine", "hz": 55, "gain": 0.015, "wobble": { "depth": 0.5, "periodMs": 7300 } }
+      ],
+      "office": [
+        { "type": "osc", "wave": "sine", "hz": 60, "gain": 0.02, "wobble": { "depth": 0.3, "periodMs": 4100 } },
+        { "type": "noise", "filterHz": 900, "highpassHz": 300, "gain": 0.012, "wobble": { "depth": 0.4, "periodMs": 5600 } }
+      ]
+    }
+  },
   "sfx": {
     "hit": [
       { "type": "noise", "ms": 90, "gain": 0.35, "filterHz": 1800 },
@@ -48,6 +66,42 @@
       { "type": "noise", "ms": 220, "gain": 0.4, "filterHz": 900 },
       { "type": "osc", "wave": "square", "from": 520, "to": 90, "ms": 260, "gain": 0.2 },
       { "type": "osc", "wave": "triangle", "from": 880, "to": 440, "ms": 200, "gain": 0.12, "delayMs": 60 }
+    ],
+    "crystal_hum": [
+      { "type": "osc", "wave": "sine", "from": 660, "to": 700, "ms": 2200, "gain": 0.07 },
+      { "type": "osc", "wave": "triangle", "from": 1320, "to": 1340, "ms": 1800, "gain": 0.025, "delayMs": 250 },
+      { "type": "osc", "wave": "sine", "from": 330, "to": 330, "ms": 2600, "gain": 0.04, "delayMs": 120 }
+    ],
+    "lights_out": [
+      { "type": "noise", "ms": 320, "gain": 0.3, "filterHz": 320 },
+      { "type": "osc", "wave": "sine", "from": 130, "to": 28, "ms": 1100, "gain": 0.35 },
+      { "type": "osc", "wave": "sawtooth", "from": 420, "to": 40, "ms": 700, "gain": 0.06, "delayMs": 40 }
+    ],
+    "hush": [
+      { "type": "noise", "ms": 1500, "gain": 0.28, "filterHz": 1400 },
+      { "type": "osc", "wave": "sine", "from": 520, "to": 48, "ms": 1700, "gain": 0.22 },
+      { "type": "osc", "wave": "triangle", "from": 1040, "to": 96, "ms": 1500, "gain": 0.06, "delayMs": 60 }
+    ],
+    "letter": [
+      { "type": "noise", "ms": 190, "gain": 0.22, "filterHz": 2600 },
+      { "type": "noise", "ms": 140, "gain": 0.14, "filterHz": 3400, "delayMs": 150 }
+    ],
+    "glitch": [
+      { "type": "osc", "wave": "square", "from": 1300, "to": 280, "ms": 60, "gain": 0.14 },
+      { "type": "noise", "ms": 90, "gain": 0.2, "filterHz": 4200, "delayMs": 30 },
+      { "type": "osc", "wave": "square", "from": 2200, "to": 900, "ms": 50, "gain": 0.12, "delayMs": 80 },
+      { "type": "osc", "wave": "sawtooth", "from": 160, "to": 150, "ms": 120, "gain": 0.08, "delayMs": 120 }
+    ],
+    "ledger": [
+      { "type": "noise", "ms": 100, "gain": 0.26, "filterHz": 2800 },
+      { "type": "osc", "wave": "square", "from": 300, "to": 210, "ms": 60, "gain": 0.06, "delayMs": 10 },
+      { "type": "noise", "ms": 100, "gain": 0.22, "filterHz": 2600, "delayMs": 170 },
+      { "type": "noise", "ms": 80, "gain": 0.18, "filterHz": 2200, "delayMs": 320 }
+    ],
+    "archive": [
+      { "type": "osc", "wave": "sine", "from": 55, "to": 190, "ms": 1300, "gain": 0.3 },
+      { "type": "osc", "wave": "sawtooth", "from": 90, "to": 380, "ms": 1300, "gain": 0.07 },
+      { "type": "noise", "ms": 1100, "gain": 0.14, "filterHz": 520, "delayMs": 150 }
     ]
   }
 }

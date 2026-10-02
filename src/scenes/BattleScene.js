@@ -10,9 +10,11 @@ import statuses from '../data/statuses.json';
 import qte from '../data/qte.json';
 import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
-import { playMusic, playSfx, setMusicIntensity, setMusicWarm, vibrate } from '../systems/Audio.js';
+import { playAmbience, playMusic, playSfx, setMusicIntensity, setMusicWarm, vibrate } from '../systems/Audio.js';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
+import { mirrorEdges, rect as viewRect } from '../systems/View.js';
+import { difficultyDef } from '../systems/Difficulty.js';
 import CommandMenu from '../systems/CommandMenu.js';
 import Hud from '../systems/Hud.js';
 import PoiseBar from '../systems/PoiseBar.js';
@@ -84,6 +86,7 @@ export default class BattleScene extends Phaser.Scene {
     playMusic(this.battleDef.music || null);
     setMusicIntensity(0);
     setMusicWarm(false);
+    this.difficulty = difficultyDef(this.registry.get('settings'));
     this.tutorialSlow = !!this.battleDef.tutorial;
     this.pendingEvents = [];
     this.timeScale = 1;
@@ -92,8 +95,9 @@ export default class BattleScene extends Phaser.Scene {
     this.hints = new TutorialHints(this, !!this.battleDef.tutorial);
     this.activeMarker = null;
 
-    this.add.image(180, 180, this.battleDef.bg).setDisplaySize(360, 360);
-    this.add.rectangle(180, 180, 360, 360, 0x000000, 0.2);
+    const view = viewRect();
+    mirrorEdges(this, this.add.image(180, 180, this.battleDef.bg).setDisplaySize(360, 360));
+    this.add.rectangle(view.x, 0, view.w, 360, 0x000000, 0.2).setOrigin(0);
     this.environment = environments[this.battleDef.bg] || {};
     this.createEnvironmentFx();
 
@@ -195,9 +199,11 @@ export default class BattleScene extends Phaser.Scene {
   // Lantern glows, rain and vignette for this battle's background (environments.json).
   createEnvironmentFx() {
     const env = this.environment;
-    const area = { x: 0, y: 0, w: 360, h: layout.sceneBottom };
+    const view = viewRect();
+    const area = { x: view.x, y: 0, w: view.w, h: layout.sceneBottom };
     if (env.lights) Fx.lights(this, env.lights);
     if (env.rain) Fx.rain(this, env.rain, area);
+    playAmbience(env.ambience || null);
     if (env.vignette) Fx.vignette(this, env.vignette, area);
     // Lightning waits for a quiet moment: never while a parry ring is live.
     if (env.lightning) this.lightning = Fx.lightning(this, env.lightning, area, () => (this.qteRings?.size || 0) > 0);
@@ -362,8 +368,9 @@ export default class BattleScene extends Phaser.Scene {
       type,
       def,
       name: def.name,
-      hp: def.hp,
-      maxHp: def.hp,
+      // Difficulty scales enemy HP (qte.json difficulties.enemyHpMult).
+      hp: isHero ? def.hp : Math.round(def.hp * this.difficulty.enemyHpMult),
+      maxHp: isHero ? def.hp : Math.round(def.hp * this.difficulty.enemyHpMult),
       container,
       body,
       parts,
@@ -465,6 +472,8 @@ export default class BattleScene extends Phaser.Scene {
     if (entity.isHero) {
       entity.statuses = {};
       this.refreshHud();
+      // A downed hero drops her guard: no counter stance survives a KO.
+      if (this.stance?.hero === entity) this.endStance(false);
     } else {
       entity.exposed = null;
       this.updateEnemyStatus(entity);
@@ -604,13 +613,20 @@ export default class BattleScene extends Phaser.Scene {
       slot: slots[i],
       label: this.fogged(hero) ? statuses.fog.label : techniques[id].name,
       cost: techniques[id].cost,
-      // Redacted: covered by a black bar and can't be used.
-      enabled: hero.echo >= techniques[id].cost && !this.covered(hero, id),
+      // Redacted: covered by a black bar and can't be used. A heal is greyed
+      // while nobody needs it (no Echo wasted on a full party).
+      enabled: hero.echo >= techniques[id].cost && !this.covered(hero, id) && this.healHasTarget(techniques[id]),
       covered: this.covered(hero, id),
       value: id,
     }));
     items.push({ slot: 'back', label: ui.commands.labels.back, value: null });
     return items;
+  }
+
+  // A heal technique has someone to help: a hurt hero, or a downed one if it revives.
+  healHasTarget(tech) {
+    if (tech.type !== 'heal') return true;
+    return this.heroes.some((h) => (h.hp > 0 && h.hp < h.maxHp) || (h.hp <= 0 && tech.canRevive));
   }
 
   // One living enemy = automatic. Otherwise tap a highlighted enemy, or Back (→ null).
@@ -757,7 +773,13 @@ export default class BattleScene extends Phaser.Scene {
     const sheet = this.enemyAttackSheet(enemy, attack, hits.length);
     for (let k = 0; k < hits.length; k++) {
       if (target.hp <= 0 || enemy.hp <= 0) break;
-      const hit = { ...hits[k], unparryable: hits[k].unparryable ?? attack.unparryable ?? false };
+      const hit = {
+        ...hits[k],
+        unparryable: hits[k].unparryable ?? attack.unparryable ?? false,
+        // Sounds can be set per hit or once for the whole attack.
+        sfx: hits[k].sfx ?? attack.sfx,
+        impactSfx: hits[k].impactSfx ?? attack.impactSfx,
+      };
       const result = await this.enemyHit(enemy, target, hit, sheet, k);
       if (result === 'CANCEL') break;
     }
@@ -806,12 +828,12 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   parryWindows() {
-    const storyMode = this.registry.get('settings')?.storyMode;
+    const mult = this.difficulty.windowMult;
     // Worn Glove: a wider PERFECT window. Assist: see parryAssist().
     const extra = effectTotal(this.fragments, 'perfectWindowMs');
     const assist = this.parryAssist();
     const windows = { ...qte.windows, perfectMs: qte.windows.perfectMs + extra + assist, goodMs: qte.windows.goodMs + assist };
-    return storyMode ? Qte.scaledWindows(windows, qte.storyMode.windowMult) : windows;
+    return mult === 1 ? windows : Qte.scaledWindows(windows, mult);
   }
 
   // Invisible help for a player who keeps missing (qte.json assist): every
@@ -878,6 +900,8 @@ export default class BattleScene extends Phaser.Scene {
         onImpact: () => target.hp > 0 && this.playHurt(target),
       });
       const icon = hit.unparryable ? this.showUnparryableIcon(x, y) : null;
+      // The attack's own sound as it winds up (enemies.json hit.sfx), e.g. the Clerk's ledger pages.
+      if (hit.sfx && k === 0) playSfx(hit.sfx);
       const watched = this.nalaWatch(enemy, ring);
 
       const abort = { aborted: false };
@@ -1125,6 +1149,7 @@ export default class BattleScene extends Phaser.Scene {
   // BREAK (poise to 0) cancels a charge.
   startCharge(enemy, attack) {
     const c = battleEvents.charge;
+    if (attack.chargeSfx) playSfx(attack.chargeSfx);
     const glow = this.add
       .image(enemy.container.x, enemy.container.y, Fx.glowTexture(this, c.glowRadius))
       .setBlendMode(Phaser.BlendModes.ADD)
@@ -1213,12 +1238,20 @@ export default class BattleScene extends Phaser.Scene {
     const tech = techniques.recollection;
     const r = qte.recollection;
 
-    const overlay = this.add.rectangle(180, layout.sceneBottom / 2, 360, layout.sceneBottom, Number(r.tint.color), 0).setDepth(r.tint.depth);
+    const view = viewRect();
+    const overlay = this.add.rectangle(view.x, 0, view.w, layout.sceneBottom, Number(r.tint.color), 0).setOrigin(0).setDepth(r.tint.depth);
     this.tweens.add({ targets: overlay, fillAlpha: r.tint.alpha, duration: r.tint.fadeMs });
     let memoryBg = null;
     if (this.textures.exists(r.bg) && !this.textures.get(r.bg).customData.placeholder) {
       memoryBg = this.add.image(180, 180, r.bg).setDisplaySize(360, 360).setDepth(r.bgDepth).setAlpha(0);
-      this.tweens.add({ targets: memoryBg, alpha: 1, duration: r.tint.fadeMs });
+      const edges = mirrorEdges(this, memoryBg);
+      memoryBg.edges = edges;
+      this.tweens.add({ targets: [memoryBg, ...edges], alpha: 1, duration: r.tint.fadeMs });
+      const destroyBg = memoryBg.destroy.bind(memoryBg);
+      memoryBg.destroy = () => {
+        edges.forEach((e) => e.destroy());
+        destroyBg();
+      };
     }
     Fx.popText(this, hero.container.x, hero.container.y, tech.name, r.textColor, qte.text);
     playSfx('ultimate');
@@ -1235,18 +1268,20 @@ export default class BattleScene extends Phaser.Scene {
     setMusicWarm(false);
 
     this.tweens.add({ targets: overlay, fillAlpha: 0, duration: r.tint.fadeMs, onComplete: () => overlay.destroy() });
-    if (memoryBg) this.tweens.add({ targets: memoryBg, alpha: 0, duration: r.tint.fadeMs, onComplete: () => memoryBg.destroy() });
+    if (memoryBg) this.tweens.add({ targets: [memoryBg, ...(memoryBg.edges || [])], alpha: 0, duration: r.tint.fadeMs, onComplete: () => memoryBg.destroy() });
     await this.wait(r.tint.fadeMs);
   }
 
   // One ring at a time, each with its own "1/3" counter and feedback; the next
   // one starts intervalMs after the previous ring's impact, so they never
-  // overlap. An app switch restarts the ring that was running.
+  // overlap. An app switch restarts the ring that was running. When a ring
+  // kills the target, the remaining rings move to the next living enemy; with
+  // none left the sequence ends early.
   async recollectionRings(target, tech) {
     const r = qte.recollection;
     const ringCfg = { ...qte.ring, color: r.ringColor, targetColor: r.ringColor };
-    const x = target.container.x;
-    const y = target.container.y + qte.ring.offsetY;
+    let x = target.container.x;
+    let y = target.container.y + qte.ring.offsetY;
     const c = r.counter;
     const counter = this.add
       .text(x, y - qte.ring.startRadius - c.gap, '', {
@@ -1260,6 +1295,14 @@ export default class BattleScene extends Phaser.Scene {
       .setDepth(qte.ring.depth);
 
     for (let i = 0; i < tech.taps; i++) {
+      if (target.hp <= 0) {
+        const next = this.enemies.find((e) => e.hp > 0);
+        if (!next) break;
+        target = next;
+        x = target.container.x;
+        y = target.container.y + qte.ring.offsetY;
+        counter.setPosition(x, y - qte.ring.startRadius - c.gap);
+      }
       counter.setText(r.counter.text.replace('{i}', i + 1).replace('{n}', tech.taps));
       this.tweens.add({ targets: counter, scale: { from: r.counter.popScale, to: 1 }, duration: r.counter.popMs, ease: 'Back.easeOut' });
       let ring;
@@ -1345,6 +1388,8 @@ export default class BattleScene extends Phaser.Scene {
 
     if (cfg.text) Fx.popText(this, x, y, cfg.text, cfg.color, qte.text);
     if (cfg.flash) Fx.screenFlash(this, cfg.flash, qte.flashDepth);
+    // The prop lands (the Clerk's stamp), parried or not.
+    if (hit.impactSfx) playSfx(hit.impactSfx);
     if (hit.unparryable && input === 'tap') Fx.popText(this, x, y + qte.text.riseY, qte.unparryable.tapText, qte.unparryable.tapColor, qte.text);
     playSfx(result.toLowerCase());
     vibrate(cfg.vibrateMs);
@@ -1358,7 +1403,7 @@ export default class BattleScene extends Phaser.Scene {
     // e.g. Siphon: a missed parry also drains the hero's Echo.
     if (result === 'MISS' && hit.onMiss?.echo) this.gainEcho(hero, hit.onMiss.echo);
 
-    const storyMult = this.registry.get('settings')?.storyMode ? qte.storyMode.damageMult : 1;
+    const storyMult = this.difficulty.damageMult;
     const braceMult = this.brace ? this.brace.damageMult : 1;
     const dmg = Math.round(baseDmg * cfg.damageMult * storyMult * braceMult);
     // Reactions (ART_BRIEF): PERFECT -> parry (the counter), GOOD -> dodge,
@@ -1442,6 +1487,14 @@ export default class BattleScene extends Phaser.Scene {
   // Echo is per hero. Gains show as a small teal "+N" over the pip they fill.
   gainEcho(hero, amount) {
     if (!amount || !hero) return;
+    // A difficulty with echoMult < 1 earns Echo more slowly: the fraction
+    // carries over, so half the gains still add up to whole pips.
+    if (amount > 0 && this.difficulty.echoMult !== 1) {
+      hero.echoFrac = (hero.echoFrac || 0) + amount * this.difficulty.echoMult;
+      amount = Math.floor(hero.echoFrac);
+      hero.echoFrac -= amount;
+      if (!amount) return;
+    }
     const before = hero.echo;
     hero.echo = Phaser.Math.Clamp(hero.echo + amount, 0, hero.echoMax);
     this.refreshHud();
@@ -1587,10 +1640,12 @@ export default class BattleScene extends Phaser.Scene {
     if (!target) return;
 
     await this.playMove(hero, tech.anims || ['cast'], () => {
-      const amount = Math.min(tech.amount, target.maxHp - target.hp);
+      // The number shown is what was really restored (for a revive, the revive HP).
+      const before = Math.max(0, target.hp);
       if (target.hp <= 0) this.revive(target, Math.min(target.maxHp, tech.amount));
-      else target.hp += amount;
-      Fx.damageNumber(this, target.container.x, target.container.y - 80, `${ui.heal.textPrefix}${Math.min(tech.amount, target.maxHp)}`, null, 'heal');
+      else target.hp = Math.min(target.maxHp, target.hp + tech.amount);
+      const healed = target.hp - before;
+      Fx.damageNumber(this, target.container.x, target.container.y - 80, `${ui.heal.textPrefix}${healed}`, null, 'heal');
       // Anchor also clears the target's statuses.
       if (this.clearStatuses(target)) Fx.popText(this, target.container.x, target.container.y, statuses.ui.clearedText, statuses.ui.clearedColor, qte.text);
       this.refreshHud();
@@ -1897,7 +1952,7 @@ export default class BattleScene extends Phaser.Scene {
     // Victory: a band across the scene, the word pops in, a short sting.
     if (result === 'WIN') {
       const v = ui.victory;
-      const band = this.add.rectangle(180, cfg.textY, 360, v.band.h, Number(v.band.color), v.band.alpha).setDepth(cfg.depth - 1).setStrokeStyle(1, Number(v.band.lineColor));
+      const band = this.add.rectangle(180, cfg.textY, viewRect().w, v.band.h, Number(v.band.color), v.band.alpha).setDepth(cfg.depth - 1).setStrokeStyle(1, Number(v.band.lineColor));
       band.setScale(1, 0);
       this.tweens.add({ targets: band, scaleY: 1, duration: v.popMs / 2, ease: 'Cubic.easeOut' });
       message.setScale(v.popScale);

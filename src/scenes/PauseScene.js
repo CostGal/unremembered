@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { rect as viewRect } from '../systems/View.js';
 import ui from '../data/ui.json';
 import { unlockAudio } from '../systems/Audio.js';
 import { addText } from '../systems/Button.js';
@@ -17,7 +18,8 @@ export default class PauseScene extends Phaser.Scene {
   }
 
   create() {
-    this.add.rectangle(0, 0, 360, 640, Number(cfg.dim.color), cfg.dim.alpha).setOrigin(0);
+    const v = viewRect();
+    this.add.rectangle(v.x, v.y, v.w, v.h, Number(cfg.dim.color), cfg.dim.alpha).setOrigin(0);
     addText(this, 180, cfg.title.y, cfg.title.text, cfg.title);
     const tap = addText(this, 180, cfg.tap.y, cfg.tap.text, cfg.tap);
     this.tweens.add({ targets: tap, alpha: cfg.tap.pulseAlpha, duration: cfg.tap.pulseMs, yoyo: true, repeat: -1 });

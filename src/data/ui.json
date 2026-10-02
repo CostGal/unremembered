@@ -1,5 +1,17 @@
 {
   "font": "\"Pixelify Sans\", monospace",
+  "view": { "designW": 360, "designH": 640, "maxW": 448 },
+  "fonts": {
+    "default": "pixelify",
+    "loadTimeoutMs": 1000,
+    "greekTag": " (Greek)",
+    "list": [
+      { "id": "pixelify", "label": "Pixelify Sans", "family": "\"Pixelify Sans\", monospace", "greek": false },
+      { "id": "handjet", "label": "Handjet", "family": "\"Handjet\", monospace", "greek": true },
+      { "id": "tiny5", "label": "Tiny5", "family": "\"Tiny5\", monospace", "greek": true },
+      { "id": "system", "label": "System", "family": "sans-serif", "greek": true }
+    ]
+  },
   "hud": {
     "panel": { "x": 0, "y": 360, "w": 360, "h": 80, "color": "0x12151f", "borderColor": "0x2a2e3d" },
     "textColor": "#f1efe8",
@@ -179,7 +191,8 @@
   "downed": { "heroAlpha": 0.35, "fadeMs": 200, "enemyFadeMs": 500 },
   "dialogue": {
     "charsPerSec": 40,
-    "nextMark": "▼",
+    "nextMark": { "w": 10, "h": 7 },
+    "nameBoxes": { "wPct": 0.55, "hPct": 0.8, "lineHeightPct": 1.1, "gap": 3, "stroke": 2 },
     "nextBlinkMs": 450,
     "bg": { "size": 360, "fadeH": 24, "fadeAlpha": 0.6 },
     "overlayDim": { "color": "0x04050b", "alpha": 0.55 },
@@ -237,18 +250,24 @@
         "textColor": "#2a2230",
         "align": "center",
         "showName": false,
-        "portraits": false
+        "portraits": false,
+        "sfx": "letter"
       }
     },
+    "nameSfx": { "▯▯▯": "glitch" },
     "nextBlinkAlpha": 0.2
   },
   "cutscene": {
     "area": { "y": 0, "h": 640 },
     "gradient": { "y": 420, "color": "0x000000", "alpha": 0.9, "depth": 25 },
     "pixelArtMaxW": 360,
+    "focusMin": 0.08,
     "text": { "y": 506, "fontSize": 17, "color": "#f1efe8", "lineSpacing": 6, "wrap": 312 },
+    "panel": { "padX": 14, "padY": 10, "minW": 180, "fill": "0x0b0d14", "alpha": 0.6, "stroke": "0x3fd0c9", "strokeAlpha": 0.35 },
     "defaultDurationMs": 4500,
     "fadeOutMs": 500,
+    "fxSfx": { "crystal_particles": "crystal_hum", "lights_out": "lights_out", "flash": null },
+    "rainAmbience": "rain",
     "splitLine": 2,
     "splitColor": "0x000000",
     "depth": { "picture": 0, "fx": 10, "bars": 20, "text": 30, "hold": 40 },
@@ -298,12 +317,13 @@
       "lights_out": { "startPct": 0.3, "ms": 1500, "steps": 5 },
       "dissolve_layer": { "startPct": 0.35, "ms": 1800, "steps": 8 },
       "eyes_glow": {
-        "at": [[0.3, 0.4], [0.69, 0.4]],
-        "radius": 26,
-        "color": "0x3fd0c9",
-        "alpha": 1,
-        "delayMs": 600,
-        "ms": 900
+        "at": [[0.297, 0.4], [0.717, 0.402]],
+        "halo": { "radius": 34, "color": "0x3fd0c9", "alpha": 0.75, "lagMs": 250 },
+        "iris": { "w": 30, "h": 18, "color": "0xa8f0ec", "alpha": 1 },
+        "delayMs": 900,
+        "ms": 1400,
+        "flare": { "color": "0x3fd0c9", "alpha": 0.18, "ms": 420 },
+        "breathe": { "min": 0.7, "ms": 1100 }
       }
     },
     "background": "#000000"
@@ -344,7 +364,19 @@
       "pulseAlpha": 0.35,
       "pulseMs": 700
     },
-    "silent": { "text": "🔈 Turn off silent mode for sound", "y": 566, "fontSize": 12, "color": "#8a8f9e" }
+    "silent": { "text": "🔈 Turn off silent mode for sound", "y": 566, "fontSize": 12, "color": "#8a8f9e" },
+    "fullscreen": {
+      "y": 602,
+      "fontSize": 13,
+      "color": "#8a8f9e",
+      "activeColor": "#3fd0c9",
+      "hitW": 300,
+      "hitH": 56,
+      "on": "Fullscreen: On",
+      "off": "Fullscreen: Off",
+      "ios": "Add to Home Screen to play full screen",
+      "inApp": "Open in your browser to play full screen"
+    }
   },
   "menu": {
     "title": { "text": "UNREMEMBERED", "y": 110, "fontSize": 30, "color": "#3fd0c9" },
@@ -361,32 +393,33 @@
     "difficulty": {
       "depth": 100,
       "dim": { "color": "0x04050b", "alpha": 0.8 },
-      "box": { "y": 330, "w": 320, "h": 300, "fill": "0x12151f", "stroke": "0x2a2e3d" },
-      "title": { "text": "How do you like your fights?", "y": 222, "fontSize": 18, "color": "#f1efe8", "wrap": 280 },
-      "story": { "label": "Story (easier timing)", "y": 296 },
-      "normal": { "label": "Normal", "y": 372 },
-      "hint": { "text": "You can change this any time in Settings.", "y": 440, "fontSize": 12, "color": "#8a8fa3", "wrap": 280 }
+      "box": { "y": 336, "w": 320, "h": 344, "fill": "0x12151f", "stroke": "0x2a2e3d" },
+      "title": { "text": "How do you like your fights?", "y": 206, "fontSize": 18, "color": "#f1efe8", "wrap": 280 },
+      "button": { "w": 280, "h": 56, "fontSize": 17 },
+      "firstY": 268,
+      "spacing": 68,
+      "currentStroke": "0x3fd0c9",
+      "hint": { "text": "You can change this any time in Settings.", "y": 470, "fontSize": 12, "color": "#8a8fa3", "wrap": 280 }
     },
     "lockedText": "Coming soon",
     "lockedColor": "#e0a040"
   },
   "settings": {
     "title": { "text": "Settings", "y": 90, "fontSize": 26, "color": "#f1efe8" },
-    "firstY": 210,
-    "spacing": 90,
-    "button": { "w": 300, "h": 64, "fontSize": 17 },
+    "firstY": 186,
+    "spacing": 76,
+    "button": { "w": 300, "h": 62, "fontSize": 17 },
     "volumeSteps": [1, 0.75, 0.5, 0.25, 0],
     "labels": {
       "musicVolume": "Music: {v}",
       "sfxVolume": "Sound FX: {v}",
-      "storyMode": "Story Mode: {v}",
-      "on": "On",
-      "off": "Off",
+      "difficulty": "Difficulty: {v}",
+      "font": "Font: {v}",
       "back": "Back"
     },
     "hint": {
-      "text": "Story Mode: wider parry timing, half damage taken.",
-      "y": 470,
+      "text": "{hint}",
+      "y": 478,
       "fontSize": 12,
       "color": "#8a8fa3",
       "wrap": 300

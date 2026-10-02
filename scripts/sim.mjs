@@ -132,8 +132,8 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const tech = D.techniques;
   const qte = D.qte;
   const echoMax = D.ui.hud.echo.max;
-  const storyMult = story ? qte.storyMode.windowMult : 1;
-  const dmgTakenMult = story ? qte.storyMode.damageMult : 1;
+  const storyMult = story ? qte.difficulties.story.windowMult : 1;
+  const dmgTakenMult = story ? qte.difficulties.story.damageMult : 1;
   const think = D.sim.thinkMs[profileName];
 
   const heroes = ['rhea', 'dov'].map((id) => ({ id, def: D.characters[id], hp: D.characters[id].hp, max: D.characters[id].hp, redacted: null, echo: 0, echoMax: D.characters[id].echoMax ?? echoMax }));
@@ -474,7 +474,7 @@ if (JSON_OUT) {
 } else {
   const pct = (x) => `${(x * 100).toFixed(1)}%`.padStart(6);
   const f1 = (x) => x.toFixed(1).padStart(5);
-  console.log(`runs per cell: ${RUNS}   QTE model: ${Object.entries(D.sim.profilesSolved).map(([k, v]) => `${k} bias=${v.bias}ms sigma=${v.sigma}ms lapse=${(v.lapse * 100).toFixed(0)}% -> normal ${odds(v, 1)} / story ${odds(v, D.qte.storyMode.windowMult)}`).join(', ')}\n`);
+  console.log(`runs per cell: ${RUNS}   QTE model: ${Object.entries(D.sim.profilesSolved).map(([k, v]) => `${k} bias=${v.bias}ms sigma=${v.sigma}ms lapse=${(v.lapse * 100).toFixed(0)}% -> normal ${odds(v, 1)} / story ${odds(v, D.qte.difficulties.story.windowMult)}`).join(', ')}\n`);
   console.log('mode    battle        profile    win    rounds  min (p10–p90)       avgEcho  recoll  archive  interrupt  breaks  P/G/M seen            score  rank ' + D.grade.ranks.map((k) => k.id).join('/') + '   perf chain dmg turns');
   for (const r of rows) {
     console.log(

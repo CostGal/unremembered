@@ -11,8 +11,38 @@
     "fadeMs": 120
   },
   "windows": { "perfectMs": 90, "goodMs": 200, "ignoreBeforeMs": 350 },
-  "storyMode": { "windowMult": 1.5, "damageMult": 0.5 },
   "assist": { "missStreak": 2, "stepMs": 30, "maxMs": 90 },
+  "difficulties": {
+    "order": ["story", "normal", "unforgettable"],
+    "default": "normal",
+    "story": {
+      "label": "Story",
+      "pick": "Story (easier timing)",
+      "hint": "Story: wider parry timing, half damage taken.",
+      "windowMult": 1.5,
+      "damageMult": 0.5,
+      "enemyHpMult": 1,
+      "echoMult": 1
+    },
+    "normal": {
+      "label": "Normal",
+      "pick": "Normal",
+      "hint": "Normal: the fights as designed.",
+      "windowMult": 1,
+      "damageMult": 1,
+      "enemyHpMult": 1,
+      "echoMult": 1
+    },
+    "unforgettable": {
+      "label": "Unforgettable",
+      "pick": "Unforgettable (hard)",
+      "hint": "Unforgettable: tight timing, fierce enemies, Echo comes slowly.",
+      "windowMult": 0.65,
+      "damageMult": 1.5,
+      "enemyHpMult": 1.35,
+      "echoMult": 0.5
+    }
+  },
   "chain": {
     "stepPct": 10,
     "maxSteps": 5,

@@ -43,9 +43,9 @@
         "untilHpPct": 50,
         "opening": ["stamp", "archive"],
         "attacks": [
-          { "id": "stamp", "weight": 2, "telegraphMs": 800, "dmg": 15 },
+          { "id": "stamp", "impactSfx": "stamp", "weight": 2, "telegraphMs": 800, "dmg": 15 },
           {
-            "id": "file_away",
+            "id": "file_away", "sfx": "ledger",
             "weight": 1,
             "hits": [{ "telegraphMs": 700, "dmg": 10 }, { "telegraphMs": 600, "dmg": 10 }]
           },
@@ -69,7 +69,7 @@
         "musicIntensity": 1,
         "onEnter": "keepsake_burn",
         "attacks": [
-          { "id": "stamp", "weight": 2, "telegraphMs": 700, "dmg": 15 },
+          { "id": "stamp", "impactSfx": "stamp", "weight": 2, "telegraphMs": 700, "dmg": 15 },
           {
             "id": "redact",
             "weight": 2,
@@ -79,7 +79,7 @@
             "dmg": 15
           },
           {
-            "id": "archive",
+            "id": "archive", "chargeSfx": "archive",
             "anim": "archive_release",
             "chargeAnim": "archive_charge",
             "weight": 1,

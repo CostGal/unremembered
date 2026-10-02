@@ -1,6 +1,7 @@
 // Battle HUD: one block per hero (name + HP bar, and that hero's own Echo
 // pips underneath). It only displays state. The battle owns HP/Echo and
 // calls update(state).
+import { VIEW } from './View.js';
 import statuses from '../data/statuses.json';
 import fragments from '../data/fragments.json';
 
@@ -15,7 +16,7 @@ export default class Hud {
 
     const { panel } = config;
     scene.add
-      .rectangle(panel.x, panel.y, panel.w, panel.h, color(panel.color))
+      .rectangle(panel.x - VIEW.pad, panel.y, panel.w + VIEW.pad * 2, panel.h, color(panel.color))
       .setOrigin(0, 0)
       .setStrokeStyle(1, color(panel.borderColor));
 

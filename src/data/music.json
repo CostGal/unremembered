@@ -11,7 +11,7 @@
   ],
 
   "engine": {
-    "lookaheadMs": 200,
+    "lookaheadMs": 600,
     "tickMs": 40,
     "maxVoices": 22,
     "humanizeMs": 5,
@@ -67,7 +67,7 @@
         "arp": { "inst": "pluck", "oct": 4, "mode": "chord", "params": { "gain": 0.05 } },
         "motif": { "inst": "musicbox", "oct": 4, "mode": "scale" },
         "chime": { "inst": "bell", "oct": 5, "mode": "scale", "params": { "gain": 0.045 } },
-        "rain": { "inst": "rain", "params": { "gain": 0.045 } }
+        "rain": { "inst": "rain", "params": { "gain": 0.02 } }
       },
       "patterns": {
         "subHold": ["r . . . . . . . . . . . . . . ."],

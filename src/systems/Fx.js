@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import ui from '../data/ui.json';
 import { playSfx } from './Audio.js';
+import { clampX, rect as viewRect } from './View.js';
 
 // Floating text stays this far from the screen edges (CLAUDE.md: 16px).
 const EDGE_PAD = 16;
@@ -33,8 +34,7 @@ export function damageNumber(scene, x, y, value, color = null, type = 'normal') 
     .setOrigin(0.5)
     .setDepth(cfg.depth)
     .setScale(cfg.popScale);
-  const half = text.width / 2 + EDGE_PAD;
-  text.x = Phaser.Math.Clamp(x, half, scene.scale.width - half);
+  text.x = clampX(x, text.width, EDGE_PAD);
 
   scene.tweens.add({ targets: text, scale: 1, duration: cfg.popMs, ease: 'Back.easeOut' });
   scene.tweens.add({
@@ -148,11 +148,16 @@ export function glowTexture(scene, radius) {
 // cfg.far / cfg.near = {count, speed, wind, landY: [min, max], alpha: [min, max],
 // length, color, depth, splash?}; cfg.splash = {count, lifeMs, alpha, color}.
 // count is the max alive particles per emitter; keep the total <= 150.
-export function rain(scene, cfg, area) {
+// opts.fill: no ground line — drops fall through the whole area and end
+// anywhere in its lower part (cfg.fillLandPct of the height), no splashes.
+// For pictures without a floor (cutscene, dialogue), so the rain covers the
+// screen instead of a band.
+export function rain(scene, cfg, area, { fill = false } = {}) {
   const emitters = [];
+  const fillPct = cfg.fillLandPct || [0.4, 1];
 
   let splash = null;
-  if (cfg.splash) {
+  if (cfg.splash && !fill) {
     splash = scene.add.particles(0, 0, splashTexture(scene), {
       emitting: false,
       lifespan: cfg.splash.lifeMs,
@@ -169,8 +174,9 @@ export function rain(scene, cfg, area) {
     if (!layer) continue;
 
     const spawnY = area.y - layer.length;
-    const lifeMin = ((layer.landY[0] - spawnY) / layer.speed) * 1000;
-    const lifeMax = ((layer.landY[1] - spawnY) / layer.speed) * 1000;
+    const landY = fill ? [area.y + area.h * fillPct[0], area.y + area.h * fillPct[1]] : layer.landY;
+    const lifeMin = ((landY[0] - spawnY) / layer.speed) * 1000;
+    const lifeMax = ((landY[1] - spawnY) / layer.speed) * 1000;
     // Spawn upwind so the slant still covers the whole width.
     const drift = (layer.wind * lifeMax) / 1000;
     const xMin = area.x + Math.min(0, -drift);
@@ -306,7 +312,7 @@ export function lightning(scene, cfg, area, busy = () => false) {
 export function popText(scene, x, y, text, color, cfg) {
   const label = scene.add
     .text(x, y + cfg.offsetY, text, {
-      fontFamily: '"Pixelify Sans", monospace',
+      fontFamily: ui.font,
       fontSize: `${cfg.fontSize}px`,
       color,
       stroke: '#0b0d14',
@@ -315,8 +321,7 @@ export function popText(scene, x, y, text, color, cfg) {
     .setOrigin(0.5)
     .setDepth(cfg.depth);
   // Keep the whole word on screen (e.g. above Nala at the left edge).
-  const half = label.width / 2 + EDGE_PAD;
-  label.x = Phaser.Math.Clamp(x, half, scene.scale.width - half);
+  label.x = clampX(x, label.width, EDGE_PAD);
 
   scene.tweens.add({
     targets: label,
@@ -330,9 +335,9 @@ export function popText(scene, x, y, text, color, cfg) {
 
 // A flat colour over the whole screen that fades out. cfg = {color, alpha, ms}
 export function screenFlash(scene, cfg, depth) {
-  const { width, height } = scene.scale;
+  const v = viewRect();
   const rect = scene.add
-    .rectangle(0, 0, width, height, Number(cfg.color), cfg.alpha)
+    .rectangle(v.x, v.y, v.w, v.h, Number(cfg.color), cfg.alpha)
     .setOrigin(0)
     .setDepth(depth);
   scene.tweens.add({ targets: rect, alpha: 0, duration: cfg.ms, onComplete: () => rect.destroy() });
