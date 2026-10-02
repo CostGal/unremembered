@@ -1,9 +1,9 @@
 import ui from '../data/ui.json';
 import { langDef } from './Lang.js';
 
-// The UI font is a setting (ui.json fonts.list): Pixelify Sans by default,
-// plus pixel fonts with Greek glyphs (for a Greek translation) and the
-// phone's own font. Every text object reads ui.font when it is created, so
+// The UI font is a setting (ui.json fonts.list): Play by default (Latin +
+// Greek), plus the pixel fonts Pixelify Sans, Handjet, Tiny5 and the phone's
+// own font. Every text object reads ui.font when it is created, so
 // applyFont() swaps the family for everything built from then on.
 
 const cfg = ui.fonts;
@@ -16,8 +16,9 @@ export function fontDef(settings) {
   return cfg.list.find((f) => f.id === settings?.font) || cfg.list.find((f) => f.id === cfg.default);
 }
 
+// "(Greek)" marks the optional fonts that have Greek; the default has it anyway.
 export function fontLabel(def) {
-  return def.greek ? `${def.label}${cfg.greekTag}` : def.label;
+  return def.greek && def.id !== cfg.default ? `${def.label}${cfg.greekTag}` : def.label;
 }
 
 // The font actually used: the chosen one, unless the language needs glyphs

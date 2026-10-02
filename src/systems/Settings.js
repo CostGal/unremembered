@@ -7,15 +7,23 @@ const DEFAULTS = {
   musicVolume: 1,
   sfxVolume: 1,
   difficulty: 'normal',
-  font: 'pixelify',
+  font: 'play',
   lang: 'en',
+  fontVersion: 2,
 };
 
 export function loadSettings() {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return normalizeDifficulty({ ...DEFAULTS });
-    return normalizeDifficulty({ ...DEFAULTS, ...JSON.parse(raw) });
+    const saved = JSON.parse(raw);
+    // Saved before Play became the game font (fontVersion 2): every save
+    // stored the old default, so the font starts over at the new one.
+    if (saved.fontVersion !== DEFAULTS.fontVersion) {
+      delete saved.font;
+      saved.fontVersion = DEFAULTS.fontVersion;
+    }
+    return normalizeDifficulty({ ...DEFAULTS, ...saved });
   } catch (err) {
     return normalizeDifficulty({ ...DEFAULTS });
   }

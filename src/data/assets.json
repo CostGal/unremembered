@@ -96,7 +96,7 @@
     "indicator": {
       "text": "Loading…",
       "y": 320,
-      "font": "\"Pixelify Sans\", monospace",
+      "font": "\"Play\", sans-serif",
       "fontSize": 16,
       "color": "#8a8fa3",
       "depth": 3000,
