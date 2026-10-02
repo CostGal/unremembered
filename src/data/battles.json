@@ -1,4 +1,19 @@
 {
+  "b0_duel": {
+    "bg": "street_rain",
+    "party": ["rhea"],
+    "enemies": ["dov_rival"],
+    "tutorial": true,
+    "redRings": false,
+    "statuses": false,
+    "nala": false,
+    "music": "battle",
+    "events": [
+      { "id": "duel_refuse", "when": { "playerHits": 1 }, "dialogue": "duel_refuse" },
+      { "id": "duel_wake", "when": { "firstOf": [{ "playerHits": 3 }, { "round": 3 }] }, "dialogue": "duel_wake", "then": { "setFlag": "duelWake" } },
+      { "id": "duel_nala", "when": { "enemyHpBelowPct": 50 }, "dialogue": "duel_nala", "then": "endBattle" }
+    ]
+  },
   "b1_tutorial": {
     "bg": "street_rain",
     "enemies": ["blank", "hollow"],
