@@ -16,6 +16,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { root } from './lib/harness.mjs';
+import { dueEvents } from '../src/systems/BattleEvents.js';
 import { computeGrade } from '../src/systems/Grade.js';
 import { chapterXpBefore, echoMaxFor, growth, learned, levelFor, techniqueAt } from '../src/systems/Recall.js';
 
@@ -150,7 +151,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: D.enemies[id].hp, max: D.enemies[id].hp, phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false }));
 
   // A tutorial battle also costs the time to read its hint banners.
-  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], flags: [], playerHits: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   // Echo is per hero (each has their own reserve).
   const gain = (hero, n) => (hero.echo = Math.max(0, Math.min(hero.echoMax, hero.echo + n)));
   const rhea = heroes[0];
@@ -174,6 +175,8 @@ function simulateBattle(battleId, profileName, story, rnd) {
       enemy.charge.mitigated += full - dmg;
     }
     if (enemy.exposed) dmg = Math.round(dmg * enemy.exposed.mult);
+    // playerHits (battle events): a Strike / attack technique that dealt damage.
+    if (st.playerAction && dmg > 0) st.actionLanded = true;
     enemy.hp = Math.max(0, enemy.hp - dmg);
     if (enemy.hp <= 0) enemy.charge = null;
     const phases = enemy.def.phases;
@@ -221,8 +224,35 @@ function simulateBattle(battleId, profileName, story, rnd) {
     }
   };
 
+  // Generic battle events (battles.json `events`, systems/BattleEvents.js), same
+  // rules as BattleScene.checkEvents: after the intro and after every turn, once
+  // each, in list order; a dialogue costs T.eventMs; endBattle interrupts the fight.
+  const firedEvents = new Set();
+  const checkEvents = () => {
+    if (!battle.events?.length || st.interrupted || !living(heroes).length) return;
+    const ctx = { round: st.rounds, playerHits: st.playerHits, immuneSeen: st.immuneSeen, enemies: enemies.map((e) => ({ hp: e.hp, maxHp: e.max })) };
+    for (const ev of dueEvents(battle.events, firedEvents, ctx)) {
+      firedEvents.add(ev.id);
+      if (ev.dialogue) {
+        if (!D.dialogue[ev.dialogue]) continue;
+        st.ms += T.eventMs;
+      }
+      if (ev.then === 'endBattle') {
+        st.interrupted = true;
+        return;
+      }
+      if (ev.then?.setFlag && !st.flags.includes(ev.then.setFlag)) st.flags.push(ev.then.setFlag);
+    }
+  };
+  // An interrupted battle counts as a win (XP is given) without a grade.
+  const interrupted = () => ({ ...st, win: true, interrupted: true, grade: null });
+
   const playerTurn = (hero) => {
+    st.playerAction = true;
+    st.actionLanded = false;
     playerTurnInner(hero);
+    st.playerAction = false;
+    if (st.actionLanded) st.playerHits += 1;
     // Statuses tick after the hero's own turn.
     if (hero.redacted && --hero.redacted.turns <= 0) hero.redacted = null;
   };
@@ -241,6 +271,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
 
     // Recollection when full.
     if (battle.recollection && hero.def.canUltimate && hero.echo >= tech.recollection.cost) {
+      st.playerAction = false; // the ultimate is not a counted hit
       hero.echo -= tech.recollection.cost;
       st.recollections += 1;
       const r = tech.recollection;
@@ -310,7 +341,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
     if (strikeTarget) {
       hitEnemy(strikeTarget, between(rnd, hero.strike), D.brk.sources.hit);
       gain(hero, tech.strike.echoOnHit);
-    }
+    } else st.immuneSeen = true;
     st.ms += T.dashMs * 2 + sheetMs(hero.id, 'attack', T.attackMs);
   };
 
@@ -412,6 +443,8 @@ function simulateBattle(battleId, profileName, story, rnd) {
     }
   };
 
+  checkEvents(); // `when: "battleStart"`
+  if (st.interrupted) return interrupted();
   while (true) {
     st.rounds += 1;
     if (st.rounds > 200) return { ...st, win: false, stuck: true };
@@ -420,12 +453,16 @@ function simulateBattle(battleId, profileName, story, rnd) {
       playerTurn(hero);
       st.echoCurve.push(rhea.echo);
       afterTurn();
+      checkEvents();
+      if (st.interrupted) return interrupted();
       if (!living(enemies).length) return { ...st, win: true, ms: st.ms + T.victoryMs, grade: gradeOf() };
     }
     for (const enemy of enemies) {
       if (enemy.hp <= 0) continue;
       enemyTurn(enemy);
       afterTurn();
+      checkEvents();
+      if (st.interrupted) return interrupted();
       if (!living(heroes).length) return { ...st, win: false, ms: st.ms + T.loseMs };
       if (!living(enemies).length) return { ...st, win: true, ms: st.ms + T.victoryMs, grade: gradeOf() };
     }
@@ -466,6 +503,7 @@ for (const story of [false, true]) {
       const res = [];
       for (let i = 0; i < RUNS; i++) res.push(simulateBattle(id, profileName, story, rnd));
       const wins = res.filter((r) => r.win);
+      const graded = wins.filter((r) => r.grade); // an interrupted battle has no grade
       const avg = (f, list = res) => list.reduce((s, r) => s + f(r), 0) / Math.max(1, list.length);
       const sorted = res.map((r) => r.ms).sort((a, b) => a - b);
       const q = (x) => sorted[Math.floor(x * (sorted.length - 1))];
@@ -483,9 +521,9 @@ for (const story of [false, true]) {
         recollections: avg((r) => r.recollections),
         archives: avg((r) => r.archives),
         breaks: avg((r) => r.breaks),
-        ranks: Object.fromEntries(D.grade.ranks.map((k) => [k.id, wins.filter((r) => r.grade.rank === k.id).length / Math.max(1, wins.length)])),
-        gradeStats: Object.fromEntries(['perfects', 'maxChain', 'damageTaken', 'turns'].map((k) => [k, avg((r) => r.grade.stats[k], wins)])),
-        score: avg((r) => r.grade.score, wins),
+        ranks: Object.fromEntries(D.grade.ranks.map((k) => [k.id, graded.filter((r) => r.grade.rank === k.id).length / Math.max(1, graded.length)])),
+        gradeStats: Object.fromEntries(['perfects', 'maxChain', 'damageTaken', 'turns'].map((k) => [k, avg((r) => r.grade.stats[k], graded)])),
+        score: avg((r) => r.grade.score, graded),
         interruptRate: res.reduce((s, r) => s + r.archiveInterrupts, 0) / Math.max(1, res.reduce((s, r) => s + r.archives, 0)),
         qte: Object.fromEntries(['PERFECT', 'GOOD', 'MISS'].map((k) => [k, avg((r) => r.qtes[k]) / Math.max(1e-9, avg((r) => r.qtes.PERFECT + r.qtes.GOOD + r.qtes.MISS))])),
       });

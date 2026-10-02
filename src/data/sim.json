@@ -26,6 +26,7 @@
     "hitResolveMs": 700,
     "keepsakeMs": 25000,
     "insightMs": 12000,
+    "eventMs": 6000,
     "recollectionFadeMs": 400,
     "victoryMs": 2500,
     "loseMs": 2500,

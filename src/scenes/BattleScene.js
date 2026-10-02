@@ -6,12 +6,14 @@ import environments from '../data/environments.json';
 import levels from '../data/levels.json';
 import allies from '../data/allies.json';
 import battleEvents from '../data/battleEvents.json';
+import dialogues from '../data/dialogue.json';
 import brk from '../data/break.json';
 import statuses from '../data/statuses.json';
 import qte from '../data/qte.json';
 import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
 import { playAmbience, playMusic, playSfx, setMusicIntensity, setMusicWarm, vibrate } from '../systems/Audio.js';
+import { dueEvents } from '../systems/BattleEvents.js';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
 import { mirrorEdges, rect as viewRect } from '../systems/View.js';
@@ -95,6 +97,14 @@ export default class BattleScene extends Phaser.Scene {
     this.difficulty = difficultyDef(this.registry.get('settings'));
     this.tutorialSlow = !!this.battleDef.tutorial;
     this.pendingEvents = [];
+    // Generic battle events (battles.json `events`, see systems/BattleEvents.js):
+    // flags set by {setFlag}, which events already fired, and the counters their
+    // `when` reads. playerHits counts landed player actions (playerAction/actionLanded).
+    this.flags = new Set();
+    this.firedEvents = new Set();
+    this.counters = { playerHits: 0, immuneSeen: false };
+    this.playerAction = false;
+    this.actionLanded = false;
     this.timeScale = 1;
     this.resumeGate = null;
     this.listenForBackground();
@@ -174,7 +184,11 @@ export default class BattleScene extends Phaser.Scene {
     this.buildTapHint();
 
     const machine = new BattleStateMachine({
-      intro: () => this.playIntro(),
+      intro: async () => {
+        await this.playIntro();
+        await this.checkEvents(); // `when: "battleStart"`
+      },
+      isOver: () => this.battleOver,
       isAlive: (entity) => entity.hp > 0,
       allEnemiesDown: () => this.enemies.every((e) => e.hp <= 0),
       allHeroesDown: () => this.heroes.every((h) => h.hp <= 0),
@@ -807,13 +821,19 @@ export default class BattleScene extends Phaser.Scene {
     this.spendEcho(hero, tech.cost);
 
     const restoreDepth = this.bringInFront(hero, action.target);
+    // playerHits: applyHit marks actionLanded while a Strike or attack technique
+    // runs (the ultimate is no "hit"; counters happen in the enemy's turn).
+    this.playerAction = action.kind !== 'ultimate';
+    this.actionLanded = false;
     try {
       if (action.kind === 'strike') await this.playerStrike(hero, action.target);
       else if (action.kind === 'ultimate') await this.playRecollection(hero, action.target);
       else await this.runTechnique(hero, action.techId, action.target);
     } finally {
       restoreDepth();
+      this.playerAction = false;
     }
+    if (this.actionLanded) this.counters.playerHits += 1;
     this.tickStatuses(hero);
   }
 
@@ -1221,6 +1241,48 @@ export default class BattleScene extends Phaser.Scene {
       if (event === 'keepsake_burn') await this.keepsakeBurn();
       else if (battleEvents[event]?.dialogue && this.enemies.some((e) => e.hp > 0)) await this.playDialogueOverlay(battleEvents[event].dialogue);
     }
+    await this.checkEvents();
+  }
+
+  // Generic battle events (battles.json `events`; grammar in systems/BattleEvents.js):
+  //   when  "battleStart" | {round: n} | {playerHits: n} | {enemyHpBelowPct: n} | "firstImmune"
+  //         | {firstOf: [when, ...]}
+  //   then  "continue" (default) | {setFlag: name} | "endBattle"
+  // Runs after the intro and after every turn (afterTurn), never during a live
+  // ring. Each event fires once, in list order; its dialogue plays as an overlay,
+  // then `then` applies. Skipped once the battle is over or every hero is down
+  // (the loss is already decided). An event whose dialogue is missing is skipped
+  // (warning in dev) so the battle cannot soft-lock.
+  async checkEvents() {
+    const events = this.battleDef.events;
+    if (!events?.length || this.battleOver || this.heroes.every((h) => h.hp <= 0)) return;
+    const ctx = {
+      round: this.stats.turns,
+      playerHits: this.counters.playerHits,
+      immuneSeen: this.counters.immuneSeen,
+      enemies: this.enemies.map((e) => ({ hp: e.hp, maxHp: e.maxHp })),
+    };
+    for (const event of dueEvents(events, this.firedEvents, ctx)) {
+      if (this.battleOver) return;
+      this.firedEvents.add(event.id);
+      if (event.dialogue) {
+        if (!dialogues[event.dialogue]) {
+          if (import.meta.env.DEV) console.warn(`battle event "${event.id}": no dialogue "${event.dialogue}", skipped`);
+          continue;
+        }
+        await this.playDialogueOverlay(event.dialogue);
+      }
+      if (event.then === 'endBattle') {
+        this.onBattleEnd('INTERRUPTED');
+        return;
+      }
+      if (event.then?.setFlag) this.flags.add(event.then.setFlag);
+    }
+  }
+
+  // Flags set by battle events ({setFlag}); e.g. an enemy's refuseUntilFlag reads this.
+  hasFlag(name) {
+    return this.flags.has(name);
   }
 
   // Keepsake: the battle pauses for a conversation, then Rhea's Echo fills
@@ -1871,6 +1933,7 @@ export default class BattleScene extends Phaser.Scene {
 
   // An immune hit: no damage, no Echo, no poise. The body flickers and "IMMUNE" pops up.
   passThrough(target) {
+    this.counters.immuneSeen = true;
     const s = techniques.strike;
     Fx.flash(this, [target.body, ...Object.values(target.parts).map((p) => p.img)], 60);
     Fx.popText(this, target.container.x, target.container.y, s.immuneText, s.immuneColor, qte.text);
@@ -1973,6 +2036,7 @@ export default class BattleScene extends Phaser.Scene {
     playSfx('hit');
 
     if (target.isHero) this.stats.damageTaken += Math.min(dmg, target.hp);
+    else if (this.playerAction && dmg > 0) this.actionLanded = true;
     target.hp = Math.max(0, target.hp - dmg);
     this.updateLabel(target);
     if (target.isHero) this.refreshHud();
@@ -2101,13 +2165,14 @@ export default class BattleScene extends Phaser.Scene {
       }
     }
 
+    // INTERRUPTED (a battle event's endBattle): no Victory text unless
+    // ui.battleEnd.interruptedText is set (empty = nothing drawn).
+    const text = { WIN: cfg.victoryText, ERROR: cfg.errorText, INTERRUPTED: cfg.interruptedText ?? '' }[result] ?? cfg.loseText;
     const style = { fontFamily: ui.font, fontSize: `${cfg.fontSize}px`, color: cfg.color, stroke: cfg.stroke, strokeThickness: cfg.strokeThickness };
-    const message = this.add
-      .text(180, cfg.textY, result === 'WIN' ? cfg.victoryText : result === 'ERROR' ? cfg.errorText : cfg.loseText, style)
-      .setOrigin(0.5)
-      .setDepth(cfg.depth)
-      .setAlpha(0);
-    this.tweens.add({ targets: message, alpha: 1, duration: cfg.fadeMs });
+    const message = text
+      ? this.add.text(180, cfg.textY, text, style).setOrigin(0.5).setDepth(cfg.depth).setAlpha(0)
+      : null;
+    if (message) this.tweens.add({ targets: message, alpha: 1, duration: cfg.fadeMs });
     this.showActiveHero(null);
     this.hints.hide();
 
@@ -2117,13 +2182,20 @@ export default class BattleScene extends Phaser.Scene {
       const band = this.add.rectangle(180, cfg.textY, viewRect().w, v.band.h, Number(v.band.color), v.band.alpha).setDepth(cfg.depth - 1).setStrokeStyle(1, Number(v.band.lineColor));
       band.setScale(1, 0);
       this.tweens.add({ targets: band, scaleY: 1, duration: v.popMs / 2, ease: 'Cubic.easeOut' });
-      message.setScale(v.popScale);
-      this.tweens.add({ targets: message, scale: 1, duration: v.popMs, ease: 'Back.easeOut' });
+      if (message) {
+        message.setScale(v.popScale);
+        this.tweens.add({ targets: message, scale: 1, duration: v.popMs, ease: 'Back.easeOut' });
+      }
       playSfx('victory');
     }
 
     // A short delay so the tap that ended the fight doesn't also skip this.
     this.time.delayedCall(cfg.inputDelayMs, () => {
+      if (result === 'INTERRUPTED') {
+        // No result card or grade: the Recall card, then the story goes on.
+        this.showRecall().then(() => this.continueChapter());
+        return;
+      }
       if (result === 'WIN') {
         const stats = { ...this.stats, maxChain: this.maxChain };
         const partyHp = this.heroes.reduce((sum, h) => sum + h.maxHp, 0);

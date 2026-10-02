@@ -7,6 +7,7 @@
 // options.sheetExists(fileName) -> bool: checks sheet files on disk (Node only).
 // Returns {errors: [...], warnings: [...]}.
 
+import { whenErrors, thenValid } from './BattleEvents.js';
 import { compileTrack } from './MusicData.js';
 import { echoMaxFor, learned, techniqueAt } from './Recall.js';
 
@@ -62,6 +63,18 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       if (!enemies[key]) err(`battles.${id}: no enemy "${key}" in enemies.json`);
     }
     if (!battle.enemies?.length) err(`battles.${id}: no enemies`);
+    // Generic events (grammar: see systems/BattleEvents.js).
+    if (battle.events !== undefined && !Array.isArray(battle.events)) err(`battles.${id}.events: must be a list`);
+    const eventIds = new Set();
+    (Array.isArray(battle.events) ? battle.events : []).forEach((ev, i) => {
+      const at = `battles.${id}.events[${i}]`;
+      if (typeof ev.id !== 'string' || !ev.id) err(`${at}: id must be a non-empty string`);
+      else if (eventIds.has(ev.id)) err(`${at}: duplicate event id "${ev.id}"`);
+      else eventIds.add(ev.id);
+      for (const m of whenErrors(ev.when)) err(`${at}: ${m}`);
+      if (ev.dialogue !== undefined && !dialogue[ev.dialogue]) err(`${at}: no dialogue "${ev.dialogue}" in dialogue.json`);
+      if (!thenValid(ev.then)) err(`${at}: then must be "continue", "endBattle" or {"setFlag": "<name>"}`);
+    });
   }
 
   // Dialogue

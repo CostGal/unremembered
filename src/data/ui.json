@@ -182,6 +182,7 @@
     "victoryText": "Victory",
     "loseText": "The memory fades…",
     "errorText": "The memory slips…",
+    "interruptedText": "",
     "continueText": "Tap to continue",
     "retryText": "Retry",
     "textY": 300,

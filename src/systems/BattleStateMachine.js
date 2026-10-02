@@ -5,6 +5,7 @@ export default class BattleStateMachine {
 
   async run(heroes, enemies) {
     await this.hooks.intro();
+    if (this.hooks.isOver?.()) return 'INTERRUPTED';
 
     while (true) {
       if (this.hooks.roundStart) this.hooks.roundStart();
@@ -14,6 +15,8 @@ export default class BattleStateMachine {
         await this.hooks.playerTurn(hero);
         if (this.hooks.afterTurn) await this.hooks.afterTurn();
 
+        // A battle event (endBattle) already ended the fight: no finish().
+        if (this.hooks.isOver?.()) return 'INTERRUPTED';
         if (this.hooks.allEnemiesDown()) return this.finish('WIN');
       }
 
@@ -23,6 +26,7 @@ export default class BattleStateMachine {
         await this.hooks.enemyTurn(enemy);
         if (this.hooks.afterTurn) await this.hooks.afterTurn();
 
+        if (this.hooks.isOver?.()) return 'INTERRUPTED';
         if (this.hooks.allHeroesDown()) return this.finish('LOSE');
         // A parry counter can finish the last enemy during its own turn.
         if (this.hooks.allEnemiesDown()) return this.finish('WIN');
