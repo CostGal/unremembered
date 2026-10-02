@@ -405,3 +405,38 @@ export function gradientTexture(scene, w, h, color, alpha) {
   texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
   return key;
 }
+
+// The procedural floor band (a platform whose art isn't delivered): a vertical
+// gradient from edgeColor at edgeAlpha (top) to color at bottomAlpha, with a
+// 1 px light line on the top edge. p = environments.json platform.
+export function floorTexture(scene, w, h, p) {
+  const key = `fx_floor_${w}x${h}_${p.color}_${p.edgeColor}_${p.edgeAlpha}_${p.bottomAlpha}`;
+  if (scene.textures.exists(key)) return key;
+  const texture = scene.textures.createCanvas(key, w, h);
+  const ctx = texture.getContext();
+  const rgba = (c, a) => {
+    const { r, g, b } = Phaser.Display.Color.IntegerToRGB(Number(c));
+    return `rgba(${r},${g},${b},${a})`;
+  };
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, rgba(p.edgeColor, p.edgeAlpha));
+  grad.addColorStop(1, rgba(p.color, p.bottomAlpha));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = rgba(p.edgeColor, 1);
+  ctx.fillRect(0, 0, w, 1);
+  texture.refresh();
+  texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+  return key;
+}
+
+// A soft dark ellipse under a combatant's feet (an entity container child at
+// the feet), sized from the unscaled frame width: widthPct / heightPct of it.
+// cfg = ui.battleLayout.shadow.
+export function shadow(scene, frameW, cfg) {
+  return scene.add
+    .image(0, 0, glowTexture(scene, cfg.texRadius))
+    .setDisplaySize(frameW * cfg.widthPct, frameW * cfg.heightPct)
+    .setTint(Number(cfg.color))
+    .setAlpha(cfg.alpha);
+}

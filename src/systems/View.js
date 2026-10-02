@@ -47,9 +47,10 @@ export function install(game) {
 
 // Fills the side margins next to a 360 px wide image with mirrored copies of
 // its edges (seamless at the seam, keeps the integer pixel scale). Returns
-// the extra images (empty when there are no margins).
-export function mirrorEdges(scene, image) {
-  if (!VIEW.pad) return [];
+// the extra images (empty when there are no margins). `force` makes the copies
+// even without margins: an image that drifts sideways needs them at the seams.
+export function mirrorEdges(scene, image, force = false) {
+  if (!VIEW.pad && !force) return [];
   const left = image.x - image.displayWidth / 2;
   const right = image.x + image.displayWidth / 2;
   const make = (x) =>

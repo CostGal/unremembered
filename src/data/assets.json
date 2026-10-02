@@ -66,6 +66,8 @@
   "backgrounds": {
     "street_rain": { "file": "bg/street_rain.png", "w": 360, "h": 360 },
     "records_office": { "file": "bg/records_office.png", "w": 360, "h": 360 },
+    "street_rain_platform": { "file": "bg/street_rain_platform.png", "w": 360, "h": 110, "optional": true },
+    "records_office_platform": { "file": "bg/records_office_platform.png", "w": 360, "h": 104, "optional": true },
     "memory_city": { "file": "bg/memory_city.png", "w": 360, "h": 360 }
   },
   "ui": {

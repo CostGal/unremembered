@@ -295,6 +295,25 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     const c = data.qte.difficulties[id]?.enemyDefendChance;
     if (!(typeof c === 'number' && c >= 0 && c <= 1)) err(`qte.difficulties.${id}.enemyDefendChance must be a number in [0, 1]`);
   }
+  // Battle environments: floor platform + background drift (environments.json)
+  for (const [id, env] of Object.entries(data.environments || {})) {
+    const at = `environments.${id}`;
+    const p = env.platform;
+    if (p !== undefined) {
+      if (!backgrounds[p.key]) err(`${at}.platform.key: "${p.key}" is not in assets.json backgrounds`);
+      if (!(typeof p.y === 'number' && p.y >= 0 && p.y <= 360)) err(`${at}.platform.y must be a number within 0..360`);
+      for (const k of ['color', 'edgeColor']) if (!Number.isFinite(Number(p[k]))) err(`${at}.platform.${k} must be a 0x colour string`);
+      for (const k of ['edgeAlpha', 'bottomAlpha']) if (!(typeof p[k] === 'number' && p[k] >= 0 && p[k] <= 1)) err(`${at}.platform.${k} must be a number in [0, 1]`);
+      if (typeof p.depth !== 'number') err(`${at}.platform.depth must be a number`);
+    }
+    const d = env.drift;
+    if (d !== undefined && !(typeof d.x === 'number' && d.x >= 0 && typeof d.ms === 'number' && d.ms > 0)) err(`${at}.drift: x must be a number >= 0 and ms > 0`);
+  }
+  const sh = ui.battleLayout?.shadow;
+  if (sh !== undefined) {
+    for (const k of ['widthPct', 'heightPct', 'texRadius']) if (!(typeof sh[k] === 'number' && sh[k] > 0)) err(`ui.battleLayout.shadow.${k} must be a number > 0`);
+    if (!Number.isFinite(Number(sh.color)) || !(typeof sh.alpha === 'number' && sh.alpha >= 0 && sh.alpha <= 1) || typeof sh.offsetY !== 'number') err('ui.battleLayout.shadow: color, alpha (0-1) and offsetY are required');
+  }
   const melee = ui.battleLayout?.melee;
   for (const k of ['gap', 'approachMs', 'returnMs', 'reachDefault']) if (typeof melee?.[k] !== 'number' || melee[k] < 0) err(`ui.battleLayout.melee.${k} must be a number >= 0`);
   const party = ui.battleLayout?.defaultParty;

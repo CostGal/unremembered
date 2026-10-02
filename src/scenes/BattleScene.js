@@ -31,7 +31,7 @@ import { effectMax, effectTotal, ownedFragments } from '../systems/Fragments.js'
 import { battleXp, echoMaxFor, growth, learned, levelFor, techniqueAt, xpForLevel } from '../systems/Recall.js';
 import RecallCard from '../systems/RecallCard.js';
 import { animKey, hasSheet, playLoop, playOnce, SheetDriver, trace } from '../systems/SpriteAnims.js';
-import { whenReady } from '../systems/Assets.js';
+import { isRealTexture, whenReady } from '../systems/Assets.js';
 
 const layout = ui.battleLayout;
 
@@ -123,9 +123,10 @@ export default class BattleScene extends Phaser.Scene {
     this.activeMarker = null;
 
     const view = viewRect();
-    mirrorEdges(this, this.add.image(180, 180, this.battleDef.bg).setDisplaySize(360, 360));
-    this.add.rectangle(view.x, 0, view.w, 360, 0x000000, 0.2).setOrigin(0);
     this.environment = environments[this.battleDef.bg] || {};
+    this.createBackground();
+    this.add.rectangle(view.x, 0, view.w, 360, 0x000000, 0.2).setOrigin(0);
+    this.createPlatform();
     this.createEnvironmentFx();
 
     if (this.battleDef.nala) this.createNala();
@@ -247,6 +248,38 @@ export default class BattleScene extends Phaser.Scene {
 
   // ---------- Environment ----------
 
+  // The background picture (depth 0). With environments.json `drift` it sways
+  // slowly: the image and its mirrored edge copies sit in one container whose x
+  // is tweened, and the copies exist even without side margins so the seams
+  // never show at the drift extremes (they are a full 360 px wide each).
+  createBackground() {
+    const drift = this.environment.drift;
+    const image = this.add.image(180, 180, this.battleDef.bg).setDisplaySize(360, 360);
+    const edges = mirrorEdges(this, image, !!drift);
+    if (!drift) return;
+    const container = this.add.container(0, 0, [...edges, image]).setDepth(0);
+    this.bgDrift = container;
+    container.x = -drift.x;
+    this.tweens.add({ targets: container, x: drift.x, duration: drift.ms, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+
+  // The floor the fighters stand on (environments.json `platform`), a separate
+  // layer above the background and its dark overlay, below the lights and the
+  // fighters. The art is <bg>_platform.png (360 wide, from platform.y down to
+  // the HUD); without it a gradient band with a light top edge is drawn.
+  createPlatform() {
+    const p = this.environment.platform;
+    if (!p) return;
+    const view = viewRect();
+    const h = layout.sceneBottom - p.y;
+    if (isRealTexture(this, p.key)) {
+      const image = this.add.image(180, p.y + h / 2, p.key).setDisplaySize(360, h).setDepth(p.depth);
+      mirrorEdges(this, image).forEach((e) => e.setDepth(p.depth));
+      return;
+    }
+    this.add.image(view.x, p.y, Fx.floorTexture(this, view.w, h, p)).setOrigin(0).setDepth(p.depth);
+  }
+
   // Lantern glows, rain and vignette for this battle's background (environments.json).
   createEnvironmentFx() {
     const env = this.environment;
@@ -300,6 +333,7 @@ export default class BattleScene extends Phaser.Scene {
     const anims = animSet?.animations?.idle ? animSet.animations : null;
     const image = anims ? playLoop(this.add.sprite(0, 0, animKey('nala', 'idle')), 'nala', 'idle') : this.add.image(0, 0, 'nala');
     container.add([glow, image]);
+    this.addShadow(container, sprite.w || 128, sprite.h);
     const faces = anims ? animSet.facing || 'left' : sprite.faces || 'right';
     container.setScale(faces !== 'right' ? -1 : 1, 1);
     this.checkLayout('nala', feetY, sprite.h);
@@ -402,6 +436,11 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   finishEntity({ id, type, def, container, x, y, facing, isHero, body, parts = {}, height, anims = null, animSet }) {
+    // Ground shadow: the container's first child at the feet (local y = half the
+    // unscaled frame height), so it follows every move, dash and knockback.
+    const ds0 = def.displayScale ?? 1;
+    const frameW = anims ? animSet.frame_size[0] : this.manifest.sprites[def.body]?.w || 128;
+    this.addShadow(container, frameW, height / ds0);
     if (anims) {
       body = this.add.sprite(0, 0, animKey(type, 'idle'));
       container.add(body);
@@ -463,6 +502,14 @@ export default class BattleScene extends Phaser.Scene {
     if (!anims || anims.idle.placeholder) entity.bobTween = this.idleBob(container);
 
     return entity;
+  }
+
+  addShadow(container, frameW, frameH) {
+    const cfg = layout.shadow;
+    if (!cfg) return null;
+    const shadow = Fx.shadow(this, frameW, cfg).setPosition(0, frameH / 2 + cfg.offsetY);
+    container.addAt(shadow, 0);
+    return shadow;
   }
 
   idleBob(container) {
