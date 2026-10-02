@@ -7,3 +7,4 @@ Order: A1 #141 · #128+A5 #142 · #129+#139 · A2 #143 · A3 #144 · A4 #145 · 
 | issue | status | commit | checks |
 |---|---|---|---|
 | setup | done | – | issues #141–#160 created, comments on #128–#140 and #38; cutscene-check runs here (headless Chromium OK) |
+| A1 #141 | done | cd94583 | validate 0/0, build ok |
