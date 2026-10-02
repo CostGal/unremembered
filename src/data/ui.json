@@ -81,6 +81,7 @@
     "sceneBottom": 360,
     "labelGap": 6,
     "labelDepth": 900,
+    "attackerDepthGap": 1,
     "label": { "fontSize": 12, "color": "#f1efe8", "stroke": "#0b0d14", "strokeThickness": 3 },
     "heroes": { "rhea": { "x": 116, "feetY": 342 }, "dov": { "x": 76, "feetY": 300 } },
     "nala": { "x": 36, "feetY": 336 },

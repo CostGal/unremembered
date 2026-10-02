@@ -711,9 +711,14 @@ export default class BattleScene extends Phaser.Scene {
     const tech = techniques[action.techId];
     this.spendEcho(hero, tech.cost);
 
-    if (action.kind === 'strike') await this.playerStrike(hero, action.target);
-    else if (action.kind === 'ultimate') await this.playRecollection(hero, action.target);
-    else await this.runTechnique(hero, action.techId, action.target);
+    const restoreDepth = this.bringInFront(hero, action.target);
+    try {
+      if (action.kind === 'strike') await this.playerStrike(hero, action.target);
+      else if (action.kind === 'ultimate') await this.playRecollection(hero, action.target);
+      else await this.runTechnique(hero, action.techId, action.target);
+    } finally {
+      restoreDepth();
+    }
     this.tickStatuses(hero);
   }
 
@@ -780,20 +785,25 @@ export default class BattleScene extends Phaser.Scene {
 
     this.tapHint.setVisible(true);
     const hits = attack.hits || [attack];
-    const sheet = this.enemyAttackSheet(enemy, attack, hits.length);
-    for (let k = 0; k < hits.length; k++) {
-      if (target.hp <= 0 || enemy.hp <= 0) break;
-      const hit = {
-        ...hits[k],
-        unparryable: hits[k].unparryable ?? attack.unparryable ?? false,
-        // Sounds can be set per hit or once for the whole attack.
-        sfx: hits[k].sfx ?? attack.sfx,
-        impactSfx: hits[k].impactSfx ?? attack.impactSfx,
-      };
-      const result = await this.enemyHit(enemy, target, hit, sheet, k);
-      if (result === 'CANCEL') break;
+    const restoreDepth = this.bringInFront(enemy, target);
+    try {
+      const sheet = this.enemyAttackSheet(enemy, attack, hits.length);
+      for (let k = 0; k < hits.length; k++) {
+        if (target.hp <= 0 || enemy.hp <= 0) break;
+        const hit = {
+          ...hits[k],
+          unparryable: hits[k].unparryable ?? attack.unparryable ?? false,
+          // Sounds can be set per hit or once for the whole attack.
+          sfx: hits[k].sfx ?? attack.sfx,
+          impactSfx: hits[k].impactSfx ?? attack.impactSfx,
+        };
+        const result = await this.enemyHit(enemy, target, hit, sheet, k);
+        if (result === 'CANCEL') break;
+      }
+      if (sheet) await sheet.finish();
+    } finally {
+      restoreDepth();
     }
-    if (sheet) await sheet.finish();
     this.tapHint.setVisible(false);
     this.brace = null;
 
@@ -1707,6 +1717,19 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   // ---------- Attack execution ----------
+
+  // While an attacker acts on a target it draws in front of it (normally
+  // depth = feet line, so a lunge could pass behind the one it hits). Returns
+  // the function that puts it back at its own depth.
+  bringInFront(attacker, target) {
+    const c = attacker.container;
+    const base = c.depth;
+    const over = target?.container?.depth;
+    if (over !== undefined && base <= over) c.setDepth(over + layout.attackerDepthGap);
+    return () => {
+      if (c.active) c.setDepth(base);
+    };
+  }
 
   async playerStrike(hero, target) {
     const restX = hero.container.x;
