@@ -561,7 +561,8 @@
       "techniques": { "text": "Techniques spend your Echo" },
       "chain": { "text": "Chain PERFECTs for bonus damage", "always": true },
       "break": { "text": "Empty its pips to BREAK it", "always": true },
-      "status": { "text": "Statuses fade. Anchor clears them", "always": true }
+      "status": { "text": "Statuses fade. Anchor clears them", "always": true },
+      "recollection": { "text": "Recollection is ready. Make him relive it.", "always": true }
     }
   },
   "activeHero": { "color": "0x3fd0c9", "size": 7, "gapY": 6, "bobPx": 3, "bobMs": 380, "depth": 905, "nameColor": "#3fd0c9" },

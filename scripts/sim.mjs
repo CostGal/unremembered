@@ -240,7 +240,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
     const hurt = heroes.filter((h) => h.hp > 0 && h.hp < h.max * D.sim.policy.anchorBelow);
 
     // Recollection when full.
-    if (hero.def.canUltimate && hero.echo >= tech.recollection.cost) {
+    if (battle.recollection && hero.def.canUltimate && hero.echo >= tech.recollection.cost) {
       hero.echo -= tech.recollection.cost;
       st.recollections += 1;
       const r = tech.recollection;

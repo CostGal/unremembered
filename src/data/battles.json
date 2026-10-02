@@ -9,5 +9,5 @@
     "music": "battle"
   },
   "b3_hollows": { "bg": "street_rain", "enemies": ["hollow", "hollow"], "nala": true, "music": "battle" },
-  "boss_clerk": { "bg": "records_office", "enemies": ["clerk"], "nala": true, "music": "boss" }
+  "boss_clerk": { "bg": "records_office", "enemies": ["clerk"], "nala": true, "music": "boss", "recollection": true }
 }

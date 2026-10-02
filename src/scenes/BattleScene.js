@@ -86,6 +86,8 @@ export default class BattleScene extends Phaser.Scene {
     this.brace = null;
     this.activeHero = null;
     this.nala = null;
+    this.ultReady = false;
+    this.stopReadyAura();
     this.setTimeScale(1);
     playMusic(this.battleDef.music || null);
     setMusicIntensity(0);
@@ -98,6 +100,12 @@ export default class BattleScene extends Phaser.Scene {
     this.listenForBackground();
     addPauseButton(this, () => this.openPause(true));
     this.hints = new TutorialHints(this, !!this.battleDef.tutorial);
+    const followAura = () => this.followReadyAura();
+    this.events.on('update', followAura);
+    this.events.once('shutdown', () => {
+      this.events.off('update', followAura);
+      this.stopReadyAura();
+    });
     this.activeMarker = null;
 
     const view = viewRect();
@@ -443,6 +451,57 @@ export default class BattleScene extends Phaser.Scene {
     this.hud.update({
       heroes: this.heroes.map((h) => ({ hp: h.hp, maxHp: h.maxHp, echo: h.echo, echoMax: h.echoMax, statuses: this.statusList(h) })),
     });
+    this.syncRecollectionReady();
+  }
+
+  // Recollection is ready to cast: Rhea is up with full Echo in a battle that
+  // has the ultimate (battles.json recollection). A KO or spending the Echo
+  // ends it; the first frame it turns true plays the one-time burst (#139).
+  syncRecollectionReady() {
+    if (!this.heroes) return;
+    const rhea = this.heroes.find((h) => h.def.canUltimate);
+    const ready = !!rhea && rhea.hp > 0 && this.canUltimate(rhea);
+    if (ready === !!this.ultReady) return;
+    this.ultReady = ready;
+    if (!ready) {
+      this.stopReadyAura();
+      return;
+    }
+    const r = qte.recollection.ready;
+    const { x, y } = rhea.container;
+    Fx.screenFlash(this, r.flash, qte.flashDepth);
+    Fx.sparks(this, x, y, r.sparks.count, r.sparks, qte.ring.depth);
+    Fx.popText(this, x, y, r.text, r.textColor, qte.text);
+    playSfx(r.sfx);
+    this.startReadyAura(rhea);
+    this.hints.show('recollection');
+  }
+
+  // A pulsing gold glow behind Rhea while Recollection is ready.
+  startReadyAura(rhea) {
+    this.stopReadyAura();
+    const a = qte.recollection.ready.aura;
+    const glow = this.add
+      .image(0, 0, Fx.glowTexture(this, a.radius))
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setTint(Number(a.color))
+      .setAlpha(a.alpha[0]);
+    this.readyAura = { glow, rhea };
+    this.followReadyAura();
+    this.readyAuraTween = this.tweens.add({ targets: glow, alpha: a.alpha[1], duration: a.pulseMs, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+
+  followReadyAura() {
+    if (!this.readyAura) return;
+    const { glow, rhea } = this.readyAura;
+    glow.setPosition(rhea.container.x, rhea.container.y + qte.recollection.ready.aura.offsetY).setDepth(rhea.container.depth - 1);
+  }
+
+  stopReadyAura() {
+    if (this.readyAuraTween) this.readyAuraTween.stop();
+    this.readyAuraTween = null;
+    if (this.readyAura) this.readyAura.glow.destroy();
+    this.readyAura = null;
   }
 
   // Dev build only: tap a hero row (or keys 1/2) to take HP, tap a hero's Echo
@@ -600,7 +659,11 @@ export default class BattleScene extends Phaser.Scene {
           pulse: this.hints.isShowing('techniques'),
         },
       ];
-      main.push(this.ultimateItem(hero, name(labels.recollection)));
+      // Only battles with `recollection` get the ultimate slot; elsewhere it stays empty.
+      const ultimate = this.ultimateItem(hero, name(labels.recollection));
+      if (ultimate) main.push(ultimate);
+      // The banner may have been busy when the Echo filled: it gets another chance here.
+      if (ultimate?.value === 'ultimate') this.hints.show('recollection');
       const pick = await this.menu.show(main);
 
       if (pick === 'strike') {
@@ -628,6 +691,7 @@ export default class BattleScene extends Phaser.Scene {
   // Echo, on either hero's turn, so the ultimate and what charges it are
   // visible from the first fight.
   ultimateItem(hero, label) {
+    if (!this.battleDef.recollection) return null;
     if (this.canUltimate(hero)) return { slot: 'ultimate', label, value: 'ultimate', pulse: true, variant: 'primary' };
     const rhea = this.heroes.find((h) => h.def.canUltimate) || this.heroes[0];
     const max = techniques.recollection.cost;
@@ -636,7 +700,7 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   canUltimate(hero) {
-    return !!hero.def.canUltimate && hero.echo >= techniques.recollection.cost;
+    return !!this.battleDef.recollection && !!hero.def.canUltimate && hero.echo >= techniques.recollection.cost;
   }
 
   // A hero's technique as it is at their Recall level (techniques.json `levels`).
@@ -1288,6 +1352,7 @@ export default class BattleScene extends Phaser.Scene {
   async playRecollection(hero, target) {
     const tech = techniques.recollection;
     const r = qte.recollection;
+    this.hints.done('recollection');
 
     const view = viewRect();
     const overlay = this.add.rectangle(view.x, 0, view.w, layout.sceneBottom, Number(r.tint.color), 0).setOrigin(0).setDepth(r.tint.depth);

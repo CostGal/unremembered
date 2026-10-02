@@ -128,6 +128,14 @@
     "bg": "memory_city",
     "bgDepth": 3,
     "counter": { "text": "{i}/{n}", "fontSize": 18, "gap": 6, "stroke": "#0b0d14", "strokeThickness": 3, "popScale": 1.5, "popMs": 200 },
-    "tint": { "color": "0xf0a040", "alpha": 0.22, "fadeMs": 400, "depth": 870 }
+    "tint": { "color": "0xf0a040", "alpha": 0.22, "fadeMs": 400, "depth": 870 },
+    "ready": {
+      "text": "MEMORY READY",
+      "textColor": "#f0c060",
+      "sfx": "ultimate",
+      "flash": { "color": "0xf0c060", "alpha": 0.35, "ms": 450 },
+      "sparks": { "count": 26, "color": "0xf0c060", "speed": [50, 150], "lifeMs": 600, "size": 2 },
+      "aura": { "color": "0xf0c060", "radius": 58, "alpha": [0.25, 0.6], "pulseMs": 700, "offsetY": -4 }
+    }
   }
 }
