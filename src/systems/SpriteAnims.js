@@ -3,8 +3,25 @@
 // public/assets/sprites/<id>_<anim>.png (horizontal strips, facing left).
 // A character without that JSON keeps using its cutout rig.
 
+// animSet aliases (characters.json / enemies.json `animSet`): an entity whose
+// def says "animSet": "<other id>" plays that id's sheets (dov_rival -> dov).
+// aliasAnimationSets registers them once the sets are fetched; animKey then
+// resolves through them, so every call site (playLoop, SheetDriver, ...) keeps
+// using its own id and ends up on the shared texture / Phaser animation.
+const aliases = {};
+
+export function aliasAnimationSets(sets, defs) {
+  for (const [id, def] of Object.entries(defs)) {
+    if (!def.animSet || def.animSet === id) continue;
+    if (sets[id]) continue; // its own sheets win
+    if (!sets[def.animSet]) continue; // no set to share: the rig fallback
+    sets[id] = sets[def.animSet];
+    aliases[id] = def.animSet;
+  }
+}
+
 export function animKey(id, name) {
-  return `${id}_${name}`;
+  return `${aliases[id] || id}_${name}`;
 }
 
 // True when the character has a real (non-placeholder) sheet for this
@@ -47,6 +64,7 @@ export async function fetchAnimationSets(ids) {
 
 export function queueSheets(load, sets) {
   for (const [id, set] of Object.entries(sets)) {
+    if (aliases[id]) continue;
     for (const [name, def] of Object.entries(set.animations)) {
       // FX sheets (e.g. blast_projectile) carry their own frame_size.
       const [frameWidth, frameHeight] = def.frame_size || set.frame_size;
@@ -63,6 +81,7 @@ export function queueSheets(load, sets) {
 // that still look like the character while its sheets are missing.
 export function buildAnimations(scene, sets, bodyDefs) {
   for (const [id, set] of Object.entries(sets)) {
+    if (aliases[id]) continue;
     for (const [name, def] of Object.entries(set.animations)) {
       const key = animKey(id, name);
       if (!scene.textures.exists(key)) {

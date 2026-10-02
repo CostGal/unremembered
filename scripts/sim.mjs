@@ -142,7 +142,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
   // Recall: the level a playthrough reaches by this battle (levels.json).
   const stepIndex = D.chapter.findIndex((step) => step.type === 'battle' && step.id === battleId);
   const level = levelFor(chapterXpBefore(D.chapter, stepIndex < 0 ? 0 : stepIndex, D.battles, D.enemies), D.levels);
-  const heroes = ['rhea', 'dov'].map((id) => {
+  const heroes = (battle.party ?? D.ui.battleLayout.defaultParty).map((id) => {
     const def = D.characters[id];
     const g = growth(id, level, D.levels);
     const hp = def.hp + g.hp;
@@ -154,7 +154,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], flags: [], playerHits: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   // Echo is per hero (each has their own reserve).
   const gain = (hero, n) => (hero.echo = Math.max(0, Math.min(hero.echoMax, hero.echo + n)));
-  const rhea = heroes[0];
+  const rhea = heroes.find((h) => h.id === 'rhea'); // may be absent (battles.json party)
   const living = (list) => list.filter((e) => e.hp > 0);
   const immune = (enemy, techId) => !!enemy.def.immune?.includes(techId);
 
@@ -216,8 +216,10 @@ function simulateBattle(battleId, profileName, story, rnd) {
         st.keepsake = true;
         st.ms += T.keepsakeMs;
         // The Keepsake unlocks Rhea's last pips, then fills them.
-        rhea.echoMax = Math.max(rhea.echoMax, D.battleEvents.keepsake_burn.echoMax || rhea.echoMax);
-        gain(rhea, rhea.echoMax);
+        if (rhea) {
+          rhea.echoMax = Math.max(rhea.echoMax, D.battleEvents.keepsake_burn.echoMax || rhea.echoMax);
+          gain(rhea, rhea.echoMax);
+        }
       } else if (D.battleEvents[ev]?.dialogue && living(enemies).length) {
         st.ms += T.insightMs;
       }
@@ -358,6 +360,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
     }
     const targets = living(heroes);
     if (!targets.length) return;
+    // refuseUntilFlag (enemies.json): the enemy won't attack until the event flag is set.
+    if (enemy.def.refuseUntilFlag && !st.flags.includes(enemy.def.refuseUntilFlag)) {
+      st.ms += T.refuseMs;
+      return;
+    }
     const stanceHero = st.stance && st.stance.hero.hp > 0 ? st.stance.hero : null;
     const target = stanceHero || targets[Math.floor(rnd() * targets.length)];
     let attack;
@@ -451,7 +458,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
     for (const hero of heroes) {
       if (hero.hp <= 0) continue;
       playerTurn(hero);
-      st.echoCurve.push(rhea.echo);
+      if (rhea) st.echoCurve.push(rhea.echo);
       afterTurn();
       checkEvents();
       if (st.interrupted) return interrupted();

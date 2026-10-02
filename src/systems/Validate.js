@@ -63,6 +63,13 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       if (!enemies[key]) err(`battles.${id}: no enemy "${key}" in enemies.json`);
     }
     if (!battle.enemies?.length) err(`battles.${id}: no enemies`);
+    // party (default ui.battleLayout.defaultParty): hero ids from characters.json
+    if (battle.party !== undefined) {
+      if (!Array.isArray(battle.party) || !battle.party.length) err(`battles.${id}.party: must be a non-empty list of hero ids`);
+      for (const hero of Array.isArray(battle.party) ? battle.party : []) {
+        if (!characters[hero]) err(`battles.${id}.party: no character "${hero}" in characters.json`);
+      }
+    }
     // Generic events (grammar: see systems/BattleEvents.js).
     if (battle.events !== undefined && !Array.isArray(battle.events)) err(`battles.${id}.events: must be a list`);
     const eventIds = new Set();
@@ -186,6 +193,23 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       if (p.onEnter && !BATTLE_EVENTS.includes(p.onEnter)) err(`enemies.${id}: unknown phase event "${p.onEnter}"`);
     }
   }
+  // animSet: borrow another id's sheets (dov_rival -> dov). Warn only: without
+  // the set, the entity falls back to its rig.
+  const sheetOwners = { ...characters, ...enemies, ...allies };
+  for (const [group, defs] of [['characters', characters], ['enemies', enemies]]) {
+    for (const [id, def] of Object.entries(defs)) {
+      if (def.animSet !== undefined) {
+        if (typeof def.animSet !== 'string' || !sheetOwners[def.animSet]) err(`${group}.${id}: animSet "${def.animSet}" is not a character, enemy or ally key`);
+        else if (!animationSets[def.animSet]) warn(`${group}.${id}: animSet "${def.animSet}" has no ${def.animSet}_animations.json (rig fallback)`);
+      }
+      if (def.refuseUntilFlag !== undefined && typeof def.refuseUntilFlag !== 'string') err(`${group}.${id}: refuseUntilFlag must be a string`);
+    }
+  }
+  const party = ui.battleLayout?.defaultParty;
+  if (party !== undefined && (!Array.isArray(party) || !party.length || party.some((h) => !characters[h]))) err('ui.battleLayout.defaultParty: must list hero ids from characters.json');
+  const refuse = battleEvents.refuse;
+  if (refuse && !(typeof refuse.text === 'string' && refuse.text && refuse.ms > 0 && refuse.color)) err('battleEvents.refuse: text, ms and color are required');
+
   const FRAGMENT_EFFECTS = ['startEcho', 'nalaExtraUses', 'perfectWindowMs', 'dovMaxHp', 'perfectEchoBonus', 'blastCritChance'];
   for (const [id, f] of Object.entries(data.fragments?.pool || {})) {
     for (const key of Object.keys(f.effects || {})) {

@@ -126,7 +126,8 @@ export default class BattleScene extends Phaser.Scene {
 
     if (this.battleDef.nala) this.createNala();
 
-    const heroKeys = ['rhea', 'dov'];
+    // The party for this battle (battles.json `party`, else ui.battleLayout.defaultParty).
+    const heroKeys = this.battleDef.party ?? layout.defaultParty;
     this.heroes = heroKeys.map((key) =>
       this.createEntity(key, key, characters[key], layout.heroes[key], 'right', true)
     );
@@ -147,8 +148,10 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     const dov = this.heroes.find((h) => h.type === 'dov');
-    dov.maxHp += effectTotal(this.fragments, 'dovMaxHp');
-    dov.hp = dov.maxHp;
+    if (dov) {
+      dov.maxHp += effectTotal(this.fragments, 'dovMaxHp');
+      dov.hp = dov.maxHp;
+    }
 
     const enemyKeys = this.battleDef.enemies;
     const slots = this.enemySlots(enemyKeys);
@@ -874,6 +877,14 @@ export default class BattleScene extends Phaser.Scene {
     }
     const livingHeroes = this.heroes.filter((h) => h.hp > 0);
     if (livingHeroes.length === 0) return;
+    // An enemy that won't fight yet (enemies.json refuseUntilFlag, set by a battle
+    // event): a pop of text and a pause instead of an attack. No ring, no tap hint.
+    if (enemy.def.refuseUntilFlag && !this.hasFlag(enemy.def.refuseUntilFlag)) {
+      const r = battleEvents.refuse;
+      Fx.popText(this, enemy.container.x, enemy.container.y, enemy.def.refuseText ?? r.text, r.color, qte.text);
+      await this.wait(enemy.def.refuseMs ?? r.ms);
+      return;
+    }
     const stanceHero = this.stance && this.stance.hero.hp > 0 ? this.stance.hero : null;
     const target = stanceHero || Phaser.Utils.Array.GetRandom(livingHeroes);
     let attack;
