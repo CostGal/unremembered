@@ -13,3 +13,4 @@ Order: A1 #141 · #128+A5 #142 · #129+#139 · A2 #143 · A3 #144 · A4 #145 · 
 | A2 #143 | done | cc47fb3 | validate 0/0, build ok, sim unchanged; headless test of endBattle + setFlag + firstOf passed |
 | A3 #144 | done | 6c32159 | validate 0/0, build ok, sim unchanged; headless duel test (1 hero vs dov_rival, refuse then rings) WIN, real + fake sheets |
 | A4 #145 | done | 4a2f5bc | validate 0/0, build ok, sim b0_duel 100% ~4.6 rounds ~1 min; headless run: refuse → wake → nala, INTERRUPTED end, Recall 2 card, Retry replays events |
+| A6 #146 | done | 3de5710 | validate 0/0, build ok, sim 100% (Recall 2 preview 7.6 rounds non-gamer); headless: break banner first, WIN |
