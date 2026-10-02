@@ -235,6 +235,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   for (const [group, defs] of [['characters', characters], ['enemies', enemies]]) {
     for (const [id, def] of Object.entries(defs)) {
       if (def.displayScale !== undefined && !(Number.isInteger(def.displayScale) && def.displayScale > 0)) err(`${group}.${id}: displayScale must be a positive integer`);
+      if (def.reach !== undefined && !(typeof def.reach === 'number' && def.reach > 0)) err(`${group}.${id}: reach must be a positive number (half the body art width, px)`);
       if (def.tint !== undefined && !(typeof def.tint === 'string' && /^0x[0-9a-fA-F]{6}$/.test(def.tint))) err(`${group}.${id}: tint must be a hex string like "0x9aa8b8"`);
     }
   }
@@ -242,10 +243,13 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     const attacks = e.phases ? e.phases.flatMap((p) => p.attacks || []) : e.attacks || [];
     for (const a of attacks) {
       for (const hit of [a, ...(a.hits || [])]) {
+        if (hit.melee !== undefined && typeof hit.melee !== 'boolean') err(`enemies.${id}.${a.id}: melee must be true or false`);
         if (hit.lifesteal !== undefined && !(typeof hit.lifesteal === 'number' && hit.lifesteal >= 0)) err(`enemies.${id}.${a.id}: lifesteal must be a number >= 0`);
       }
     }
   }
+  const melee = ui.battleLayout?.melee;
+  for (const k of ['gap', 'approachMs', 'returnMs', 'reachDefault']) if (typeof melee?.[k] !== 'number' || melee[k] < 0) err(`ui.battleLayout.melee.${k} must be a number >= 0`);
   const party = ui.battleLayout?.defaultParty;
   if (party !== undefined && (!Array.isArray(party) || !party.length || party.some((h) => !characters[h]))) err('ui.battleLayout.defaultParty: must list hero ids from characters.json');
   const steal = battleEvents.lifesteal;

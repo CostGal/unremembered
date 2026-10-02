@@ -35,7 +35,6 @@ import { whenReady } from '../systems/Assets.js';
 const layout = ui.battleLayout;
 
 const ATTACK_DURATION_MS = 400;
-const DASH_DURATION_MS = 180;
 const LUNGE_OUT_MS = 150;
 const WINDUP_MS = 200;
 // Two 0xRRGGBB tints multiplied channel by channel (how two lights stack).
@@ -440,6 +439,10 @@ export default class BattleScene extends Phaser.Scene {
       facing,
       isHero,
       restX: x,
+      restY: y,
+      feetY: y + height / 2,
+      // Half the body art's width, scaled: how close a melee attacker stands.
+      reach: (def.reach ?? layout.melee.reachDefault) * (def.displayScale ?? 1),
       height,
       // The container's own (positive) scale: tweens that squash it multiply this.
       baseScale: def.displayScale ?? 1,
@@ -931,7 +934,11 @@ export default class BattleScene extends Phaser.Scene {
     this.tapHint.setVisible(true);
     const hits = attack.hits || [attack];
     const restoreDepth = this.bringInFront(enemy, target);
+    // A melee attack walks up to its target first (before the first ring) and
+    // walks home after the last hit, whatever ended the attack.
+    const melee = !!attack.melee;
     try {
+      if (melee) await this.meleeApproach(enemy, target);
       const sheet = this.enemyAttackSheet(enemy, attack, hits.length);
       for (let k = 0; k < hits.length; k++) {
         if (target.hp <= 0 || enemy.hp <= 0) break;
@@ -947,6 +954,7 @@ export default class BattleScene extends Phaser.Scene {
       }
       if (sheet) await sheet.finish();
     } finally {
+      if (melee) await this.meleeReturn(enemy);
       restoreDepth();
     }
     this.tapHint.setVisible(false);
@@ -1209,8 +1217,9 @@ export default class BattleScene extends Phaser.Scene {
     trace(`fallback:lunge:${enemy.type}`);
     const lunge = enemy.def.attack?.distance !== undefined ? enemy.def.attack : FALLBACK_LUNGE;
     const dir = enemy.facing === 'right' ? 1 : -1;
-    const restX = enemy.restX;
     const c = enemy.container;
+    // Lunges from wherever the attacker stands (home, or beside its target).
+    const restX = c.x;
 
     const windup = this.tweens.add({ targets: c, x: restX - dir * (lunge.windupPx || 0), duration: WINDUP_MS, ease: 'Quad.easeOut' });
 
@@ -1943,11 +1952,41 @@ export default class BattleScene extends Phaser.Scene {
     };
   }
 
-  async playerStrike(hero, target) {
-    const restX = hero.container.x;
-    const approachX = Phaser.Math.Linear(restX, target.container.x, 0.7);
+  // ---------- Melee approach (ui.battleLayout.melee) ----------
 
-    await this.tweenPromise(hero.container, { x: approachX }, DASH_DURATION_MS, 'Cubic.easeOut');
+  // Where a melee attacker stands to hit target: beside it (the facing side
+  // of the target), feet on the target's feet line.
+  meleeSpot(attacker, target) {
+    const m = layout.melee;
+    const dir = attacker.facing === 'right' ? 1 : -1;
+    const x = target.container.x - dir * (target.reach + attacker.reach + m.gap);
+    return { x: clampX(x, attacker.reach * 2), y: target.feetY - attacker.height / 2 };
+  }
+
+  // The idle bob tweens the container's y: stopped while the entity moves.
+  pauseBob(entity) {
+    if (entity.bobTween) entity.bobTween.stop();
+  }
+
+  resumeBob(entity) {
+    if (entity.bobTween && entity.hp > 0) entity.bobTween = this.idleBob(entity.container);
+  }
+
+  async meleeApproach(attacker, target) {
+    const spot = this.meleeSpot(attacker, target);
+    this.pauseBob(attacker);
+    await this.tweenPromise(attacker.container, spot, layout.melee.approachMs, 'Cubic.easeOut');
+  }
+
+  // Back to its own spot. A fallen attacker stays where it fell.
+  async meleeReturn(attacker) {
+    if (attacker.hp <= 0) return;
+    await this.tweenPromise(attacker.container, { x: attacker.restX, y: attacker.restY }, layout.melee.returnMs, 'Cubic.easeInOut');
+    this.resumeBob(attacker);
+  }
+
+  async playerStrike(hero, target) {
+    await this.meleeApproach(hero, target);
 
     // A Strike deals its damage once, on the first impact frame.
     const dmg = Phaser.Math.Between(hero.strike[0], hero.strike[1]);
@@ -1960,7 +1999,7 @@ export default class BattleScene extends Phaser.Scene {
       }
     });
 
-    await this.tweenPromise(hero.container, { x: restX }, DASH_DURATION_MS, 'Cubic.easeInOut');
+    await this.meleeReturn(hero);
   }
 
   // enemies.json "immune": ["strike"] (Hollows): steel passes through like smoke.

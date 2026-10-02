@@ -85,6 +85,7 @@
     "labelMargin": 4,
     "labelDepth": 900,
     "attackerDepthGap": 1,
+    "melee": { "gap": 6, "approachMs": 180, "returnMs": 180, "reachDefault": 40 },
     "label": { "fontSize": 12, "color": "#f1efe8", "stroke": "#0b0d14", "strokeThickness": 3 },
     "defaultParty": ["rhea", "dov"],
     "heroes": { "rhea": { "x": 116, "feetY": 342 }, "dov": { "x": 76, "feetY": 300 } },

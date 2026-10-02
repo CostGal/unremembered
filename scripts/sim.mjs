@@ -397,6 +397,8 @@ function simulateBattle(battleId, profileName, story, rnd) {
         return;
       }
     }
+    // A melee attacker walks up before the first ring and home after the last (approach + return).
+    if (attack.melee) st.ms += T.meleeMs;
     for (const h of attack.hits || [attack]) {
       const hit = { ...h, unparryable: h.unparryable ?? attack.unparryable ?? false };
       if (target.hp <= 0 || enemy.hp <= 0) break;

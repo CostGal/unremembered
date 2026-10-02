@@ -19,6 +19,7 @@
     "targetMs": 900,
     "tutorialHintsMs": 10000,
     "dashMs": 180,
+    "meleeMs": 360,
     "attackMs": 700,
     "castMs": 1100,
     "counterMs": 900,
