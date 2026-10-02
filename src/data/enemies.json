@@ -1,6 +1,6 @@
 {
   "blank": {
-    "name": "Blank",
+    "name": "Forgotten",
     "hp": 80,
     "xp": 15,
     "poise": 6,
@@ -34,7 +34,7 @@
     ]
   },
   "clerk": {
-    "name": "The Clerk",
+    "name": "Quill",
     "hp": 440,
     "xp": 120,
     "poise": 20,
