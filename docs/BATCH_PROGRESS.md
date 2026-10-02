@@ -11,3 +11,4 @@ Order: A1 #141 · #128+A5 #142 · #129+#139 · A2 #143 · A3 #144 · A4 #145 · 
 | #128+A5 #142 | done | 69c257d | validate 0/0, build ok, sim 100% wins (non-gamer chapter 13.6 min) |
 | #129+#139 | done | 945c629 | validate 0/0, build ok, sim boss recoll 1.00 / others 0; battle lab: keepsake case passes; pre-existing failing 'tap 2nd enemy' case on b3 (Hollows immune to Strike) noted for A10 |
 | A2 #143 | done | cc47fb3 | validate 0/0, build ok, sim unchanged; headless test of endBattle + setFlag + firstOf passed |
+| A3 #144 | done | 6c32159 | validate 0/0, build ok, sim unchanged; headless duel test (1 hero vs dov_rival, refuse then rings) WIN, real + fake sheets |
