@@ -492,8 +492,30 @@
     "dim": { "color": "0x04050b", "alpha": 0.72 },
     "title": { "text": "Paused", "y": 260, "fontSize": 26, "color": "#f1efe8" },
     "tap": { "text": "Tap to continue", "y": 320, "fontSize": 18, "color": "#3fd0c9", "pulseAlpha": 0.35, "pulseMs": 700 },
-    "inputDelayMs": 250
+    "inputDelayMs": 250,
+    "menu": {
+      "panel": { "y": 330, "w": 312, "h": 328, "fill": "0x111726", "fillAlpha": 0.94, "stroke": "0x3fd0c9", "strokeAlpha": 0.6, "radius": 10 },
+      "titleY": 210,
+      "button": { "w": 264, "h": 60, "fontSize": 18 },
+      "firstY": 284,
+      "spacing": 76,
+      "items": [
+        { "id": "resume", "label": "Resume", "variant": "primary" },
+        { "id": "settings", "label": "Settings", "variant": "normal" },
+        { "id": "quit", "label": "Quit to Menu", "variant": "secondary" }
+      ],
+      "confirm": {
+        "title": "Quit to Menu?",
+        "text": "Your progress in this chapter will be lost.",
+        "textY": 268,
+        "textStyle": { "fontSize": 14, "color": "#b8bccb", "wrap": 260 },
+        "yes": { "label": "Quit", "variant": "secondary", "y": 336 },
+        "no": { "label": "Keep playing", "variant": "primary", "y": 412 }
+      },
+      "quitScenes": ["Battle", "Dialogue", "Cutscene", "Reward", "Settings"]
+    }
   },
+  "pauseButton": { "x": 44, "y": 44, "hit": 56, "radius": 20, "fill": "0x111726", "fillAlpha": 0.7, "stroke": "0x3fd0c9", "strokeAlpha": 0.6, "strokeW": 2, "barColor": "0xf1efe8", "barW": 4, "barH": 14, "barGap": 5, "depth": 3000 },
   "damageNumbers": {
     "types": {
       "normal": { "color": "#f1efe8", "fontSize": 16 },
@@ -514,8 +536,9 @@
   },
   "tutorial": {
     "banner": {
+      "x": 208,
       "y": 40,
-      "w": 328,
+      "w": 256,
       "padY": 8,
       "fill": "0x0b0d14",
       "alpha": 0.9,

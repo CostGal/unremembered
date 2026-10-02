@@ -20,6 +20,7 @@ import Hud from '../systems/Hud.js';
 import PoiseBar from '../systems/PoiseBar.js';
 import ResultCard from '../systems/ResultCard.js';
 import TutorialHints from '../systems/TutorialHints.js';
+import { addPauseButton, pauseScene } from '../systems/PauseButton.js';
 import * as Qte from '../systems/Qte.js';
 import { devInt } from '../systems/DevParams.js';
 import { effectMax, effectTotal, ownedFragments } from '../systems/Fragments.js';
@@ -92,6 +93,7 @@ export default class BattleScene extends Phaser.Scene {
     this.timeScale = 1;
     this.resumeGate = null;
     this.listenForBackground();
+    addPauseButton(this, () => this.openPause(true));
     this.hints = new TutorialHints(this, !!this.battleDef.tutorial);
     this.activeMarker = null;
 
@@ -179,18 +181,17 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   pauseForBackground() {
+    this.openPause(false);
+  }
+
+  // The ⏸ button opens the same pause, as the menu (Resume | Settings | Quit).
+  // Live rings stop without a judgement either way and restart on resume, so
+  // the tap on the button is never a parry.
+  openPause(menu) {
     if (this.resumeGate || !this.scene.isActive()) return;
     Qte.interruptRings(this);
-    this.scene.pause();
-    this.resumeGate = new Promise((resolve) => {
-      this.scene.launch('Pause', {
-        onContinue: () => {
-          this.resumeGate = null;
-          this.scene.resume();
-          resolve();
-        },
-      });
-      this.scene.bringToTop('Pause');
+    this.resumeGate = pauseScene(this, { menu }).then(() => {
+      this.resumeGate = null;
     });
   }
 

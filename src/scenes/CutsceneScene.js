@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import cutsceneOrigin from '../data/cutscene_origin.json';
 import environments from '../data/environments.json';
+import { addPauseButton } from '../systems/PauseButton.js';
 import ui from '../data/ui.json';
 import { playAmbience, playSceneMusic, playSfx } from '../systems/Audio.js';
 import * as Fx from '../systems/Fx.js';
@@ -86,6 +87,7 @@ export default class CutsceneScene extends Phaser.Scene {
 
     this.holdRing = this.add.graphics().setDepth(cfg.depth.hold);
     this.setupInput();
+    addPauseButton(this);
 
     this.index = this.firstShot - 1;
     this.nextShot();

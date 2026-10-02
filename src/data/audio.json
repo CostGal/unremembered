@@ -7,6 +7,7 @@
     "ambience": { "Title": null, "Menu": null, "Cutscene": null, "Dialogue": null, "End": null },
     "prefetch": ["title", "cutscene", "battle", "boss", "ending"]
   },
+  "pause": { "musicDuck": 0.35 },
   "master": { "threshold": -6, "knee": 8, "ratio": 10, "attack": 0.004, "release": 0.18 },
   "blip": { "minGapMs": 35, "attackMs": 2 },
   "ambience": {

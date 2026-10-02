@@ -18,8 +18,22 @@ export default class SettingsScene extends Phaser.Scene {
     super('Settings');
   }
 
+  // fromPause: opened over the pause menu (PauseScene); Back returns there.
+  init(data) {
+    this.fromPause = !!data?.fromPause;
+  }
+
   create() {
     whenReady(this, () => this.build());
+  }
+
+  back() {
+    if (!this.fromPause) {
+      this.scene.start('Menu');
+      return;
+    }
+    this.scene.stop();
+    this.scene.wake('Pause');
   }
 
   // Over the same key-art backdrop as the Menu, in its glass buttons.
@@ -40,7 +54,7 @@ export default class SettingsScene extends Phaser.Scene {
     this.hint = addText(this, 180, cfg.hint.y, '', cfg.hint).setDepth(depth);
     this.refresh();
 
-    makeGlassButton(this, 180, cfg.backY, cfg.button, ui.glass, 'secondary', cfg.labels.back, () => this.scene.start('Menu')).container.setDepth(depth);
+    makeGlassButton(this, 180, cfg.backY, cfg.button, ui.glass, 'secondary', cfg.labels.back, () => this.back()).container.setDepth(depth);
   }
 
   change(key) {

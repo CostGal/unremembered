@@ -12,6 +12,7 @@ let ctx = null;
 let musicBus = null;
 let sfxBus = null;
 let volumes = { musicVolume: 1, sfxVolume: 1 };
+let paused = false; // the pause menu is up: music ducks, SFX are silent
 let wantedMusic = null;
 let master = null;
 let musicEngine = null;
@@ -78,8 +79,15 @@ export function setVolumes(settings) {
 
 function applyVolumes() {
   if (!ctx) return;
-  musicBus.gain.value = volumes.musicVolume;
-  sfxBus.gain.value = volumes.sfxVolume;
+  musicBus.gain.value = volumes.musicVolume * (paused ? audioData.pause.musicDuck : 1);
+  sfxBus.gain.value = paused ? 0 : volumes.sfxVolume;
+}
+
+// The game is paused (pause menu): music ducks to audio.json pause.musicDuck,
+// SFX (and the ambience beds on that bus) go quiet until resume.
+export function setAudioPaused(on) {
+  paused = !!on;
+  applyVolumes();
 }
 
 // ---------- Haptics ----------

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import dialogue from '../data/dialogue.json';
 import environments from '../data/environments.json';
+import { addPauseButton } from '../systems/PauseButton.js';
 import ui from '../data/ui.json';
 import voices from '../data/voices.json';
 import { playAmbience, playBlip, playSceneMusic, playSfx } from '../systems/Audio.js';
@@ -63,6 +64,7 @@ export default class DialogueScene extends Phaser.Scene {
 
     this.portraits = { left: this.buildPortraitSlot('left'), right: this.buildPortraitSlot('right') };
     this.buildBox();
+    addPauseButton(this);
 
     this.index = -1;
     this.typing = false;
