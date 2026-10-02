@@ -1537,7 +1537,7 @@ export default class BattleScene extends Phaser.Scene {
       Fx.sparks(this, target.container.x, target.container.y, cfg.sparks, { ...qte.sparks, color: r.ringColor }, qte.ring.depth);
       Fx.shake(this, cfg.shake, cfg.hitstopMs * 2);
     }
-    if (target.hp > 0) this.applyHit(target, dmg, r.textColor, { poise: brk.sources.hit });
+    if (target.hp > 0) this.applyHit(target, dmg, r.textColor, { poiseSource: 'ultimate' });
   }
 
   // Loops the cast sheet (cast_in first) until stop(); cast_out on stop.
@@ -1687,7 +1687,7 @@ export default class BattleScene extends Phaser.Scene {
   // lands on its impact frame; otherwise straight away.
   async playCounter(hero, enemy, dmg) {
     const counter = () => {
-      if (enemy.hp > 0) this.applyHit(enemy, dmg, undefined, { poise: brk.sources.counter });
+      if (enemy.hp > 0) this.applyHit(enemy, dmg, undefined, { poiseSource: 'counter' });
     };
     if (!hasSheet(hero.anims, 'parry')) {
       trace(`fallback:parry:${hero.type}`);
@@ -1748,7 +1748,7 @@ export default class BattleScene extends Phaser.Scene {
       const targets = this.enemies.filter((e) => e.hp > 0);
       for (const enemy of targets) {
         Fx.sparks(this, enemy.container.x, enemy.container.y + enemy.height / 2, tech.sparks.count, tech.sparks, ui.battleLayout.labelDepth);
-        this.applyHit(enemy, Phaser.Math.Between(tech.dmg[0], tech.dmg[1]), undefined, { poise: brk.sources.hit });
+        this.applyHit(enemy, Phaser.Math.Between(tech.dmg[0], tech.dmg[1]), undefined, { poiseSource: 'ability' });
       }
       if (targets.length) this.gainEcho(hero, tech.echoOnHit);
     });
@@ -1766,7 +1766,7 @@ export default class BattleScene extends Phaser.Scene {
         if (crit) total += 1;
         await this.fireBolt(hero, target, tech);
         const dmg = Phaser.Math.Between(tech.dmg[0], tech.dmg[1]);
-        this.applyHit(target, dmg, undefined, { type: crit ? 'crit' : 'normal', poise: brk.sources.hit });
+        this.applyHit(target, dmg, undefined, { type: crit ? 'crit' : 'normal', poiseSource: 'multiHit', crit });
         if (i === 0) this.gainEcho(hero, tech.echoOnHit);
         if (crit) Fx.popText(this, target.container.x, target.container.y, tech.critText, tech.critColor, qte.text);
         await this.wait(tech.boltIntervalMs);
@@ -1849,7 +1849,7 @@ export default class BattleScene extends Phaser.Scene {
       const base = Phaser.Math.Between(tech.counterDmg[0], tech.counterDmg[1]);
       const dmg = Math.round(base * (result === 'PERFECT' ? tech.perfectMult : 1));
       Fx.popText(this, hero.container.x, hero.container.y, tech.counterText, tech.color, qte.text);
-      this.applyHit(enemy, dmg, tech.color, { poise: brk.sources.stanceCounter });
+      this.applyHit(enemy, dmg, tech.color, { poiseSource: 'ability' });
     };
 
     if (!stance.done || !inGuard()) {
@@ -1955,7 +1955,7 @@ export default class BattleScene extends Phaser.Scene {
       if (i !== 0) return;
       if (this.isImmune(target, 'strike')) this.passThrough(target);
       else {
-        this.applyHit(target, dmg, undefined, { poise: brk.sources.hit });
+        this.applyHit(target, dmg, undefined, { poiseSource: 'strike' });
         this.gainEcho(hero, techniques.strike.echoOnHit);
       }
     });
@@ -2053,8 +2053,10 @@ export default class BattleScene extends Phaser.Scene {
 
   // react: false = the caller plays its own reaction instead of hurt.
   // type = damage number style (ui.json damageNumbers); heroes' damage is "hurt".
-  // poise = poise damage to an enemy (break.json sources). A broken enemy takes break.damageMult.
-  applyHit(target, dmg, color, { react = true, type = null, poise = 0 } = {}) {
+  // poiseSource = which break.json weight applies ('strike'|'counter'|'ability'|'multiHit'|'ultimate',
+  // null = none); the poise damage is the final damage x that weight (x critWeight on a crit).
+  // A broken enemy takes break.damageMult.
+  applyHit(target, dmg, color, { react = true, type = null, poiseSource = null, crit = false } = {}) {
     let kind = type;
     if (!target.isHero) dmg = this.chainDamage(dmg);
     if (target.broken) dmg = Math.round(dmg * brk.damageMult);
@@ -2079,7 +2081,7 @@ export default class BattleScene extends Phaser.Scene {
     if (target.isHero) this.refreshHud();
     else {
       this.checkPhase(target);
-      if (poise) this.hitPoise(target, poise);
+      if (poiseSource) this.hitPoise(target, dmg * brk.weights[poiseSource] * (crit ? brk.weights.critWeight : 1));
     }
 
     if (target.hp <= 0) this.markDown(target);
@@ -2144,15 +2146,22 @@ export default class BattleScene extends Phaser.Scene {
     enemy.poise = Math.max(0, enemy.poise - amount);
     enemy.poiseBar.set(enemy.poise);
     this.hints.show('break');
-    if (enemy.poise === 0) this.breakEnemy(enemy);
+    if (enemy.poise <= brk.line.epsilon) {
+      enemy.poise = 0;
+      this.breakEnemy(enemy);
+    }
   }
 
   // BROKEN: it skips its next action and takes extra damage until that turn is over.
-  breakEnemy(enemy) {
+  // Not awaited by callers: the hitstop at the end only freezes tweens for a beat.
+  async breakEnemy(enemy) {
     const fx = brk.fx;
     enemy.broken = true;
+    enemy.poiseBar.shatter();
     enemy.poiseBar.setBroken(true);
-    Fx.popText(this, enemy.container.x, enemy.container.y, fx.text, fx.color, { ...qte.text, fontSize: fx.fontSize, offsetY: fx.offsetY });
+    const word = Fx.popText(this, enemy.container.x, enemy.container.y, fx.text, fx.color, { ...qte.text, fontSize: fx.fontSize, offsetY: fx.offsetY });
+    word.setScale(fx.popScale);
+    this.tweens.add({ targets: word, scale: 1, duration: fx.popMs, ease: 'Back.easeOut' });
     Fx.shake(this, fx.shake, fx.shakeMs);
     Fx.screenFlash(this, fx.flash, qte.flashDepth);
     Fx.sparks(this, enemy.container.x, enemy.container.y, fx.sparks, { ...qte.sparks, color: fx.sparkColor }, qte.ring.depth);
@@ -2163,6 +2172,7 @@ export default class BattleScene extends Phaser.Scene {
       Fx.popText(this, enemy.container.x, enemy.container.y + qte.text.riseY, battleEvents.charge.brokenText, battleEvents.charge.textColor, qte.text);
       this.endCharge(enemy, true);
     }
+    await Fx.hitstop(this, fx.hitstopMs);
   }
 
   // The broken enemy's turn: it does nothing, then recovers with full poise.

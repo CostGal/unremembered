@@ -331,6 +331,7 @@ export function popText(scene, x, y, text, color, cfg) {
     ease: 'Quad.easeIn',
     onComplete: () => label.destroy(),
   });
+  return label;
 }
 
 // A flat colour over the whole screen that fades out. cfg = {color, alpha, ms}

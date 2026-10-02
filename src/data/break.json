@@ -1,19 +1,19 @@
 {
   "damageMult": 1.5,
   "stunMs": 900,
-  "sources": { "hit": 1, "counter": 2, "stanceCounter": 3 },
-  "pips": {
-    "w": 4,
-    "h": 3,
-    "gap": 1,
+  "weights": { "strike": 0.5, "counter": 0.5, "ability": 1, "multiHit": 0.75, "ultimate": 1.5, "critWeight": 1.5 },
+  "line": {
+    "w": 40,
+    "h": 2,
     "offsetY": 5,
-    "fullColor": "0xe0a040",
-    "emptyColor": "0x2a2f42",
-    "brokenColor": "0xd8505a",
+    "bg": "0x2a2f42",
+    "fill": "0xf0c060",
+    "brokenFill": "0xd8505a",
     "depth": 901,
-    "popScale": 1.5,
-    "popMs": 160,
-    "brokenPulseMs": 260
+    "tweenMs": 160,
+    "brokenPulseMs": 260,
+    "epsilon": 0.001,
+    "shards": { "count": 10, "size": 3, "speed": [60, 160], "gravity": 260, "lifeMs": 450 }
   },
   "stunText": { "text": "STUNNED", "fontSize": 10, "color": "#d8505a", "offsetY": 12, "stroke": "#0b0d14", "strokeThickness": 3 },
   "fx": {
@@ -21,10 +21,13 @@
     "color": "#e0a040",
     "fontSize": 30,
     "offsetY": -40,
-    "shake": 6,
-    "shakeMs": 260,
-    "flash": { "color": "0xe0a040", "alpha": 0.35, "ms": 220 },
-    "sparks": 26,
+    "popScale": 2.2,
+    "popMs": 260,
+    "hitstopMs": 120,
+    "shake": 8,
+    "shakeMs": 300,
+    "flash": { "color": "0xe0a040", "alpha": 0.45, "ms": 220 },
+    "sparks": 40,
     "sparkColor": "0xe0a040",
     "sfx": "break"
   },

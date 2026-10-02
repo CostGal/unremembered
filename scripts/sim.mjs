@@ -164,8 +164,9 @@ function simulateBattle(battleId, profileName, story, rnd) {
     const mult = 1 + (Math.min(st.chain, qte.chain.maxSteps) * qte.chain.stepPct) / 100;
     return mult === 1 ? dmg : Math.floor(dmg * mult + rnd());
   };
-  // poiseDmg: break.json sources (hit 1, counter 2, stanceCounter 3). A broken enemy takes more damage.
-  const hitEnemy = (enemy, rawDmg, poiseDmg = 0) => {
+  // poiseSource: a break.json weight key (strike/counter/ability/multiHit/ultimate); poise damage =
+  // final damage x weight (x critWeight on a crit), as in BattleScene.applyHit. A broken enemy takes more damage.
+  const hitEnemy = (enemy, rawDmg, poiseSource = null, crit = false) => {
     let dmg = chainDmg(rawDmg);
     if (enemy.broken) dmg = Math.round(dmg * D.brk.damageMult);
     // A charging enemy's guard absorbs part of the hit; Exposed (Recollection) adds.
@@ -189,9 +190,10 @@ function simulateBattle(battleId, profileName, story, rnd) {
         if (enemy.def.poise && !enemy.broken) enemy.poise = enemy.def.poise;
       }
     }
-    if (poiseDmg && enemy.def.poise && enemy.hp > 0 && !enemy.broken) {
-      enemy.poise = Math.max(0, enemy.poise - poiseDmg);
-      if (enemy.poise === 0) {
+    if (poiseSource && enemy.def.poise && enemy.hp > 0 && !enemy.broken) {
+      enemy.poise = Math.max(0, enemy.poise - dmg * D.brk.weights[poiseSource] * (crit ? D.brk.weights.critWeight : 1));
+      if (enemy.poise <= D.brk.line.epsilon) {
+        enemy.poise = 0;
         enemy.broken = true;
         st.breaks += 1;
         // A BREAK is the one thing that cancels a charge.
@@ -279,7 +281,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
       const r = tech.recollection;
       for (let i = 0; i < r.taps && target.hp > 0; i++) {
         const res = roll(qteOdds(profile, storyMult), rnd);
-        hitEnemy(target, r.dmg[res.toLowerCase()], D.brk.sources.hit);
+        hitEnemy(target, r.dmg[res.toLowerCase()], 'ultimate');
       }
       if (r.applies && target.hp > 0) target.exposed = { mult: D.statuses[r.applies.status].damageTakenMult, turns: r.applies.turns };
       st.ms += T.recollectionFadeMs * 2 + r.taps * (qte.recollection.ringMs + r.intervalMs);
@@ -309,7 +311,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
       // Tremor (hits every enemy) when there's a crowd or a Strike-immune target.
       if (can('tremor') && (targets.length > 1 || !strikeTarget)) {
         hero.echo -= tk('tremor').cost;
-        for (const e of targets) hitEnemy(e, between(rnd, tk('tremor').dmg), D.brk.sources.hit);
+        for (const e of targets) hitEnemy(e, between(rnd, tk('tremor').dmg), 'ability');
         gain(hero, tk('tremor').echoOnHit || 0);
         st.ms += sheetMs('dov', 'attack', T.attackMs);
         return;
@@ -325,7 +327,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
         for (let i = 0; i < total && target.hp > 0; i++) {
           const crit = rnd() < b.critChance && total < b.maxHits;
           if (crit) total += 1;
-          hitEnemy(target, between(rnd, b.dmg), D.brk.sources.hit);
+          hitEnemy(target, between(rnd, b.dmg), 'multiHit', crit);
           if (i === 0) gain(hero, b.echoOnHit || 0);
           bolts += 1;
         }
@@ -341,7 +343,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
     }
     // Strike (an immune target takes nothing and gives no Echo).
     if (strikeTarget) {
-      hitEnemy(strikeTarget, between(rnd, hero.strike), D.brk.sources.hit);
+      hitEnemy(strikeTarget, between(rnd, hero.strike), 'strike');
       gain(hero, tech.strike.echoOnHit);
     } else st.immuneSeen = true;
     st.ms += T.dashMs * 2 + sheetMs(hero.id, 'attack', T.attackMs);
@@ -436,11 +438,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
         const s = st.stance;
         st.stance = null;
         if (!dodged && res !== 'MISS' && target.hp > 0) {
-          hitEnemy(enemy, Math.round(between(rnd, s.tech.counterDmg) * (res === 'PERFECT' ? s.tech.perfectMult : 1)), D.brk.sources.stanceCounter);
+          hitEnemy(enemy, Math.round(between(rnd, s.tech.counterDmg) * (res === 'PERFECT' ? s.tech.perfectMult : 1)), 'ability');
           st.ms += T.counterMs;
         }
       } else if (res === 'PERFECT' && !dodged && enemy.hp > 0) {
-        hitEnemy(enemy, qte.results.PERFECT.counterDmg, D.brk.sources.counter);
+        hitEnemy(enemy, qte.results.PERFECT.counterDmg, 'counter');
       }
     }
     st.brace = null;

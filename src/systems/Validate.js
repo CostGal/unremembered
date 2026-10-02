@@ -174,12 +174,31 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   }
   for (const [id, e] of Object.entries(enemies)) for (const t of e.immune || []) if (!techniques[t]) err(`enemies.${id}: immune "${t}" is not in techniques.json`);
 
+  // break.json: poise weights per damage source + the golden line's look.
+  const brk = data.break;
+  if (!brk) err('break.json: missing');
+  else {
+    if (brk.sources) err('break.json: "sources" was replaced by "weights"');
+    if (brk.pips) err('break.json: "pips" was replaced by "line"');
+    const weightKeys = ['strike', 'counter', 'ability', 'multiHit', 'ultimate', 'critWeight'];
+    if (!brk.weights) err('break.json: "weights" is required');
+    else for (const k of weightKeys) if (!(typeof brk.weights[k] === 'number' && brk.weights[k] >= 0)) err(`break.json: weights.${k} must be a number >= 0`);
+    if (!brk.line) err('break.json: "line" is required');
+    else {
+      for (const k of ['w', 'h', 'offsetY', 'depth', 'tweenMs', 'brokenPulseMs', 'epsilon']) if (typeof brk.line[k] !== 'number') err(`break.json: line.${k} must be a number`);
+      for (const k of ['bg', 'fill', 'brokenFill']) if (!Number.isFinite(Number(brk.line[k]))) err(`break.json: line.${k} must be a 0x colour`);
+      const sh = brk.line.shards;
+      if (!sh || !(sh.count >= 0) || !(sh.size > 0) || !(sh.lifeMs > 0) || typeof sh.gravity !== 'number' || !(Array.isArray(sh.speed) && sh.speed.length === 2)) err('break.json: line.shards needs count, size, speed [min, max], gravity, lifeMs');
+    }
+    for (const k of ['hitstopMs', 'shake', 'shakeMs', 'sparks', 'popScale', 'popMs']) if (typeof brk.fx?.[k] !== 'number') err(`break.json: fx.${k} must be a number`);
+  }
+
   if (!techniques.strike) err('techniques.json: "strike" is required');
   if (!techniques.recollection) err('techniques.json: "recollection" is required');
 
   for (const [id, e] of Object.entries(enemies)) {
     if (!assets.sprites?.[e.body]) err(`enemies.${id}: body sprite "${e.body}" is not in assets.json sprites`);
-    if (e.poise !== undefined && !(Number.isInteger(e.poise) && e.poise > 0)) err(`enemies.${id}: poise must be a positive integer`);
+    if (e.poise !== undefined && !(typeof e.poise === 'number' && e.poise > 0)) err(`enemies.${id}: poise must be a positive number (damage units)`);
     const lists = e.phases ? e.phases.map((p, i) => [`phases[${i}]`, p.attacks]) : [['attacks', e.attacks]];
     for (const [where, attacks] of lists) {
       if (!attacks?.length) err(`enemies.${id}.${where}: no attacks`);
