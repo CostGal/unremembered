@@ -365,7 +365,7 @@ export default class BattleScene extends Phaser.Scene {
     if (nala.glowTween) nala.glowTween.stop();
     nala.glow.setAlpha(0);
     if (hasSheet(nala.anims, 'alert')) nala.image.play(animKey('nala', 'idle'));
-    this.tapHint.setText(qte.hint.text);
+    this.tapHint.setText(this.parryHintText());
   }
 
   nalaHiss() {
@@ -1057,12 +1057,30 @@ export default class BattleScene extends Phaser.Scene {
       .setVisible(false);
   }
 
+  // The tap hint under the ring: qte.hint.textSwipe only when swipeDodge is on.
+  parryHintText() {
+    return qte.swipeDodge && qte.hint.textSwipe ? qte.hint.textSwipe : qte.hint.text;
+  }
+
   parryWindows() {
     const mult = this.difficulty.windowMult;
     // Worn Glove: a wider PERFECT window. Assist: see parryAssist().
     const extra = effectTotal(this.fragments, 'perfectWindowMs');
     const assist = this.parryAssist();
     const windows = { ...qte.windows, perfectMs: qte.windows.perfectMs + extra + assist, goodMs: qte.windows.goodMs + assist };
+    return mult === 1 ? windows : Qte.scaledWindows(windows, mult);
+  }
+
+  // swipeDodge only: the easier windows of a swipe on a parryable ring
+  // (qte.json dodge.windows). Same extras as parryWindows() (Worn Glove's
+  // perfectWindowMs, the miss-streak assist, the difficulty windowMult) so a
+  // dodge stays easier than a parry by the same margin everywhere.
+  dodgeWindows() {
+    const mult = this.difficulty.windowMult;
+    const extra = effectTotal(this.fragments, 'perfectWindowMs');
+    const assist = this.parryAssist();
+    const w = qte.dodge.windows;
+    const windows = { ...qte.windows, perfectMs: w.perfectMs + extra + assist, goodMs: w.goodMs + assist };
     return mult === 1 ? windows : Qte.scaledWindows(windows, mult);
   }
 
@@ -1107,7 +1125,7 @@ export default class BattleScene extends Phaser.Scene {
     let attackDone;
     const red = qte.unparryable;
     const lesson = hit.unparryable && !dodgeLesson.learned && dodgeLesson.runs < red.lesson.attempts;
-    this.tapHint.setText(hit.unparryable ? red.hint : qte.hint.text);
+    this.tapHint.setText(hit.unparryable ? red.hint : this.parryHintText());
     while (true) {
       const slow = this.tutorialSlow || lesson ? qte.tutorial.timeScale : 1;
       this.setTimeScale(slow);
@@ -1125,6 +1143,9 @@ export default class BattleScene extends Phaser.Scene {
         ring: hit.unparryable ? { ...qte.ring, color: red.ringColor, targetColor: red.targetColor } : qte.ring,
         swipe: qte.dodge.swipe,
         unparryable: hit.unparryable,
+        // swipeDodge (off by default): every ring accepts a swipe as a dodge.
+        swipeAll: !!qte.swipeDodge,
+        dodgeWindows: qte.swipeDodge ? (slow === 1 ? this.dodgeWindows() : Qte.scaledWindows(this.dodgeWindows(), 1 / slow)) : null,
         // No tap by T: the hit visibly lands now, the judgement (a late GOOD
         // or a MISS) follows when the window closes.
         onImpact: () => target.hp > 0 && this.playHurt(target),
@@ -1159,12 +1180,12 @@ export default class BattleScene extends Phaser.Scene {
       }
       break;
     }
-    if (this.tutorialSlow && !hit.unparryable && result !== 'MISS') this.tutorialSlow = false;
+    if (this.tutorialSlow && !hit.unparryable && result !== 'MISS' && input !== 'swipe') this.tutorialSlow = false; // a dodge swipe (swipeDodge) isn't the parry the tutorial teaches
     if (lesson) {
       dodgeLesson.runs += 1;
       if (input === 'swipe' && result !== 'MISS') dodgeLesson.learned = true;
     }
-    this.tapHint.setText(qte.hint.text);
+    this.tapHint.setText(this.parryHintText());
     this.trackParryAssist(result);
     await this.applyParryResult(result, enemy, target, hit, input);
     await attackDone;

@@ -295,6 +295,21 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     const c = data.qte.difficulties[id]?.enemyDefendChance;
     if (!(typeof c === 'number' && c >= 0 && c <= 1)) err(`qte.difficulties.${id}.enemyDefendChance must be a number in [0, 1]`);
   }
+  // swipeDodge (qte.json): every ring accepts a swipe as a dodge with easier windows (dodge.windows).
+  if (data.qte) {
+    const q = data.qte;
+    if (typeof q.swipeDodge !== 'boolean') err('qte.swipeDodge must be true or false');
+    const w = q.windows;
+    const dw = q.dodge?.windows;
+    if (!(dw && dw.perfectMs > 0 && dw.goodMs > 0)) err('qte.dodge.windows: perfectMs and goodMs are required (> 0)');
+    else {
+      if (dw.perfectMs > dw.goodMs) err('qte.dodge.windows: perfectMs must be <= goodMs');
+      if (dw.goodMs > w.ignoreBeforeMs) err(`qte.dodge.windows.goodMs (${dw.goodMs}) must be <= windows.ignoreBeforeMs (${w.ignoreBeforeMs})`);
+    }
+    if (w.perfectMs > w.goodMs) err('qte.windows: perfectMs must be <= goodMs');
+    if (w.goodMs > w.ignoreBeforeMs) err('qte.windows: goodMs must be <= ignoreBeforeMs');
+    if (typeof q.hint?.textSwipe !== 'string' || !q.hint.textSwipe) err('qte.hint.textSwipe is required (shown when swipeDodge is on)');
+  }
   // Battle environments: floor platform + background drift (environments.json)
   for (const [id, env] of Object.entries(data.environments || {})) {
     const at = `environments.${id}`;

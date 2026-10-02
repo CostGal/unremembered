@@ -31,9 +31,20 @@ export function scaledWindows(windows, mult) {
 // a swipe can answer, so the result waits until the gesture is classified.
 // On a parryable ring every touch is a parry, judged and shown at T (a parry
 // beats a dodge for the player, and the feedback never waits for finger-up).
+// swipeAll (qte.json swipeDodge, default off): every ring, not only the red
+// ones, waits for the gesture to be classified. A tap is judged with `windows`
+// as ever (on a red ring still always a MISS); a swipe on a parryable ring is
+// judged with the easier `dodgeWindows` (perfectMs/goodMs; the rest comes from
+// `windows`) and keeps the ring alive until T + dodgeWindows.goodMs. The tap
+// feedback then follows the finger-up (or swipe.maxMs) instead of the touch-down.
+// With swipeAll false nothing of this runs.
 // onImpact: called once at T when no tap has come yet (the hit visibly lands;
 // a late tap can still make it a GOOD).
-export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe = null, unparryable = false, onImpact = null }) {
+export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe = null, unparryable = false, swipeAll = false, dodgeWindows = null, onImpact = null }) {
+  // Does this ring classify the gesture (swipe vs tap) before it resolves?
+  const swipeRing = swipe && (unparryable || swipeAll);
+  const dodgeAll = swipeRing && swipeAll && !unparryable && dodgeWindows ? { ...windows, ...dodgeWindows } : null;
+  const missAfterMs = dodgeAll ? Math.max(windows.goodMs, dodgeAll.goodMs) : windows.goodMs;
   const start = performance.now();
   const pauseAt = feint ? feint.atPct * telegraphMs : Infinity;
   const pauseMs = feint ? feint.pauseMs : 0;
@@ -60,7 +71,7 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
       const result = judge(dtMs, windows);
       if (!result) return;
       judged = { result, dtMs, input: 'tap' };
-      if (swipe && unparryable) judged.pending = { pointer, at: performance.now() };
+      if (swipeRing) judged.pending = { pointer, at: performance.now() };
       pointer.qteUsedAt = pointer.downTime;
     };
 
@@ -70,6 +81,8 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
       delete judged.pending;
       judged.input = input;
       if (input === 'tap' && unparryable) judged.result = 'MISS';
+      // swipeAll: a swipe on a parryable ring is a dodge, judged on its easier windows.
+      else if (input === 'swipe' && dodgeAll) judged.result = judge(judged.dtMs, dodgeAll) ?? judged.result;
     };
     const isSwipe = (pointer) => pointer.getDistance() >= swipe.minPx && gestureMs(pointer) <= swipe.maxMs;
     const onMove = (pointer) => {
@@ -118,7 +131,7 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
         if (onImpact) onImpact();
       }
       if (judged && !judged.pending && now >= impactAt) finish(judged);
-      else if (!judged && now > impactAt + windows.goodMs) finish({ result: 'MISS', dtMs: null, input: null });
+      else if (!judged && now > impactAt + missAfterMs) finish({ result: 'MISS', dtMs: null, input: null });
     };
 
     // e.g. Nala cancels the attack: resolves at once with result 'CANCEL'.
@@ -137,7 +150,7 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
     };
 
     scene.input.on('pointerdown', onDown);
-    if (swipe && unparryable) {
+    if (swipeRing) {
       scene.input.on('pointermove', onMove);
       scene.input.on('pointerup', onUp);
     }

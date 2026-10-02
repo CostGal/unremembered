@@ -1,4 +1,5 @@
 {
+  "swipeDodge": false,
   "ring": {
     "startRadius": 48,
     "endRadius": 14,
@@ -93,6 +94,7 @@
   },
   "dodge": {
     "swipe": { "minPx": 40, "maxMs": 250 },
+    "windows": { "perfectMs": 180, "goodMs": 300 },
     "results": {
       "PERFECT": { "echo": 0, "counterDmg": 0, "chain": 0, "text": "DODGE", "color": "#f1efe8", "hitstopMs": 0, "shake": 0, "sparks": 8 },
       "GOOD": { "echo": 0, "text": "DODGE", "color": "#b9b5a8" }
@@ -110,7 +112,7 @@
   "text": { "fontSize": 20, "offsetY": -64, "riseY": 18, "ms": 700, "depth": 1000 },
   "sparks": { "color": "0x3fd0c9", "speed": [60, 160], "lifeMs": 320, "size": 2 },
   "flashDepth": 960,
-  "hint": { "x": 180, "y": 540, "fontSize": 16, "color": "#8a8fa3", "text": "Tap when the ring closes" },
+  "hint": { "x": 180, "y": 540, "fontSize": 16, "color": "#8a8fa3", "text": "Tap when the ring closes", "textSwipe": "Tap to parry, swipe to dodge" },
   "tutorial": {
     "timeScale": 0.35,
     "prompt": {

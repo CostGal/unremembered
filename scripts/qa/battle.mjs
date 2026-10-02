@@ -155,7 +155,9 @@ await withBrowser(async ({ chrome, server }) => {
     await sleep(500);
     r = await qteHit(page, [0], { swipe: true });
     // A parryable ring treats every touch as a parry (judged at T, shown at T): a swipe is never worse than a tap.
-    log(r.result === 'PERFECT' && r.input === 'tap' && r.hpLost === 0, 'normal ring: a swipe counts as a parry (judged at T)', `${r.result}/${r.input} −${r.hpLost}`);
+    // (qte.json swipeDodge on: a swipe on a parryable ring is a DODGE instead, judged with dodge.windows.)
+    const wantInput = qte.swipeDodge ? 'swipe' : 'tap';
+    log(r.result === 'PERFECT' && r.input === wantInput && r.hpLost === 0, `normal ring: a swipe counts as a ${qte.swipeDodge ? 'dodge' : 'parry (judged at T)'}`, `${r.result}/${r.input} −${r.hpLost}`);
   }
 
   // ============ F-boss moves: file_away multi-hit, redact feint, archive ============

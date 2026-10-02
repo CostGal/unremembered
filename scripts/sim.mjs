@@ -466,6 +466,8 @@ function simulateBattle(battleId, profileName, story, rnd) {
       st.qtes[res] += 1;
       // A red ring (unparryable) is answered with a swipe: same odds, but a dodge
       // has its own results (no counter, less Echo) and isn't a parry for Return to Sender.
+      // qte.json swipeDodge (every ring accepts a swipe): the scripted player still
+      // TAPS parryable rings (model: no swipe on white rings), so the flag changes nothing here.
       const dodged = !!hit.unparryable;
       const cfg = dodged ? { ...qte.results[res], ...qte.dodge.results[res] } : qte.results[res];
       if (cfg.chain !== 0) {
