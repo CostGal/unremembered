@@ -1324,7 +1324,7 @@ export default class BattleScene extends Phaser.Scene {
     const k = battleEvents.keepsake_burn;
     // The burnt Keepsake unlocks the last pips: Recollection is reachable only from here.
     if (k.echoMax) rhea.echoMax = Math.max(rhea.echoMax, k.echoMax);
-    this.gainEcho(rhea, rhea.echoMax);
+    this.gainEcho(rhea, rhea.echoMax, true);
     Fx.screenFlash(this, k.flash, qte.flashDepth);
   }
 
@@ -1699,11 +1699,12 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   // Echo is per hero. Gains show as a small teal "+N" over the pip they fill.
-  gainEcho(hero, amount) {
+  // `raw` skips the difficulty's echoMult (the Keepsake fills Rhea whatever the difficulty).
+  gainEcho(hero, amount, raw = false) {
     if (!amount || !hero) return;
     // A difficulty with echoMult < 1 earns Echo more slowly: the fraction
     // carries over, so half the gains still add up to whole pips.
-    if (amount > 0 && this.difficulty.echoMult !== 1) {
+    if (!raw && amount > 0 && this.difficulty.echoMult !== 1) {
       hero.echoFrac = (hero.echoFrac || 0) + amount * this.difficulty.echoMult;
       amount = Math.floor(hero.echoFrac);
       hero.echoFrac -= amount;

@@ -8,6 +8,7 @@ import { open, root, sleep, waitScene, withBrowser } from './lib.mjs';
 const dialogue = JSON.parse(readFileSync(join(root, 'src/data/dialogue.json'), 'utf8'));
 const chapter = JSON.parse(readFileSync(join(root, 'src/data/chapter1.json'), 'utf8'));
 const ui = JSON.parse(readFileSync(join(root, 'src/data/ui.json'), 'utf8')).dialogue;
+const portraitDefs = JSON.parse(readFileSync(join(root, 'src/data/assets.json'), 'utf8')).portraits || {};
 const out = process.argv[process.argv.indexOf('--out') + 1];
 mkdirSync(out, { recursive: true });
 const bgOf = Object.fromEntries(chapter.filter((s) => s.type === 'dialogue').map((s) => [s.id, s.bg]));
@@ -55,7 +56,8 @@ await withBrowser(async ({ chrome, server }) => {
         const other = info.slots[side === 'left' ? 'right' : 'left'];
         if (s.tint !== 0xffffff) issues.push('speaker portrait not lit');
         if (other.visible && other.tint === 0xffffff) issues.push('other portrait not dimmed');
-        const wantFlip = side === 'right';
+        // Art faces right unless assets.json says otherwise; the right-hand slot wants left-facing art.
+        const wantFlip = (portraitDefs[line.portrait]?.faces || 'right') !== (side === 'right' ? 'left' : 'right');
         if (s.visible && !s.placeholder && s.flipX !== wantFlip) issues.push(`flipX ${s.flipX} on ${side}`);
       }
       if (!style.portraits && (info.slots.left.visible || info.slots.right.visible)) issues.push('portraits shown on a no-portrait style');
