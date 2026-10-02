@@ -14,6 +14,14 @@
       { "id": "duel_nala", "when": { "enemyHpBelowPct": 50 }, "dialogue": "duel_nala", "then": "endBattle" }
     ]
   },
+  "b1_forgotten": {
+    "bg": "street_rain",
+    "enemies": ["blank", "blank"],
+    "redRings": false,
+    "statuses": false,
+    "nala": false,
+    "music": "battle"
+  },
   "b1_tutorial": {
     "bg": "street_rain",
     "enemies": ["blank", "hollow"],
