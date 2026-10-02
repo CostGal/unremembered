@@ -9,3 +9,4 @@ Order: A1 #141 · #128+A5 #142 · #129+#139 · A2 #143 · A3 #144 · A4 #145 · 
 | setup | done | – | issues #141–#160 created, comments on #128–#140 and #38; cutscene-check runs here (headless Chromium OK) |
 | A1 #141 | done | cd94583 | validate 0/0, build ok |
 | #128+A5 #142 | done | 69c257d | validate 0/0, build ok, sim 100% wins (non-gamer chapter 13.6 min) |
+| #129+#139 | done | 945c629 | validate 0/0, build ok, sim boss recoll 1.00 / others 0; battle lab: keepsake case passes; pre-existing failing 'tap 2nd enemy' case on b3 (Hollows immune to Strike) noted for A10 |
