@@ -22,6 +22,16 @@
     "nala": false,
     "music": "battle"
   },
+  "b2_first_hollow": {
+    "bg": "street_rain",
+    "enemies": ["blank", "hollow"],
+    "nala": true,
+    "music": "battle",
+    "events": [
+      { "id": "b2_start", "when": "battleStart", "dialogue": "b2_start" },
+      { "id": "b2_immune", "when": "firstImmune", "dialogue": "b2_immune" }
+    ]
+  },
   "b1_tutorial": {
     "bg": "street_rain",
     "enemies": ["blank", "hollow"],
