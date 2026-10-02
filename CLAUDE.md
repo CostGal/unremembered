@@ -212,10 +212,10 @@ Relay's second hit uses an offensive ring on the enemy: tap on close for the bon
                {"untilHpPct": 0, "onEnter": "keepsake_burn", "attacks": [
                  {"id": "stamp", "weight": 2, "telegraphMs": 700, "dmg": 15},
                  {"id": "redact", "weight": 2, "telegraphMs": 800, "feint": {"atPct": 0.6, "pauseMs": 400}, "dmg": 15},
-                 {"id": "archive", "weight": 1, "chargeTurns": 2, "interruptDmg": 40, "telegraphMs": 900, "dmg": 30}]}]}
+                 {"id": "archive", "weight": 1, "chargeTurns": 3, "interruptDmg": 40, "telegraphMs": 900, "dmg": 50}]}]}
 }
 ```
-- **Archive:** the Clerk spends `chargeTurns` (4) of his turns charging, guarded: he takes `guardMult` (60%) of every hit and the rest is remembered. Only a **BREAK** cancels the charge (the game never says so; Rhea works it out in the `archive_insight` dialogue after the first release). On release it fires as an unparryable QTE hit and heals `healMitigatedPct` of what the guard absorbed. A phase's `opening` list fixes its first turns' attacks (phase 1: stamp, then archive).
+- **Archive:** the Clerk spends `chargeTurns` (3) of his turns charging, guarded: he takes `guardMult` (60%) of every hit and the rest is remembered. Only a **BREAK** cancels the charge (the game never says so; Rhea works it out in the `archive_insight` dialogue after the first release). On release it fires as an unparryable QTE hit and heals `healMitigatedPct` of what the guard absorbed. A phase's `opening` list fixes its first turns' attacks (phase 1: stamp, then archive).
 
 `battles.json`
 ```json

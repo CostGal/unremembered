@@ -62,13 +62,13 @@
             "anim": "archive_release",
             "chargeAnim": "archive_charge",
             "weight": 0,
-            "chargeTurns": 4,
+            "chargeTurns": 3,
             "guardMult": 0.6,
             "healMitigatedPct": 0.5,
             "onRelease": "archive_insight",
             "unparryable": true,
             "telegraphMs": 900,
-            "dmg": 35
+            "dmg": 50
           }
         ]
       },
@@ -92,13 +92,13 @@
             "anim": "archive_release",
             "chargeAnim": "archive_charge",
             "weight": 1,
-            "chargeTurns": 4,
+            "chargeTurns": 3,
             "guardMult": 0.6,
             "healMitigatedPct": 0.5,
             "onRelease": "archive_insight",
             "unparryable": true,
             "telegraphMs": 900,
-            "dmg": 35
+            "dmg": 50
           }
         ]
       }
