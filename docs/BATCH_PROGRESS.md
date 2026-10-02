@@ -24,3 +24,4 @@ Order: A1 #141 · #128+A5 #142 · #129+#139 · A2 #143 · A3 #144 · A4 #145 · 
 | P2 #137 | done | 69b3d0c | validate 0/0, build ok, sim chapter 16.6 min non-gamer; headless b1/b3/boss WIN, approach/return positions exact, ring timing unchanged, battle lab 10/10 |
 | P2 #134 | done | e7d274e | validate 0/0, build ok, sim 16.4 min non-gamer, lowest win 99.9%; headless b1: hero + enemy CRIT! seen, PERFECT negates, WIN; battle lab 10/10 |
 | P2 #130 | done | 7e516d2 | validate 0/0, build ok; sim boss 100% all profiles, interrupt 70-80%, chapter 16.4 min; boss lab errors 0, counter 'Archive in 3' |
+| P2 #132 | done | c688edb | validate 0/0, build ok, sim boss 100%; ring lab: redact 1080 ms, stamp feint 945 ms, plain rings unchanged; boss lab errors 0. Note: clerk_redact impact frame lands ~345 ms after T (was ~250 before: pre-existing sheet length) |
