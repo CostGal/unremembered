@@ -14,10 +14,10 @@ const SHOT_FX = ['crystal_particles', 'rain', 'flash', 'lights_out', 'dissolve_l
 const SHOT_MOVES = ['none', 'pan_left', 'pan_right', 'zoom_in', 'zoom_out'];
 const SPLITS = ['none', 'vertical', 'horizontal'];
 const BATTLE_EVENTS = ['keepsake_burn'];
-// Pixelify Sans (latin subset) covers ASCII, Latin-1, the dashes/quotes/ellipsis
-// and a few symbols. Anything else on screen renders in a system font.
+// Play (latin + greek subsets) covers ASCII, Latin-1, Greek, the dashes/quotes/
+// ellipsis and a few symbols. Anything else on screen renders in a system font.
 // Allowed on purpose: 🔒 🔈 (emoji, meant to), ▯ (a forgotten name, drawn as boxes).
-const FONT_OK = /^[\x20-\x7E\u00A0-\u00FF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u2026\u00D7\u00B7\u2032\u2033\u20AC\u{1F512}\u{1F508}\u25AF\n]*$/u;
+const FONT_OK = /^[\x20-\x7E\u00A0-\u00FF\u0370-\u03FF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u2026\u00D7\u00B7\u2032\u2033\u20AC\u{1F512}\u{1F508}\u25AF\n]*$/u;
 // languages: each name is shown in its own language's font; greekSample is never drawn.
 const FONT_SKIP_KEYS = new Set(['font', 'fontFamily', 'languages', 'greekSample']);
 
@@ -90,7 +90,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   const fontCheck = (at, text) => {
     if (typeof text === 'string' && !FONT_OK.test(text)) {
       const bad = [...new Set([...text].filter((ch) => !FONT_OK.test(ch)))].join(' ');
-      warn(`${at}: "${bad}" is not in Pixelify Sans (renders in the system font)`);
+      warn(`${at}: "${bad}" is not in Play (renders in the system font)`);
     }
   };
   for (const [id, lines] of Object.entries(dialogue)) {

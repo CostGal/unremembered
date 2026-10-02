@@ -1,5 +1,8 @@
 Fonts shipped with the game (all under the SIL Open Font License 1.1, see OFL.txt):
 
+- Play (Play-Regular-latin.woff2, Play-Regular-greek.woff2)
+  Copyright (c) 2011, Jonas Hecksher, Playtypes, e-types AS (lasse@e-types.com),
+  with Reserved Font Name 'Play', 'Playtype', 'Playtype Sans'.
 - Pixelify Sans (PixelifySans-Regular-latin.woff2)
   Copyright 2021 The Pixelify Sans Project Authors (https://github.com/eifetx/Pixelify-Sans)
 - Handjet (Handjet-Regular-latin.woff2, Handjet-Regular-greek.woff2)
@@ -8,6 +11,6 @@ Fonts shipped with the game (all under the SIL Open Font License 1.1, see OFL.tx
   Copyright 2023 The Tiny5 Project Authors (https://github.com/Gissio/font_tiny5)
 
 The subsets are the ones served by Google Fonts (latin, plus greek for the
-fonts that have it). Pixelify Sans is the English default. Greek (Settings >
-Language) uses Handjet, as the "Handjet UI" face in index.html: Handjet's
-letters with Pixelify Sans digits. Tiny5 is optional (Settings > Font).
+fonts that have it). Play is the game font for English and Greek. Pixelify
+Sans, Handjet ("Handjet UI" in index.html: its letters with Pixelify digits)
+and Tiny5 are optional (Settings > Font).

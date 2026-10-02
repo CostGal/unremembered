@@ -1,12 +1,13 @@
 {
-  "font": "\"Pixelify Sans\", monospace",
+  "font": "\"Play\", sans-serif",
   "view": { "designW": 360, "designH": 640, "maxW": 448 },
-  "languages": { "default": "en", "list": [{ "id": "en", "label": "English" }, { "id": "el", "label": "Ελληνικά", "font": "handjet" }] },
+  "languages": { "default": "en", "list": [{ "id": "en", "label": "English" }, { "id": "el", "label": "Ελληνικά", "font": "play" }] },
   "fonts": {
-    "default": "pixelify",
+    "default": "play",
     "loadTimeoutMs": 1000,
     "greekTag": " (Greek)", "greekSample": "Aa Ωω άέ 0",
     "list": [
+      { "id": "play", "label": "Play", "family": "\"Play\", sans-serif", "greek": true },
       { "id": "pixelify", "label": "Pixelify Sans", "family": "\"Pixelify Sans\", monospace", "greek": false },
       { "id": "handjet", "label": "Handjet", "family": "\"Handjet UI\", \"Handjet\", monospace", "greek": true },
       { "id": "tiny5", "label": "Tiny5", "family": "\"Tiny5\", monospace", "greek": true },
