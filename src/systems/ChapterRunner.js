@@ -1,4 +1,8 @@
+import battles from '../data/battles.json';
+import enemies from '../data/enemies.json';
+import levels from '../data/levels.json';
 import { devInt } from './DevParams.js';
+import { chapterXpBefore, xpForLevel } from './Recall.js';
 
 // Walks a chapter's step list (src/data/chapter1.json). Each scene calls
 // runner.next(this) when its step is done. A step whose scene doesn't exist
@@ -21,6 +25,10 @@ export default class ChapterRunner {
     scene.registry.set('parryAssistMs', 0);
     scene.registry.set('parryMissStreak', 0);
     runner.index = Math.max(-1, Math.min(steps.length - 1, (devInt('step') ?? 0) - 1));
+    // Recall (levels.json): Memories for this run. ?step=N starts with what the
+    // battles before step N would have given; ?level=N sets it outright.
+    const level = devInt('level');
+    scene.registry.set('recallXp', level ? xpForLevel(level, levels) : chapterXpBefore(steps, runner.index + 1, battles, enemies));
     runner.next(scene);
     return runner;
   }

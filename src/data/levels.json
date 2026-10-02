@@ -1,0 +1,46 @@
+{
+  "_about": "Recall (leveling). The party shares one pool of Memories (XP): enemies.json xp per enemy, given on a win. xpAt[i] = Memories needed for Recall i+1. Per level past 1, each hero gains growth. learn = the Recall level at which a hero remembers a technique (a technique not listed is always known).",
+  "xpAt": [0, 40, 100, 180, 280],
+  "growth": {
+    "rhea": { "hp": 6, "strike": 1 },
+    "dov": { "hp": 10, "strike": 1 }
+  },
+  "learn": {
+    "rhea": { "blast": 1, "return_to_sender": 2 },
+    "dov": { "tremor": 1, "anchor": 2, "brace": 3 }
+  },
+  "flavor": {
+    "return_to_sender": "A courier's rule: every letter finds its way home.",
+    "anchor": "The night of the Hush, he held his sister until morning.",
+    "brace": "His shoulder against the dock gates while the river rose."
+  },
+  "text": {
+    "title": "Memories return",
+    "memories": "+{n} Memories",
+    "level": "Recall {n}",
+    "levelUp": "RECALL {n}",
+    "max": "MAX",
+    "stats": "{hero}  +{hp} HP  +{strike} {strikeName}",
+    "remembers": "{hero} remembers {tech}",
+    "hud": "Lv{n}"
+  },
+  "hud": { "fontSize": 10, "color": "#f0c060", "gap": 3, "dy": 1 },
+  "card": {
+    "x": 30,
+    "y": 60,
+    "w": 300,
+    "h": 250,
+    "fill": "0x0b0d14",
+    "alpha": 0.9,
+    "stroke": "0xf0c060",
+    "depth": 2100,
+    "fadeMs": 250,
+    "inputDelayMs": 200,
+    "title": { "x": 50, "y": 80, "fontSize": 18, "color": "#f0c060" },
+    "gain": { "x": 310, "y": 80, "fontSize": 14, "color": "#f1efe8" },
+    "level": { "x": 50, "y": 112, "fontSize": 14, "color": "#f1efe8" },
+    "bar": { "x": 50, "y": 132, "w": 260, "h": 8, "bg": "0x2a2e3d", "fill": "0xf0c060", "fillMs": 700 },
+    "levelUp": { "x": 310, "y": 112, "fontSize": 16, "color": "#f0c060", "popScale": 1.6, "popMs": 220, "shake": 3, "shakeMs": 140, "sfx": "crystal_hum" },
+    "lines": { "x": 50, "firstY": 160, "spacing": 20, "fontSize": 13, "color": "#f1efe8", "learnColor": "#3fd0c9", "flavorFontSize": 11, "flavorColor": "#8a8fa3", "flavorSpacing": 14, "flavorGap": 4, "wrap": 260, "staggerMs": 260, "sfx": "echo", "learnSfx": "perfect" }
+  }
+}

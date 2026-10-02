@@ -42,6 +42,24 @@ export default class ResultCard {
     });
   }
 
+  // Fades the card out (before the Recall card takes its place).
+  hide() {
+    this.timers.forEach((t) => t.remove());
+    const items = this.items || [];
+    return new Promise((resolve) => {
+      if (!items.length) return resolve();
+      this.scene.tweens.add({
+        targets: items,
+        alpha: 0,
+        duration: grade.card.fadeMs,
+        onComplete: () => {
+          items.forEach((o) => o.destroy());
+          resolve();
+        },
+      });
+    });
+  }
+
   text(x, y, str, size, col, extra = {}) {
     return this.scene.add
       .text(x, y, str, { fontFamily: ui.font, fontSize: `${size}px`, color: col, ...extra })

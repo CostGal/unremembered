@@ -3,6 +3,7 @@ import battles from '../data/battles.json';
 import characters from '../data/characters.json';
 import enemies from '../data/enemies.json';
 import environments from '../data/environments.json';
+import levels from '../data/levels.json';
 import allies from '../data/allies.json';
 import battleEvents from '../data/battleEvents.json';
 import brk from '../data/break.json';
@@ -24,6 +25,8 @@ import { addPauseButton, pauseScene } from '../systems/PauseButton.js';
 import * as Qte from '../systems/Qte.js';
 import { devInt } from '../systems/DevParams.js';
 import { effectMax, effectTotal, ownedFragments } from '../systems/Fragments.js';
+import { battleXp, growth, learned, levelFor, xpForLevel } from '../systems/Recall.js';
+import RecallCard from '../systems/RecallCard.js';
 import { animKey, hasSheet, playLoop, playOnce, SheetDriver, trace } from '../systems/SpriteAnims.js';
 import { whenReady } from '../systems/Assets.js';
 
@@ -109,6 +112,21 @@ export default class BattleScene extends Phaser.Scene {
     this.heroes = heroKeys.map((key) =>
       this.createEntity(key, key, characters[key], layout.heroes[key], 'right', true)
     );
+
+    // Recall (levels.json): the party's level grows HP and Strike, and decides
+    // which techniques each hero remembers. Without a chapter run (?battle=),
+    // ?level=N picks it (default 1).
+    const xp = this.registry.get('recallXp') ?? xpForLevel(devInt('level') ?? 1, levels);
+    this.recallXp = xp;
+    this.level = levelFor(xp, levels);
+    for (const hero of this.heroes) {
+      const g = growth(hero.type, this.level, levels);
+      hero.level = this.level;
+      hero.maxHp += g.hp;
+      hero.hp = hero.maxHp;
+      hero.strike = [hero.def.strike[0] + g.strike, hero.def.strike[1] + g.strike];
+      hero.techniques = learned(hero.type, this.level, hero.def.techniques, levels);
+    }
 
     const dov = this.heroes.find((h) => h.type === 'dov');
     dov.maxHp += effectTotal(this.fragments, 'dovMaxHp');
@@ -575,7 +593,7 @@ export default class BattleScene extends Phaser.Scene {
           slot: 'technique',
           label: name(labels.technique),
           value: 'technique',
-          enabled: (hero.def.techniques || []).some((id) => !this.covered(hero, id)),
+          enabled: hero.techniques.some((id) => !this.covered(hero, id)),
           pulse: this.hints.isShowing('techniques'),
         },
       ];
@@ -620,7 +638,7 @@ export default class BattleScene extends Phaser.Scene {
 
   techniqueItems(hero) {
     const slots = ui.commands.techniqueSlots;
-    const items = (hero.def.techniques || []).slice(0, slots.length).map((id, i) => ({
+    const items = hero.techniques.slice(0, slots.length).map((id, i) => ({
       slot: slots[i],
       label: this.fogged(hero) ? statuses.fog.label : techniques[id].name,
       cost: techniques[id].cost,
@@ -705,7 +723,7 @@ export default class BattleScene extends Phaser.Scene {
 
     this.showActiveHero(hero);
     this.hints.show('strike');
-    const costs = (hero.def.techniques || []).map((id) => techniques[id].cost);
+    const costs = hero.techniques.map((id) => techniques[id].cost);
     if (costs.length && hero.echo >= Math.min(...costs)) this.hints.show('techniques');
     const action = await this.chooseAction(hero);
     this.hints.done('strike');
@@ -1760,7 +1778,7 @@ export default class BattleScene extends Phaser.Scene {
     await this.tweenPromise(hero.container, { x: approachX }, DASH_DURATION_MS, 'Cubic.easeOut');
 
     // A Strike deals its damage once, on the first impact frame.
-    const dmg = Phaser.Math.Between(hero.def.strike[0], hero.def.strike[1]);
+    const dmg = Phaser.Math.Between(hero.strike[0], hero.strike[1]);
     await this.playAttackAnim(hero, (i) => {
       if (i !== 0) return;
       if (this.isImmune(target, 'strike')) this.passThrough(target);
@@ -1905,7 +1923,7 @@ export default class BattleScene extends Phaser.Scene {
     if (!def || !hero.isHero || hero.hp <= 0 || this.battleDef.statuses === false) return;
     let tech = hero.statuses[id]?.tech;
     if (def.effect === 'cover' && !tech) {
-      const pool = hero.def.techniques || [];
+      const pool = hero.techniques;
       if (!pool.length) return;
       tech = Phaser.Utils.Array.GetRandom(pool);
     }
@@ -2036,11 +2054,24 @@ export default class BattleScene extends Phaser.Scene {
       if (result === 'WIN') {
         const stats = { ...this.stats, maxChain: this.maxChain };
         const partyHp = this.heroes.reduce((sum, h) => sum + h.maxHp, 0);
-        new ResultCard(this, this.battleId, stats, partyHp).show().then(() => this.continueChapter());
+        const card = new ResultCard(this, this.battleId, stats, partyHp);
+        card
+          .show()
+          .then(() => card.hide())
+          .then(() => this.showRecall())
+          .then(() => this.continueChapter());
         return;
       }
       this.menu.show([{ slot: 'retry', label: cfg.retryText, value: 'retry' }]).then(() => this.retry());
     });
+  }
+
+  // Recall (levels.json): the fallen enemies' Memories go to the party, and
+  // the Recall card shows what they brought back. Only a win gives Memories.
+  showRecall() {
+    const to = this.recallXp + battleXp(this.battleDef.enemies, enemies);
+    this.registry.set('recallXp', to);
+    return new RecallCard(this, this.recallXp, to, this.heroes).show();
   }
 
   // Retry restarts the same battle from its starting state (full HP, starting Echo).
