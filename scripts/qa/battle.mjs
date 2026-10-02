@@ -38,6 +38,16 @@ async function battle(chrome, server, id, { settings = null, extra = '' } = {}) 
   return page;
 }
 const waitMenu = (page, timeout = 30000) => page.waitFor(`!!(window.__battle.menu && window.__battle.menu.pending)`, { timeout });
+// Battle events open a dialogue overlay (b2_first_hollow: battleStart); tap through it until the menu is up.
+async function waitMenuThroughDialogue(page, timeout = 40000) {
+  const end = Date.now() + timeout;
+  while (Date.now() < end) {
+    if (await page.ev(`!!(window.__battle.menu && window.__battle.menu.pending)`)) return;
+    if ((await page.scenes()).includes('Dialogue')) await page.tap(180, 560);
+    await sleep(250);
+  }
+  throw new Error('waitMenuThroughDialogue: timeout');
+}
 const B = (page, expr) => page.ev(`(() => { const B = window.__battle; return ${expr}; })()`);
 
 // Runs one enemy hit and taps at `offsets` (ms relative to impact) with real clicks.
@@ -255,7 +265,8 @@ await withBrowser(async ({ chrome, server }) => {
 
   // ============ F-Nala ============
   if (want('nala')) {
-    const page = await battle(chrome, server, 'b3_hollows');
+    // b3_gate: the Warden (enemy 0) and a plain Hollow (enemy 1) are both Hollows.
+    const page = await battle(chrome, server, 'b3_gate');
     await waitMenu(page);
     await page.ev(`window.__battle.hideCommandMenu(); window.__battle.tutorialSlow = false;`);
     // Hollow telegraph: Nala watching, tap her -> cancel
@@ -265,8 +276,8 @@ await withBrowser(async ({ chrome, server }) => {
     await page.shot(join(out, 'nala_glow.png'));
     await page.tap(nx.x, nx.y);
     await page.waitFor(`window.__done === true`, { timeout: 6000 });
-    const res = await page.ev(`({ results: window.__results.length, used: window.__battle.nala.used, hp: window.__battle.heroes.map(h => h.hp) })`);
-    log(res.used && res.results === 0 && res.hp.every((h, i) => h === (i ? 90 : 60)), 'Nala: tapping her during a Hollow telegraph cancels the attack (no damage, no judgement)', JSON.stringify(res));
+    const res = await page.ev(`({ results: window.__results.length, used: window.__battle.nala.used, hp: window.__battle.heroes.map(h => h.hp), max: window.__battle.heroes.map(h => h.maxHp) })`);
+    log(res.used && res.results === 0 && res.hp.every((h, i) => h === res.max[i]), 'Nala: tapping her during a Hollow telegraph cancels the attack (no damage, no judgement)', JSON.stringify(res));
     // second Hollow attack: Nala is spent -> no glow
     await sleep(500);
     await page.ev(`(() => { window.__done = null; window.__stub([0, 0.0]); window.__battle.enemyTurn(window.__battle.enemies[1]).then(() => { window.__done = true; }); })()`);
@@ -274,8 +285,9 @@ await withBrowser(async ({ chrome, server }) => {
     log(!(await B(page, '!!B.nala.ring')), 'Nala: once per battle (no glow on the next Hollow)');
     await page.waitFor(`window.__done === true`, { timeout: 8000 });
     // Blank: never reacts
-    const pb = await battle(chrome, server, 'b1_tutorial');
-    await waitMenu(pb);
+    // b2_first_hollow: enemy 0 is a Blank, enemy 1 a Hollow.
+    const pb = await battle(chrome, server, 'b2_first_hollow');
+    await waitMenuThroughDialogue(pb);
     await pb.ev(`window.__battle.hideCommandMenu(); window.__battle.tutorialSlow = false; window.__done = null; window.__stub([0, 0.0]); window.__battle.enemyTurn(window.__battle.enemies[0]).then(() => { window.__done = true; })`);
     await sleep(600);
     const blankWatch = await pb.ev(`({ type: window.__battle.enemies[0].type, ring: !!window.__battle.nala.ring })`);
@@ -329,7 +341,7 @@ await withBrowser(async ({ chrome, server }) => {
 
   // ============ F-commands: every command through the real menu ============
   if (want('commands')) {
-    const page = await battle(chrome, server, 'b1_tutorial');
+    const page = await battle(chrome, server, 'b1_forgotten');
     await waitMenu(page);
     await page.ev(`window.__battle.tutorialSlow = false`);
     // targeting with two enemies: tap an enemy sprite; Back cancels

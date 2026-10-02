@@ -147,7 +147,7 @@
   },
   "animtest": {
     "character": "rhea",
-    "battle": "b1_tutorial",
+    "battle": "b1_forgotten",
     "spriteX": 180,
     "spriteY": 300,
     "feetGap": 4,

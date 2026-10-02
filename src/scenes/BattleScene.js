@@ -71,7 +71,7 @@ export default class BattleScene extends Phaser.Scene {
 
   init(data) {
     this.initData = data;
-    this.battleId = data.battleId || 'b1_tutorial';
+    this.battleId = data.battleId || 'b1_forgotten';
     this.battleDef = battles[this.battleId];
   }
 

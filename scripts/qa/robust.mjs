@@ -199,7 +199,7 @@ await withBrowser(async ({ chrome, server }) => {
     const sc2 = await p2.scenes();
     log(sc2.filter((s) => s === 'Cutscene').length === 1 && !sc2.includes('Menu'), 'double tap on New Game: one chapter start', sc2.join('+'));
     // battle: double tap Strike then double tap enemy -> one strike
-    const b = await battle(chrome, server, 'b3_hollows');
+    const b = await battle(chrome, server, 'b1_forgotten');
     await waitMenu(b);
     await b.ev(`window.__battle.tutorialSlow = false; window.__strikes = 0; const o = window.__battle.playerStrike.bind(window.__battle); window.__battle.playerStrike = (h, t) => { window.__strikes++; return o(h, t); };`);
     await b.tap(...slots.strike);
@@ -239,7 +239,7 @@ await withBrowser(async ({ chrome, server }) => {
 
   // ---------- leaks: 5× Retry ----------
   if (want('leaks')) {
-    const page = await battle(chrome, server, 'b1_tutorial');
+    const page = await battle(chrome, server, 'b1_forgotten');
     await waitMenu(page);
     const metrics = () =>
       page.ev(`(() => { const B = window.__battle; const g = window.__game; const count = (em) => em.eventNames().reduce((s, n) => s + em.listenerCount(n), 0);

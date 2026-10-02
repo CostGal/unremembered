@@ -84,7 +84,7 @@ async function scenario(battleId, extra) {
 }
 
 try {
-  for (const [battleId, extra] of [['b3_hollows', false], ['boss_clerk', true]]) {
+  for (const [battleId, extra] of [['b3_gate', false], ['boss_clerk', true]]) {
     console.log(`\n${battleId}  (4x throttle = ${CPU}x, ${SECONDS}s windows, ${ROUNDS} rounds)`);
     const results = await scenario(battleId, extra);
     const by = {};

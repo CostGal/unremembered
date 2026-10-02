@@ -558,10 +558,27 @@ if (JSON_OUT) {
       `${r.mode.padEnd(7)} ${r.battle.padEnd(13)} ${r.profile.padEnd(10)} ${pct(r.win)}  ${f1(r.rounds)}  ${f1(r.minutes)} (${r.p10.toFixed(1)}–${r.p90.toFixed(1)})   ${f1(r.avgEcho)}   ${r.recollections.toFixed(2)}    ${r.archives.toFixed(2)}    ${r.archives ? pct(r.interruptRate) : '   –  '}    ${r.breaks.toFixed(2)}   ${pct(r.qte.PERFECT)}/${pct(r.qte.GOOD)}/${pct(r.qte.MISS)}   ${r.score.toFixed(0).padStart(4)}   ${D.grade.ranks.map((k) => Math.round(r.ranks[k.id] * 100).toString().padStart(3)).join('/')}   ${r.gradeStats.perfects.toFixed(1).padStart(4)} ${r.gradeStats.maxChain.toFixed(1).padStart(4)} ${r.gradeStats.damageTaken.toFixed(0).padStart(4)} ${r.gradeStats.turns.toFixed(1).padStart(4)}`
     );
   }
-  const battleMin = (profile) => rows.filter((r) => r.mode === 'normal' && r.profile === profile).reduce((s, r) => s + r.minutes / Math.max(0.01, r.win), 0);
-  console.log(`\nchapter: cutscene ${(story.cutsceneMs / 60000).toFixed(1)} min + dialogue ${(story.dialogueMs / 60000).toFixed(1)} min (40 cps + ${D.sim.timing.readAfterLineMs}ms per line)`);
-  for (const p of Object.keys(D.sim.profiles)) {
-    const total = (story.cutsceneMs + story.dialogueMs) / 60000 + battleMin(p);
-    console.log(`  ${p.padEnd(10)} battles incl. expected retries ${battleMin(p).toFixed(1)} min -> chapter ≈ ${total.toFixed(1)} min`);
+  // Chapter table (normal mode): per profile, each battle's average rounds and minutes per attempt,
+  // then cutscene + dialogue + battles (minutes / win rate = expected time including retries).
+  const profiles = Object.keys(D.sim.profiles);
+  const normal = (profile, id) => rows.find((r) => r.mode === 'normal' && r.profile === profile && r.battle === id);
+  const storyMin = (story.cutsceneMs + story.dialogueMs) / 60000;
+  console.log(`\nchapter (normal): cutscene ${(story.cutsceneMs / 60000).toFixed(1)} min + dialogue ${(story.dialogueMs / 60000).toFixed(1)} min (40 cps + ${D.sim.timing.readAfterLineMs}ms per line)`);
+  console.log(`  ${'battle'.padEnd(16)}${profiles.map((p) => p.padStart(38)).join('')}`);
+  console.log(`  ${''.padEnd(16)}${profiles.map(() => 'rounds    min    win   incl. retries'.padStart(38)).join('')}`);
+  const totals = Object.fromEntries(profiles.map((p) => [p, 0]));
+  for (const id of battleIds) {
+    const cells = profiles.map((p) => {
+      const r = normal(p, id);
+      const withRetries = r.minutes / Math.max(0.01, r.win);
+      totals[p] += withRetries;
+      return `${r.rounds.toFixed(1).padStart(6)} ${r.minutes.toFixed(1).padStart(6)} ${pct(r.win)} ${withRetries.toFixed(1).padStart(10)}`.padStart(38);
+    });
+    console.log(`  ${id.padEnd(16)}${cells.join('')}`);
+  }
+  console.log(`\n  total = cutscene + dialogue + battles (incl. expected retries); target: non-gamer <= 18 min, every battle >= 99.9% win`);
+  for (const p of profiles) {
+    const worst = Math.min(...battleIds.map((id) => normal(p, id).win));
+    console.log(`  ${p.padEnd(10)} ${storyMin.toFixed(1)} + ${totals[p].toFixed(1)} battles = ${(storyMin + totals[p]).toFixed(1)} min   (lowest battle win ${pct(worst).trim()})`);
   }
 }

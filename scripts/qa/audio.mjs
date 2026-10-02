@@ -120,7 +120,7 @@ await withBrowser(async ({ chrome, server }) => {
     seen[scene] = (await A(page, 'A.musicStatus()')).key;
   }
   log(Object.entries(map).filter(([s]) => s !== 'Menu').every(([s, k]) => seen[s] === k), 'scenes start their mapped track', JSON.stringify(seen));
-  for (const [battle, key] of [['b1_tutorial', 'battle'], ['boss_clerk', 'boss']]) {
+  for (const [battle, key] of [['b1_forgotten', 'battle'], ['boss_clerk', 'boss']]) {
     const p = await open(chrome, `${server.url}?battle=${battle}`, { init: [INIT.analyser] });
     await p.waitFor(`!!(window.__battle && window.__battle.menu)`, { timeout: 40000 });
     await p.tap(180, 600);

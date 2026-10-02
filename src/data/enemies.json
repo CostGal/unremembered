@@ -14,7 +14,7 @@
   },
   "hollow": {
     "name": "Hollow",
-    "hp": 80,
+    "hp": 65,
     "xp": 30,
     "poise": 8,
     "body": "hollow",
@@ -22,7 +22,7 @@
     "hollow": true,
     "immune": ["strike"],
     "attacks": [
-      { "id": "claw", "weight": 3, "telegraphMs": 700, "dmg": 12, "onMiss": { "status": "fog", "chance": 0.3 } },
+      { "id": "claw", "weight": 3, "telegraphMs": 700, "dmg": 8, "onMiss": { "status": "fog", "chance": 0.3 } },
       {
         "id": "siphon",
         "weight": 1,
@@ -133,7 +133,7 @@
         "id": "maul",
         "anim": "claw",
         "weight": 2,
-        "hits": [{ "telegraphMs": 700, "dmg": 7 }, { "telegraphMs": 600, "dmg": 7, "feint": { "atPct": 0.6, "pauseMs": 350 } }]
+        "hits": [{ "telegraphMs": 700, "dmg": 6 }, { "telegraphMs": 600, "dmg": 6, "feint": { "atPct": 0.6, "pauseMs": 350 } }]
       }
     ]
   }

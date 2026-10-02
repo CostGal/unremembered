@@ -1,4 +1,4 @@
-// Forces a Hollow Siphon in b3_hollows and checks the siphon FX stream plays
+// Forces the plain Hollow (enemy 1) to Siphon in b3_gate and checks the siphon FX stream plays
 // (and is destroyed) between the windup and the impact. Screenshots to --out.
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,10 +11,10 @@ const server = await startServer();
 const chrome = await launchChrome();
 try {
   const page = await chrome.newPage();
-  await page.goto(`${server.url}?battle=b3_hollows`);
+  await page.goto(`${server.url}?battle=b3_gate`);
   await page.waitFor(`!!(window.__battle && window.__battle.menu)`, { timeout: 30000 });
   await sleep(1500);
-  await page.eval(`(() => { const b = window.__battle; const e = b.enemies[0]; window.__orig = Math.random; let n = 0; Math.random = () => { if (++n >= 2) Math.random = window.__orig; return 0.9999; }; window.__p = b.enemyTurn(e); })()`);
+  await page.eval(`(() => { const b = window.__battle; const e = b.enemies[1]; window.__orig = Math.random; let n = 0; Math.random = () => { if (++n >= 2) Math.random = window.__orig; return 0.9999; }; window.__p = b.enemyTurn(e); })()`);
   let n = 0, maxFx = 0, shot = false;
   for (let i = 0; i < 90; i++) {
     const c = await page.eval(`window.__battle.children.list.filter(o => o.texture && o.texture.key === 'hollow_siphon_fx').length`);
