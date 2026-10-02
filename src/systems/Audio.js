@@ -108,6 +108,11 @@ export function vibrate(ms) {
 export function playSfx(name) {
   const layers = audioData.sfx[name];
   if (!ctx || !layers || ctx.state !== 'running') return;
+  playLayers(layers, sfxBus);
+}
+
+// One-shot envelope layers (the audio.json sfx format) into `dest`.
+function playLayers(layers, dest) {
   const now = ctx.currentTime;
   for (const layer of layers) {
     const start = now + (layer.delayMs || 0) / 1000;
@@ -115,7 +120,7 @@ export function playSfx(name) {
     const env = ctx.createGain();
     env.gain.setValueAtTime(layer.gain, start);
     env.gain.exponentialRampToValueAtTime(0.0001, end);
-    env.connect(sfxBus);
+    env.connect(dest);
 
     let source;
     if (layer.type === 'noise') {
@@ -204,7 +209,11 @@ export function playAmbience(key) {
 
 let wantedAmbience = null;
 
-function startAmbience(key, layers) {
+// A bed is a list of looping layers, or {layers, events}: events are
+// one-shots in the sfx format ({sound, everyMs: [min, max]}) that fire at
+// random intervals (a distant drum, a gavel), through the bed's own fade.
+function startAmbience(key, bed) {
+  const layers = Array.isArray(bed) ? bed : bed.layers;
   const fade = audioData.ambience.fadeMs / 1000;
   const now = ctx.currentTime;
   const out = ctx.createGain();
@@ -254,14 +263,28 @@ function startAmbience(key, layers) {
     source.start(now, layer.type === 'noise' ? Math.random() * 0.8 : 0);
     nodes.push(source);
   }
-  ambience = { key, nodes, gain: out };
+  const current = { key, nodes, gain: out, timers: [] };
+  ((!Array.isArray(bed) && bed.events) || []).forEach((event, i) => {
+    const next = () => {
+      const [min, max] = event.everyMs;
+      const id = setTimeout(() => {
+        if (ambience !== current) return;
+        if (ctx.state === 'running' && !paused) playLayers(event.sound, out);
+        next();
+      }, min + Math.random() * (max - min));
+      current.timers[i] = id;
+    };
+    next();
+  });
+  ambience = current;
 }
 
 export function stopAmbience() {
   wantedAmbience = null;
   if (!ambience) return;
-  const { nodes, gain } = ambience;
+  const { nodes, gain, timers } = ambience;
   ambience = null;
+  for (const id of timers || []) clearTimeout(id);
   if (!ctx) return;
   const fade = audioData.ambience.fadeMs / 1000;
   const t = ctx.currentTime;
@@ -388,6 +411,7 @@ export function musicStatus() {
     stats: musicEngine ? { ...musicEngine.stats } : null,
     audioTime: ctx ? ctx.currentTime : 0,
     state: ctx ? ctx.state : 'none',
+    ambience: ambience ? ambience.key : null,
   };
 }
 

@@ -182,13 +182,24 @@ export default class CutsceneScene extends Phaser.Scene {
     // Sound: the shot's own sfx, else the first of its fx that has one (ui.json fxSfx).
     const sfx = shot.sfx !== undefined ? shot.sfx : (shot.fx || []).map((fx) => cfg.fxSfx[fx]).find(Boolean);
     if (sfx) playSfx(sfx);
-    playAmbience((shot.fx || []).includes('rain') ? cfg.rainAmbience : null);
+    playAmbience(this.shotAmbience(shot));
 
     this.typeText(shot.text || '');
     this.shotTimer = this.time.delayedCall(duration, () => {
       if (this.typing) this.completeText();
       this.nextShot();
     });
+  }
+
+  // The shot's ambience bed (audio.json ambience.beds): its own "ambience"
+  // (null = silence) if set; silence on the Hush (cfg.silentFx); rain on
+  // rain shots; else the default for its background (cfg.ambienceByBg).
+  shotAmbience(shot) {
+    if (shot.ambience !== undefined) return shot.ambience;
+    const fx = shot.fx || [];
+    if (fx.some((f) => cfg.silentFx.includes(f))) return null;
+    if (fx.includes('rain')) return cfg.rainAmbience;
+    return cfg.ambienceByBg[shot.bg] ?? null;
   }
 
   hasArt(key) {

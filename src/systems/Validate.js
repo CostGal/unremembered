@@ -37,6 +37,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   const { chapter1 = [], cutscenes = {}, dialogue = {}, battles = {}, enemies = {}, characters = {}, allies = {} } = data;
   const { techniques = {}, assets = {}, ui = {}, battleEvents = {}, animationSets = {} } = data;
   const backgrounds = assets.backgrounds || {};
+  const beds = data.audio?.ambience?.beds;
   const anyAsset = { ...assets.sprites, ...assets.portraits, ...backgrounds, ...assets.cutscene, ...assets.ui };
 
   // Chapter steps
@@ -152,7 +153,11 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       for (const fx of shot.fx || []) if (!SHOT_FX.includes(fx)) err(`${at}: unknown fx "${fx}"`);
       if (shot.move && !SHOT_MOVES.includes(shot.move)) err(`${at}: unknown move "${shot.move}"`);
       if (shot.split && !SPLITS.includes(shot.split)) err(`${at}: unknown split "${shot.split}"`);
+      if (beds && shot.ambience && !beds[shot.ambience]) err(`${at}: ambience "${shot.ambience}" is not in audio.json ambience.beds`);
     });
+  }
+  for (const [bg, bed] of Object.entries(ui.cutscene?.ambienceByBg || {})) {
+    if (beds && bed && !beds[bed]) err(`ui.cutscene.ambienceByBg.${bg}: "${bed}" is not in audio.json ambience.beds`);
   }
 
   // Animation sheets (ART_BRIEF output contract)

@@ -276,6 +276,8 @@
     "fadeOutMs": 500,
     "fxSfx": { "crystal_particles": "crystal_hum", "lights_out": "lights_out", "flash": null },
     "rainAmbience": "rain",
+    "ambienceByBg": { "city": "city", "reliquary": "reliquary", "battlefield": "war", "council": "council", "statue": "wind", "exile_close": "wind", "street_rain": "rain" },
+    "silentFx": ["lights_out"],
     "splitLine": 2,
     "splitColor": "0x000000",
     "depth": { "picture": 0, "fx": 10, "bars": 20, "text": 30, "hold": 40 },
