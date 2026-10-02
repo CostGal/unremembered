@@ -70,6 +70,12 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
         if (!characters[hero]) err(`battles.${id}.party: no character "${hero}" in characters.json`);
       }
     }
+    // formation: a key of ui.battleLayout.enemies with a slot per enemy.
+    if (battle.formation !== undefined) {
+      const slots = ui.battleLayout?.enemies?.[battle.formation];
+      if (!slots) err(`battles.${id}.formation: "${battle.formation}" is not in ui.battleLayout.enemies`);
+      else if (slots.length < (battle.enemies || []).length) err(`battles.${id}.formation: "${battle.formation}" has ${slots.length} slots for ${battle.enemies.length} enemies`);
+    }
     // Generic events (grammar: see systems/BattleEvents.js).
     if (battle.events !== undefined && !Array.isArray(battle.events)) err(`battles.${id}.events: must be a list`);
     const eventIds = new Set();
@@ -205,8 +211,26 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       if (def.refuseUntilFlag !== undefined && typeof def.refuseUntilFlag !== 'string') err(`${group}.${id}: refuseUntilFlag must be a string`);
     }
   }
+  // displayScale: whole numbers only (a fractional scale breaks the pixel grid).
+  // lifesteal: the share of damage dealt that an enemy heals. tint: 0xRRGGBB.
+  for (const [group, defs] of [['characters', characters], ['enemies', enemies]]) {
+    for (const [id, def] of Object.entries(defs)) {
+      if (def.displayScale !== undefined && !(Number.isInteger(def.displayScale) && def.displayScale > 0)) err(`${group}.${id}: displayScale must be a positive integer`);
+      if (def.tint !== undefined && !(typeof def.tint === 'string' && /^0x[0-9a-fA-F]{6}$/.test(def.tint))) err(`${group}.${id}: tint must be a hex string like "0x9aa8b8"`);
+    }
+  }
+  for (const [id, e] of Object.entries(enemies)) {
+    const attacks = e.phases ? e.phases.flatMap((p) => p.attacks || []) : e.attacks || [];
+    for (const a of attacks) {
+      for (const hit of [a, ...(a.hits || [])]) {
+        if (hit.lifesteal !== undefined && !(typeof hit.lifesteal === 'number' && hit.lifesteal >= 0)) err(`enemies.${id}.${a.id}: lifesteal must be a number >= 0`);
+      }
+    }
+  }
   const party = ui.battleLayout?.defaultParty;
   if (party !== undefined && (!Array.isArray(party) || !party.length || party.some((h) => !characters[h]))) err('ui.battleLayout.defaultParty: must list hero ids from characters.json');
+  const steal = battleEvents.lifesteal;
+  if (steal && !(typeof steal.text === 'string' && steal.text && steal.color)) err('battleEvents.lifesteal: text and color are required');
   const refuse = battleEvents.refuse;
   if (refuse && !(typeof refuse.text === 'string' && refuse.text && refuse.ms > 0 && refuse.color)) err('battleEvents.refuse: text, ms and color are required');
 

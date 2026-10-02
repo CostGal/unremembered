@@ -82,6 +82,7 @@
   "battleLayout": {
     "sceneBottom": 360,
     "labelGap": 6,
+    "labelMargin": 4,
     "labelDepth": 900,
     "attackerDepthGap": 1,
     "label": { "fontSize": 12, "color": "#f1efe8", "stroke": "#0b0d14", "strokeThickness": 3 },
@@ -92,7 +93,8 @@
       "1": [{ "x": 256, "feetY": 326 }],
       "2": [{ "x": 292, "feetY": 286 }, { "x": 224, "feetY": 342 }],
       "3": [{ "x": 296, "feetY": 272 }, { "x": 204, "feetY": 310 }, { "x": 268, "feetY": 350 }],
-      "boss": [{ "x": 236, "feetY": 334 }]
+      "boss": [{ "x": 236, "feetY": 334 }],
+      "gate": [{ "x": 262, "feetY": 330 }, { "x": 196, "feetY": 346 }]
     }
   },
   "hurt": { "knockbackPx": 6, "durationMs": 160 },

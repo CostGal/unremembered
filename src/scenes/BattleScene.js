@@ -16,7 +16,7 @@ import { playAmbience, playMusic, playSfx, setMusicIntensity, setMusicWarm, vibr
 import { dueEvents } from '../systems/BattleEvents.js';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
-import { mirrorEdges, rect as viewRect } from '../systems/View.js';
+import { clampX, mirrorEdges, rect as viewRect } from '../systems/View.js';
 import { difficultyDef } from '../systems/Difficulty.js';
 import CommandMenu from '../systems/CommandMenu.js';
 import Hud from '../systems/Hud.js';
@@ -38,6 +38,10 @@ const ATTACK_DURATION_MS = 400;
 const DASH_DURATION_MS = 180;
 const LUNGE_OUT_MS = 150;
 const WINDUP_MS = 200;
+// Two 0xRRGGBB tints multiplied channel by channel (how two lights stack).
+const multiplyTints = (a, b) =>
+  [16, 8, 0].reduce((out, shift) => out | (Math.round((((a >> shift) & 255) * ((b >> shift) & 255)) / 255) << shift), 0);
+
 // Lunge used when a sheet character's attack sheet is missing and its def has no lunge data.
 const FALLBACK_LUNGE = { distance: 10, squash: 0.15 };
 
@@ -257,11 +261,16 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   // Night (or lamp) light on every combatant, so they sit in the scene.
+  // An enemy def's own `tint` (enemies.json, e.g. a darker Warden) multiplies it.
   applyAmbientTint() {
-    if (!this.environment.ambientTint) return;
-    const images = [...this.heroes, ...this.enemies].flatMap((e) => [e.body, ...Object.values(e.parts).map((p) => p.img)]);
-    if (this.nala) images.push(this.nala.image);
-    Fx.setBaseTint(images, Number(this.environment.ambientTint));
+    const ambient = this.environment.ambientTint ? Number(this.environment.ambientTint) : null;
+    for (const entity of [...this.heroes, ...this.enemies]) {
+      const own = entity.def.tint ? Number(entity.def.tint) : null;
+      const tint = own !== null && ambient !== null ? multiplyTints(ambient, own) : own ?? ambient;
+      if (tint === null) continue;
+      Fx.setBaseTint([entity.body, ...Object.values(entity.parts).map((p) => p.img)], tint);
+    }
+    if (ambient !== null && this.nala) Fx.setBaseTint([this.nala.image], ambient);
   }
 
   // ---------- Entity setup ----------
@@ -269,7 +278,8 @@ export default class BattleScene extends Phaser.Scene {
   // The ui.battleLayout slots for this enemy list: the boss formation if any
   // enemy is a boss, otherwise the one for this many enemies.
   enemySlots(enemyKeys) {
-    const formationKey = enemyKeys.some((key) => enemies[key].boss) ? 'boss' : String(enemyKeys.length);
+    // battles.json `formation` names a layout explicitly; otherwise by count / boss.
+    const formationKey = this.battleDef.formation || (enemyKeys.some((key) => enemies[key].boss) ? 'boss' : String(enemyKeys.length));
     const slots = layout.enemies[formationKey];
     if (slots && slots.length >= enemyKeys.length) return slots;
 
@@ -357,7 +367,10 @@ export default class BattleScene extends Phaser.Scene {
     const animSet = this.animationSets[type];
     const anims = animSet?.animations?.idle ? animSet.animations : null;
     const bodyManifest = this.manifest.sprites[def.body] || {};
-    const height = anims ? animSet.frame_size[1] : bodyManifest.h || 128;
+    // displayScale (integer, default 1): draws the whole entity N times bigger.
+    // `height` is the scaled one, so the feet, label, markers and rings follow.
+    const displayScale = def.displayScale ?? 1;
+    const height = (anims ? animSet.frame_size[1] : bodyManifest.h || 128) * displayScale;
 
     const x = slot.x;
     const y = slot.feetY - height / 2;
@@ -383,7 +396,7 @@ export default class BattleScene extends Phaser.Scene {
       parts[part.key] = { img, restX, restY };
     }
 
-    container.setScale(mirror ? -1 : 1, 1);
+    container.setScale(mirror ? -displayScale : displayScale, displayScale);
 
     return this.finishEntity({ id, type, def, container, x, y, facing, isHero, body, parts, height });
   }
@@ -392,7 +405,8 @@ export default class BattleScene extends Phaser.Scene {
     if (anims) {
       body = this.add.sprite(0, 0, animKey(type, 'idle'));
       container.add(body);
-      container.setScale((animSet.facing || 'left') !== facing ? -1 : 1, 1);
+      const ds = def.displayScale ?? 1;
+      container.setScale((animSet.facing || 'left') !== facing ? -ds : ds, ds);
       playLoop(body, type, 'idle');
     }
 
@@ -427,6 +441,8 @@ export default class BattleScene extends Phaser.Scene {
       isHero,
       restX: x,
       height,
+      // The container's own (positive) scale: tweens that squash it multiply this.
+      baseScale: def.displayScale ?? 1,
     };
 
     this.updateLabel(entity);
@@ -459,6 +475,9 @@ export default class BattleScene extends Phaser.Scene {
   updateLabel(entity) {
     if (!entity.label) return;
     entity.label.setText(`${entity.name}  ${entity.hp}/${entity.maxHp}`);
+    // A long name over an enemy near the right edge stays on screen.
+    entity.labelX ??= entity.label.x;
+    entity.label.x = clampX(entity.labelX, entity.label.width, layout.labelMargin);
   }
 
   // ---------- HUD ----------
@@ -636,8 +655,8 @@ export default class BattleScene extends Phaser.Scene {
     if (entity.hurtTween) entity.hurtTween.stop();
     body.x = 0;
     const away = entity.facing === 'right' ? -1 : 1;
-    // body.x is in container space; a mirrored container flips it.
-    const dx = (away * knockbackPx) / Math.sign(entity.container.scaleX || 1);
+    // body.x is in container space; a mirrored or enlarged container changes it.
+    const dx = (away * knockbackPx) / (entity.container.scaleX || 1);
     entity.hurtTween = this.tweens.add({
       targets: body,
       x: dx,
@@ -1182,7 +1201,7 @@ export default class BattleScene extends Phaser.Scene {
   enemyAttackFx(enemy, def) {
     if (!def.projectile || !hasSheet(enemy.anims, def.projectile)) return null;
     const fx = this.add.sprite(enemy.container.x, enemy.container.y, animKey(enemy.type, def.projectile));
-    fx.setScale(enemy.container.scaleX, 1).setDepth(enemy.container.depth + 1);
+    fx.setScale(enemy.container.scaleX, enemy.container.scaleY).setDepth(enemy.container.depth + 1);
     return playLoop(fx, enemy.type, def.projectile);
   }
 
@@ -1362,14 +1381,15 @@ export default class BattleScene extends Phaser.Scene {
     ch.counter.setText(c.counterText.replace('{n}', ch.turnsLeft));
   }
 
-  // The charge heals part of what its guard absorbed (shown like Anchor's number).
-  healEnemy(enemy, amount) {
+  // The enemy regains HP (shown like Anchor's number): a charge's absorbed share
+  // by default, or e.g. Siphon's lifesteal with its own text and color.
+  healEnemy(enemy, amount, text = battleEvents.charge.healText, color = battleEvents.charge.textColor) {
     const healed = Math.min(amount, enemy.maxHp - enemy.hp);
     if (healed <= 0) return;
     enemy.hp += healed;
     this.updateLabel(enemy);
     Fx.damageNumber(this, enemy.container.x, enemy.container.y - 80, `${ui.heal.textPrefix}${healed}`, null, 'heal');
-    Fx.popText(this, enemy.container.x, enemy.container.y, battleEvents.charge.healText, battleEvents.charge.textColor, qte.text);
+    Fx.popText(this, enemy.container.x, enemy.container.y, text, color, qte.text);
   }
 
   // Exposed (Recollection): the enemy takes damageTakenMult until its turns run out.
@@ -1598,7 +1618,12 @@ export default class BattleScene extends Phaser.Scene {
     // Reactions (ART_BRIEF): PERFECT -> parry (the counter), GOOD -> dodge,
     // MISS -> hurt, each only if the character has that sheet.
     const dodge = (result === 'GOOD' || (result === 'PERFECT' && dodged)) && hero.hp > 0 && hasSheet(hero.anims, 'dodge');
+    const hpBefore = hero.hp;
     if (dmg > 0) this.applyHit(hero, dmg, undefined, { react: !dodge });
+    // e.g. Siphon: the enemy keeps a share of the life it took (enemies.json lifesteal).
+    if (hit.lifesteal && dmg > 0 && enemy.hp > 0) {
+      this.healEnemy(enemy, Math.round(Math.min(dmg, hpBefore) * hit.lifesteal), battleEvents.lifesteal.text, battleEvents.lifesteal.color);
+    }
     if (dodge && hero.hp > 0) this.playReaction(hero, 'dodge');
     if (dmg > 0 && this.brace) Fx.popText(this, x, y + qte.text.riseY, this.brace.blockText, this.brace.color, qte.text);
     if (cfg.knockback && hero.hp > 0) Fx.knockback(this, hero.container, hero.facing === 'right' ? -cfg.knockback : cfg.knockback);
@@ -1780,9 +1805,9 @@ export default class BattleScene extends Phaser.Scene {
     const { x, y } = entity.container;
     const size = this.animationSets[entity.type]?.frame_size;
     if (!spawnPx || !size) return [x, y];
-    const flipped = entity.container.scaleX < 0;
-    const dx = spawnPx[0] - size[0] / 2;
-    return [x + (flipped ? -dx : dx), y + spawnPx[1] - size[1] / 2];
+    // The container may be mirrored (negative scaleX) and enlarged (displayScale).
+    const { scaleX, scaleY } = entity.container;
+    return [x + (spawnPx[0] - size[0] / 2) * scaleX, y + (spawnPx[1] - size[1] / 2) * scaleY];
   }
 
   // Return to Sender: the hero holds a guard (the ability sheet's holdFrame)

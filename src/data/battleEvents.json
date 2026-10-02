@@ -18,5 +18,6 @@
     "textColor": "#3fd0c9",
     "chargingMs": 700
   },
+  "lifesteal": { "text": "Siphoned", "color": "#5fcf86" },
   "refuse": { "ms": 900, "color": "#e0a040", "text": "Dov won't fight back" }
 }

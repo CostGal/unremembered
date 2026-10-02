@@ -32,6 +32,7 @@
       { "id": "b2_immune", "when": "firstImmune", "dialogue": "b2_immune" }
     ]
   },
+  "b3_gate": { "bg": "street_rain", "enemies": ["hollow_warden", "hollow"], "formation": "gate", "nala": true, "music": "battle" },
   "b1_tutorial": {
     "bg": "street_rain",
     "enemies": ["blank", "hollow"],

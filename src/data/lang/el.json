@@ -314,6 +314,7 @@
   },
   "battleEvents": {
     "refuse": { "text": "Ο Dov δεν αντεπιτίθεται" },
+    "lifesteal": { "text": "Ρούφηξε" },
     "charge": {
       "counterText": "Archive σε {n} · σε φρουρά",
       "chargingText": "Φορτίζει…",

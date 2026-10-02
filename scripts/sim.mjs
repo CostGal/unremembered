@@ -419,8 +419,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
       gain(target, cfg.echo);
       if (res === 'MISS' && hit.onMiss?.echo) gain(target, hit.onMiss.echo);
       const dmg = Math.round(hit.dmg * cfg.damageMult * dmgTakenMult * (st.brace ? st.brace.damageMult : 1));
-      st.damageTaken += Math.min(dmg, target.hp);
+      const dealt = Math.min(dmg, target.hp);
+      st.damageTaken += dealt;
       target.hp = Math.max(0, target.hp - dmg);
+      // Siphon: the enemy keeps a share of the life it took.
+      if (hit.lifesteal && dmg > 0 && enemy.hp > 0) enemy.hp = Math.min(enemy.max, enemy.hp + Math.round(dealt * hit.lifesteal));
       // A missed parry can leave a memory status (Fog has no effect on the numbers).
       const status = res === 'MISS' && battle.statuses !== false && hit.onMiss?.status;
       if (status === 'redacted' && rnd() < (hit.onMiss.chance ?? 1) && target.hp > 0 && target.techniques.length) {

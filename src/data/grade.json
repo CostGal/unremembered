@@ -6,7 +6,7 @@
     { "id": "A", "min": 60, "color": "#3fd0c9" },
     { "id": "B", "min": 0, "color": "#f1efe8" }
   ],
-  "par": { "default": 8, "b0_duel": 5, "b1_tutorial": 7, "b1_forgotten": 7, "b2_first_hollow": 8, "b3_hollows": 8, "boss_clerk": 14 },
+  "par": { "default": 8, "b0_duel": 5, "b1_tutorial": 7, "b1_forgotten": 7, "b2_first_hollow": 8, "b3_hollows": 8, "b3_gate": 9, "boss_clerk": 14 },
   "hint": "Perfect parries raise your rank",
   "card": {
     "x": 30,
