@@ -173,6 +173,8 @@ await withBrowser(async ({ chrome, server }) => {
       return { rings, ...r };
     };
     // File Away: 2 hits, 2 rings, 2 impact frames
+    // The phase's opening (stamp, archive) would fix the first picks: skip past it so the stubs choose.
+    await page.ev(`window.__battle.enemies[0].turnsInPhase = 99`);
     let t = await enemyTurnTapping([0, 0.9999], [0, 0], 'file_away');
     const impacts = t.frames.filter((f) => f.key === 'clerk_file_away' && [4, 8].includes(f.frame));
     log(t.rings.length === 2 && t.results.length === 2 && t.results.every((x) => x === 'PERFECT'), 'File Away: two separate rings, both parried', `rings ${t.rings.length}, results ${t.results}`);
@@ -186,28 +188,38 @@ await withBrowser(async ({ chrome, server }) => {
     const imp = t.frames.find((f) => f.key === 'clerk_redact' && f.frame === 9);
     log(t.rings.length === 1 && hold && imp && imp.t - hold.t >= 380, 'Redact: holds the feint frame (8) for ≥ 400 ms, then the impact frame (9)', `hold→impact ${hold && imp ? Math.round(imp.t - hold.t) : '?'} ms; result ${t.results}`);
     log(imp && Math.abs(imp.t - t.rings[0]) < 90, 'Redact: impact frame lands on the ring impact time', imp ? `${Math.round(imp.t - t.rings[0])} ms` : 'no impact frame');
-    // Archive: red ring only dodgeable; charge → interrupted
+    // Archive: a 4-turn guarded charge; only a BREAK cancels it; release = red ring + heal
     await sleep(800);
     await page.ev(`window.__battle.enemies[0].phase = 1; window.__stub([0, 0.9999]); window.__battle.enemyTurn(window.__battle.enemies[0]).then(() => { window.__done2 = true; })`);
     await sleep(1500);
     const charging = await B(page, '!!B.enemies[0].charge');
     log(charging, 'Archive: enemy starts charging (turn 1)');
     await page.shot(join(out, 'archive_charging.png'));
-    await page.ev(`window.__battle.chargeDamage(window.__battle.enemies[0], 39)`);
-    log(await B(page, '!!B.enemies[0].charge'), 'Archive: 39 damage (< 40) does not interrupt');
-    await page.ev(`window.__battle.chargeDamage(window.__battle.enemies[0], 1)`);
+    const hpBefore = await B(page, 'B.enemies[0].hp');
+    await page.ev(`(() => { const B = window.__battle; B.chain = 0; B.applyHit(B.enemies[0], 10); })()`);
+    const guarded = hpBefore - (await B(page, 'B.enemies[0].hp'));
+    log(guarded === 6, 'Archive: while charging the Clerk takes 60% of a hit (10 → 6)', `took ${guarded}`);
+    log(await B(page, 'B.enemies[0].charge && B.enemies[0].charge.mitigated === 4'), 'Archive: the guard remembers what it absorbed (4)', `${await B(page, 'B.enemies[0].charge && B.enemies[0].charge.mitigated')}`);
+    await page.ev(`(() => { const B = window.__battle; B.enemies[0].poise = 1; B.hitPoise(B.enemies[0], 1); })()`);
     await sleep(900);
-    log(!(await B(page, '!!B.enemies[0].charge')), 'Archive: 40 damage interrupts the charge');
+    log(!(await B(page, '!!B.enemies[0].charge')) && (await B(page, 'B.enemies[0].broken')), 'Archive: a BREAK cancels the charge');
     const idleAfter = await page.ev(`window.__battle.enemies[0].body.anims.currentAnim && window.__battle.enemies[0].body.anims.currentAnim.key`);
-    log(idleAfter === 'clerk_idle', 'Archive: interrupted → clerk returns to idle', idleAfter);
-    // charge → release, no dodge: full 30 dmg
+    log(idleAfter === 'clerk_idle', 'Archive: cancelled → clerk returns to idle', idleAfter);
+    await page.ev(`(() => { const B = window.__battle; B.refillPoise(B.enemies[0]); })()`);
+    // charge → 4 turns → release, no dodge: full 35 dmg, then heals half of what the guard absorbed
     await sleep(500);
     t = await enemyTurnTapping([0, 0.9999], [], 'archive1');
-    const c1 = await B(page, '!!B.enemies[0].charge');
+    const c1 = await B(page, 'B.enemies[0].charge && B.enemies[0].charge.turnsLeft');
+    await page.ev(`(() => { const B = window.__battle; B.enemies[0].hp = 100; B.updateLabel(B.enemies[0]); B.chain = 0; B.applyHit(B.enemies[0], 20); })()`);
     t = await enemyTurnTapping([0], [], 'archive2');
     t = await enemyTurnTapping([0], [], 'archive3');
+    t = await enemyTurnTapping([0], [], 'archive4');
+    const c4 = await B(page, 'B.enemies[0].charge && B.enemies[0].charge.turnsLeft');
+    t = await enemyTurnTapping([0], [], 'archive5');
     const lost = await B(page, 'B.heroes[0].maxHp - B.heroes[0].hp + B.heroes[1].maxHp - B.heroes[1].hp');
-    log(c1 && t.results.length === 1 && t.results[0] === 'MISS' && lost === 30, 'Archive: 2 turns of charge, then fires as a red-ring hit; a missed dodge costs 30', `charging after turn 1: ${c1}; results ${t.results}; hp lost ${lost}; trace ${t.trace.filter((k) => /archive/.test(k)).join(' ')}`);
+    const hpAfter = await B(page, 'B.enemies[0].hp');
+    log(c1 === 4 && c4 === 1 && t.results.length === 1 && t.results[0] === 'MISS' && lost === 35, 'Archive: 4 turns of charge, then fires as a red-ring hit; a missed dodge costs 35', `turnsLeft after turn 1: ${c1}, after turn 4: ${c4}; results ${t.results}; hp lost ${lost}; trace ${t.trace.filter((k) => /archive/.test(k)).join(' ')}`);
+    log(hpAfter === 100 - 12 + 4, 'Archive: release heals half of what the guard absorbed (20 hit → 12 taken, +4 back)', `clerk hp ${hpAfter}`);
     log(page.errors.length === 0, 'no console errors during boss moves', page.errors.slice(0, 2).join(' | '));
   }
 

@@ -52,6 +52,7 @@
     "type": "ultimate",
     "taps": 3,
     "intervalMs": 500,
-    "dmg": { "perfect": 45, "good": 30, "miss": 15 }
+    "dmg": { "perfect": 60, "good": 40, "miss": 20 },
+    "applies": { "status": "exposed", "turns": 3 }
   }
 }

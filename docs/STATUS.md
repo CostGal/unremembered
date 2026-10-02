@@ -89,3 +89,9 @@ Still needs real phones: the Instagram in-app browser itself, iOS silent switch,
 
 ## Echo per hero (Kostas, Thu 1/10)
 Each hero has **their own Echo** (`hero.echo`, max `characters.json echoMax`, default `ui.hud.echo.max` = 10), drawn as a row of pips under that hero's HP bar. The hero who lands a Strike earns it (+1); the hero who parries earns it (PERFECT +2, GOOD 0, dodge 0); Siphon drains the hero it hit; Old Ticket gives everyone +2 at battle start; the Keepsake fills Rhea only. Techniques spend their user's reserve: Blast 4, Return to Sender 3, Anchor 4, Brace 3, Recollection 10 (Rhea). The sim, the playtest bot and the battle lab model the split. Design intent: Echo is scarce, every technique is a decision, and the boss should have more than one route (next design step).
+
+## Boss rework (Kostas, Fri 2/10)
+- **Archive** (`enemies.json` clerk): phase 1 opens stamp → archive (`opening`), 4-turn charge, the Clerk takes 60% of every hit meanwhile (`guardMult`), only a BREAK cancels it (`brokenText`), release = 35 unparryable + heals half of what the guard absorbed. The game never explains the break: after the first release the `archive_insight` dialogue (Rhea + Dov, marked `todo` for a text pass) plays.
+- **Recollection**: 60/40/20 per ring and the target is **Exposed** (`statuses.json`, ×1.3 damage taken for its next 3 turns). Rhea's Echo caps at 8 (`characters.json echoMax`) until the Keepsake raises it to 10 (`battleEvents.keepsake_burn.echoMax`) and fills it: the ultimate is reachable only from there. Locked pips are drawn dim.
+- Clerk HP 260, boss par 14. `npm run sim` (normal): non-gamer 17 rounds / 100% win, average 14, good 12.
+

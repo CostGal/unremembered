@@ -465,6 +465,9 @@ export default class BattleScene extends Phaser.Scene {
     if (entity.isHero) {
       entity.statuses = {};
       this.refreshHud();
+    } else {
+      entity.exposed = null;
+      this.updateEnemyStatus(entity);
     }
     if (entity.bobTween) entity.bobTween.stop();
     if (entity.label) this.tweens.add({ targets: entity.label, alpha: 0, duration: ui.downed.enemyFadeMs });
@@ -710,9 +713,15 @@ export default class BattleScene extends Phaser.Scene {
     return g;
   }
 
+  // An enemy's turn, then its own statuses (Exposed) tick down.
+  async enemyTurn(enemy) {
+    await this.enemyAct(enemy);
+    this.tickEnemyStatus(enemy);
+  }
+
   // Each hit of the attack is its own parry ring on the targeted hero.
   // A hero in a counter stance draws the attack.
-  async enemyTurn(enemy) {
+  async enemyAct(enemy) {
     if (enemy.broken) {
       await this.skipBrokenTurn(enemy);
       return;
@@ -722,17 +731,20 @@ export default class BattleScene extends Phaser.Scene {
     const stanceHero = this.stance && this.stance.hero.hp > 0 ? this.stance.hero : null;
     const target = stanceHero || Phaser.Utils.Array.GetRandom(livingHeroes);
     let attack;
+    let mitigated = 0;
     if (enemy.charge) {
       enemy.charge.turnsLeft -= 1;
+      this.updateChargeCounter(enemy);
       if (enemy.charge.turnsLeft > 0) {
         Fx.popText(this, enemy.container.x, enemy.container.y, battleEvents.charge.chargingText, battleEvents.charge.textColor, qte.text);
         await this.wait(battleEvents.charge.chargingMs);
         return;
       }
       attack = enemy.charge.attack;
+      mitigated = enemy.charge.mitigated;
       await this.endCharge(enemy);
     } else {
-      attack = pickWeighted(this.pickableAttacks(enemy));
+      attack = this.pickAttack(enemy);
       if (attack.chargeTurns) {
         this.startCharge(enemy, attack);
         await this.wait(battleEvents.charge.chargingMs);
@@ -752,6 +764,25 @@ export default class BattleScene extends Phaser.Scene {
     if (sheet) await sheet.finish();
     this.tapHint.setVisible(false);
     this.brace = null;
+
+    // A released charge heals part of what its guard absorbed, and the first
+    // release of the battle can queue a story beat (e.g. Rhea's insight).
+    if (enemy.hp > 0 && attack.healMitigatedPct && mitigated > 0) this.healEnemy(enemy, Math.round(mitigated * attack.healMitigatedPct));
+    if (enemy.hp > 0 && attack.onRelease && !enemy.released?.[attack.id]) {
+      enemy.released = { ...(enemy.released || {}), [attack.id]: true };
+      this.pendingEvents.push(attack.onRelease);
+    }
+  }
+
+  // A phase's "opening" (enemies.json) fixes the attack of that phase's first
+  // turns (the Clerk charges Archive on his second); after that, weighted.
+  pickAttack(enemy) {
+    const phase = enemy.def.phases?.[enemy.phase || 0];
+    const n = enemy.turnsInPhase || 0;
+    enemy.turnsInPhase = n + 1;
+    const id = phase?.opening?.[n];
+    const fixed = id ? this.pickableAttacks(enemy).find((a) => a.id === id) : null;
+    return fixed || pickWeighted(this.pickableAttacks(enemy));
   }
 
   // The parry tutorial teaches the tap first: no red-ring attack until it's
@@ -1039,6 +1070,7 @@ export default class BattleScene extends Phaser.Scene {
       setMusicIntensity(phases[enemy.phase].musicIntensity ?? enemy.phase / (phases.length - 1));
       const onEnter = phases[enemy.phase].onEnter;
       if (onEnter) this.pendingEvents.push(onEnter);
+      enemy.turnsInPhase = 0;
       // A new phase brings the poise back (a broken enemy recovers at the end of its stunned turn).
       if (enemy.maxPoise && !enemy.broken) this.refillPoise(enemy);
     }
@@ -1048,6 +1080,7 @@ export default class BattleScene extends Phaser.Scene {
     while (this.pendingEvents.length && !this.battleOver) {
       const event = this.pendingEvents.shift();
       if (event === 'keepsake_burn') await this.keepsakeBurn();
+      else if (battleEvents[event]?.dialogue && this.enemies.some((e) => e.hp > 0)) await this.playDialogueOverlay(battleEvents[event].dialogue);
     }
   }
 
@@ -1057,8 +1090,10 @@ export default class BattleScene extends Phaser.Scene {
     if (this.enemies.every((e) => e.hp <= 0)) return;
     await this.playDialogueOverlay(battleEvents.keepsake_burn.dialogue);
     const rhea = this.heroes.find((h) => h.def.canUltimate) || this.heroes[0];
-    this.gainEcho(rhea, rhea.echoMax);
     const k = battleEvents.keepsake_burn;
+    // The burnt Keepsake unlocks the last pips: Recollection is reachable only from here.
+    if (k.echoMax) rhea.echoMax = Math.max(rhea.echoMax, k.echoMax);
+    this.gainEcho(rhea, rhea.echoMax);
     Fx.screenFlash(this, k.flash, qte.flashDepth);
   }
 
@@ -1084,8 +1119,10 @@ export default class BattleScene extends Phaser.Scene {
   // ---------- Archive (charged attack) ----------
 
   // First pick: the enemy starts charging instead of attacking. It charges
-  // for chargeTurns enemy turns (glow + damage-to-interrupt counter), then
-  // fires as a normal hit. Enough damage during the charge cancels it.
+  // for chargeTurns of its turns (glow + countdown), guarded: it takes only
+  // guardMult of every hit and keeps count of what the guard absorbed. Then
+  // it fires as a normal hit and heals healMitigatedPct of that. Only a
+  // BREAK (poise to 0) cancels a charge.
   startCharge(enemy, attack) {
     const c = battleEvents.charge;
     const glow = this.add
@@ -1101,7 +1138,7 @@ export default class BattleScene extends Phaser.Scene {
     // The charge sheet (archive_charge: _in -> loop -> _out) if there is one.
     const loop = attack.chargeAnim && hasSheet(enemy.anims, attack.chargeAnim) ? this.loopWithInOut(enemy, attack.chargeAnim) : null;
     if (!loop) trace(`fallback:charge:${enemy.type}`);
-    enemy.charge = { attack, turnsLeft: attack.chargeTurns, dealt: 0, glow, glowTween, counter, loop };
+    enemy.charge = { attack, turnsLeft: attack.chargeTurns, mitigated: 0, glow, glowTween, counter, loop };
     this.updateChargeCounter(enemy);
     Fx.popText(this, enemy.container.x, enemy.container.y, c.startText, c.textColor, qte.text);
   }
@@ -1109,19 +1146,49 @@ export default class BattleScene extends Phaser.Scene {
   updateChargeCounter(enemy) {
     const ch = enemy.charge;
     const c = battleEvents.charge;
-    ch.counter.setText(c.counterText.replace('{n}', ch.dealt).replace('{max}', ch.attack.interruptDmg));
+    ch.counter.setText(c.counterText.replace('{n}', ch.turnsLeft));
   }
 
-  // Party damage during a charge counts toward the interrupt.
-  chargeDamage(enemy, dmg) {
-    const ch = enemy.charge;
-    if (!ch) return;
-    ch.dealt += dmg;
-    this.updateChargeCounter(enemy);
-    if (ch.dealt >= ch.attack.interruptDmg || enemy.hp <= 0) {
-      if (enemy.hp > 0) Fx.popText(this, enemy.container.x, enemy.container.y, battleEvents.charge.interruptText, battleEvents.charge.textColor, qte.text);
-      this.endCharge(enemy, true);
+  // The charge heals part of what its guard absorbed (shown like Anchor's number).
+  healEnemy(enemy, amount) {
+    const healed = Math.min(amount, enemy.maxHp - enemy.hp);
+    if (healed <= 0) return;
+    enemy.hp += healed;
+    this.updateLabel(enemy);
+    Fx.damageNumber(this, enemy.container.x, enemy.container.y - 80, `${ui.heal.textPrefix}${healed}`, null, 'heal');
+    Fx.popText(this, enemy.container.x, enemy.container.y, battleEvents.charge.healText, battleEvents.charge.textColor, qte.text);
+  }
+
+  // Exposed (Recollection): the enemy takes damageTakenMult until its turns run out.
+  applyEnemyStatus(enemy, id, turns) {
+    const def = statuses[id];
+    if (!def || enemy.isHero || enemy.hp <= 0) return;
+    enemy.exposed = { id, mult: def.damageTakenMult, turns };
+    Fx.popText(this, enemy.container.x, enemy.container.y, def.applyText, def.color, qte.text);
+    this.updateEnemyStatus(enemy);
+  }
+
+  tickEnemyStatus(enemy) {
+    if (!enemy.exposed) return;
+    enemy.exposed.turns -= 1;
+    if (enemy.exposed.turns <= 0) enemy.exposed = null;
+    this.updateEnemyStatus(enemy);
+  }
+
+  updateEnemyStatus(enemy) {
+    const s = ui.enemyStatus;
+    if (!enemy.exposed || enemy.hp <= 0) {
+      enemy.statusText?.destroy();
+      enemy.statusText = null;
+      return;
     }
+    if (!enemy.statusText) {
+      enemy.statusText = this.add
+        .text(enemy.container.x, enemy.label.y - enemy.label.height + s.offsetY, '', { fontFamily: ui.font, fontSize: `${s.fontSize}px`, color: s.color, stroke: s.stroke, strokeThickness: s.strokeThickness })
+        .setOrigin(0.5, 1)
+        .setDepth(layout.labelDepth);
+    }
+    enemy.statusText.setText(statuses[enemy.exposed.id].label.replace('{n}', enemy.exposed.turns));
   }
 
   // Resolves once the charge sheet's _out has played. interrupted = back to
@@ -1162,6 +1229,8 @@ export default class BattleScene extends Phaser.Scene {
     this.tapHint.setVisible(true);
     await this.recollectionRings(target, tech);
     this.tapHint.setVisible(false);
+    // The memory leaves its mark: the target takes more damage for a few turns.
+    if (tech.applies && target.hp > 0) this.applyEnemyStatus(target, tech.applies.status, tech.applies.turns);
     castDone.stop();
     setMusicWarm(false);
 
@@ -1669,12 +1738,21 @@ export default class BattleScene extends Phaser.Scene {
   // type = damage number style (ui.json damageNumbers); heroes' damage is "hurt".
   // poise = poise damage to an enemy (break.json sources). A broken enemy takes break.damageMult.
   applyHit(target, dmg, color, { react = true, type = null, poise = 0 } = {}) {
+    let kind = type;
     if (!target.isHero) dmg = this.chainDamage(dmg);
     if (target.broken) dmg = Math.round(dmg * brk.damageMult);
+    // A charging enemy's guard absorbs part of the hit (and remembers how much).
+    if (target.charge?.attack.guardMult) {
+      const full = dmg;
+      dmg = Math.round(dmg * target.charge.attack.guardMult);
+      target.charge.mitigated += full - dmg;
+      kind = kind || 'guarded';
+    }
+    if (target.exposed) dmg = Math.round(dmg * target.exposed.mult);
     const images = [target.body, ...Object.values(target.parts).map((p) => p.img)];
     Fx.flash(this, images, 60);
     Fx.shake(this, 2, 80);
-    Fx.damageNumber(this, target.container.x, target.container.y - 80, dmg, color, type || (target.isHero ? 'hurt' : 'normal'));
+    Fx.damageNumber(this, target.container.x, target.container.y - 80, dmg, color, kind || (target.isHero ? 'hurt' : 'normal'));
     playSfx('hit');
 
     if (target.isHero) this.stats.damageTaken += Math.min(dmg, target.hp);
@@ -1682,7 +1760,6 @@ export default class BattleScene extends Phaser.Scene {
     this.updateLabel(target);
     if (target.isHero) this.refreshHud();
     else {
-      this.chargeDamage(target, dmg);
       this.checkPhase(target);
       if (poise) this.hitPoise(target, poise);
     }
@@ -1763,6 +1840,11 @@ export default class BattleScene extends Phaser.Scene {
     Fx.sparks(this, enemy.container.x, enemy.container.y, fx.sparks, { ...qte.sparks, color: fx.sparkColor }, qte.ring.depth);
     playSfx(fx.sfx);
     vibrate(qte.results.PERFECT.vibrateMs);
+    // A BREAK is the one thing that stops a charge (the player finds this out).
+    if (enemy.charge) {
+      Fx.popText(this, enemy.container.x, enemy.container.y + qte.text.riseY, battleEvents.charge.brokenText, battleEvents.charge.textColor, qte.text);
+      this.endCharge(enemy, true);
+    }
   }
 
   // The broken enemy's turn: it does nothing, then recovers with full poise.
@@ -1848,10 +1930,10 @@ export default class BattleScene extends Phaser.Scene {
 }
 
 function pickWeighted(list) {
-  const total = list.reduce((sum, item) => sum + (item.weight || 1), 0);
+  const total = list.reduce((sum, item) => sum + (item.weight ?? 1), 0);
   let r = Math.random() * total;
   for (const item of list) {
-    r -= item.weight || 1;
+    r -= item.weight ?? 1;
     if (r <= 0) return item;
   }
   return list[list.length - 1];

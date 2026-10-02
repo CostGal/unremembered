@@ -28,6 +28,7 @@ const D = {
   brk: read('src/data/break.json'),
   grade: read('src/data/grade.json'),
   statuses: read('src/data/statuses.json'),
+  battleEvents: read('src/data/battleEvents.json'),
   allies: read('src/data/allies.json'),
   chapter: read('src/data/chapter1.json'),
   dialogue: read('src/data/dialogue.json'),
@@ -119,7 +120,7 @@ function pickWeighted(list, rnd) {
   const total = list.reduce((s, i) => s + (i.weight || 1), 0);
   let r = rnd() * total;
   for (const item of list) {
-    r -= item.weight || 1;
+    r -= item.weight ?? 1;
     if (r <= 0) return item;
   }
   return list[list.length - 1];
@@ -155,19 +156,21 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const hitEnemy = (enemy, rawDmg, poiseDmg = 0) => {
     let dmg = chainDmg(rawDmg);
     if (enemy.broken) dmg = Math.round(dmg * D.brk.damageMult);
-    enemy.hp = Math.max(0, enemy.hp - dmg);
-    if (enemy.charge) {
-      enemy.charge.dealt += dmg;
-      if (enemy.charge.dealt >= enemy.charge.attack.interruptDmg || enemy.hp <= 0) {
-        if (enemy.hp > 0) st.archiveInterrupts += 1;
-        enemy.charge = null;
-      }
+    // A charging enemy's guard absorbs part of the hit; Exposed (Recollection) adds.
+    if (enemy.charge?.attack.guardMult) {
+      const full = dmg;
+      dmg = Math.round(dmg * enemy.charge.attack.guardMult);
+      enemy.charge.mitigated += full - dmg;
     }
+    if (enemy.exposed) dmg = Math.round(dmg * enemy.exposed.mult);
+    enemy.hp = Math.max(0, enemy.hp - dmg);
+    if (enemy.hp <= 0) enemy.charge = null;
     const phases = enemy.def.phases;
     if (phases && enemy.hp > 0) {
       const pct = (enemy.hp / enemy.max) * 100;
       while (enemy.phase < phases.length - 1 && pct <= phases[enemy.phase].untilHpPct) {
         enemy.phase += 1;
+        enemy.turnsInPhase = 0;
         if (phases[enemy.phase].onEnter) st.pending.push(phases[enemy.phase].onEnter);
         if (enemy.def.poise && !enemy.broken) enemy.poise = enemy.def.poise;
       }
@@ -177,6 +180,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
       if (enemy.poise === 0) {
         enemy.broken = true;
         st.breaks += 1;
+        // A BREAK is the one thing that cancels a charge.
+        if (enemy.charge) {
+          st.archiveInterrupts += 1;
+          enemy.charge = null;
+        }
       }
     }
   };
@@ -193,7 +201,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
       if (ev === 'keepsake_burn' && living(enemies).length) {
         st.keepsake = true;
         st.ms += T.keepsakeMs;
+        // The Keepsake unlocks Rhea's last pips, then fills them.
+        rhea.echoMax = Math.max(rhea.echoMax, D.battleEvents.keepsake_burn.echoMax || rhea.echoMax);
         gain(rhea, rhea.echoMax);
+      } else if (D.battleEvents[ev]?.dialogue && living(enemies).length) {
+        st.ms += T.insightMs;
       }
     }
   };
@@ -220,6 +232,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
         const res = roll(qteOdds(profile, storyMult), rnd);
         hitEnemy(target, r.dmg[res.toLowerCase()], D.brk.sources.hit);
       }
+      if (r.applies && target.hp > 0) target.exposed = { mult: D.statuses[r.applies.status].damageTakenMult, turns: r.applies.turns };
       st.ms += T.recollectionFadeMs * 2 + r.taps * (qte.recollection.ringMs + r.intervalMs);
       return;
     }
@@ -234,7 +247,8 @@ function simulateBattle(battleId, profileName, story, rnd) {
         st.ms += T.castMs;
         return;
       }
-      const charging = enemies.some((e) => e.charge);
+      // Brace on the turn the charge is about to release.
+      const charging = enemies.some((e) => e.charge && e.charge.turnsLeft <= 1);
       if (D.sim.policy.braceOnArchive && charging && can('brace')) {
         hero.echo -= tech.brace.cost;
         st.brace = tech.brace;
@@ -272,6 +286,10 @@ function simulateBattle(battleId, profileName, story, rnd) {
   };
 
   const enemyTurn = (enemy) => {
+    enemyAct(enemy);
+    if (enemy.exposed && --enemy.exposed.turns <= 0) enemy.exposed = null;
+  };
+  const enemyAct = (enemy) => {
     if (enemy.broken) {
       enemy.broken = false;
       enemy.poise = enemy.def.poise;
@@ -283,6 +301,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
     const stanceHero = st.stance && st.stance.hero.hp > 0 ? st.stance.hero : null;
     const target = stanceHero || targets[Math.floor(rnd() * targets.length)];
     let attack;
+    let mitigated = 0;
     if (enemy.charge) {
       enemy.charge.turnsLeft -= 1;
       if (enemy.charge.turnsLeft > 0) {
@@ -290,15 +309,21 @@ function simulateBattle(battleId, profileName, story, rnd) {
         return;
       }
       attack = enemy.charge.attack;
+      mitigated = enemy.charge.mitigated;
       enemy.charge = null;
     } else {
-      const list = enemy.def.phases ? enemy.def.phases[enemy.phase].attacks : enemy.def.attacks;
+      const phase = enemy.def.phases ? enemy.def.phases[enemy.phase] : null;
+      const list = phase ? phase.attacks : enemy.def.attacks;
       // The parry tutorial teaches the tap first: no red ring until it's done.
       const open = st.tutorialSlow || battle.redRings === false ? list.filter((a) => !a.unparryable) : list;
-      attack = pickWeighted(open.length ? open : list, rnd);
+      // A phase's "opening" fixes its first turns' attacks.
+      const n = enemy.turnsInPhase || 0;
+      enemy.turnsInPhase = n + 1;
+      const fixedId = phase?.opening?.[n];
+      attack = (fixedId && (open.length ? open : list).find((a) => a.id === fixedId)) || pickWeighted(open.length ? open : list, rnd);
       if (attack.chargeTurns) {
         st.archives += 1;
-        enemy.charge = { attack, turnsLeft: attack.chargeTurns, dealt: 0 };
+        enemy.charge = { attack, turnsLeft: attack.chargeTurns, mitigated: 0 };
         st.ms += T.chargeMs;
         return;
       }
@@ -349,6 +374,13 @@ function simulateBattle(battleId, profileName, story, rnd) {
       }
     }
     st.brace = null;
+    // A released charge heals part of what its guard absorbed; the first
+    // release queues Rhea's insight dialogue (time only).
+    if (enemy.hp > 0 && attack.healMitigatedPct && mitigated > 0) enemy.hp = Math.min(enemy.max, enemy.hp + Math.round(mitigated * attack.healMitigatedPct));
+    if (enemy.hp > 0 && attack.onRelease && !enemy.released) {
+      enemy.released = true;
+      st.pending.push(attack.onRelease);
+    }
   };
 
   while (true) {

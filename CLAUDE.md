@@ -139,13 +139,13 @@ WIN → "Victory" → runner.next()      LOSE → Retry
 - **Feint** (`feint: {atPct, pauseMs}`): the ring shrinks to `atPct` of its travel, freezes for `pauseMs`, then continues to impact.
 
 ### Echo
-- Shared integer 0–10. +1 per player hit that lands, +1 per GOOD, +2 per PERFECT. Techniques spend it according to `techniques.json`.
+- Per hero, integer 0–`echoMax` (Rhea 8 until the Keepsake unlocks 10, Dov 10). The striker gets +1 per Strike that lands; the hero who parries gets +2 per PERFECT (GOOD and dodges give 0). Techniques spend their user's Echo according to `techniques.json`.
 
 ### Recollection (ultimate, P0)
 - Needs Echo = 10 and is used by Rhea.
 - Screen warms to golden (tint overlay); the background swaps to `bg/memory_city` if it exists.
-- 3 rhythm rings on the target, 500ms apart. Damage per ring: PERFECT 30, GOOD 18, MISS 6.
-- Echo → 0, the tint fades back.
+- 3 rhythm rings on the target, 500ms apart. Damage per ring: PERFECT 60, GOOD 40, MISS 20. Afterwards the target is **Exposed**: ×1.3 damage taken for its next 3 turns.
+- Rhea's Echo → 0, the tint fades back.
 
 ### Nala (P1)
 - Present in battles with `nala: true` (small sprite behind the heroes).
@@ -154,7 +154,7 @@ WIN → "Victory" → runner.next()      LOSE → Retry
 
 ### Keepsake event (P1)
 - Entering boss phase 2 (`onEnter: "keepsake_burn"`) pauses the battle and plays dialogue `keepsake_burn`.
-- Then Echo = 10 and the Recollection button pulses.
+- Then Rhea's `echoMax` becomes 10 and fills; the Recollection button pulses. Before that her cap is 8, so the ultimate is only reachable from here.
 
 ## Data (starting values — tune in JSON only)
 `characters.json`
@@ -208,7 +208,7 @@ Relay's second hit uses an offensive ring on the enemy: tap on close for the bon
                  {"id": "archive", "weight": 1, "chargeTurns": 2, "interruptDmg": 40, "telegraphMs": 900, "dmg": 30}]}]}
 }
 ```
-- **Archive:** the Clerk spends 2 turns charging (visible glow plus a "damage to interrupt" counter). If the party deals ≥ `interruptDmg` during the charge, the attack is cancelled. Otherwise it fires as a normal QTE hit.
+- **Archive:** the Clerk spends `chargeTurns` (4) of his turns charging, guarded: he takes `guardMult` (60%) of every hit and the rest is remembered. Only a **BREAK** cancels the charge (the game never says so; Rhea works it out in the `archive_insight` dialogue after the first release). On release it fires as an unparryable QTE hit and heals `healMitigatedPct` of what the guard absorbed. A phase's `opening` list fixes its first turns' attacks (phase 1: stamp, then archive).
 
 `battles.json`
 ```json

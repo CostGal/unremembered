@@ -35,6 +35,8 @@
       "fullColor": "0x3fd0c9",
       "emptyColor": "0x1f2a33",
       "emptyStroke": "0x2f4450",
+      "lockedColor": "0x141820",
+      "lockedStroke": "0x3a3f52",
       "pulseScale": 1.5,
       "pulseMs": 120,
       "fillStaggerMs": 60,
@@ -59,6 +61,7 @@
       "breakFadeMs": 200
     }
   },
+  "enemyStatus": { "offsetY": -16, "fontSize": 11, "color": "#f0c060", "stroke": "#0b0d14", "strokeThickness": 3 },
   "battleLayout": {
     "sceneBottom": 360,
     "labelGap": 6,
@@ -420,7 +423,8 @@
       "crit": { "color": "#f0c060", "fontSize": 20 },
       "hurt": { "color": "#ff8a80", "fontSize": 16 },
       "heal": { "color": "#8ee6a8", "fontSize": 17 },
-      "echo": { "color": "#3fd0c9", "fontSize": 13 }
+      "echo": { "color": "#3fd0c9", "fontSize": 13 },
+      "guarded": { "color": "#8a8fa3", "fontSize": 14 }
     },
     "popScale": 1.5,
     "popMs": 130,

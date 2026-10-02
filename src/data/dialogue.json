@@ -61,5 +61,22 @@
     { "speaker": "▯▯▯", "style": "normal", "text": "It's me, Rhea. It's—", "portrait": null },
     { "speaker": null, "style": "narration", "text": "Somewhere above the city, a silhouette watches from the broken tower.", "portrait": null, "silhouette": "aurelian_exile" },
     { "speaker": null, "style": "narration", "text": "Chapter 2: The Gallery — locked.", "portrait": null }
+  ],
+  "archive_insight": [
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "He pulled back inside that book... and we couldn't touch him.",
+      "portrait": "rhea_pained",
+      "todo": true
+    },
+    { "speaker": "Dov", "style": "normal", "text": "Every blow we landed came back as his.", "portrait": "dov_worried", "todo": true },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Then we don't let him sit in there. Hit him until he staggers. Hard and fast.",
+      "portrait": "rhea_determined",
+      "todo": true
+    }
   ]
 }

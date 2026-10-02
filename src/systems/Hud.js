@@ -51,13 +51,14 @@ export default class Hud {
     return row;
   }
 
-  // The hero's Echo pips, under their HP bar.
+  // The hero's Echo pips, under their HP bar: echo.max of them, those past
+  // the hero's current echoMax drawn locked (the Keepsake unlocks Rhea's).
   buildEcho(row, max) {
     const e = this.cfg.echo;
     const y = row.y + e.offsetY;
     row.echoLabel = this.text(e.labelX, y, e.label, e.labelFontSize).setOrigin(0, 0.5).setColor(e.labelColor);
     row.pips = [];
-    for (let i = 0; i < max; i++) {
+    for (let i = 0; i < e.max; i++) {
       const x = e.pipX + i * (e.pipW + e.pipGap) + e.pipW / 2;
       const glow = this.scene.add
         .rectangle(x, y, e.pipW + e.glowPad * 2, e.pipH + e.glowPad * 2, color(e.fullColor))
@@ -115,6 +116,10 @@ export default class Hud {
     for (const obj of [row.bg, row.lag, row.fill, row.label, row.value, row.echoLabel, ...row.pips.map((p) => p.pip)]) obj.setAlpha(alpha);
     this.setLow(row, hero.hp > 0 && hero.hp < hero.maxHp * this.cfg.lowHp.pct);
     this.setStatuses(row, hero.statuses || []);
+    if (hero.echoMax !== undefined && hero.echoMax !== row.echoMax) {
+      row.echoMax = Math.min(hero.echoMax, row.pips.length);
+      this.paintPips(row, row.echo);
+    }
     this.updateEcho(row, hero.echo ?? 0);
 
     if (hero.hp === row.hp && hero.maxHp === row.maxHp) return;
@@ -257,6 +262,7 @@ export default class Hud {
     const e = this.cfg.echo;
     row.pips.forEach(({ pip }, i) => {
       if (i < value) pip.setFillStyle(color(e.fullColor)).setStrokeStyle();
+      else if (i >= row.echoMax) pip.setFillStyle(color(e.lockedColor)).setStrokeStyle(1, color(e.lockedStroke));
       else pip.setFillStyle(color(e.emptyColor)).setStrokeStyle(1, color(e.emptyStroke));
     });
   }
