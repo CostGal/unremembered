@@ -106,6 +106,22 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     for (const part of c.parts || []) if (!assets.sprites?.[part.sprite]) err(`characters.${id}: part sprite "${part.sprite}" is not in assets.json`);
     if (!Array.isArray(c.strike) || c.strike.length !== 2) err(`characters.${id}: strike must be [min, max]`);
   }
+  // Recall (levels.json)
+  const levels = data.levels;
+  if (levels) {
+    const xpAt = levels.xpAt || [];
+    if (xpAt[0] !== 0 || xpAt.some((v, i) => i > 0 && !(v > xpAt[i - 1]))) err('levels.xpAt must start at 0 and rise');
+    for (const [hero, list] of Object.entries(levels.learn || {})) {
+      if (!characters[hero]) err(`levels.learn.${hero}: no such character`);
+      for (const [t, lv] of Object.entries(list)) {
+        if (!characters[hero]?.techniques?.includes(t)) err(`levels.learn.${hero}.${t}: not in characters.${hero}.techniques`);
+        if (!(Number.isInteger(lv) && lv >= 1 && lv <= xpAt.length)) err(`levels.learn.${hero}.${t}: level must be 1..${xpAt.length}`);
+      }
+    }
+    for (const [id, e] of Object.entries(enemies)) if (!(Number.isInteger(e.xp) && e.xp >= 0)) err(`enemies.${id}: xp must be a whole number >= 0`);
+  }
+  for (const [id, e] of Object.entries(enemies)) for (const t of e.immune || []) if (!techniques[t]) err(`enemies.${id}: immune "${t}" is not in techniques.json`);
+
   if (!techniques.strike) err('techniques.json: "strike" is required');
   if (!techniques.recollection) err('techniques.json: "recollection" is required');
 

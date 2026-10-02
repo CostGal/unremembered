@@ -237,13 +237,17 @@
   },
   "techniques": {
     "strike": {
-      "name": "Χτύπημα"
+      "name": "Χτύπημα",
+      "immuneText": "ΑΝΟΣΟ"
     },
     "return_to_sender": {
       "castText": "Σε φρουρά"
     },
     "brace": {
       "blockText": "Μπλοκ"
+    },
+    "tremor": {
+      "castText": "Σεισμός!"
     }
   },
   "fragments": {
@@ -344,6 +348,23 @@
         "text": "Καλύτερο: {rank}",
         "newText": "Νέο ρεκόρ!"
       }
+    }
+  },
+  "levels": {
+    "flavor": {
+      "return_to_sender": "Κανόνας του κούριερ: κάθε γράμμα βρίσκει τον δρόμο για το σπίτι.",
+      "anchor": "Τη νύχτα της Σιγής, κράτησε την αδερφή του ως το πρωί.",
+      "brace": "Ο ώμος του στις πύλες της προβλήτας, καθώς φούσκωνε το ποτάμι."
+    },
+    "text": {
+      "title": "Αναμνήσεις επιστρέφουν",
+      "memories": "+{n} Αναμνήσεις",
+      "level": "Ανάκληση {n}",
+      "levelUp": "ΑΝΑΚΛΗΣΗ {n}",
+      "max": "ΜΕΓ.",
+      "stats": "{hero}  +{hp} HP  +{strike} {strikeName}",
+      "remembers": "{hero} θυμάται: {tech}",
+      "hud": "Επ{n}"
     }
   }
 }

@@ -4,6 +4,7 @@
 import { VIEW } from './View.js';
 import statuses from '../data/statuses.json';
 import fragments from '../data/fragments.json';
+import levels from '../data/levels.json';
 
 const color = (hex) => Number(hex);
 
@@ -43,6 +44,11 @@ export default class Hud {
     const lag = this.scene.add.rectangle(hpBar.x, y, hpBar.w, hpBar.h, color(hpBar.lagColor)).setOrigin(0, 0.5);
     const fill = this.scene.add.rectangle(hpBar.x, y, hpBar.w, hpBar.h, color(hpBar.fillColor)).setOrigin(0, 0.5);
     const label = this.text(name.x, y, hero.name, name.fontSize).setOrigin(0, 0.5);
+    // Recall level (levels.json), small and gold, right after the name.
+    if (hero.level) {
+      const l = levels.hud;
+      this.text(label.x + label.width + l.gap, y + l.dy, levels.text.hud.replace('{n}', hero.level), l.fontSize).setOrigin(0, 0.5).setColor(l.color);
+    }
     const value = this.text(hpText.x, y, '', hpText.fontSize).setOrigin(1, 0.5);
 
     const row = { y, warn, bg, lag, fill, label, value, hp: hero.hp, maxHp: hero.maxHp, shown: { hp: hero.hp }, low: false, active: false, badges: [], badgeSig: '' };
