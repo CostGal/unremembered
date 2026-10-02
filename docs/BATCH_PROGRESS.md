@@ -19,3 +19,4 @@ Order: A1 #141 · #128+A5 #142 · #129+#139 · A2 #143 · A3 #144 · A4 #145 · 
 | A9 #149 | done | e882a33 | boss text verified vs STORY, boss lab errors 0, bot boss run WIN (archive_insight, keepsake, recollection hint + cast); fix: keepsake fill ignored echoMult on Unforgettable |
 | A10 #150 | done | 81ee6d8 | validate 0/0, build ok; sim 100% every battle, non-gamer chapter 16.5 min (avg 13.1, good 11.1); playtest real/fake/story/average all pass, 0 retries; mobile-check 36/36; tuned hollow hp 80→65, claw 12→8, warden maul 7→6 |
 | A11 #151 | done | cf1ef2e | STATUS.md Story v2 section, CLAUDE.md examples updated |
+| Phase 1 | PR | – | https://github.com/CostGal/unremembered/pull/161 (25 commits; validate/build/sim/playtest/mobile-check green). Phase 2 continues on claude/story-v2-phase2 |
