@@ -27,3 +27,4 @@ Order: A1 #141 · #128+A5 #142 · #129+#139 · A2 #143 · A3 #144 · A4 #145 · 
 | P2 #132 | done | c688edb | validate 0/0, build ok, sim boss 100%; ring lab: redact 1080 ms, stamp feint 945 ms, plain rings unchanged; boss lab errors 0. Note: clerk_redact impact frame lands ~345 ms after T (was ~250 before: pre-existing sheet length) |
 | P2 #136 | done | b40d3c3 | validate 0/0, build ok; sim boss non-gamer 99.98%, chapter 16.8 min; boss lab errors 0; forced parry/dodge run: PARRIED + reparry ring, DODGE, Story never defends, WIN |
 | P2 #138 | done | 88e14f1 | validate 0/0, build ok; displayScale 1 explicit, portraits dov 310 / clerk 380, dialogue QA 96 lines 0 issues; art list for Kostas in the report |
+| P2 #140 | done | 39297fb | validate 0/0, build ok; headless b1/boss WIN, drift visible, shadows on floor; mobile-check 36/36; battle lab 10/10; art list in the report |
