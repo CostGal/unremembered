@@ -464,8 +464,8 @@ function simulateBattle(battleId, profileName, mode, rnd) {
     st.ms += T.nalaGlowMs;
     for (const h of living(heroes)) h.echoStrike = true;
   };
-  // BattleScene.roundStart: a finished round updates the quiet-round count, the cooldown ticks, Nala's save
-  // comes back, then the events that wait for a finished round fire (ctx.round = the round that just ended).
+  // BattleScene.roundStart: a finished round updates the quiet-round count, the cooldown ticks, then the
+  // events that wait for a finished round fire (ctx.round = the round that just ended). Nala's save is per battle.
   const roundStart = () => {
     if (st.rounds > 0) {
       if (st.hollowDamage > 0) st.quietRounds = 0;
@@ -474,7 +474,6 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       st.hollowImmune = 0;
       if (st.glowCd > 0) st.glowCd -= 1;
     }
-    if (battle.nala) st.nalaSaves = 1 + mem('nalaExtraUses');
     if (st.rounds > 0) checkEvents();
   };
   // An interrupted battle counts as a win (XP is given) without a grade.
@@ -681,7 +680,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       const tele = hit.telegraphMs;
       const ringMs = feint ? feint.atPct * tele + feint.pauseMs + ((1 - feint.atPct) * tele) / (feint.resumeSpeed ?? 1) : tele;
       st.ms += ringMs / slow + T.hitResolveMs;
-      // Nala cancels a Hollow's attack, once per round (the scripted player taps her with nalaTapChance).
+      // Nala cancels a Hollow's attack, once per battle (the scripted player taps her with nalaTapChance).
       if (st.nalaSaves > 0 && enemy.def.hollow && rnd() < D.sim.policy.nalaTapChance[profileName]) {
         st.nalaSaves -= 1;
         break;

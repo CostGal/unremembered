@@ -365,7 +365,7 @@ export default class BattleScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
       .setDepth(layout.labelDepth)
       .setVisible(false);
-    // usesLeft: the saves she has this round (reset every round, see roundStart). glowOn: the Glow is unlocked
+    // usesLeft: the saves she has this battle (never refilled; a Retry restores the battle-start count). glowOn: the Glow is unlocked
     // (battle event nalaGlow); glowCd: rounds until it is ready again.
     this.nala = { container, image, glow, readyGlow, counter, anims, def, used: false, usesLeft: this.nalaSaves(), glowOn: false, glowCd: 0, glowCasting: false, ring: null, body: image, type: 'nala', hp: 1, busy: false, alertLoop: null };
     if (!anims || anims.idle.placeholder) this.idleBob(container);
@@ -374,7 +374,7 @@ export default class BattleScene extends Phaser.Scene {
     image.on('pointerdown', () => this.nalaTap());
   }
 
-  // Her saves per round: 1, +1 per Nala's Bell (fragments.json nalaExtraUses).
+  // Her saves per battle: 1, +1 per Nala's Bell (fragments.json nalaExtraUses).
   nalaSaves() {
     return 1 + effectTotal(this.fragments, 'nalaExtraUses');
   }
@@ -486,7 +486,7 @@ export default class BattleScene extends Phaser.Scene {
     return !!hero && Object.keys(hero.statuses || {}).some((id) => statuses[id]?.effect === 'echoStrike');
   }
 
-  // A round has finished (not called before round 1): the Nala bookkeeping, then the events that wait for a
+  // A round has finished (not called before round 1): the Glow bookkeeping, then the events that wait for a
   // finished round ({noHollowDamageRounds}); BattleEvents' {round: n} reads the round that just ended here.
   async roundStart() {
     const finished = this.stats.turns;
@@ -499,12 +499,8 @@ export default class BattleScene extends Phaser.Scene {
       c.hollowImmuneThisRound = 0;
       if (nala && nala.glowCd > 0) nala.glowCd -= 1;
     }
-    // Her save is once per round.
-    if (nala) {
-      nala.usesLeft = this.nalaSaves();
-      nala.used = false;
-      this.nalaRefreshGlow();
-    }
+    // Her save is once per battle: nothing refills it here, only the Glow display updates.
+    if (nala) this.nalaRefreshGlow();
     if (finished > 0) await this.checkEvents();
     this.stats.turns += 1;
   }
@@ -2464,6 +2460,7 @@ export default class BattleScene extends Phaser.Scene {
       chain: this.chain,
       maxChain: this.maxChain,
       nalaUsed: this.nala ? this.nala.used : null,
+      nalaUsesLeft: this.nala ? this.nala.usesLeft : null,
       nalaGlow: this.nala ? { on: this.nala.glowOn, cd: this.nala.glowCd } : null,
     };
   }
@@ -2496,7 +2493,10 @@ export default class BattleScene extends Phaser.Scene {
     this.stats = { ...snap.stats };
     this.chain = snap.chain;
     this.maxChain = snap.maxChain;
-    if (this.nala && snap.nalaUsed) this.nala.used = true;
+    if (this.nala) {
+      this.nala.used = !!snap.nalaUsed;
+      if (typeof snap.nalaUsesLeft === 'number') this.nala.usesLeft = snap.nalaUsesLeft;
+    }
     if (this.nala && snap.nalaGlow) {
       this.nala.glowOn = snap.nalaGlow.on;
       this.nala.glowCd = snap.nalaGlow.cd;

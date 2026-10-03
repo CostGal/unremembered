@@ -188,7 +188,7 @@
     },
     "nalas_bell": {
       "name": "Nala's Bell",
-      "text": "Nala can save you twice per round",
+      "text": "Nala can save you twice per battle",
       "short": "B",
       "color": "#e8883a",
       "source": "reward",

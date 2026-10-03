@@ -161,9 +161,9 @@ WIN → "Victory" → runner.next()      LOSE → Retry
 ### Nala (P1)
 - Present in battles with `nala: true` (small sprite behind the heroes). She first appears in `b2_first_hollow`; b0 and b1 have none.
 - When a **Hollow** (`hollow: true`) telegraphs and Nala's ability is unused, Nala glows. Tapping Nala during that telegraph **cancels the attack** ("Nala hisses!").
-- Her save is **once per round** (it comes back at every round start; Nala's Bell adds +1 per round). A hiss also plays a `CutIn.flash`.
+- Her save is **once per battle** (it never comes back; Nala's Bell adds +1 per battle). A hiss also plays a `CutIn.flash`.
 - **Glow** (`b3_gate` event `b3_nala_glow`: after a round where nothing landed on a Hollow, `when` `{noHollowDamageRounds: 1}`, then `nalaGlow` + the `nala_glow` tutorial pause): Nala lights up, a light travels to each hero and every living hero gets the status `echo_strike` (statuses.json, HUD badge "E") for their next turn: their Strike is not IMMUNE on Hollows and pops "ECHO STRIKE". The Glow then has a 3-round cooldown (`allies.json nala.glowCooldownRounds`, counter "Glow in N" under her); when ready she pulses teal and a **tap on Nala during the player's turn** calls it again. Taps on her during an enemy telegraph stay the save. All numbers and texts: `allies.json nala.glow*`, `nala.counter`.
-- Once per battle. She never reacts to Forgotten (Blanks).
+- She never reacts to Forgotten (Blanks).
 
 ### Keepsake event (P1)
 - Entering boss phase 2 (`onEnter: "keepsake_burn"`) pauses the battle and plays dialogue `keepsake_burn`.
