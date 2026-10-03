@@ -1,13 +1,37 @@
 {
-  "b1_tutorial": {
+  "b0_duel": {
     "bg": "street_rain",
-    "enemies": ["blank", "hollow"],
+    "party": ["rhea"],
+    "enemies": ["dov_rival"],
     "tutorial": true,
+    "redRings": false,
+    "statuses": false,
+    "nala": false,
+    "music": "battle",
+    "events": [
+      { "id": "duel_refuse", "when": { "playerHits": 1 }, "dialogue": "duel_refuse" },
+      { "id": "duel_wake", "when": { "firstOf": [{ "playerHits": 3 }, { "round": 3 }] }, "dialogue": "duel_wake", "then": { "setFlag": "duelWake" } },
+      { "id": "duel_nala", "when": { "enemyHpBelowPct": 50 }, "dialogue": "duel_nala", "then": "endBattle" }
+    ]
+  },
+  "b1_forgotten": {
+    "bg": "street_rain",
+    "enemies": ["blank", "blank"],
     "redRings": false,
     "statuses": false,
     "nala": false,
     "music": "battle"
   },
-  "b3_hollows": { "bg": "street_rain", "enemies": ["hollow", "hollow"], "nala": true, "music": "battle" },
-  "boss_clerk": { "bg": "records_office", "enemies": ["clerk"], "nala": true, "music": "boss" }
+  "b2_first_hollow": {
+    "bg": "street_rain",
+    "enemies": ["blank", "hollow"],
+    "nala": true,
+    "music": "battle",
+    "events": [
+      { "id": "b2_start", "when": "battleStart", "dialogue": "b2_start" },
+      { "id": "b2_immune", "when": "firstImmune", "dialogue": "b2_immune" }
+    ]
+  },
+  "b3_gate": { "bg": "street_rain", "enemies": ["hollow_warden", "hollow"], "formation": "gate", "nala": true, "music": "battle" },
+  "boss_clerk": { "bg": "records_office", "enemies": ["clerk"], "nala": true, "music": "boss", "recollection": true }
 }

@@ -133,7 +133,7 @@ await withBrowser(async ({ chrome, server }) => {
   await sleep(1500);
   check('Choosing Unforgettable starts the chapter', (await page.scenes()).includes('Cutscene') && (await settings(page)).difficulty === 'unforgettable');
   // ---- End scene (non-credits)
-  await page.goto(server.url + '?step=8');
+  await page.goto(server.url + '?step=12');
   await sleep(300);
   await page.ev(`(() => { const g = window.__game; g.scene.getScenes(true).forEach((s) => { if (s.scene.key !== 'Loader') g.scene.stop(s.scene.key); }); g.scene.start('End'); return 1; })()`);
   await sleep(2500);

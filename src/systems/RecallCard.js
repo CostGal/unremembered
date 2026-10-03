@@ -3,7 +3,7 @@ import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
 import { playSfx } from './Audio.js';
 import * as Fx from './Fx.js';
-import { growth, levelFor, levelUps, maxLevel, xpForLevel } from './Recall.js';
+import { growth, levelFor, levelUps, maxLevel, techniqueAt, xpForLevel } from './Recall.js';
 
 const color = (hex) => Number(hex);
 const fill = (str, vars) => str.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
@@ -19,7 +19,7 @@ export default class RecallCard {
     this.fromXp = fromXp;
     this.toXp = toXp;
     this.heroes = heroes;
-    this.ups = levelUps(fromXp, toXp, levels);
+    this.ups = levelUps(fromXp, toXp, levels, techniques);
     this.timers = [];
     this.items = [];
     this.lineY = levels.card.lines.firstY;
@@ -156,7 +156,29 @@ export default class RecallCard {
         lines.push({ text: fill(t.remembers, { hero: hero.name, tech: techniques[id]?.name || id }), learn: true, flavor: levels.flavor[id] });
       }
     }
+    for (const hero of this.heroes) {
+      for (const id of up.upgraded?.[hero.type] || []) {
+        lines.push({ text: fill(t.upgrade, { tech: techniques[id]?.name || id, detail: this.upgradeDetail(id, up.level) }), learn: true });
+      }
+    }
     return lines;
+  }
+
+  // What changed in a technique between two levels, from levels.upgradeDetail
+  // ("2 Echo, 3–3 bolts"): only the keys that differ, in that table's order.
+  upgradeDetail(id, level) {
+    const before = techniqueAt(id, level - 1, techniques);
+    const now = techniqueAt(id, level, techniques);
+    const d = levels.upgradeDetail;
+    const parts = [];
+    for (const [key, str] of Object.entries(d)) {
+      if (key === 'hitsSame') continue;
+      if (JSON.stringify(before[key]) === JSON.stringify(now[key])) continue;
+      const v = now[key];
+      const vars = key === 'hits' ? { a: v[0], b: v[1] } : key === 'critChance' ? { pct: Math.round(v * 100) } : { n: v };
+      parts.push(fill(key === 'hits' && v[0] === v[1] ? d.hitsSame : str, vars));
+    }
+    return parts.join(', ');
   }
 
   addLine(line) {

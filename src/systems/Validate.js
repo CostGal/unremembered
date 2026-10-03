@@ -7,7 +7,9 @@
 // options.sheetExists(fileName) -> bool: checks sheet files on disk (Node only).
 // Returns {errors: [...], warnings: [...]}.
 
+import { whenErrors, thenValid } from './BattleEvents.js';
 import { compileTrack } from './MusicData.js';
+import { echoMaxFor, learned, techniqueAt } from './Recall.js';
 
 const STEP_TYPES = ['cutscene', 'dialogue', 'battle', 'reward', 'end'];
 const SHOT_FX = ['crystal_particles', 'rain', 'flash', 'lights_out', 'dissolve_layer', 'embers', 'eyes_glow'];
@@ -61,6 +63,31 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       if (!enemies[key]) err(`battles.${id}: no enemy "${key}" in enemies.json`);
     }
     if (!battle.enemies?.length) err(`battles.${id}: no enemies`);
+    // party (default ui.battleLayout.defaultParty): hero ids from characters.json
+    if (battle.party !== undefined) {
+      if (!Array.isArray(battle.party) || !battle.party.length) err(`battles.${id}.party: must be a non-empty list of hero ids`);
+      for (const hero of Array.isArray(battle.party) ? battle.party : []) {
+        if (!characters[hero]) err(`battles.${id}.party: no character "${hero}" in characters.json`);
+      }
+    }
+    // formation: a key of ui.battleLayout.enemies with a slot per enemy.
+    if (battle.formation !== undefined) {
+      const slots = ui.battleLayout?.enemies?.[battle.formation];
+      if (!slots) err(`battles.${id}.formation: "${battle.formation}" is not in ui.battleLayout.enemies`);
+      else if (slots.length < (battle.enemies || []).length) err(`battles.${id}.formation: "${battle.formation}" has ${slots.length} slots for ${battle.enemies.length} enemies`);
+    }
+    // Generic events (grammar: see systems/BattleEvents.js).
+    if (battle.events !== undefined && !Array.isArray(battle.events)) err(`battles.${id}.events: must be a list`);
+    const eventIds = new Set();
+    (Array.isArray(battle.events) ? battle.events : []).forEach((ev, i) => {
+      const at = `battles.${id}.events[${i}]`;
+      if (typeof ev.id !== 'string' || !ev.id) err(`${at}: id must be a non-empty string`);
+      else if (eventIds.has(ev.id)) err(`${at}: duplicate event id "${ev.id}"`);
+      else eventIds.add(ev.id);
+      for (const m of whenErrors(ev.when)) err(`${at}: ${m}`);
+      if (ev.dialogue !== undefined && !dialogue[ev.dialogue]) err(`${at}: no dialogue "${ev.dialogue}" in dialogue.json`);
+      if (!thenValid(ev.then)) err(`${at}: then must be "continue", "endBattle" or {"setFlag": "<name>"}`);
+    });
   }
 
   // Dialogue
@@ -118,6 +145,31 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
         if (!(Number.isInteger(lv) && lv >= 1 && lv <= xpAt.length)) err(`levels.learn.${hero}.${t}: level must be 1..${xpAt.length}`);
       }
     }
+    // Echo capacity per Recall level: whole numbers, one per level, and every
+    // technique a hero knows at a level must be castable with that level's cap
+    // (Recollection is gated by the Keepsake instead).
+    const echoCap = data.ui?.hud?.echo?.max;
+    for (const [hero, table] of Object.entries(levels.echoMax || {})) {
+      if (!characters[hero]) err(`levels.echoMax.${hero}: no such character`);
+      if (!Array.isArray(table) || table.length !== xpAt.length) err(`levels.echoMax.${hero}: needs one entry per Recall level (${xpAt.length})`);
+      for (const [i, v] of (Array.isArray(table) ? table : []).entries()) {
+        if (!(Number.isInteger(v) && v >= 1 && v <= (echoCap ?? Infinity))) err(`levels.echoMax.${hero}[${i}]: must be a whole number 1..${echoCap}`);
+      }
+    }
+    for (const [hero, c] of Object.entries(characters)) {
+      for (let level = 1; level <= xpAt.length; level++) {
+        const cap = echoMaxFor(hero, level, levels) ?? c.echoMax ?? echoCap;
+        for (const id of learned(hero, level, c.techniques, levels)) {
+          const cost = techniqueAt(id, level, techniques)?.cost;
+          if (cost > cap) err(`Recall ${level}: ${hero}'s ${id} costs ${cost} Echo but their Echo cap is ${cap}`);
+        }
+      }
+    }
+    for (const [id, t] of Object.entries(techniques)) {
+      for (const k of Object.keys(t.levels || {})) {
+        if (!(Number.isInteger(Number(k)) && Number(k) >= 1 && Number(k) <= xpAt.length)) err(`techniques.${id}.levels.${k}: level must be a whole number 1..${xpAt.length}`);
+      }
+    }
     for (const [id, e] of Object.entries(enemies)) if (!(Number.isInteger(e.xp) && e.xp >= 0)) err(`enemies.${id}: xp must be a whole number >= 0`);
   }
   for (const [id, e] of Object.entries(enemies)) for (const t of e.immune || []) if (!techniques[t]) err(`enemies.${id}: immune "${t}" is not in techniques.json`);
@@ -147,6 +199,41 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       if (p.onEnter && !BATTLE_EVENTS.includes(p.onEnter)) err(`enemies.${id}: unknown phase event "${p.onEnter}"`);
     }
   }
+  // animSet: borrow another id's sheets (dov_rival -> dov). Warn only: without
+  // the set, the entity falls back to its rig.
+  const sheetOwners = { ...characters, ...enemies, ...allies };
+  for (const [group, defs] of [['characters', characters], ['enemies', enemies]]) {
+    for (const [id, def] of Object.entries(defs)) {
+      if (def.animSet !== undefined) {
+        if (typeof def.animSet !== 'string' || !sheetOwners[def.animSet]) err(`${group}.${id}: animSet "${def.animSet}" is not a character, enemy or ally key`);
+        else if (!animationSets[def.animSet]) warn(`${group}.${id}: animSet "${def.animSet}" has no ${def.animSet}_animations.json (rig fallback)`);
+      }
+      if (def.refuseUntilFlag !== undefined && typeof def.refuseUntilFlag !== 'string') err(`${group}.${id}: refuseUntilFlag must be a string`);
+    }
+  }
+  // displayScale: whole numbers only (a fractional scale breaks the pixel grid).
+  // lifesteal: the share of damage dealt that an enemy heals. tint: 0xRRGGBB.
+  for (const [group, defs] of [['characters', characters], ['enemies', enemies]]) {
+    for (const [id, def] of Object.entries(defs)) {
+      if (def.displayScale !== undefined && !(Number.isInteger(def.displayScale) && def.displayScale > 0)) err(`${group}.${id}: displayScale must be a positive integer`);
+      if (def.tint !== undefined && !(typeof def.tint === 'string' && /^0x[0-9a-fA-F]{6}$/.test(def.tint))) err(`${group}.${id}: tint must be a hex string like "0x9aa8b8"`);
+    }
+  }
+  for (const [id, e] of Object.entries(enemies)) {
+    const attacks = e.phases ? e.phases.flatMap((p) => p.attacks || []) : e.attacks || [];
+    for (const a of attacks) {
+      for (const hit of [a, ...(a.hits || [])]) {
+        if (hit.lifesteal !== undefined && !(typeof hit.lifesteal === 'number' && hit.lifesteal >= 0)) err(`enemies.${id}.${a.id}: lifesteal must be a number >= 0`);
+      }
+    }
+  }
+  const party = ui.battleLayout?.defaultParty;
+  if (party !== undefined && (!Array.isArray(party) || !party.length || party.some((h) => !characters[h]))) err('ui.battleLayout.defaultParty: must list hero ids from characters.json');
+  const steal = battleEvents.lifesteal;
+  if (steal && !(typeof steal.text === 'string' && steal.text && steal.color)) err('battleEvents.lifesteal: text and color are required');
+  const refuse = battleEvents.refuse;
+  if (refuse && !(typeof refuse.text === 'string' && refuse.text && refuse.ms > 0 && refuse.color)) err('battleEvents.refuse: text, ms and color are required');
+
   const FRAGMENT_EFFECTS = ['startEcho', 'nalaExtraUses', 'perfectWindowMs', 'dovMaxHp', 'perfectEchoBonus', 'blastCritChance'];
   for (const [id, f] of Object.entries(data.fragments?.pool || {})) {
     for (const key of Object.keys(f.effects || {})) {

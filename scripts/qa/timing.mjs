@@ -14,10 +14,10 @@ const HOOKS = `(() => {
 })()`;
 
 const CASES = [
-  { battle: 'b1_tutorial', enemy: 0, label: 'blank punch', stub: [0, 0.25], anim: 'blank_punch', phase: 0 },
-  { battle: 'b1_tutorial', enemy: 0, label: 'blank lunge (red)', stub: [0, 0.75], anim: 'blank_lunge', phase: 0, swipe: true },
-  { battle: 'b1_tutorial', enemy: 1, label: 'hollow claw', stub: [0, 0.1], anim: 'hollow_claw', phase: 0 },
-  { battle: 'b1_tutorial', enemy: 1, label: 'hollow siphon', stub: [0, 0.99], anim: 'hollow_siphon', phase: 0 },
+  { battle: 'b2_first_hollow', enemy: 0, label: 'blank punch', stub: [0, 0.25], anim: 'blank_punch', phase: 0 },
+  { battle: 'b2_first_hollow', enemy: 0, label: 'blank lunge (red)', stub: [0, 0.75], anim: 'blank_lunge', phase: 0, swipe: true },
+  { battle: 'b2_first_hollow', enemy: 1, label: 'hollow claw', stub: [0, 0.1], anim: 'hollow_claw', phase: 0 },
+  { battle: 'b2_first_hollow', enemy: 1, label: 'hollow siphon', stub: [0, 0.99], anim: 'hollow_siphon', phase: 0 },
   { battle: 'boss_clerk', enemy: 0, label: 'clerk stamp', stub: [0, 0.1], anim: 'clerk_stamp', phase: 0 },
   { battle: 'boss_clerk', enemy: 0, label: 'clerk file_away', stub: [0, 0.9], anim: 'clerk_file_away', phase: 0 },
   { battle: 'boss_clerk', enemy: 0, label: 'clerk redact (feint)', stub: [0, 0.5], anim: 'clerk_redact', phase: 1 },
@@ -29,7 +29,12 @@ await withBrowser(async ({ chrome, server }) => {
   for (const c of CASES) {
     if (!pages[c.battle]) {
       const p = await open(chrome, `${server.url}?battle=${c.battle}`, { init: [HOOKS] });
-      await p.waitFor(`!!(window.__battle && window.__battle.menu && window.__battle.menu.pending)`, { timeout: 40000 });
+      // b2_first_hollow opens a battleStart dialogue overlay: tap through it. (The tutorial slow-mo now lives only in b0_duel, so tutorialSlow=false below is a no-op here.)
+      const until = Date.now() + 40000;
+      while (Date.now() < until && !(await p.ev(`!!(window.__battle && window.__battle.menu && window.__battle.menu.pending)`))) {
+        if ((await p.scenes()).includes('Dialogue')) await p.tap(180, 560);
+        await sleep(250);
+      }
       await p.ev(`window.__hook(); window.__battle.hideCommandMenu(); window.__battle.tutorialSlow = false;`);
       pages[c.battle] = p;
     }

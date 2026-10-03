@@ -256,7 +256,7 @@ export default class DialogueScene extends Phaser.Scene {
 
     const speakerId = (line.speaker || '').toLowerCase();
     // The lit portrait is the one the line shows ("clerk_smug" -> "clerk"): a
-    // speaker label like "The Clerk" never equals its portrait owner.
+    // speaker label like "Quill" never equals its portrait owner.
     const litOwner = line.speaker && line.portrait ? line.portrait.split('_')[0] : speakerId;
     if (line.speaker) {
       const owner = litOwner;

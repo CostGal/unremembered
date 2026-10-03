@@ -91,21 +91,28 @@ New Game → ChapterRunner(chapter1.json) → EndScene → Menu
   {"type": "cutscene", "id": "origin"},
   {"type": "dialogue", "id": "letter", "bg": "black"},
   {"type": "dialogue", "id": "meet_dov", "bg": "street_rain"},
-  {"type": "battle",   "id": "b1_tutorial"},
+  {"type": "battle",   "id": "b0_duel"},
+  {"type": "dialogue", "id": "after_duel", "bg": "street_rain"},
+  {"type": "battle",   "id": "b1_forgotten"},
+  {"type": "reward",   "id": "reward_1"},
   {"type": "dialogue", "id": "after_b1", "bg": "street_rain"},
-  {"type": "battle",   "id": "b2_hollows"},
+  {"type": "battle",   "id": "b2_first_hollow"},
+  {"type": "dialogue", "id": "before_gate", "bg": "street_rain"},
+  {"type": "battle",   "id": "b3_gate"},
+  {"type": "reward",   "id": "reward_2"},
   {"type": "dialogue", "id": "records_office", "bg": "records_office"},
   {"type": "battle",   "id": "boss_clerk"},
   {"type": "dialogue", "id": "ending", "bg": "records_office"},
   {"type": "end"}
 ]
 ```
+(Story v2: 15 steps, `?step=0..14`; `end` closes the list. See `docs/STATUS.md` > Story v2.)
 - **Losing a battle** → "The memory fades…" + a Retry button. Retry restarts the same battle with party HP/Echo restored to the battle-start snapshot. There is no game over screen.
 
 ## Battle
 ### Layout (360×640)
 - **y 0–360:** scene. Background, heroes on the left facing right, enemies on the right facing left, baseline y ≈ 300.
-- **y 360–440:** party status: per hero a name, HP bar and that hero's own Echo pips (10 teal).
+- **y 360–440:** party status: per hero a name, HP bar and that hero's own Echo pips (teal; Rhea 10 with the locked ones dim, Dov 5).
 - **y 440–640:** command buttons in a 2×2 grid. During the enemy turn this whole lower area becomes the **tap zone**, with the hint "Tap when the ring closes".
 
 ### Turn state machine
@@ -134,12 +141,12 @@ WIN → "Victory" → runner.next()      LOSE → Retry
   - PERFECT: hitstop 80ms, 4px shake, teal spark burst, "PERFECT" text, SFX.
   - GOOD: small flash, "GOOD" text.
   - MISS: red flash + 6px knockback.
-- **Tutorial** (`battles.b1_tutorial.tutorial = true`): on the first enemy attack, time scale 0.35 while the ring shrinks, plus the prompt text. Speed returns to normal after the first GOOD or PERFECT.
+- **Tutorial** (`battles.b0_duel.tutorial = true`): on the first real enemy attack (Dov's, once he stops refusing), time scale 0.35 while the ring shrinks, plus the prompt text. Speed returns to normal after the first GOOD or PERFECT.
 - **Multi-hit attacks:** each hit gets its own ring, separated by that hit's `telegraphMs`.
 - **Feint** (`feint: {atPct, pauseMs}`): the ring shrinks to `atPct` of its travel, freezes for `pauseMs`, then continues to impact.
 
 ### Echo
-- Per hero, integer 0–`echoMax` (Rhea 8 until the Keepsake unlocks 10, Dov 10). The striker gets +1 per Strike that lands; the hero who parries gets +2 per PERFECT (GOOD and dodges give 0). Techniques spend their user's Echo according to `techniques.json`.
+- Per hero, integer 0–cap. The cap follows the Recall level (`levels.json` `echoMax`): Rhea 1 / 3 / 5 / 7 / 8 at Recall 1–5, Dov 5 at every level. The Keepsake raises Rhea's cap to 10 and fills it (every difficulty). HUD pips: `characters.json` `echoPips` (Rhea 10, Dov 5). The striker gets +1 per Strike that lands; the hero who parries gets +2 per PERFECT (GOOD and dodges give 0). Techniques spend their user's Echo according to `techniques.json`.
 
 ### Recollection (ultimate, P0)
 - Needs Echo = 10 and is used by Rhea.
@@ -148,9 +155,9 @@ WIN → "Victory" → runner.next()      LOSE → Retry
 - Rhea's Echo → 0, the tint fades back.
 
 ### Nala (P1)
-- Present in battles with `nala: true` (small sprite behind the heroes).
+- Present in battles with `nala: true` (small sprite behind the heroes). She first appears in `b2_first_hollow`; b0 and b1 have none.
 - When a **Hollow** (`hollow: true`) telegraphs and Nala's ability is unused, Nala glows. Tapping Nala during that telegraph **cancels the attack** ("Nala hisses!").
-- Once per battle. She never reacts to Blanks.
+- Once per battle. She never reacts to Forgotten (Blanks).
 
 ### Keepsake event (P1)
 - Entering boss phase 2 (`onEnter: "keepsake_burn"`) pauses the battle and plays dialogue `keepsake_burn`.
@@ -189,14 +196,14 @@ Relay's second hit uses an offensive ring on the enemy: tap on close for the bon
 `enemies.json`
 ```json
 {
-  "blank":  {"name": "Blank", "hp": 30, "body": "blank",
+  "blank":  {"name": "Forgotten", "hp": 30, "body": "blank",
              "attack": {"type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15}, "hollow": false,
              "attacks": [{"id": "punch", "weight": 1, "telegraphMs": 900, "dmg": 10}]},
   "hollow": {"name": "Hollow", "hp": 45, "body": "hollow",
              "attack": {"type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15}, "hollow": true,
              "attacks": [{"id": "claw", "weight": 3, "telegraphMs": 700, "dmg": 12},
                          {"id": "siphon", "weight": 1, "telegraphMs": 800, "dmg": 4, "onMiss": {"echo": -2}, "priority": "P2"}]},
-  "clerk":  {"name": "The Clerk", "hp": 250, "body": "clerk",
+  "clerk":  {"name": "Quill", "hp": 250, "body": "clerk",
              "attack": {"type": "lunge", "windupT": 0.3, "distance": 14, "squash": 0.15}, "hollow": false, "boss": true,
              "phases": [
                {"untilHpPct": 50, "attacks": [
@@ -213,13 +220,21 @@ Relay's second hit uses an offensive ring on the enemy: tap on close for the bon
 `battles.json`
 ```json
 {
-  "b1_tutorial": {"bg": "street_rain", "enemies": ["blank", "blank"], "tutorial": true, "nala": true, "music": "battle"},
-  "b2_hollows":  {"bg": "street_rain", "enemies": ["blank", "hollow", "hollow"], "nala": true, "music": "battle"},
-  "b3_hollows":  {"bg": "street_rain", "enemies": ["hollow", "hollow"], "nala": true, "music": "battle", "optional": true},
-  "boss_clerk":  {"bg": "records_office", "enemies": ["clerk"], "nala": true, "music": "boss"}
+  "b0_duel":         {"bg": "street_rain", "party": ["rhea"], "enemies": ["dov_rival"], "tutorial": true, "redRings": false, "statuses": false, "nala": false, "music": "battle",
+                      "events": [{"id": "duel_refuse", "when": {"playerHits": 1}, "dialogue": "duel_refuse"},
+                                 {"id": "duel_wake", "when": {"firstOf": [{"playerHits": 3}, {"round": 3}]}, "dialogue": "duel_wake", "then": {"setFlag": "duelWake"}},
+                                 {"id": "duel_nala", "when": {"enemyHpBelowPct": 50}, "dialogue": "duel_nala", "then": "endBattle"}]},
+  "b1_forgotten":    {"bg": "street_rain", "enemies": ["blank", "blank"], "redRings": false, "statuses": false, "nala": false, "music": "battle"},
+  "b2_first_hollow": {"bg": "street_rain", "enemies": ["blank", "hollow"], "nala": true, "music": "battle",
+                      "events": [{"id": "b2_start", "when": "battleStart", "dialogue": "b2_start"},
+                                 {"id": "b2_immune", "when": "firstImmune", "dialogue": "b2_immune"}]},
+  "b3_gate":         {"bg": "street_rain", "enemies": ["hollow_warden", "hollow"], "formation": "gate", "nala": true, "music": "battle"},
+  "boss_clerk":      {"bg": "records_office", "enemies": ["clerk"], "nala": true, "music": "boss", "recollection": true}
 }
 ```
-`b3_hollows` is P2: it is only inserted into `chapter1.json` if there's time.
+- `party` (default `ui.battleLayout.defaultParty`), `formation` (a key of `ui.battleLayout.enemies`), `recollection: true` (the ultimate exists only in battles that set it), `redRings` / `statuses` (default on).
+- `events` (grammar: header of `src/systems/BattleEvents.js`): `when` = `battleStart` | `{round}` | `{playerHits}` | `{enemyHpBelowPct}` | `firstImmune` | `{firstOf: [...]}`; `then` = `continue` | `{setFlag}` | `endBattle` (an interrupted end: no Victory card, XP + Recall card, the chapter continues).
+- Story v2 removed the v1 battles `b1_tutorial`, `b2_hollows` and `b3_hollows`.
 
 `dialogue.json`: `{ "<id>": [ {"speaker": "Rhea" | null, "style": "normal" | "letter" | "narration", "text": "...", "portrait": "rhea_sad" | null} ] }`
 - The typewriter runs at 40 chars/s. A tap during typing completes the line; a tap after advances.
@@ -251,7 +266,7 @@ Behaviour:
 
 ## Assets pipeline
 - `_art/` holds source art: raw downloads and PSDs. Commit it, but the game never loads from it — only `public/assets/` is served/bundled.
-- Sprites come from pixler.dev as transparent PNGs, pre-sized to their canvas — **128×128 for every character, 256×256 for The Clerk (boss)**. Render at `scale: 1`, never fractional; the canvas size *is* the display size.
+- Sprites come from pixler.dev as transparent PNGs, pre-sized to their canvas — **128×128 for every character, 256×256 for Quill, the boss (key `clerk`)**. Render at `scale: 1`, never fractional; the canvas size *is* the display size.
 - Backgrounds are 360×360 canvases, also rendered at `scale: 1`. In battle, darken them ~20% (a flat black overlay at ~20% alpha) so characters read clearly against them.
 - Register every sprite in `assets.json`: `key, file, scale, faces ("left"|"right")`. A part sprite (see Attack rig, below) also carries `pivot: [x, y]` in local canvas pixels.
 - **Facing:** in-game, heroes face right and enemies face left. Flip based on `faces`.

@@ -8,7 +8,7 @@ import { finishSection, sectionEntries } from '../systems/Assets.js';
 import { prefetchMusic } from '../systems/Audio.js';
 import { devParam } from '../systems/DevParams.js';
 import { applyFakeSheets } from '../systems/FakeSheets.js';
-import { buildAnimations, fetchAnimationSets, queueSheets } from '../systems/SpriteAnims.js';
+import { aliasAnimationSets, buildAnimations, fetchAnimationSets, queueSheets } from '../systems/SpriteAnims.js';
 
 const cfg = manifest.loading;
 
@@ -96,7 +96,10 @@ export default class LoaderScene extends Phaser.Scene {
     if (section === 'sheets') {
       // <id>_animations.json per character (missing = that character uses its rig).
       const ids = [...Object.keys(characters), ...Object.keys(enemies), ...Object.keys(allies)];
-      this.registry.set('animationSets', await fetchAnimationSets(ids));
+      const sets = await fetchAnimationSets(ids);
+      // `animSet` aliases (dov_rival plays Dov's sheets) share the set object.
+      aliasAnimationSets(sets, { ...characters, ...enemies, ...allies });
+      this.registry.set('animationSets', sets);
     }
     return new Promise((resolve) => {
       if (section === 'sheets') {
@@ -136,6 +139,7 @@ export default class LoaderScene extends Phaser.Scene {
       applyFakeSheets(this, sets, animSpecs, bodyDefs, manifest, facesRight);
       this.registry.set('animationSets', sets);
     }
+    aliasAnimationSets(sets, bodyDefs); // an alias whose target only got fake sheets above
     buildAnimations(this, sets, bodyDefs);
   }
 }

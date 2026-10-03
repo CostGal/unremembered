@@ -143,6 +143,9 @@
         },
         "status": {
           "text": "Οι καταστάσεις λήγουν. Το Anchor τις καθαρίζει"
+        },
+        "recollection": {
+          "text": "Η Ανάμνηση είναι έτοιμη. Κάνε τον να την ξαναζήσει."
         }
       }
     }
@@ -179,6 +182,11 @@
     ]
   },
   "qte": {
+    "recollection": {
+      "ready": {
+        "text": "Η ΑΝΑΜΝΗΣΗ ΕΤΟΙΜΗ"
+      }
+    },
     "difficulties": {
       "story": {
         "label": "Ιστορία",
@@ -305,6 +313,8 @@
     }
   },
   "battleEvents": {
+    "refuse": { "text": "Ο Dov δεν αντεπιτίθεται" },
+    "lifesteal": { "text": "Ρούφηξε" },
     "charge": {
       "counterText": "Archive σε {n} · σε φρουρά",
       "chargingText": "Φορτίζει…",
@@ -353,7 +363,7 @@
   "levels": {
     "flavor": {
       "return_to_sender": "Κανόνας του κούριερ: κάθε γράμμα βρίσκει τον δρόμο για το σπίτι.",
-      "anchor": "Τη νύχτα της Σιγής, κράτησε την αδερφή του ως το πρωί.",
+      "anchor": "Τη νύχτα που πήραν τη μαμά, κράτησε την αδερφή του ως το πρωί.",
       "brace": "Ο ώμος του στις πύλες της προβλήτας, καθώς φούσκωνε το ποτάμι."
     },
     "text": {
@@ -364,7 +374,9 @@
       "max": "ΜΕΓ.",
       "stats": "{hero}  +{hp} HP  +{strike} {strikeName}",
       "remembers": "{hero} θυμάται: {tech}",
+      "upgrade": "{tech} δυναμώνει: {detail}",
       "hud": "Επ{n}"
-    }
+    },
+    "upgradeDetail": { "cost": "{n} Echo", "hits": "{a}\u2013{b} βολές", "hitsSame": "{a} βολές", "critChance": "{pct}% κρίσιμο" }
   }
 }

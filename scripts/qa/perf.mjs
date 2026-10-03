@@ -101,11 +101,11 @@ await withBrowser(async ({ chrome, server }) => {
     const ready = (page) => page.waitFor(`!!(window.__battle && window.__battle.menu && window.__battle.menu.pending)`, { timeout: 90000 });
     for (const cpu of [1, 4]) {
       const res = {};
-      let page = await open(chrome, `${server.url}?battle=b1_tutorial&fps=1`, { cpu });
+      let page = await open(chrome, `${server.url}?battle=b1_forgotten&fps=1`, { cpu });
       await ready(page);
       await sleep(1500);
       res['rain + hit FX (b1, bot)'] = stats(await botSample(page, 25000));
-      page = await open(chrome, `${server.url}?battle=boss_clerk&echo=10&fps=1`, { cpu });
+      page = await open(chrome, `${server.url}?battle=boss_clerk&echo=10&level=5&fps=1`, { cpu });
       await ready(page);
       await sleep(1500);
       res['Recollection (gold tint + rings)'] = stats(await botSample(page, 14000, { PERFECT: 0.6, GOOD: 0.3, MISS: 0.1 }));
@@ -113,7 +113,7 @@ await withBrowser(async ({ chrome, server }) => {
       await ready(page);
       await page.eval(`(() => { const B = window.__battle; const e = B.enemies[0]; e.hp = Math.floor(e.maxHp * 0.45); e.phase = 1; })()`);
       res['boss phase 2 (bot)'] = stats(await botSample(page, 25000));
-      page = await open(chrome, `${server.url}?battle=b1_tutorial&fps=1`, { cpu });
+      page = await open(chrome, `${server.url}?battle=b1_forgotten&fps=1`, { cpu });
       await ready(page);
       await sleep(2000);
       res['battle idle (rain only)'] = stats(await sample(page, 6000));

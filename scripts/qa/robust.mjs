@@ -88,7 +88,7 @@ await withBrowser(async ({ chrome, server }) => {
 
   // ---------- hidden mid-Recollection ----------
   if (want('recollection')) {
-    const page = await battle(chrome, server, 'boss_clerk', '&echo=10');
+    const page = await battle(chrome, server, 'boss_clerk', '&echo=10&level=5');
     await waitMenu(page);
     await page.ev(`(() => { const B = window.__battle; B.hideCommandMenu(); window.__results.length = 0; window.__dmg = []; const o = B.recollectionHit.bind(B); B.recollectionHit = (t, r, tech) => { window.__dmg.push(r); return o(t, r, tech); }; window.__hp0 = B.enemies[0].hp; window.__done = null; B.playRecollection(B.heroes[0], B.enemies[0]).then(() => { window.__done = true; }); })()`);
     await page.waitFor(`window.__battle.qteRings && window.__battle.qteRings.size > 0`, { timeout: 8000 });
@@ -199,7 +199,7 @@ await withBrowser(async ({ chrome, server }) => {
     const sc2 = await p2.scenes();
     log(sc2.filter((s) => s === 'Cutscene').length === 1 && !sc2.includes('Menu'), 'double tap on New Game: one chapter start', sc2.join('+'));
     // battle: double tap Strike then double tap enemy -> one strike
-    const b = await battle(chrome, server, 'b3_hollows');
+    const b = await battle(chrome, server, 'b1_forgotten');
     await waitMenu(b);
     await b.ev(`window.__battle.tutorialSlow = false; window.__strikes = 0; const o = window.__battle.playerStrike.bind(window.__battle); window.__battle.playerStrike = (h, t) => { window.__strikes++; return o(h, t); };`);
     await b.tap(...slots.strike);
@@ -239,7 +239,7 @@ await withBrowser(async ({ chrome, server }) => {
 
   // ---------- leaks: 5× Retry ----------
   if (want('leaks')) {
-    const page = await battle(chrome, server, 'b1_tutorial');
+    const page = await battle(chrome, server, 'b1_forgotten');
     await waitMenu(page);
     const metrics = () =>
       page.ev(`(() => { const B = window.__battle; const g = window.__game; const count = (em) => em.eventNames().reduce((s, n) => s + em.listenerCount(n), 0);

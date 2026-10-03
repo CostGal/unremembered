@@ -82,16 +82,19 @@
   "battleLayout": {
     "sceneBottom": 360,
     "labelGap": 6,
+    "labelMargin": 4,
     "labelDepth": 900,
     "attackerDepthGap": 1,
     "label": { "fontSize": 12, "color": "#f1efe8", "stroke": "#0b0d14", "strokeThickness": 3 },
+    "defaultParty": ["rhea", "dov"],
     "heroes": { "rhea": { "x": 116, "feetY": 342 }, "dov": { "x": 76, "feetY": 300 } },
     "nala": { "x": 36, "feetY": 336 },
     "enemies": {
       "1": [{ "x": 256, "feetY": 326 }],
       "2": [{ "x": 292, "feetY": 286 }, { "x": 224, "feetY": 342 }],
       "3": [{ "x": 296, "feetY": 272 }, { "x": 204, "feetY": 310 }, { "x": 268, "feetY": 350 }],
-      "boss": [{ "x": 236, "feetY": 334 }]
+      "boss": [{ "x": 236, "feetY": 334 }],
+      "gate": [{ "x": 262, "feetY": 330 }, { "x": 196, "feetY": 346 }]
     }
   },
   "hurt": { "knockbackPx": 6, "durationMs": 160 },
@@ -144,7 +147,7 @@
   },
   "animtest": {
     "character": "rhea",
-    "battle": "b1_tutorial",
+    "battle": "b1_forgotten",
     "spriteX": 180,
     "spriteY": 300,
     "feetGap": 4,
@@ -182,6 +185,7 @@
     "victoryText": "Victory",
     "loseText": "The memory fades…",
     "errorText": "The memory slips…",
+    "interruptedText": "",
     "continueText": "Tap to continue",
     "retryText": "Retry",
     "textY": 300,
@@ -237,7 +241,7 @@
       "default": "#f1efe8",
       "Rhea": "#3fd0c9",
       "Dov": "#e0a040",
-      "The Clerk": "#c8c2b4",
+      "Quill": "#c8c2b4",
       "▯▯▯": "#e0a040"
     },
     "styles": {
@@ -561,7 +565,8 @@
       "techniques": { "text": "Techniques spend your Echo" },
       "chain": { "text": "Chain PERFECTs for bonus damage", "always": true },
       "break": { "text": "Empty its pips to BREAK it", "always": true },
-      "status": { "text": "Statuses fade. Anchor clears them", "always": true }
+      "status": { "text": "Statuses fade. Anchor clears them", "always": true },
+      "recollection": { "text": "Recollection is ready. Make him relive it.", "always": true }
     }
   },
   "activeHero": { "color": "0x3fd0c9", "size": 7, "gapY": 6, "bobPx": 3, "bobMs": 380, "depth": 905, "nameColor": "#3fd0c9" },

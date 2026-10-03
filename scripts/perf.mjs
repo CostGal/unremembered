@@ -108,10 +108,10 @@ async function measureLoad() {
 
 async function measureFps() {
   const dev = await startServer();
-  const battle = battleArg || 'b1_tutorial';
+  const battle = battleArg || 'b1_forgotten';
   console.log(`\nFPS in ${battle} (rain + hit FX + Recollection first), bot playing ~25 s:`);
   for (const cpu of [1, CPU]) {
-    const r = await fpsDuringBattle(browser, `${dev.url}?battle=${battle}&echo=10`, cpu);
+    const r = await fpsDuringBattle(browser, `${dev.url}?battle=${battle}&echo=10&level=5`, cpu);
     console.log(`  CPU ${cpu}x: avg ${r.avg.toFixed(1)}  p5 ${r.p5.toFixed(1)}  min ${r.min.toFixed(1)}  (${r.n} samples)`);
   }
   await dev.close();

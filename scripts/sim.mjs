@@ -16,8 +16,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { root } from './lib/harness.mjs';
+import { dueEvents } from '../src/systems/BattleEvents.js';
 import { computeGrade } from '../src/systems/Grade.js';
-import { chapterXpBefore, growth, learned, levelFor } from '../src/systems/Recall.js';
+import { chapterXpBefore, echoMaxFor, growth, learned, levelFor, techniqueAt } from '../src/systems/Recall.js';
 
 const read = (p) => JSON.parse(readFileSync(join(root, p), 'utf8'));
 const D = {
@@ -141,19 +142,19 @@ function simulateBattle(battleId, profileName, story, rnd) {
   // Recall: the level a playthrough reaches by this battle (levels.json).
   const stepIndex = D.chapter.findIndex((step) => step.type === 'battle' && step.id === battleId);
   const level = levelFor(chapterXpBefore(D.chapter, stepIndex < 0 ? 0 : stepIndex, D.battles, D.enemies), D.levels);
-  const heroes = ['rhea', 'dov'].map((id) => {
+  const heroes = (battle.party ?? D.ui.battleLayout.defaultParty).map((id) => {
     const def = D.characters[id];
     const g = growth(id, level, D.levels);
     const hp = def.hp + g.hp;
-    return { id, def, hp, max: hp, strike: [def.strike[0] + g.strike, def.strike[1] + g.strike], techniques: learned(id, level, def.techniques, D.levels), redacted: null, echo: 0, echoMax: def.echoMax ?? echoMax };
+    return { id, def, hp, max: hp, strike: [def.strike[0] + g.strike, def.strike[1] + g.strike], techniques: learned(id, level, def.techniques, D.levels), redacted: null, echo: 0, echoMax: echoMaxFor(id, level, D.levels) ?? def.echoMax ?? echoMax };
   });
   const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: D.enemies[id].hp, max: D.enemies[id].hp, phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false }));
 
   // A tutorial battle also costs the time to read its hint banners.
-  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], flags: [], playerHits: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   // Echo is per hero (each has their own reserve).
   const gain = (hero, n) => (hero.echo = Math.max(0, Math.min(hero.echoMax, hero.echo + n)));
-  const rhea = heroes[0];
+  const rhea = heroes.find((h) => h.id === 'rhea'); // may be absent (battles.json party)
   const living = (list) => list.filter((e) => e.hp > 0);
   const immune = (enemy, techId) => !!enemy.def.immune?.includes(techId);
 
@@ -174,6 +175,8 @@ function simulateBattle(battleId, profileName, story, rnd) {
       enemy.charge.mitigated += full - dmg;
     }
     if (enemy.exposed) dmg = Math.round(dmg * enemy.exposed.mult);
+    // playerHits (battle events): a Strike / attack technique that dealt damage.
+    if (st.playerAction && dmg > 0) st.actionLanded = true;
     enemy.hp = Math.max(0, enemy.hp - dmg);
     if (enemy.hp <= 0) enemy.charge = null;
     const phases = enemy.def.phases;
@@ -213,16 +216,45 @@ function simulateBattle(battleId, profileName, story, rnd) {
         st.keepsake = true;
         st.ms += T.keepsakeMs;
         // The Keepsake unlocks Rhea's last pips, then fills them.
-        rhea.echoMax = Math.max(rhea.echoMax, D.battleEvents.keepsake_burn.echoMax || rhea.echoMax);
-        gain(rhea, rhea.echoMax);
+        if (rhea) {
+          rhea.echoMax = Math.max(rhea.echoMax, D.battleEvents.keepsake_burn.echoMax || rhea.echoMax);
+          gain(rhea, rhea.echoMax);
+        }
       } else if (D.battleEvents[ev]?.dialogue && living(enemies).length) {
         st.ms += T.insightMs;
       }
     }
   };
 
+  // Generic battle events (battles.json `events`, systems/BattleEvents.js), same
+  // rules as BattleScene.checkEvents: after the intro and after every turn, once
+  // each, in list order; a dialogue costs T.eventMs; endBattle interrupts the fight.
+  const firedEvents = new Set();
+  const checkEvents = () => {
+    if (!battle.events?.length || st.interrupted || !living(heroes).length) return;
+    const ctx = { round: st.rounds, playerHits: st.playerHits, immuneSeen: st.immuneSeen, enemies: enemies.map((e) => ({ hp: e.hp, maxHp: e.max })) };
+    for (const ev of dueEvents(battle.events, firedEvents, ctx)) {
+      firedEvents.add(ev.id);
+      if (ev.dialogue) {
+        if (!D.dialogue[ev.dialogue]) continue;
+        st.ms += T.eventMs;
+      }
+      if (ev.then === 'endBattle') {
+        st.interrupted = true;
+        return;
+      }
+      if (ev.then?.setFlag && !st.flags.includes(ev.then.setFlag)) st.flags.push(ev.then.setFlag);
+    }
+  };
+  // An interrupted battle counts as a win (XP is given) without a grade.
+  const interrupted = () => ({ ...st, win: true, interrupted: true, grade: null });
+
   const playerTurn = (hero) => {
+    st.playerAction = true;
+    st.actionLanded = false;
     playerTurnInner(hero);
+    st.playerAction = false;
+    if (st.actionLanded) st.playerHits += 1;
     // Statuses tick after the hero's own turn.
     if (hero.redacted && --hero.redacted.turns <= 0) hero.redacted = null;
   };
@@ -240,7 +272,8 @@ function simulateBattle(battleId, profileName, story, rnd) {
     const hurt = heroes.filter((h) => h.hp > 0 && h.hp < h.max * D.sim.policy.anchorBelow);
 
     // Recollection when full.
-    if (hero.def.canUltimate && hero.echo >= tech.recollection.cost) {
+    if (battle.recollection && hero.def.canUltimate && hero.echo >= tech.recollection.cost) {
+      st.playerAction = false; // the ultimate is not a counted hit
       hero.echo -= tech.recollection.cost;
       st.recollections += 1;
       const r = tech.recollection;
@@ -252,13 +285,15 @@ function simulateBattle(battleId, profileName, story, rnd) {
       st.ms += T.recollectionFadeMs * 2 + r.taps * (qte.recollection.ringMs + r.intervalMs);
       return;
     }
-    const can = (id) => hero.techniques.includes(id) && hero.echo >= tech[id].cost && hero.redacted?.tech !== id;
+    // Techniques as they are at this Recall level (techniques.json `levels`).
+    const tk = (id) => techniqueAt(id, level, tech);
+    const can = (id) => hero.techniques.includes(id) && hero.echo >= tk(id).cost && hero.redacted?.tech !== id;
 
     if (hero.id === 'dov') {
       if ((down || hurt.length) && can('anchor')) {
-        hero.echo -= tech.anchor.cost;
+        hero.echo -= tk('anchor').cost;
         const t = down || hurt.sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
-        t.hp = Math.min(t.max, (t.hp > 0 ? t.hp : 0) + tech.anchor.amount);
+        t.hp = Math.min(t.max, (t.hp > 0 ? t.hp : 0) + tk('anchor').amount);
         t.redacted = null; // Anchor clears statuses
         st.ms += T.castMs;
         return;
@@ -266,24 +301,25 @@ function simulateBattle(battleId, profileName, story, rnd) {
       // Brace on the turn the charge is about to release.
       const charging = enemies.some((e) => e.charge && e.charge.turnsLeft <= 1);
       if (D.sim.policy.braceOnArchive && charging && can('brace')) {
-        hero.echo -= tech.brace.cost;
-        st.brace = tech.brace;
+        hero.echo -= tk('brace').cost;
+        st.brace = tk('brace');
         st.ms += T.castMs;
         return;
       }
       // Tremor (hits every enemy) when there's a crowd or a Strike-immune target.
       if (can('tremor') && (targets.length > 1 || !strikeTarget)) {
-        hero.echo -= tech.tremor.cost;
-        for (const e of targets) hitEnemy(e, between(rnd, tech.tremor.dmg), D.brk.sources.hit);
-        gain(hero, tech.tremor.echoOnHit || 0);
+        hero.echo -= tk('tremor').cost;
+        for (const e of targets) hitEnemy(e, between(rnd, tk('tremor').dmg), D.brk.sources.hit);
+        gain(hero, tk('tremor').echoOnHit || 0);
         st.ms += sheetMs('dov', 'attack', T.attackMs);
         return;
       }
     }
     if (hero.id === 'rhea') {
-      if (can('blast') && hero.echo >= D.sim.policy.blastAtEcho) {
-        hero.echo -= tech.blast.cost;
-        const b = tech.blast;
+      // Blast whenever it is affordable (its cost is per level: 1 Echo at Recall 1).
+      if (can('blast')) {
+        hero.echo -= tk('blast').cost;
+        const b = tk('blast');
         let total = between(rnd, b.hits);
         let bolts = 0;
         for (let i = 0; i < total && target.hp > 0; i++) {
@@ -296,9 +332,9 @@ function simulateBattle(battleId, profileName, story, rnd) {
         st.ms += sheetMs('rhea', 'blast', 900) + bolts * (b.boltFlightMs + b.boltIntervalMs);
         return;
       }
-      if (can('return_to_sender') && hero.echo < (tech.blast?.cost ?? Infinity) && rnd() < D.sim.policy.returnToSenderChance) {
-        hero.echo -= tech.return_to_sender.cost;
-        st.stance = { hero, tech: tech.return_to_sender };
+      if (can('return_to_sender') && hero.echo < (tk('blast')?.cost ?? Infinity) && rnd() < D.sim.policy.returnToSenderChance) {
+        hero.echo -= tk('return_to_sender').cost;
+        st.stance = { hero, tech: tk('return_to_sender') };
         st.ms += T.castMs;
         return;
       }
@@ -307,7 +343,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
     if (strikeTarget) {
       hitEnemy(strikeTarget, between(rnd, hero.strike), D.brk.sources.hit);
       gain(hero, tech.strike.echoOnHit);
-    }
+    } else st.immuneSeen = true;
     st.ms += T.dashMs * 2 + sheetMs(hero.id, 'attack', T.attackMs);
   };
 
@@ -324,6 +360,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
     }
     const targets = living(heroes);
     if (!targets.length) return;
+    // refuseUntilFlag (enemies.json): the enemy won't attack until the event flag is set.
+    if (enemy.def.refuseUntilFlag && !st.flags.includes(enemy.def.refuseUntilFlag)) {
+      st.ms += T.refuseMs;
+      return;
+    }
     const stanceHero = st.stance && st.stance.hero.hp > 0 ? st.stance.hero : null;
     const target = stanceHero || targets[Math.floor(rnd() * targets.length)];
     let attack;
@@ -378,8 +419,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
       gain(target, cfg.echo);
       if (res === 'MISS' && hit.onMiss?.echo) gain(target, hit.onMiss.echo);
       const dmg = Math.round(hit.dmg * cfg.damageMult * dmgTakenMult * (st.brace ? st.brace.damageMult : 1));
-      st.damageTaken += Math.min(dmg, target.hp);
+      const dealt = Math.min(dmg, target.hp);
+      st.damageTaken += dealt;
       target.hp = Math.max(0, target.hp - dmg);
+      // Siphon: the enemy keeps a share of the life it took.
+      if (hit.lifesteal && dmg > 0 && enemy.hp > 0) enemy.hp = Math.min(enemy.max, enemy.hp + Math.round(dealt * hit.lifesteal));
       // A missed parry can leave a memory status (Fog has no effect on the numbers).
       const status = res === 'MISS' && battle.statuses !== false && hit.onMiss?.status;
       if (status === 'redacted' && rnd() < (hit.onMiss.chance ?? 1) && target.hp > 0 && target.techniques.length) {
@@ -409,20 +453,26 @@ function simulateBattle(battleId, profileName, story, rnd) {
     }
   };
 
+  checkEvents(); // `when: "battleStart"`
+  if (st.interrupted) return interrupted();
   while (true) {
     st.rounds += 1;
     if (st.rounds > 200) return { ...st, win: false, stuck: true };
     for (const hero of heroes) {
       if (hero.hp <= 0) continue;
       playerTurn(hero);
-      st.echoCurve.push(rhea.echo);
+      if (rhea) st.echoCurve.push(rhea.echo);
       afterTurn();
+      checkEvents();
+      if (st.interrupted) return interrupted();
       if (!living(enemies).length) return { ...st, win: true, ms: st.ms + T.victoryMs, grade: gradeOf() };
     }
     for (const enemy of enemies) {
       if (enemy.hp <= 0) continue;
       enemyTurn(enemy);
       afterTurn();
+      checkEvents();
+      if (st.interrupted) return interrupted();
       if (!living(heroes).length) return { ...st, win: false, ms: st.ms + T.loseMs };
       if (!living(enemies).length) return { ...st, win: true, ms: st.ms + T.victoryMs, grade: gradeOf() };
     }
@@ -463,6 +513,7 @@ for (const story of [false, true]) {
       const res = [];
       for (let i = 0; i < RUNS; i++) res.push(simulateBattle(id, profileName, story, rnd));
       const wins = res.filter((r) => r.win);
+      const graded = wins.filter((r) => r.grade); // an interrupted battle has no grade
       const avg = (f, list = res) => list.reduce((s, r) => s + f(r), 0) / Math.max(1, list.length);
       const sorted = res.map((r) => r.ms).sort((a, b) => a - b);
       const q = (x) => sorted[Math.floor(x * (sorted.length - 1))];
@@ -480,9 +531,9 @@ for (const story of [false, true]) {
         recollections: avg((r) => r.recollections),
         archives: avg((r) => r.archives),
         breaks: avg((r) => r.breaks),
-        ranks: Object.fromEntries(D.grade.ranks.map((k) => [k.id, wins.filter((r) => r.grade.rank === k.id).length / Math.max(1, wins.length)])),
-        gradeStats: Object.fromEntries(['perfects', 'maxChain', 'damageTaken', 'turns'].map((k) => [k, avg((r) => r.grade.stats[k], wins)])),
-        score: avg((r) => r.grade.score, wins),
+        ranks: Object.fromEntries(D.grade.ranks.map((k) => [k.id, graded.filter((r) => r.grade.rank === k.id).length / Math.max(1, graded.length)])),
+        gradeStats: Object.fromEntries(['perfects', 'maxChain', 'damageTaken', 'turns'].map((k) => [k, avg((r) => r.grade.stats[k], graded)])),
+        score: avg((r) => r.grade.score, graded),
         interruptRate: res.reduce((s, r) => s + r.archiveInterrupts, 0) / Math.max(1, res.reduce((s, r) => s + r.archives, 0)),
         qte: Object.fromEntries(['PERFECT', 'GOOD', 'MISS'].map((k) => [k, avg((r) => r.qtes[k]) / Math.max(1e-9, avg((r) => r.qtes.PERFECT + r.qtes.GOOD + r.qtes.MISS))])),
       });
@@ -507,10 +558,27 @@ if (JSON_OUT) {
       `${r.mode.padEnd(7)} ${r.battle.padEnd(13)} ${r.profile.padEnd(10)} ${pct(r.win)}  ${f1(r.rounds)}  ${f1(r.minutes)} (${r.p10.toFixed(1)}–${r.p90.toFixed(1)})   ${f1(r.avgEcho)}   ${r.recollections.toFixed(2)}    ${r.archives.toFixed(2)}    ${r.archives ? pct(r.interruptRate) : '   –  '}    ${r.breaks.toFixed(2)}   ${pct(r.qte.PERFECT)}/${pct(r.qte.GOOD)}/${pct(r.qte.MISS)}   ${r.score.toFixed(0).padStart(4)}   ${D.grade.ranks.map((k) => Math.round(r.ranks[k.id] * 100).toString().padStart(3)).join('/')}   ${r.gradeStats.perfects.toFixed(1).padStart(4)} ${r.gradeStats.maxChain.toFixed(1).padStart(4)} ${r.gradeStats.damageTaken.toFixed(0).padStart(4)} ${r.gradeStats.turns.toFixed(1).padStart(4)}`
     );
   }
-  const battleMin = (profile) => rows.filter((r) => r.mode === 'normal' && r.profile === profile).reduce((s, r) => s + r.minutes / Math.max(0.01, r.win), 0);
-  console.log(`\nchapter: cutscene ${(story.cutsceneMs / 60000).toFixed(1)} min + dialogue ${(story.dialogueMs / 60000).toFixed(1)} min (40 cps + ${D.sim.timing.readAfterLineMs}ms per line)`);
-  for (const p of Object.keys(D.sim.profiles)) {
-    const total = (story.cutsceneMs + story.dialogueMs) / 60000 + battleMin(p);
-    console.log(`  ${p.padEnd(10)} battles incl. expected retries ${battleMin(p).toFixed(1)} min -> chapter ≈ ${total.toFixed(1)} min`);
+  // Chapter table (normal mode): per profile, each battle's average rounds and minutes per attempt,
+  // then cutscene + dialogue + battles (minutes / win rate = expected time including retries).
+  const profiles = Object.keys(D.sim.profiles);
+  const normal = (profile, id) => rows.find((r) => r.mode === 'normal' && r.profile === profile && r.battle === id);
+  const storyMin = (story.cutsceneMs + story.dialogueMs) / 60000;
+  console.log(`\nchapter (normal): cutscene ${(story.cutsceneMs / 60000).toFixed(1)} min + dialogue ${(story.dialogueMs / 60000).toFixed(1)} min (40 cps + ${D.sim.timing.readAfterLineMs}ms per line)`);
+  console.log(`  ${'battle'.padEnd(16)}${profiles.map((p) => p.padStart(38)).join('')}`);
+  console.log(`  ${''.padEnd(16)}${profiles.map(() => 'rounds    min    win   incl. retries'.padStart(38)).join('')}`);
+  const totals = Object.fromEntries(profiles.map((p) => [p, 0]));
+  for (const id of battleIds) {
+    const cells = profiles.map((p) => {
+      const r = normal(p, id);
+      const withRetries = r.minutes / Math.max(0.01, r.win);
+      totals[p] += withRetries;
+      return `${r.rounds.toFixed(1).padStart(6)} ${r.minutes.toFixed(1).padStart(6)} ${pct(r.win)} ${withRetries.toFixed(1).padStart(10)}`.padStart(38);
+    });
+    console.log(`  ${id.padEnd(16)}${cells.join('')}`);
+  }
+  console.log(`\n  total = cutscene + dialogue + battles (incl. expected retries); target: non-gamer <= 18 min, every battle >= 99.9% win`);
+  for (const p of profiles) {
+    const worst = Math.min(...battleIds.map((id) => normal(p, id).win));
+    console.log(`  ${p.padEnd(10)} ${storyMin.toFixed(1)} + ${totals[p].toFixed(1)} battles = ${(storyMin + totals[p]).toFixed(1)} min   (lowest battle win ${pct(worst).trim()})`);
   }
 }
