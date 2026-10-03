@@ -9,7 +9,7 @@ Replaces v1 completely. Source of truth for every story text in the game (cutsce
 - **The Long War** lasted **twenty years**. To end it, Aurelian rebuilt the engine into a weapon: it could tear a person out of every mind that knew them. That gave more power than anything before. He used it on the enemy: soldiers forgotten by their own families broke, and so did their armies. He won.
 - **The council** feared a king who held a weapon that could erase anyone. They took the engine, named him the butcher of the war he had won, and sentenced him with his own weapon: **the Unwriting**. Every memory of him was torn from every mind. Even his daughter forgot him.
 - He wandered the ruins beyond the wall for years. Once he came back in secret to see his daughter; she looked at him and saw a stranger. Grief became hatred.
-- He came back for the engine. That night he fed it the council, then thousands more, and every light in Veyra went dark: **the Hush**. When the light returned, the king and the engine were one.
+- He came back for the engine. That night he fed it thousands, and every light in Veyra went dark: **the Hush**. When the light returned, the king and the engine were one.
 - **A hundred years later he still rules.** Veyra lives under tyranny. Some accept it because it pays: those who serve him live for decades longer than they should. Everyone else learns to keep quiet.
 - **Why he keeps taking:** unknown. In the demo it stays a mystery.
 
@@ -102,18 +102,18 @@ Narrator, third person. Same art and shot layout as v1 unless noted.
 | 14 | Even those who loved him forgot he had ever lived. | `statue`, zoom |
 | 15 | For years, he wandered the ruins beyond the wall. | `battlefield` night + `aurelian_exile_kneel` |
 | 16 | Once, he came back in secret, to see his daughter. | `street_rain` + `aurelian_exile` |
-| 17 | She looked straight at him, and saw a stranger. | split `street_rain` / `exile_close` |
+| 17 | She looked straight at him, and saw a stranger. | split `cs_castle_daughter` / `exile_close` |
 | 18 | That was the day his grief became hatred. | `exile_close`, eyes glow |
 | 19 | He did not come back for his throne. | `reliquary`, dark tint |
 | 20 | He came back for the engine they had stolen. | split `reliquary` / `aurelian_exile` |
-| 21 | That night, he fed it the council. Then thousands more. | `reliquary`, flash + particles |
+| 21 | That night, he fed it thousands. | `reliquary`, flash + particles |
 | 22 | Every light in Veyra went dark. They call it the Hush. | `city`, lights_out, sfx `hush`, 5000 ms |
 | 23 | When the light returned, the king and the engine were one. | `city`, flash only (**changed:** no lights_out, the city is lit again) |
 | 24 | A hundred years later, he still rules. His servants live for decades more. | `city` night tint + rain |
 | 25 | Those who defy him are unwritten. No one can keep a memory of them: the Forgotten. | `street_rain` + Forgotten sprite |
 | 26 | From what is taken, his memorists shape monsters: the Hollows. | `street_rain` + Hollows |
-| 27 | Steel passes through a Hollow like smoke. | black + Hollow, flash |
-| 28 | Only a memory can wound a memory. | black + particles |
+| 27 | Everything passes through a Hollow like smoke. Everything but memory. | black + Hollow, flash |
+| 28 | A Hollow is made of memory. Only memory can wound it. | black + particles |
 | 29 | So the people learned to burn their own. They call it Echo. | black + Rhea glowing |
 | 30 | And a few of them learned to fight back. | black, 3500 ms → dialogue `letter` |
 

@@ -91,22 +91,26 @@ New Game → ChapterRunner(chapter1.json) → EndScene → Menu
   {"type": "cutscene", "id": "origin"},
   {"type": "dialogue", "id": "wake",   "bg": "bg_abandoned_home_fpv"},
   {"type": "dialogue", "id": "letter", "bg": "bg_letter_fpv"},
-  {"type": "dialogue", "id": "meet_dov", "bg": "street_rain"},
+  {"type": "dialogue", "id": "meet_dov", "bg": "street_far_room"},
   {"type": "battle",   "id": "b0_duel"},
-  {"type": "dialogue", "id": "after_duel", "bg": "street_rain"},
+  {"type": "dialogue", "id": "after_duel", "bg": "street_far_room"},
   {"type": "battle",   "id": "b1_forgotten"},
+  {"type": "dialogue", "id": "after_b1_go", "bg": "street_far_room"},
   {"type": "dialogue", "id": "after_b1", "bg": "rest_panel_1"},
   {"type": "reward",   "id": "reward_rest"},
+  {"type": "dialogue", "id": "after_rest", "bg": "street_far_room"},
+  {"type": "dialogue", "id": "approach_b2", "bg": "street_mid_room"},
   {"type": "battle",   "id": "b2_first_hollow"},
-  {"type": "dialogue", "id": "before_gate", "bg": "street_rain"},
+  {"type": "dialogue", "id": "after_b2", "bg": "street_mid_room"},
+  {"type": "dialogue", "id": "before_gate", "bg": "office_gate_room"},
   {"type": "battle",   "id": "b3_gate"},
-  {"type": "dialogue", "id": "records_office", "bg": "records_office"},
+  {"type": "dialogue", "id": "records_office", "bg": "records_office_room"},
   {"type": "battle",   "id": "boss_clerk"},
-  {"type": "dialogue", "id": "ending", "bg": "records_office"},
+  {"type": "dialogue", "id": "ending", "bg": "records_office_room"},
   {"type": "end"}
 ]
 ```
-(Story v2: 15 steps, `?step=0..14`; `end` closes the list; step table in `docs/STATUS.md` > Story v2.)
+(Story v2: 19 steps, `?step=0..18`; `end` closes the list; step table in `docs/STATUS.md` > Story v2. A dialogue's last line may carry `"transition": "close"`: a 500 ms black close, and the next dialogue opens from black.)
 - **Losing a battle** → "The memory fades…" + a Retry button. Retry restarts the same battle with party HP/Echo restored to the battle-start snapshot. There is no game over screen.
 
 ## Battle

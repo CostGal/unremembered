@@ -44,6 +44,8 @@ export default class DialogueScene extends Phaser.Scene {
     this.typing = false;
     this.typeEvent = null;
     this.introActive = false;
+    this.closing = false;
+    this.fadeIn = !!data.fadeIn;
     this.bgImage = null;
     this.bgDepth = 0;
     this.dialogueId = data.id;
@@ -81,14 +83,27 @@ export default class DialogueScene extends Phaser.Scene {
     this.index = -1;
     this.typing = false;
     this.input.on('pointerdown', () => this.onTap());
+    // The previous dialogue ended with a "close" transition: open from black.
+    if (this.fadeIn && !this.overlay) {
+      const v = viewRect();
+      const cover = this.add.rectangle(v.x, v.y, v.w, v.h, Number(cfg.transition.close.color)).setOrigin(0).setDepth(cfg.transition.depth);
+      this.tweens.add({ targets: cover, alpha: 0, duration: cfg.transition.open.ms, onComplete: () => cover.destroy() });
+    }
     this.playIntro(() => this.advance());
   }
 
-  // ui.json dialogue.intro.<dialogue id>: an effect before the first line. "eyelids":
-  // two black lids over the picture part, parting over openMs, then a few quick
-  // blinks; blurFade lays a slightly zoomed copy of the picture over it, fading
-  // out (a fake blur coming into focus). done() runs once the lids are open;
-  // the blinks play on while the first line types.
+  // The box (panel, name, text) fades together; alpha is set on the objects
+  // themselves (the "next" mark has its own blink tween and appears later).
+  setBoxAlpha(a) {
+    for (const o of [this.box, this.nameText, this.bodyText, this.nameBoxes]) o.setAlpha(a);
+  }
+
+  // ui.json dialogue.intro.<dialogue id>: a silent effect before the first line. "eyelids":
+  // no text box at first; two black lids part slowly over openMs while the picture
+  // settles from zoomFrom to 1 and a blurred copy of it (fake blur) fades out; then
+  // `blinks` soft blinks (lids close blinkDepth of the way, blinkMs each, blinkGapMs
+  // apart), then the box fades in over boxFadeMs and done() starts the first line.
+  // Taps are ignored (introActive) until then.
   playIntro(done) {
     const def = this.overlay ? null : cfg.intro?.[this.dialogueId];
     if (!def) {
@@ -105,33 +120,58 @@ export default class DialogueScene extends Phaser.Scene {
     const color = Number(def.color);
     const top = this.add.rectangle(v.x, 0, v.w, half, color).setOrigin(0).setDepth(def.depth);
     const bottom = this.add.rectangle(v.x, half, v.w, half, color).setOrigin(0).setDepth(def.depth);
-    const blinkTotal = def.blinks * (def.blinkMs + def.blinkGapMs);
+    const cover = !!(this.bgImage && manifestDef('backgrounds', this.bgKey)?.cover);
+    const zoom = { z: cover ? def.zoomFrom : 1 };
     let blur = null;
-    if (def.blurFade && this.bgImage && manifestDef('backgrounds', this.bgKey)?.cover) {
-      blur = this.coverImage(this.bgKey, def.blurScale).setAlpha(def.blurAlpha).setDepth(def.depth - 1);
-      this.tweens.add({ targets: blur, alpha: 0, duration: def.openMs + blinkTotal, ease: 'Sine.easeOut', onComplete: () => blur.destroy() });
+    if (cover) {
+      this.fitCover(this.bgImage, zoom.z);
+      if (def.blurFade) {
+        blur = this.coverImage(this.bgKey, zoom.z * def.blurScale).setAlpha(def.blurAlpha).setDepth(def.depth - 1);
+        this.tweens.add({ targets: blur, alpha: 0, duration: def.blurFadeMs, ease: 'Sine.easeOut', onComplete: () => blur.destroy() });
+      }
+      this.tweens.add({
+        targets: zoom,
+        z: 1,
+        duration: def.zoomMs,
+        ease: 'Sine.easeOut',
+        onUpdate: () => {
+          this.fitCover(this.bgImage, zoom.z);
+          if (blur?.active) this.fitCover(blur, zoom.z * def.blurScale);
+        },
+      });
     }
+    this.setBoxAlpha(0);
     this.introActive = true;
-    this.tweens.add({ targets: top, y: -half, duration: def.openMs, ease: 'Cubic.easeInOut' });
-    this.tweens.add({
-      targets: bottom,
-      y: cfg.bg.coverH,
-      duration: def.openMs,
-      ease: 'Cubic.easeInOut',
-      onComplete: () => {
-        this.introActive = false;
-        done();
-        // Blinks: both lids close and part again, def.blinkMs each, blinkGapMs apart.
-        if (def.blinks > 0) {
-          const blink = { duration: def.blinkMs / 2, yoyo: true, repeat: def.blinks - 1, repeatDelay: def.blinkGapMs + def.blinkMs / 2, delay: def.blinkGapMs, ease: 'Sine.easeInOut' };
-          this.tweens.add({ targets: top, y: 0, ...blink });
-          this.tweens.add({ targets: bottom, y: half, ...blink, onComplete: () => { top.destroy(); bottom.destroy(); } });
-        } else {
-          top.destroy();
-          bottom.destroy();
-        }
-      },
-    });
+    const finishIntro = () => {
+      top.destroy();
+      bottom.destroy();
+      this.tweens.addCounter({
+        from: 0,
+        to: 1,
+        duration: def.boxFadeMs,
+        onUpdate: (t) => this.setBoxAlpha(t.getValue()),
+        onComplete: () => {
+          this.setBoxAlpha(1);
+          this.introActive = false;
+          done();
+        },
+      });
+    };
+    const blinkTo = (lid, open, closed, onComplete) => {
+      // Blink k: wait the gap, close part way and open again.
+      this.tweens.add({ targets: lid, y: closed, duration: def.blinkMs / 2, yoyo: true, repeat: def.blinks - 1, repeatDelay: def.blinkGapMs, delay: def.blinkGapMs, ease: 'Sine.easeInOut', onComplete });
+    };
+    const afterOpen = () => {
+      if (def.blinks > 0) {
+        const d = def.blinkDepth ?? 1;
+        blinkTo(top, -half, -half + half * d);
+        blinkTo(bottom, cfg.bg.coverH, cfg.bg.coverH - half * d, finishIntro);
+      } else {
+        finishIntro();
+      }
+    };
+    this.tweens.add({ targets: top, y: -half, duration: def.openMs, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: bottom, y: cfg.bg.coverH, duration: def.openMs, ease: 'Sine.easeInOut', onComplete: afterOpen });
   }
 
   buildBackground() {
@@ -174,16 +214,20 @@ export default class DialogueScene extends Phaser.Scene {
   // The cover-fit picture (see above). zoom > 1 shows the same window magnified
   // around the centre (the intro's blur copy); the crop keeps it inside the area.
   coverImage(key, zoom = 1) {
+    const img = this.add.image(180, cfg.bg.coverH / 2, key);
+    this.fitCover(img, zoom);
+    return img;
+  }
+
+  fitCover(img, zoom = 1) {
     const v = viewRect();
     const h = cfg.bg.coverH;
-    const img = this.add.image(180, h / 2, key);
     const scale = Math.max(v.w / img.width, h / img.height) * zoom;
     img.setScale(scale);
     // The crop is in texture pixels around the image centre, which sits at the area's centre.
     const cropW = Math.min(img.width, v.w / scale);
     const cropH = Math.min(img.height, h / scale);
     img.setCrop((img.width - cropW) / 2, (img.height - cropH) / 2, cropW, cropH);
-    return img;
   }
 
   // A line's "bg" (a cover key): crossfade the picture to it over cfg.bgFadeMs.
@@ -285,7 +329,7 @@ export default class DialogueScene extends Phaser.Scene {
   }
 
   onTap() {
-    if (this.finished || this.introActive) return;
+    if (this.finished || this.introActive || this.closing) return;
     if (this.typing) this.completeLine();
     else this.advance();
   }
@@ -377,7 +421,7 @@ export default class DialogueScene extends Phaser.Scene {
   // The line's portrait goes on its character's side (null clears the
   // speaker's side). The other side keeps whoever was there, dimmed.
   updatePortraits(line, style) {
-    if (!style.portraits) {
+    if (!style.portraits || cfg.noPortraits?.includes(this.dialogueId)) {
       for (const slot of Object.values(this.portraits)) this.setSlot(slot, null);
       return;
     }
@@ -424,7 +468,34 @@ export default class DialogueScene extends Phaser.Scene {
     slot.image.setVisible(true);
   }
 
+  // After the last line, when it carries "transition": "close": two black bars
+  // meet over the whole screen (ui.json dialogue.transition.close), then the
+  // chapter continues and the next dialogue opens from black.
   finish() {
+    const t = this.lines[this.lines.length - 1]?.transition;
+    if (t === 'close' && !this.overlay && !this.closing) {
+      this.closing = true;
+      const c = cfg.transition.close;
+      const v = viewRect();
+      const colorN = Number(c.color);
+      const bar = (y, to) => {
+        const r = this.add.rectangle(v.x, y, v.w, v.h / 2, colorN).setOrigin(0).setDepth(cfg.transition.depth);
+        this.tweens.add({ targets: r, y: to, duration: c.ms, ease: 'Sine.easeInOut' });
+      };
+      bar(v.y - v.h / 2, v.y);
+      bar(v.y + v.h, v.y + v.h / 2);
+      this.time.delayedCall(c.ms, () => {
+        const runner = this.registry.get('runner');
+        if (runner) runner.openFromBlack = true;
+        this.closing = false;
+        this.finishNow();
+      });
+      return;
+    }
+    this.finishNow();
+  }
+
+  finishNow() {
     this.finished = true;
     if (this.overlay) {
       this.scene.stop();

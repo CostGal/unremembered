@@ -211,14 +211,19 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       if (line.style && !styles[line.style]) err(`${at}: unknown style "${line.style}"`);
       if (line.bg !== undefined && !(assets.backgrounds?.[line.bg]?.cover)) err(`${at}: bg "${line.bg}" must be a cover background in assets.json backgrounds`);
       checkSfx(at, line.sfx);
+      if (line.transition !== undefined && line.transition !== 'close') err(`${at}: unknown transition "${line.transition}" (only "close")`);
     });
   }
+  // ui.dialogue.noPortraits / transition
+  for (const id of ui.dialogue?.noPortraits || []) if (!dialogue[id]) err(`ui.dialogue.noPortraits: no dialogue "${id}" in dialogue.json`);
+  const tr = ui.dialogue?.transition;
+  if (!(tr?.close?.ms > 0 && Number.isFinite(Number(tr.close.color)) && tr.open?.ms >= 0 && Number.isFinite(tr.depth))) err('ui.dialogue.transition: depth, close {ms, color} and open {ms} are required');
   // dialogue.intro.<id>: an effect before the first line of dialogue <id>.
   for (const [id, intro] of Object.entries(ui.dialogue?.intro || {})) {
     const at = `ui.dialogue.intro.${id}`;
     if (!dialogue[id]) err(`${at}: no dialogue "${id}" in dialogue.json`);
     if (intro.type !== 'eyelids') err(`${at}: unknown type "${intro.type}"`);
-    else for (const k of ['openMs', 'blinks', 'blinkMs', 'blinkGapMs', 'blurAlpha', 'blurScale', 'depth']) if (!Number.isFinite(intro[k])) err(`${at}.${k}: must be a number`);
+    else for (const k of ['openMs', 'blinks', 'blinkMs', 'blinkGapMs', 'blinkDepth', 'blurAlpha', 'blurFadeMs', 'blurScale', 'zoomFrom', 'zoomMs', 'boxFadeMs', 'depth']) if (!Number.isFinite(intro[k])) err(`${at}.${k}: must be a number`);
   }
 
   // On-screen text vs the shipped font (warnings only)

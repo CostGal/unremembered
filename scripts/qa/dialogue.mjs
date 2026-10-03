@@ -11,6 +11,7 @@ const ui = JSON.parse(readFileSync(join(root, 'src/data/ui.json'), 'utf8')).dial
 const portraitDefs = JSON.parse(readFileSync(join(root, 'src/data/assets.json'), 'utf8')).portraits || {};
 const out = process.argv[process.argv.indexOf('--out') + 1];
 mkdirSync(out, { recursive: true });
+const noPortraits = ui.noPortraits || [];
 const bgOf = Object.fromEntries(chapter.filter((s) => s.type === 'dialogue').map((s) => [s.id, s.bg]));
 const rows = [];
 const overflow = [];
@@ -48,7 +49,8 @@ await withBrowser(async ({ chrome, server }) => {
         if (s.visible && s.placeholder) issues.push(`${side} portrait ${s.key} is a placeholder`);
         if (s.visible && s.key === null) issues.push(`${side} visible with no key`);
       }
-      if (style.portraits && line.speaker && line.portrait) {
+      if (noPortraits.includes(id) && (info.slots.left.visible || info.slots.right.visible)) issues.push('portrait shown in a noPortraits dialogue');
+      if (style.portraits && !noPortraits.includes(id) && line.speaker && line.portrait) {
         const owner = line.portrait.split('_')[0];
         const side = ui.portraitSides[owner] || ui.portraitSides.default;
         const s = info.slots[side];

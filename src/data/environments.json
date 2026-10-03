@@ -70,5 +70,8 @@
     "drift": { "x": 3, "ms": 12000 },
     "ambience": "office",
     "vignette": { "color": "0x0a0806", "alpha": 0.55, "inner": 0.5, "bands": 5, "depth": 880 }
-  }
+  },
+  "street_far_room": { "ambience": "rain" },
+  "street_mid_room": { "ambience": "rain" },
+  "office_gate_room": { "ambience": "rain" }
 }

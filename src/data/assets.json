@@ -546,6 +546,24 @@
       "w": 720,
       "h": 1280,
       "cover": true
+    },
+    "street_far_room": {
+      "file": "bg/bg_street_far.jpg",
+      "w": 720,
+      "h": 1280,
+      "cover": true
+    },
+    "street_mid_room": {
+      "file": "bg/bg_street_mid.jpg",
+      "w": 720,
+      "h": 1280,
+      "cover": true
+    },
+    "office_gate_room": {
+      "file": "bg/bg_office_gate.jpg",
+      "w": 720,
+      "h": 1280,
+      "cover": true
     }
   },
   "ui": {

@@ -40,7 +40,7 @@
     { "speaker": "Rhea", "style": "normal", "text": "Now I can do this.", "portrait": "rhea_determined" }
   ],
   "duel_nala": [
-    { "speaker": "Nala", "style": "narration", "text": "Nala leaps out of the rain and lands between them, fur on end.", "portrait": "nala_hiss", "sfx": "sfx_hiss" },
+    { "speaker": "Nala", "style": "narration", "text": "Nala leaps out of the rain and lands between them, fur on end.", "portrait": null, "sfx": "sfx_hiss" },
     { "speaker": "Rhea", "style": "normal", "text": "...Nala?", "portrait": "rhea_confused" }
   ],
   "after_duel": [
@@ -75,6 +75,25 @@
     { "speaker": null, "style": "narration", "text": "Rhea doesn't remember how to hold her brother. She does it anyway.", "portrait": null },
     { "speaker": "Dov", "style": "normal", "text": "Memorists write down everything they take. It's all in his Ledger.", "portrait": "dov_neutral" },
     { "speaker": "Rhea", "style": "normal", "text": "Then we pay the magistrate a visit.", "portrait": "rhea_determined" }
+  ],
+  "after_b1_go": [
+    {"speaker": "Rhea", "style": "normal", "text": "Will you finally tell me what's going on?", "portrait": "rhea_serious"},
+    {"speaker": "Dov", "style": "normal", "text": "Not here. Let's go somewhere quieter.", "portrait": "dov_worried"},
+    {"speaker": null, "style": "narration", "text": "Nala is already walking. They follow.", "portrait": null, "transition": "close"}
+  ],
+  "after_rest": [
+    {"speaker": "Rhea", "style": "normal", "text": "The Ledger. If my page is in it, I want it back.", "portrait": "rhea_determined"},
+    {"speaker": "Dov", "style": "normal", "text": "Quill keeps it in the Records Office. Past the old gate.", "portrait": "dov_neutral"},
+    {"speaker": "Rhea", "style": "normal", "text": "Then we go now.", "portrait": "rhea_serious", "transition": "close"}
+  ],
+  "approach_b2": [
+    {"speaker": "Dov", "style": "normal", "text": "We're getting there. It's close.", "portrait": "dov_neutral"},
+    {"speaker": "Nala", "style": "narration", "text": "Nala stops dead. Her fur rises.", "portrait": null, "sfx": "sfx_hiss"},
+    {"speaker": "Dov", "style": "normal", "text": "Hollows. Stay behind me.", "portrait": "dov_fierce"}
+  ],
+  "after_b2": [
+    {"speaker": "Rhea", "style": "normal", "text": "They don't stop coming.", "portrait": "rhea_pained"},
+    {"speaker": "Dov", "style": "normal", "text": "Because he knows we're coming. Move.", "portrait": "dov_fierce", "transition": "close"}
   ],
   "b2_start": [
     { "speaker": null, "style": "narration", "text": "Behind the Forgotten, grey dust gathers into something with claws.", "portrait": null },

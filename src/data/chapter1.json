@@ -16,7 +16,7 @@
   {
     "type": "dialogue",
     "id": "meet_dov",
-    "bg": "street_rain"
+    "bg": "street_far_room"
   },
   {
     "type": "battle",
@@ -25,11 +25,16 @@
   {
     "type": "dialogue",
     "id": "after_duel",
-    "bg": "street_rain"
+    "bg": "street_far_room"
   },
   {
     "type": "battle",
     "id": "b1_forgotten"
+  },
+  {
+    "type": "dialogue",
+    "id": "after_b1_go",
+    "bg": "street_far_room"
   },
   {
     "type": "dialogue",
@@ -41,13 +46,28 @@
     "id": "reward_rest"
   },
   {
+    "type": "dialogue",
+    "id": "after_rest",
+    "bg": "street_far_room"
+  },
+  {
+    "type": "dialogue",
+    "id": "approach_b2",
+    "bg": "street_mid_room"
+  },
+  {
     "type": "battle",
     "id": "b2_first_hollow"
   },
   {
     "type": "dialogue",
+    "id": "after_b2",
+    "bg": "street_mid_room"
+  },
+  {
+    "type": "dialogue",
     "id": "before_gate",
-    "bg": "street_rain"
+    "bg": "office_gate_room"
   },
   {
     "type": "battle",

@@ -17,6 +17,7 @@ export default class ChapterRunner {
   constructor(steps) {
     this.steps = steps;
     this.index = -1;
+    this.openFromBlack = false;
   }
 
   // ?step=N starts the chapter at step N (0-based, dev).
@@ -66,7 +67,12 @@ export default class ChapterRunner {
       stopAllSfx(audioData.sfxFadeMs);
       if (step.type === 'battle') scene.scene.start(key, { battleId: step.id });
       else if (step.type === 'reward') scene.scene.start(key, { id: step.id });
-      else scene.scene.start(key, { id: step.id, bg: step.bg });
+      else {
+        // A dialogue that ended with a "close" transition: the next one opens from black.
+        const fadeIn = step.type === 'dialogue' && this.openFromBlack;
+        scene.scene.start(key, { id: step.id, bg: step.bg, fadeIn });
+      }
+      this.openFromBlack = false;
       return;
     }
   }
