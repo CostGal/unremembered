@@ -18,5 +18,10 @@ const sfxFiles = existsSync(sfxDir)
 
 export default defineConfig({
   base: './',
-  define: { __MUSIC_FILES__: JSON.stringify(musicFiles), __SFX_FILES__: JSON.stringify(sfxFiles) },
+  define: {
+    __MUSIC_FILES__: JSON.stringify(musicFiles),
+    __SFX_FILES__: JSON.stringify(sfxFiles),
+    // The separate jam build (vite.jam.config.js) turns this on; see src/systems/Jam.js.
+    __JAM__: false,
+  },
 });

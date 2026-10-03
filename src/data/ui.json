@@ -1681,14 +1681,38 @@
       "inMs": 140,
       "settleMs": 120,
       "outMs": 180,
-      "dim": { "color": "0x000000", "alpha": 0.6 },
+      "dim": {
+        "color": "0x000000",
+        "alpha": 0.6
+      },
       "x": 180,
       "y": 165,
       "portraitH": 310,
       "scale": 0.6,
       "startScale": 0.4,
       "punch": 1.18,
-      "text": { "gapY": 16, "fontSize": 20, "color": "#e8883a", "stroke": "#0b0d14", "strokeThickness": 4 }
+      "text": {
+        "gapY": 16,
+        "fontSize": 20,
+        "color": "#e8883a",
+        "stroke": "#0b0d14",
+        "strokeThickness": 4
+      }
+    }
+  },
+  "jam": {
+    "_note": "Deep-merged over this file in the jam build only (vite.jam.config.js): keeps the host page's 60x60 top-right button clear (logical x 300-360, y 0-60).",
+    "tutorial": {
+      "banner": {
+        "y": 84
+      }
+    },
+    "cutscene": {
+      "skipHint": {
+        "align": "left",
+        "x": 84,
+        "y": 36
+      }
     }
   }
 }

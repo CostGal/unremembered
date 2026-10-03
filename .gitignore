@@ -3,3 +3,5 @@ dist/
 .DS_Store
 *.log
 _inbox/
+dist-jam/
+dist-jam-zip/
