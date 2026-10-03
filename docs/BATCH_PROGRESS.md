@@ -8,6 +8,7 @@ Order: 0 setup · 1 UI quick wins · 2 art+SFX slots · 3 Nala bundle · 4 Echo 
 |---|---|---|---|
 | 0 setup | done | (this commit) | npm ci ok; baseline validate 0/0, build ok, sim 100 % every battle / chapter 16.9 min non-gamer, judge-unit pass |
 | 1 UI quick wins | done | 5794e16 | validate 0/0, build ok, sim unchanged (16.9 min), judge-unit pass, mobile-check 36/36, frontend QA 22/22; logo punch 1.08, viewport refit, audio unlock on pointerdown+touchend+onstatechange, difficulty Back, Credits inert + POST GAME JAM pill, End "Will be revealed post game jam", README |
+| 2 art + SFX slots | done | a1ae744 | validate 0/0, build ok, sim 100 % / 17.0 min, judge-unit pass, cutscene-check 32 shots clean, dialogue QA 96 lines 0 issues; every §3 key registered (intentional placeholders: figure/room/street/band), alias nala_hiss→nala_hissing, fallbacks nala_meow/dov_pet_nala/rhea_cutin_*, cutscene shots 5–29 with bgFallback/whenArt + shot 22b + new Echo shot, cover dialogue bgs (y 0–440), file SFX public/assets/audio/sfx/<key>.mp3 with 9 procedural fallbacks |
 
 ---
 
