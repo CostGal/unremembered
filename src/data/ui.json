@@ -230,6 +230,10 @@
     "nextMark": { "w": 10, "h": 7 },
     "nameBoxes": { "wPct": 0.55, "hPct": 0.8, "lineHeightPct": 1.1, "gap": 3, "stroke": 2 },
     "nextBlinkMs": 450,
+    "bgFadeMs": 400,
+    "intro": {
+      "wake": { "type": "eyelids", "openMs": 900, "blinks": 2, "blinkMs": 140, "blinkGapMs": 160, "blurFade": true, "blurAlpha": 0.6, "blurScale": 1.04, "color": "0x000000", "depth": 950 }
+    },
     "bg": { "size": 360, "fadeH": 24, "fadeAlpha": 0.6, "coverH": 440, "coverInk": "0x0b0d14", "reflection": { "alpha": 0.35, "fadeH": 96, "ink": "0x0b0d14" } },
     "overlayDim": { "color": "0x04050b", "alpha": 0.55 },
     "box": {

@@ -40,6 +40,9 @@ export default class DialogueScene extends Phaser.Scene {
     this.silhouette = null;
     this.typing = false;
     this.typeEvent = null;
+    this.introActive = false;
+    this.bgImage = null;
+    this.bgDepth = 0;
     this.dialogueId = data.id;
     this.bgKey = data.bg;
     this.overlay = !!data.overlay;
@@ -69,7 +72,57 @@ export default class DialogueScene extends Phaser.Scene {
     this.index = -1;
     this.typing = false;
     this.input.on('pointerdown', () => this.onTap());
-    this.advance();
+    this.playIntro(() => this.advance());
+  }
+
+  // ui.json dialogue.intro.<dialogue id>: an effect before the first line. "eyelids":
+  // two black lids over the picture part, parting over openMs, then a few quick
+  // blinks; blurFade lays a slightly zoomed copy of the picture over it, fading
+  // out (a fake blur coming into focus). done() runs once the lids are open;
+  // the blinks play on while the first line types.
+  playIntro(done) {
+    const def = this.overlay ? null : cfg.intro?.[this.dialogueId];
+    if (!def) {
+      done();
+      return;
+    }
+    if (def.type !== 'eyelids') {
+      console.warn(`dialogue intro "${def.type}" is unknown`);
+      done();
+      return;
+    }
+    const v = viewRect();
+    const half = cfg.bg.coverH / 2;
+    const color = Number(def.color);
+    const top = this.add.rectangle(v.x, 0, v.w, half, color).setOrigin(0).setDepth(def.depth);
+    const bottom = this.add.rectangle(v.x, half, v.w, half, color).setOrigin(0).setDepth(def.depth);
+    const blinkTotal = def.blinks * (def.blinkMs + def.blinkGapMs);
+    let blur = null;
+    if (def.blurFade && this.bgImage && manifestDef('backgrounds', this.bgKey)?.cover) {
+      blur = this.coverImage(this.bgKey, def.blurScale).setAlpha(def.blurAlpha).setDepth(def.depth - 1);
+      this.tweens.add({ targets: blur, alpha: 0, duration: def.openMs + blinkTotal, ease: 'Sine.easeOut', onComplete: () => blur.destroy() });
+    }
+    this.introActive = true;
+    this.tweens.add({ targets: top, y: -half, duration: def.openMs, ease: 'Cubic.easeInOut' });
+    this.tweens.add({
+      targets: bottom,
+      y: cfg.bg.coverH,
+      duration: def.openMs,
+      ease: 'Cubic.easeInOut',
+      onComplete: () => {
+        this.introActive = false;
+        done();
+        // Blinks: both lids close and part again, def.blinkMs each, blinkGapMs apart.
+        if (def.blinks > 0) {
+          const blink = { duration: def.blinkMs / 2, yoyo: true, repeat: def.blinks - 1, repeatDelay: def.blinkGapMs + def.blinkMs / 2, delay: def.blinkGapMs, ease: 'Sine.easeInOut' };
+          this.tweens.add({ targets: top, y: 0, ...blink });
+          this.tweens.add({ targets: bottom, y: half, ...blink, onComplete: () => { top.destroy(); bottom.destroy(); } });
+        } else {
+          top.destroy();
+          bottom.destroy();
+        }
+      },
+    });
   }
 
   buildBackground() {
@@ -101,18 +154,44 @@ export default class DialogueScene extends Phaser.Scene {
   buildCoverBackground() {
     const v = viewRect();
     const h = cfg.bg.coverH;
-    const bg = this.add.image(180, h / 2, this.bgKey);
-    const scale = Math.max(v.w / bg.width, h / bg.height);
-    bg.setScale(scale);
-    // The crop is in texture pixels around the image centre, which sits at the area's centre.
-    const cropW = Math.min(bg.width, v.w / scale);
-    const cropH = Math.min(bg.height, h / scale);
-    bg.setCrop((bg.width - cropW) / 2, (bg.height - cropH) / 2, cropW, cropH);
+    this.bgImage = this.coverImage(this.bgKey);
     this.add.rectangle(v.x, h, v.w, v.h - h, Number(cfg.bg.coverInk)).setOrigin(0);
     const env = environments[this.bgKey] || {};
     if (env.rain) Fx.rain(this, env.rain, v, { fill: true });
     if (env.vignette) Fx.vignette(this, { ...env.vignette, depth: 0 }, { x: v.x, y: 0, w: v.w, h });
     if (env.ambience) playAmbience(env.ambience);
+  }
+
+  // The cover-fit picture (see above). zoom > 1 shows the same window magnified
+  // around the centre (the intro's blur copy); the crop keeps it inside the area.
+  coverImage(key, zoom = 1) {
+    const v = viewRect();
+    const h = cfg.bg.coverH;
+    const img = this.add.image(180, h / 2, key);
+    const scale = Math.max(v.w / img.width, h / img.height) * zoom;
+    img.setScale(scale);
+    // The crop is in texture pixels around the image centre, which sits at the area's centre.
+    const cropW = Math.min(img.width, v.w / scale);
+    const cropH = Math.min(img.height, h / scale);
+    img.setCrop((img.width - cropW) / 2, (img.height - cropH) / 2, cropW, cropH);
+    return img;
+  }
+
+  // A line's "bg" (a cover key): crossfade the picture to it over cfg.bgFadeMs.
+  // Returns the time the line should wait before typing (0 = no change).
+  changeBackground(key) {
+    if (!key || key === this.bgKey) return 0;
+    if (!this.textures.exists(key) || !manifestDef('backgrounds', key)?.cover) {
+      console.warn(`dialogue "${this.dialogueId}": line bg "${key}" is not a cover background`);
+      return 0;
+    }
+    this.bgKey = key;
+    this.bgDepth += 1;
+    const next = this.coverImage(key).setAlpha(0).setDepth(this.bgDepth);
+    const old = this.bgImage;
+    this.bgImage = next;
+    this.tweens.add({ targets: next, alpha: 1, duration: cfg.bgFadeMs, onComplete: () => old?.destroy() });
+    return cfg.bgFadeMs;
   }
 
   // Under the picture, down to the text box: the picture mirrored (a wet
@@ -197,7 +276,7 @@ export default class DialogueScene extends Phaser.Scene {
   }
 
   onTap() {
-    if (this.finished) return;
+    if (this.finished || this.introActive) return;
     if (this.typing) this.completeLine();
     else this.advance();
   }
@@ -236,6 +315,7 @@ export default class DialogueScene extends Phaser.Scene {
 
     this.updatePortraits(line, style);
     if (line.silhouette) this.showSilhouette(line.silhouette);
+    const wait = this.changeBackground(line.bg);
 
     this.fullText = line.text || '';
     this.shown = 0;
@@ -245,6 +325,12 @@ export default class DialogueScene extends Phaser.Scene {
     this.nextMark.setVisible(false);
     this.typing = true;
     if (this.typeEvent) this.typeEvent.remove();
+    // A background change types after the crossfade (a tap completes the line meanwhile).
+    if (wait > 0) this.typeEvent = this.time.delayedCall(wait, () => this.startTyping());
+    else this.startTyping();
+  }
+
+  startTyping() {
     this.typeEvent = this.time.addEvent({
       delay: 1000 / cfg.charsPerSec,
       loop: true,

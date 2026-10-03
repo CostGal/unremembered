@@ -199,8 +199,16 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       if (line.speaker && !speakers.has(line.speaker)) err(`${at}: unknown speaker "${line.speaker}"`);
       if (line.portrait && !assets.portraits?.[line.portrait]) err(`${at}: portrait "${line.portrait}" is not in assets.json portraits`);
       if (line.style && !styles[line.style]) err(`${at}: unknown style "${line.style}"`);
+      if (line.bg !== undefined && !(assets.backgrounds?.[line.bg]?.cover)) err(`${at}: bg "${line.bg}" must be a cover background in assets.json backgrounds`);
       checkSfx(at, line.sfx);
     });
+  }
+  // dialogue.intro.<id>: an effect before the first line of dialogue <id>.
+  for (const [id, intro] of Object.entries(ui.dialogue?.intro || {})) {
+    const at = `ui.dialogue.intro.${id}`;
+    if (!dialogue[id]) err(`${at}: no dialogue "${id}" in dialogue.json`);
+    if (intro.type !== 'eyelids') err(`${at}: unknown type "${intro.type}"`);
+    else for (const k of ['openMs', 'blinks', 'blinkMs', 'blinkGapMs', 'blurAlpha', 'blurScale', 'depth']) if (!Number.isFinite(intro[k])) err(`${at}.${k}: must be a number`);
   }
 
   // On-screen text vs the shipped font (warnings only)

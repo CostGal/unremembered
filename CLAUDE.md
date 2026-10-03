@@ -89,24 +89,24 @@ New Game → ChapterRunner(chapter1.json) → EndScene → Menu
 ```json
 [
   {"type": "cutscene", "id": "origin"},
-  {"type": "dialogue", "id": "letter", "bg": "black"},
+  {"type": "dialogue", "id": "wake",   "bg": "bg_abandoned_home_fpv"},
+  {"type": "dialogue", "id": "letter", "bg": "bg_letter_fpv"},
   {"type": "dialogue", "id": "meet_dov", "bg": "street_rain"},
   {"type": "battle",   "id": "b0_duel"},
   {"type": "dialogue", "id": "after_duel", "bg": "street_rain"},
   {"type": "battle",   "id": "b1_forgotten"},
-  {"type": "reward",   "id": "reward_1"},
-  {"type": "dialogue", "id": "after_b1", "bg": "street_rain"},
+  {"type": "dialogue", "id": "after_b1", "bg": "rest_panel_1"},
+  {"type": "reward",   "id": "reward_rest"},
   {"type": "battle",   "id": "b2_first_hollow"},
   {"type": "dialogue", "id": "before_gate", "bg": "street_rain"},
   {"type": "battle",   "id": "b3_gate"},
-  {"type": "reward",   "id": "reward_2"},
   {"type": "dialogue", "id": "records_office", "bg": "records_office"},
   {"type": "battle",   "id": "boss_clerk"},
   {"type": "dialogue", "id": "ending", "bg": "records_office"},
   {"type": "end"}
 ]
 ```
-(Story v2: 15 steps, `?step=0..14`; `end` closes the list. See `docs/STATUS.md` > Story v2.)
+(Story v2: 15 steps, `?step=0..14`; `end` closes the list; step table in `docs/STATUS.md` > Story v2.)
 - **Losing a battle** → "The memory fades…" + a Retry button. Retry restarts the same battle with party HP/Echo restored to the battle-start snapshot. There is no game over screen.
 
 ## Battle
@@ -237,6 +237,7 @@ Relay's second hit uses an offensive ring on the enemy: tap on close for the bon
 - Story v2 removed the v1 battles `b1_tutorial`, `b2_hollows` and `b3_hollows`.
 
 `dialogue.json`: `{ "<id>": [ {"speaker": "Rhea" | null, "style": "normal" | "letter" | "narration", "text": "...", "portrait": "rhea_sad" | null} ] }`
+- Optional line fields: `sfx` (audio.json key or file), `silhouette`, `bg` (a cover background key: crossfades the picture, 400 ms, before the line types; the rest scene). `ui.json` `dialogue.intro.<id>` runs an effect before a dialogue's first line (`eyelids` for `wake`).
 - The typewriter runs at 40 chars/s. A tap during typing completes the line; a tap after advances.
 - If a dialogue id is missing, write placeholder lines from the beats in `docs/STORY.md` and mark them `"todo": true`.
 

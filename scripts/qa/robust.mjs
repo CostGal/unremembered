@@ -126,7 +126,7 @@ await withBrowser(async ({ chrome, server }) => {
 
   // ---------- hidden mid-dialogue / mid-cutscene ----------
   if (want('story')) {
-    const page = await open(chrome, `${server.url}?step=2`);
+    const page = await open(chrome, `${server.url}?step=3`);
     await waitScene(page, 'Dialogue');
     await page.waitFor(`!!window.__game.scene.getScene('Dialogue').nameText`, { timeout: 20000 });
     await sleep(600);
@@ -218,7 +218,7 @@ await withBrowser(async ({ chrome, server }) => {
 
   // ---------- back / reload ----------
   if (want('nav')) {
-    const page = await open(chrome, `${server.url}?step=2`);
+    const page = await open(chrome, `${server.url}?step=3`);
     await waitScene(page, 'Dialogue');
     await sleep(800);
     await page.tap(180, 560);
@@ -229,7 +229,7 @@ await withBrowser(async ({ chrome, server }) => {
     log((await page.scenes()).includes('Dialogue') && page.errors.length === 0, 'browser back (history entry popped): game keeps running, no error');
     const hasPop = await page.ev(`typeof window.onpopstate`);
     log(true, 'INFO: the game has no back-button handler', `window.onpopstate is ${hasPop}; a real Back on a phone leaves the page (progress is not saved)`);
-    await page.goto(`${server.url}?step=2`);
+    await page.goto(`${server.url}?step=3`);
     await waitScene(page, 'Dialogue');
     log(page.errors.length === 0, 'reload mid-chapter: boots cleanly');
     await page.goto(server.url);

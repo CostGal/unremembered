@@ -21,7 +21,7 @@ await withBrowser(async ({ chrome, server }) => {
   for (const id of Object.keys(dialogue)) {
     await page.ev(`(() => { const g = window.__game; g.scene.getScenes(true).forEach(s => { if (s.scene.key !== 'Loader') g.scene.stop(s.scene.key); }); g.registry.remove('runner'); g.scene.start('Dialogue', { id: ${JSON.stringify(id)}, bg: ${JSON.stringify(bgOf[id] ?? 'black')} }); })()`);
     await waitScene(page, 'Dialogue');
-    await page.waitFor(`!!window.__game.scene.getScene('Dialogue').nameText`, { timeout: 15000 });
+    await page.waitFor(`!!window.__game.scene.getScene('Dialogue').nameText && !window.__game.scene.getScene('Dialogue').introActive`, { timeout: 15000 });
     await sleep(500);
     const lines = dialogue[id];
     for (let i = 0; i < lines.length; i++) {

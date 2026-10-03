@@ -1,15 +1,19 @@
 {
+  "wake": [
+    { "speaker": "Rhea", "style": "normal", "text": "Ow... my head.", "portrait": null, "sfx": "sfx_heartbeat" },
+    { "speaker": null, "style": "narration", "text": "A ceiling she doesn't know. A door hanging open. Rain.", "portrait": null, "sfx": "sfx_door_creak" }
+  ],
   "letter": [
-    { "speaker": "Rhea", "style": "normal", "text": "Ow... my head.", "portrait": "rhea_pained" },
-    { "speaker": null, "style": "narration", "text": "A cold floor. Rain on a window. A letter in her hand.", "portrait": null },
+    { "speaker": null, "style": "narration", "text": "A letter in her hand.", "portrait": null },
     { "speaker": null, "style": "narration", "text": "The handwriting is hers. She doesn't remember writing it.", "portrait": null },
     { "speaker": null, "style": "narration", "text": "She doesn't remember anything.", "portrait": null },
-    { "speaker": null, "style": "letter", "text": "If you're reading this, he got me. He took everything.", "portrait": null },
-    { "speaker": null, "style": "letter", "text": "Trust Dov. You won't remember why. — R.", "portrait": null },
+    { "speaker": null, "style": "letter", "text": "If you're reading this, he got me. He took everything.", "portrait": null, "sfx": "sfx_paper" },
+    { "speaker": null, "style": "letter", "text": "Trust Dov. You won't remember why. — R.", "portrait": null, "sfx": "sfx_paper" },
     { "speaker": "Rhea", "style": "normal", "text": "Who is Dov? ...Who am I?", "portrait": "rhea_confused" }
   ],
   "meet_dov": [
-    { "speaker": null, "style": "narration", "text": "Night. The street outside is drowning in rain.", "portrait": null },
+    { "speaker": null, "style": "narration", "text": "She steps through the open door, into the street.", "portrait": null },
+    { "speaker": null, "style": "narration", "text": "Night. Rain drowning everything.", "portrait": null },
     { "speaker": "Dov", "style": "normal", "text": "Rhea! I've been looking for you all day. Are you hurt?", "portrait": "dov_worried" },
     { "speaker": "Rhea", "style": "normal", "text": "Stay where you are.", "portrait": "rhea_serious" },
     { "speaker": "Dov", "style": "normal", "text": "It's me. Dov.", "portrait": "dov_neutral" },
@@ -53,11 +57,11 @@
     { "speaker": "Dov", "style": "normal", "text": "Later. Stay close!", "portrait": "dov_fierce" }
   ],
   "after_b1": [
-    { "speaker": "Rhea", "style": "normal", "text": "Talk. Who am I?", "portrait": "rhea_serious" },
+    { "speaker": "Rhea", "style": "normal", "text": "Talk. Who am I?", "portrait": "rhea_serious", "bg": "rest_panel_1" },
     { "speaker": "Dov", "style": "normal", "text": "Rhea. My sister. My parents took you in when you were small.", "portrait": "dov_neutral" },
     { "speaker": "Dov", "style": "normal", "text": "Quill is the magistrate of our ward. Years ago, he had our mother unwritten.", "portrait": "dov_sad" },
     { "speaker": "Dov", "style": "normal", "text": "Dad died fighting his men. Mom became Forgotten.", "portrait": "dov_sad" },
-    { "speaker": "Rhea", "style": "normal", "text": "Like the ones we just fought?", "portrait": "rhea_serious" },
+    { "speaker": "Rhea", "style": "normal", "text": "Like the ones we just fought?", "portrait": "rhea_serious", "bg": "rest_panel_2" },
     { "speaker": "Dov", "style": "normal", "text": "Nobody can hold on to them, not even for a minute. Most of them break.", "portrait": "dov_sad" },
     { "speaker": "Dov", "style": "normal", "text": "One day Mom walked out of the city. We don't know where she is.", "portrait": "dov_sad" },
     { "speaker": "Rhea", "style": "normal", "text": "And me?", "portrait": "rhea_pained" },
@@ -66,10 +70,11 @@
     { "speaker": "Dov", "style": "normal", "text": "You trained at the Memorist School. You got strong. Too strong.", "portrait": "dov_neutral" },
     { "speaker": "Dov", "style": "normal", "text": "The King signed a warrant to unwrite you. Quill cast it. It backfired.", "portrait": "dov_worried" },
     { "speaker": "Dov", "style": "normal", "text": "People started forgetting him. So he hit you with everything he had.", "portrait": "dov_worried" },
-    { "speaker": "Rhea", "style": "normal", "text": "And instead of the world forgetting me... I forgot the world.", "portrait": "rhea_pained" },
+    { "speaker": "Rhea", "style": "normal", "text": "And instead of the world forgetting me... I forgot the world.", "portrait": "rhea_pained", "bg": "rest_panel_3" },
+    { "speaker": "Dov", "style": "normal", "text": "I already lost Mom and Dad. I'm not losing you twice.", "portrait": "dov_sad" },
+    { "speaker": null, "style": "narration", "text": "Rhea doesn't remember how to hold her brother. She does it anyway.", "portrait": null },
     { "speaker": "Dov", "style": "normal", "text": "Memorists write down everything they take. It's all in his Ledger.", "portrait": "dov_neutral" },
-    { "speaker": "Rhea", "style": "normal", "text": "Then we pay the magistrate a visit.", "portrait": "rhea_determined" },
-    { "speaker": null, "style": "narration", "text": "Into the night. Nala leads the way.", "portrait": null }
+    { "speaker": "Rhea", "style": "normal", "text": "Then we pay the magistrate a visit.", "portrait": "rhea_determined" }
   ],
   "b2_start": [
     { "speaker": null, "style": "narration", "text": "Behind the Forgotten, grey dust gathers into something with claws.", "portrait": null },
