@@ -1,3 +1,15 @@
+# Batch progress — v3 final jam changes (Sat 3/10, batch 5)
+
+Orchestrator log, one line per item. Spec: `docs/V3_SPEC.md`; plan decisions: `docs/BATCH_REPORT_5.md` (written at the end).
+Branching: each item on `batch5/<item>` off `main`, one Sonnet subagent at a time, gate (validate · build · sim · judge-unit · labs), fast-forward merge and **push to main** (deploys). `git pull origin main` before every merge so Kostas's uploads ride along.
+Order: 0 setup · 1 UI quick wins · 2 art+SFX slots · 3 Nala bundle · 4 Echo rules + progression + duel flow · 5 tutorial pauses · 6 target select UI · 7 Quill v3 · 8 Recollection minigame + rewind + cut-in · 9 Feel B · 10 battle backgrounds · 11 opening FPV + rest scene · 12 Red Reliquary + Hush · 13 battle rules small + crush · 14 b3 Nala glow · 15 Brace A + Blast L5 · 16 Memory returns B · 17 dialogue editor · 18 close-out.
+
+| item | status | commit | checks |
+|---|---|---|---|
+| 0 setup | done | (this commit) | npm ci ok; baseline validate 0/0, build ok, sim 100 % every battle / chapter 16.9 min non-gamer, judge-unit pass |
+
+---
+
 # Batch progress — Story v2 (Fri 2/10 → Sat 3/10)
 
 Orchestrator log, one line per issue. A new session continues from here.
