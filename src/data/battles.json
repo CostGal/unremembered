@@ -1,6 +1,8 @@
 {
   "b0_duel": {
-    "bg": "street_rain",
+    "bg": "bg_street_far",
+    "platform": "platform_street",
+    "env": "street_rain",
     "party": ["rhea"],
     "enemies": ["dov_rival"],
     "pauses": { "battleStart": "battle_start", "enemyAttack": { "1": "parry", "2": "dodge" } },
@@ -25,7 +27,10 @@
     ]
   },
   "b1_forgotten": {
-    "bg": "street_rain",
+    "bg": "bg_street_far",
+    "bgShift": 24,
+    "platform": "platform_street",
+    "env": "street_rain",
     "enemies": ["blank", "blank"],
     "redRings": false,
     "statuses": false,
@@ -33,7 +38,9 @@
     "music": "battle"
   },
   "b2_first_hollow": {
-    "bg": "street_rain",
+    "bg": "bg_street_mid",
+    "platform": "platform_street",
+    "env": "street_rain",
     "enemies": ["blank", "hollow"],
     "nala": true,
     "music": "battle",
@@ -42,6 +49,6 @@
       { "id": "b2_immune", "when": "firstImmune", "dialogue": "b2_immune" }
     ]
   },
-  "b3_gate": { "bg": "street_rain", "enemies": ["hollow_warden", "hollow"], "formation": "gate", "nala": true, "music": "battle" },
-  "boss_clerk": { "bg": "records_office", "enemies": ["clerk"], "nala": true, "music": "boss", "recollection": true }
+  "b3_gate": { "bg": "bg_office_gate", "platform": "platform_street", "env": "street_rain", "enemies": ["hollow_warden", "hollow"], "formation": "gate", "nala": true, "music": "battle" },
+  "boss_clerk": { "bg": "records_office", "platform": "platform_office", "env": "records_office", "enemies": ["clerk"], "nala": true, "music": "boss", "recollection": true }
 }

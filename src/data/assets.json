@@ -69,21 +69,50 @@
     "rhea_cutin_tears": { "file": "portraits/rhea_cutin_tears.png", "w": 720, "h": 240, "faces": "right", "scale": 1, "fallback": "rhea_sad" }
   },
   "backgrounds": {
-    "street_rain": { "file": "bg/street_rain.png", "w": 360, "h": 360 },
-    "records_office": { "file": "bg/records_office.png", "w": 360, "h": 360 },
-    "street_rain_platform": { "file": "bg/street_rain_platform.png", "w": 360, "h": 110, "optional": true },
-    "records_office_platform": { "file": "bg/records_office_platform.png", "w": 360, "h": 104, "optional": true },
+    "street_rain": { "file": "bg/street_rain.png", "w": 360, "h": 360, "desaturate": 0.6 },
+    "records_office": { "file": "bg/records_office.png", "w": 360, "h": 360, "desaturate": 0.6, "ambient": { "fog": { "speedPx": 30, "alpha": 0.14, "color": "0xe0c9a0" }, "glowPoints": [{ "x": 0.5, "y": 0.14, "r": 26, "color": "0x3fd0c9", "alpha": [0.18, 0.5], "pulseMs": 2600 }, { "x": 0.1, "y": 0.18, "r": 22, "color": "0xe8a24a", "alpha": [0.2, 0.55], "pulseMs": 1900 }, { "x": 0.86, "y": 0.27, "r": 22, "color": "0xe8a24a", "alpha": [0.2, 0.55], "pulseMs": 2300 }] } },
     "memory_city": { "file": "bg/memory_city.png", "w": 360, "h": 360 },
     "bg_abandoned_home_fpv": { "file": "bg/bg_abandoned_home_fpv.jpg", "w": 720, "h": 1280, "cover": true, "placeholder": { "tint": "0x1c1a26", "label": "Abandoned home, seen from the floor, door open, rain light", "shape": "room" } },
     "bg_letter_fpv": { "file": "bg/bg_letter_fpv.jpg", "w": 720, "h": 1280, "cover": true, "placeholder": { "tint": "0x2a2620", "label": "Looking down at her hands holding the letter", "shape": "band" } },
     "rest_panel_1": { "file": "bg/rest_panel_1.jpg", "w": 720, "h": 1280, "cover": true, "placeholder": { "tint": "0x1d2630", "label": "Rhea and Dov sitting; Nala walking towards them", "shape": "room" } },
     "rest_panel_2": { "file": "bg/rest_panel_2.jpg", "w": 720, "h": 1280, "cover": true, "placeholder": { "tint": "0x1f2433", "label": "Dov trying to be strong, Rhea sad; Nala climbing on Rhea", "shape": "room" } },
     "rest_panel_3": { "file": "bg/rest_panel_3.jpg", "w": 720, "h": 1280, "cover": true, "placeholder": { "tint": "0x2a2230", "label": "Dov close, the embrace; Nala on Rhea's lap", "shape": "room" } },
-    "bg_street_far": { "file": "bg/bg_street_far.png", "w": 360, "h": 640, "optional": true },
-    "bg_street_mid": { "file": "bg/bg_street_mid.png", "w": 360, "h": 640, "optional": true },
-    "bg_office_gate": { "file": "bg/bg_office_gate.png", "w": 360, "h": 640, "optional": true },
-    "platform_street": { "file": "bg/platform_street.png", "w": 360, "h": 110, "optional": true },
-    "platform_office": { "file": "bg/platform_office.png", "w": 360, "h": 110, "optional": true }
+    "bg_street_far": {
+      "file": "bg/bg_street_far.jpg", "w": 720, "h": 1280, "optional": true, "filter": "linear", "displayScale": 0.5, "desaturate": 0.6,
+      "ambient": {
+        "fog": { "speedPx": 40, "alpha": 0.18, "color": "0xaebbd6" },
+        "glowPoints": [
+          { "x": 0.5, "y": 0.27, "r": 18, "color": "0xe8a24a", "alpha": [0.25, 0.7], "pulseMs": 2400 },
+          { "x": 0.21, "y": 0.33, "r": 20, "color": "0x3fd0c9", "alpha": [0.2, 0.55], "pulseMs": 1800 },
+          { "x": 0.86, "y": 0.33, "r": 20, "color": "0x3fd0c9", "alpha": [0.2, 0.55], "pulseMs": 2100 }
+        ]
+      }
+    },
+    "bg_street_mid": {
+      "file": "bg/bg_street_mid.jpg", "w": 720, "h": 1280, "optional": true, "filter": "linear", "displayScale": 0.5, "desaturate": 0.6,
+      "ambient": {
+        "fog": { "speedPx": 36, "alpha": 0.18, "color": "0xaebbd6" },
+        "glowPoints": [
+          { "x": 0.5, "y": 0.12, "r": 24, "color": "0x3fd0c9", "alpha": [0.25, 0.65], "pulseMs": 2500 },
+          { "x": 0.5, "y": 0.33, "r": 20, "color": "0x3fd0c9", "alpha": [0.2, 0.55], "pulseMs": 2000 },
+          { "x": 0.2, "y": 0.33, "r": 18, "color": "0x3fd0c9", "alpha": [0.2, 0.5], "pulseMs": 1700 }
+        ]
+      }
+    },
+    "bg_office_gate": {
+      "file": "bg/bg_office_gate.jpg", "w": 720, "h": 1280, "optional": true, "filter": "linear", "displayScale": 0.5, "desaturate": 0.6,
+      "ambient": {
+        "fog": { "speedPx": 30, "alpha": 0.16, "color": "0xb8c4d8" },
+        "glowPoints": [
+          { "x": 0.26, "y": 0.31, "r": 24, "color": "0x3fd0c9", "alpha": [0.25, 0.65], "pulseMs": 2300 },
+          { "x": 0.74, "y": 0.31, "r": 24, "color": "0x3fd0c9", "alpha": [0.25, 0.65], "pulseMs": 2700 },
+          { "x": 0.16, "y": 0.31, "r": 16, "color": "0xe8a24a", "alpha": [0.2, 0.6], "pulseMs": 1600 },
+          { "x": 0.84, "y": 0.33, "r": 16, "color": "0xe8a24a", "alpha": [0.2, 0.6], "pulseMs": 1900 }
+        ]
+      }
+    },
+    "platform_street": { "file": "bg/platform_street.png", "w": 720, "h": 220, "optional": true, "filter": "linear", "displayScale": 0.5 },
+    "platform_office": { "file": "bg/platform_office.png", "w": 720, "h": 220, "optional": true, "filter": "linear", "displayScale": 0.5 }
   },
   "ui": {
     "logo": { "file": "ui/logo.png", "w": 720, "h": 207, "optional": true },

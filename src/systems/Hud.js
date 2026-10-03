@@ -16,10 +16,9 @@ export default class Hud {
     this.font = font;
 
     const { panel } = config;
-    scene.add
-      .rectangle(panel.x - VIEW.pad, panel.y, panel.w + VIEW.pad * 2, panel.h, color(panel.color))
-      .setOrigin(0, 0)
-      .setStrokeStyle(1, color(panel.borderColor));
+    // Dark glass over the battle picture: a translucent fill and a 1 px line on its top edge.
+    scene.add.rectangle(panel.x - VIEW.pad, panel.y, panel.w + VIEW.pad * 2, panel.h, color(panel.color), panel.alpha ?? 1).setOrigin(0, 0);
+    scene.add.rectangle(panel.x - VIEW.pad, panel.y, panel.w + VIEW.pad * 2, 1, color(panel.borderColor)).setOrigin(0, 0);
 
     this.rows = heroes.map((hero, i) => this.buildRow(hero, config.rows.firstY + i * config.rows.spacing));
     this.buildChain();

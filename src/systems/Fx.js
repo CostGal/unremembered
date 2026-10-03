@@ -407,10 +407,12 @@ export function gradientTexture(scene, w, h, color, alpha) {
 }
 
 // The procedural floor band (a platform whose art isn't delivered): a vertical
-// gradient from edgeColor at edgeAlpha (top) to color at bottomAlpha, with a
-// 1 px light line on the top edge. p = environments.json platform.
+// gradient from edgeColor at edgeAlpha (top) to color at bottomAlpha, a lit top
+// edge (`highlight`: a glowing teal / amber line, h px) and a pattern, either
+// `cobble` (rows of stones in perspective) or `planks` (floorboards), so it reads
+// as the floor. p = environments.json platform.
 export function floorTexture(scene, w, h, p) {
-  const key = `fx_floor_${w}x${h}_${p.color}_${p.edgeColor}_${p.edgeAlpha}_${p.bottomAlpha}`;
+  const key = `fx_floor_${w}x${h}_${JSON.stringify(p)}`;
   if (scene.textures.exists(key)) return key;
   const texture = scene.textures.createCanvas(key, w, h);
   const ctx = texture.getContext();
@@ -423,8 +425,59 @@ export function floorTexture(scene, w, h, p) {
   grad.addColorStop(1, rgba(p.color, p.bottomAlpha));
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = rgba(p.edgeColor, 1);
-  ctx.fillRect(0, 0, w, 1);
+
+  // Seams, in perspective: the rows get taller toward the viewer, the joints fan out from the middle.
+  const pattern = p.cobble || p.planks;
+  if (pattern) {
+    ctx.strokeStyle = rgba(pattern.color, pattern.alpha);
+    ctx.lineWidth = 1;
+    const rows = pattern.rows;
+    const weight = (i) => (i / rows) ** 1.6;
+    ctx.beginPath();
+    for (let i = 1; i < rows; i++) {
+      const y = Math.round(weight(i) * h) + 0.5;
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+    }
+    ctx.stroke();
+    ctx.beginPath();
+    for (let i = 0; i < rows; i++) {
+      const y0 = Math.round(weight(i) * h);
+      const y1 = Math.round(weight(i + 1) * h);
+      if (p.cobble) {
+        const cols = pattern.cols;
+        const spread = 0.5 + (i + 1) / rows; // wider stones closer to the viewer
+        const step = (w / cols) * spread;
+        for (let x = ((i % 2) * step) / 2 - step; x < w + step; x += step) {
+          ctx.moveTo(Math.round(x) + 0.5, y0);
+          ctx.lineTo(Math.round(x) + 0.5, y1);
+        }
+      } else if (i % 2 === 0) {
+        // Plank ends, staggered between rows of boards.
+        const step = w / 3;
+        for (let x = (i % 4) * (step / 4); x < w; x += step) {
+          ctx.moveTo(Math.round(x) + 0.5, y0);
+          ctx.lineTo(Math.round(x) + 0.5, y1);
+        }
+      }
+    }
+    ctx.stroke();
+  }
+
+  const hl = p.highlight;
+  if (hl) {
+    // A soft light falling from the lit edge, then the line itself.
+    const glow = ctx.createLinearGradient(0, 0, 0, hl.h * 4);
+    glow.addColorStop(0, rgba(hl.color, hl.alpha * 0.55));
+    glow.addColorStop(1, rgba(hl.color, 0));
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, w, hl.h * 4);
+    ctx.fillStyle = rgba(hl.color, hl.alpha);
+    ctx.fillRect(0, 0, w, hl.h);
+  } else {
+    ctx.fillStyle = rgba(p.edgeColor, 1);
+    ctx.fillRect(0, 0, w, 1);
+  }
   texture.refresh();
   texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
   return key;

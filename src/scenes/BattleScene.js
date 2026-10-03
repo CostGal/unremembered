@@ -20,6 +20,7 @@ import * as Fx from '../systems/Fx.js';
 import { clampX, mirrorEdges, rect as viewRect } from '../systems/View.js';
 import { difficultyDef } from '../systems/Difficulty.js';
 import CommandMenu from '../systems/CommandMenu.js';
+import { createBackdrop, createPlatform } from '../systems/BattleBackdrop.js';
 import Hud from '../systems/Hud.js';
 import { nalaJumpIn } from '../systems/Nala.js';
 import PoiseBar from '../systems/PoiseBar.js';
@@ -34,7 +35,7 @@ import { effectMax, effectTotal, ownedFragments } from '../systems/Fragments.js'
 import { battleXp, echoMaxFor, growth, learned, levelFor, techniqueAt, xpForLevel } from '../systems/Recall.js';
 import RecallCard from '../systems/RecallCard.js';
 import { animKey, hasSheet, playLoop, playOnce, SheetDriver, trace } from '../systems/SpriteAnims.js';
-import { isRealTexture, whenReady } from '../systems/Assets.js';
+import { whenReady } from '../systems/Assets.js';
 
 const layout = ui.battleLayout;
 
@@ -130,10 +131,8 @@ export default class BattleScene extends Phaser.Scene {
     });
     this.activeMarker = null;
 
-    const view = viewRect();
-    this.environment = environments[this.battleDef.bg] || {};
+    this.environment = environments[this.battleDef.env || this.battleDef.bg] || {};
     this.createBackground();
-    this.add.rectangle(view.x, 0, view.w, 360, 0x000000, 0.2).setOrigin(0);
     this.createPlatform();
     this.createEnvironmentFx();
 
@@ -257,36 +256,16 @@ export default class BattleScene extends Phaser.Scene {
 
   // ---------- Environment ----------
 
-  // The background picture (depth 0). With environments.json `drift` it sways
-  // slowly: the image and its mirrored edge copies sit in one container whose x
-  // is tweened, and the copies exist even without side margins so the seams
-  // never show at the drift extremes (they are a full 360 px wide each).
+  // The background picture: full screen, behind the HUD (dark glass) and the commands, muted and
+  // drifting, with fog and window glows (systems/BattleBackdrop.js; battles.json bg / bgShift / env).
   createBackground() {
-    const drift = this.environment.drift;
-    const image = this.add.image(180, 180, this.battleDef.bg).setDisplaySize(360, 360);
-    const edges = mirrorEdges(this, image, !!drift);
-    if (!drift) return;
-    const container = this.add.container(0, 0, [...edges, image]).setDepth(0);
-    this.bgDrift = container;
-    container.x = -drift.x;
-    this.tweens.add({ targets: container, x: drift.x, duration: drift.ms, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.backdrop = createBackdrop(this, this.battleDef, this.environment);
   }
 
-  // The floor the fighters stand on (environments.json `platform`), a separate
-  // layer above the background and its dark overlay, below the lights and the
-  // fighters. The art is <bg>_platform.png (360 wide, from platform.y down to
-  // the HUD); without it a gradient band with a light top edge is drawn.
+  // The floor the fighters stand on: battles.json `platform` (a strip of art) or the code-drawn band
+  // from environments.json `platform`; a separate layer above the picture, below lights and fighters.
   createPlatform() {
-    const p = this.environment.platform;
-    if (!p) return;
-    const view = viewRect();
-    const h = layout.sceneBottom - p.y;
-    if (isRealTexture(this, p.key)) {
-      const image = this.add.image(180, p.y + h / 2, p.key).setDisplaySize(360, h).setDepth(p.depth);
-      mirrorEdges(this, image).forEach((e) => e.setDepth(p.depth));
-      return;
-    }
-    this.add.image(view.x, p.y, Fx.floorTexture(this, view.w, h, p)).setOrigin(0).setDepth(p.depth);
+    this.platform = createPlatform(this, this.battleDef.platform, this.environment);
   }
 
   // Lantern glows, rain and vignette for this battle's background (environments.json).

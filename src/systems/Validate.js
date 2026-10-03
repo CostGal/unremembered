@@ -85,6 +85,9 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   // Battles
   for (const [id, battle] of Object.entries(battles)) {
     if (!backgrounds[battle.bg]) err(`battles.${id}: bg "${battle.bg}" is not in assets.json backgrounds`);
+    if (battle.platform !== undefined && !backgrounds[battle.platform]) err(`battles.${id}: platform "${battle.platform}" is not in assets.json backgrounds`);
+    if (battle.env !== undefined && !data.environments?.[battle.env]) err(`battles.${id}: env "${battle.env}" is not in environments.json`);
+    if (battle.bgShift !== undefined && typeof battle.bgShift !== 'number') err(`battles.${id}.bgShift must be a number (px)`);
     for (const key of battle.enemies || []) {
       if (!enemies[key]) err(`battles.${id}: no enemy "${key}" in enemies.json`);
     }
@@ -416,14 +419,40 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     const at = `environments.${id}`;
     const p = env.platform;
     if (p !== undefined) {
-      if (!backgrounds[p.key]) err(`${at}.platform.key: "${p.key}" is not in assets.json backgrounds`);
+      if (p.key !== undefined && !backgrounds[p.key]) err(`${at}.platform.key: "${p.key}" is not in assets.json backgrounds`);
       if (!(typeof p.y === 'number' && p.y >= 0 && p.y <= 360)) err(`${at}.platform.y must be a number within 0..360`);
       for (const k of ['color', 'edgeColor']) if (!Number.isFinite(Number(p[k]))) err(`${at}.platform.${k} must be a 0x colour string`);
       for (const k of ['edgeAlpha', 'bottomAlpha']) if (!(typeof p[k] === 'number' && p[k] >= 0 && p[k] <= 1)) err(`${at}.platform.${k} must be a number in [0, 1]`);
       if (typeof p.depth !== 'number') err(`${at}.platform.depth must be a number`);
     }
+    if (env.fallbackBg !== undefined && !backgrounds[env.fallbackBg]) err(`${at}.fallbackBg: "${env.fallbackBg}" is not in assets.json backgrounds`);
     const d = env.drift;
     if (d !== undefined && !(typeof d.x === 'number' && d.x >= 0 && typeof d.ms === 'number' && d.ms > 0)) err(`${at}.drift: x must be a number >= 0 and ms > 0`);
+  }
+  // Battle backdrop (ui.json battleBackdrop) and each background's ambient motion (assets.json ambient)
+  const bb = ui.battleBackdrop;
+  if (bb) {
+    for (const k of ['desaturate', 'darken']) if (!(typeof bb[k] === 'number' && bb[k] >= 0 && bb[k] <= 1)) err(`ui.battleBackdrop.${k} must be a number in [0, 1]`);
+    if (!(bb.fog?.ms > 0 && bb.fog.maxBands >= 0 && bb.fog.texW > 0 && bb.fog.texH > 0)) err('ui.battleBackdrop.fog: ms, maxBands, texW and texH are required');
+    if (!(bb.glow?.max >= 0 && bb.glow.texRadius > 0)) err('ui.battleBackdrop.glow: max and texRadius are required');
+  }
+  for (const [key, def] of Object.entries(backgrounds)) {
+    if (def.desaturate !== undefined && !(typeof def.desaturate === 'number' && def.desaturate >= 0 && def.desaturate <= 1)) err(`assets.backgrounds.${key}.desaturate must be a number in [0, 1]`);
+    if (def.displayScale !== undefined && !(typeof def.displayScale === 'number' && def.displayScale > 0)) err(`assets.backgrounds.${key}.displayScale must be a number > 0`);
+    const amb = def.ambient;
+    if (!amb) continue;
+    const at = `assets.backgrounds.${key}.ambient`;
+    const fog = amb.fog;
+    if (fog && !(typeof fog.speedPx === 'number' && fog.speedPx >= 0 && typeof fog.alpha === 'number' && fog.alpha >= 0 && fog.alpha <= 1 && Number.isFinite(Number(fog.color)))) err(`${at}.fog: speedPx (>= 0), alpha (0-1) and a 0x color are required`);
+    const points = amb.glowPoints || [];
+    if (bb && points.length > bb.glow.max) err(`${at}.glowPoints: at most ${bb.glow.max} (the ambient layer is capped at ${bb.fog.maxBands + bb.glow.max} objects)`);
+    points.forEach((g, i) => {
+      const gat = `${at}.glowPoints[${i}]`;
+      for (const k of ['x', 'y']) if (!(typeof g[k] === 'number' && g[k] >= 0 && g[k] <= 1)) err(`${gat}.${k} must be a number in [0, 1]`);
+      if (!(typeof g.r === 'number' && g.r > 0) || !(typeof g.pulseMs === 'number' && g.pulseMs > 0)) err(`${gat}: r and pulseMs must be numbers > 0`);
+      if (!(Array.isArray(g.alpha) && g.alpha.length === 2 && g.alpha.every((a) => typeof a === 'number' && a >= 0 && a <= 1))) err(`${gat}.alpha must be [low, high] within 0..1`);
+      if (!Number.isFinite(Number(g.color))) err(`${gat}.color must be a 0x colour string`);
+    });
   }
   const sh = ui.battleLayout?.shadow;
   if (sh !== undefined) {

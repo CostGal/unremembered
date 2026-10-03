@@ -51,6 +51,7 @@ export function whenReady(scene, build) {
 //                                              (see createPlaceholder) instead of the grey box
 //   fallback "<key>"                           a missing file points at that texture instead
 //   alias "<key>"                              no file at all: the key is another key's texture
+//   filter "linear"                            this entry is smoothed even in a section that is not (an illustrated battle bg)
 export function finishSection(scene, section) {
   const entries = sectionEntries(section);
   const linear = cfg.linear.includes(section);
@@ -62,7 +63,7 @@ export function finishSection(scene, section) {
       continue;
     }
     if (section === 'portraits' && scene.textures.get(key).getSourceImage() instanceof HTMLImageElement) keyOutColor(scene, key, PORTRAIT_KEY_RGB);
-    if (linear) scene.textures.get(key).setFilter(Phaser.Textures.FilterMode.LINEAR);
+    if (linear || def.filter === 'linear') scene.textures.get(key).setFilter(Phaser.Textures.FilterMode.LINEAR);
   }
   for (const [key, def] of Object.entries(entries)) {
     const target = def.alias || (!scene.textures.exists(key) && def.fallback);

@@ -2,8 +2,13 @@
   "street_rain": {
     "ambientTint": "0xa8b4e0",
     "ambience": "rain",
-    "platform": { "key": "street_rain_platform", "y": 250, "depth": 0.5, "color": "0x20283e", "edgeColor": "0x3a4668", "edgeAlpha": 0.55, "bottomAlpha": 0.8 },
-    "drift": { "x": 4, "ms": 9000 },
+    "fallbackBg": "street_rain",
+    "platform": {
+      "y": 250, "depth": 0.5, "color": "0x2a3a64", "edgeColor": "0x4a5c90", "edgeAlpha": 0.9, "bottomAlpha": 0.95,
+      "highlight": { "color": "0x3fd0c9", "alpha": 0.85, "h": 3 },
+      "cobble": { "color": "0x0b1022", "alpha": 0.5, "rows": 7, "cols": 11 }
+    },
+    "drift": { "x": 6, "ms": 9000 },
     "vignette": { "color": "0x04050b", "alpha": 0.6, "inner": 0.5, "bands": 5, "depth": 880 },
     "lights": {
       "depth": 1,
@@ -56,8 +61,13 @@
   },
   "records_office": {
     "ambientTint": "0xe0d6c4",
-    "platform": { "key": "records_office_platform", "y": 256, "depth": 0.5, "color": "0x2e271c", "edgeColor": "0x5a4c36", "edgeAlpha": 0.55, "bottomAlpha": 0.8 },
-    "drift": { "x": 2, "ms": 12000 },
+    "fallbackBg": "records_office",
+    "platform": {
+      "y": 256, "depth": 0.5, "color": "0x4a3820", "edgeColor": "0x7a6038", "edgeAlpha": 0.9, "bottomAlpha": 0.95,
+      "highlight": { "color": "0xe0a040", "alpha": 0.85, "h": 3 },
+      "planks": { "color": "0x1a1208", "alpha": 0.5, "rows": 6 }
+    },
+    "drift": { "x": 3, "ms": 12000 },
     "ambience": "office",
     "vignette": { "color": "0x0a0806", "alpha": 0.55, "inner": 0.5, "bands": 5, "depth": 880 }
   }
