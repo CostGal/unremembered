@@ -23,6 +23,21 @@ function deepMerge(target, patch) {
   return target;
 }
 
+// Anonymous build: documentation keys (names starting with "_") and free-text "note" fields in the data
+// JSON mention the author; they are not read by the game, so they are dropped from every src/data JSON.
+const NAME_RE = /kostas|costgal|github/i;
+function scrub(value) {
+  if (Array.isArray(value)) return value.map(scrub);
+  if (!isObject(value)) return value;
+  const out = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key.startsWith('_')) continue;
+    if (key === 'note' && typeof v === 'string' && NAME_RE.test(v)) continue;
+    out[key] = scrub(v);
+  }
+  return out;
+}
+
 function jamData() {
   return {
     name: 'unremembered-jam-data',
@@ -33,13 +48,14 @@ function jamData() {
         const ui = JSON.parse(code);
         if (ui.jam) deepMerge(ui, ui.jam);
         delete ui.jam;
-        return { code: JSON.stringify(ui), map: null };
+        return { code: JSON.stringify(scrub(ui)), map: null };
       }
       if (file.endsWith('/src/data/credits.json')) {
-        const credits = JSON.parse(code);
+        const credits = scrub(JSON.parse(code));
         credits.lines = [];
         return { code: JSON.stringify(credits), map: null };
       }
+      if (file.includes('/src/data/') && file.endsWith('.json')) return { code: JSON.stringify(scrub(JSON.parse(code))), map: null };
       return null;
     },
   };
