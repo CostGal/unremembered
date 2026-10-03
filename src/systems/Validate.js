@@ -10,6 +10,7 @@
 import { whenErrors, thenValid, thenSplit } from './BattleEvents.js';
 import { compileTrack } from './MusicData.js';
 import { echoMaxFor, learned, techniqueAt } from './Recall.js';
+import { AI_CONDITIONS } from './EnemyTuning.js';
 
 const STEP_TYPES = ['cutscene', 'dialogue', 'battle', 'reward', 'end'];
 const SHOT_FX = ['crystal_particles', 'rain', 'flash', 'lights_out', 'dissolve_layer', 'embers', 'eyes_glow', 'red_tint', 'shake', 'red_surge'];
@@ -603,12 +604,28 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
           if (z.sfx !== undefined) checkSfx(`${at}.onZero`, z.sfx);
         }
         if (stage.recollectionAtHpPct !== undefined && !(stage.recollectionAtHpPct > 0 && stage.recollectionAtHpPct < 100)) err(`${at}: recollectionAtHpPct must be in (0, 100)`);
+        // recollectionAt (EnemyTuning.recollectionDue): the Recollection unlocks when any listed condition holds.
+        const ra = stage.recollectionAt;
+        if (ra !== undefined) {
+          const keys = ['pct', 'hp', 'bothHeroesBelowPct', 'oneDownOtherBelowPct'];
+          if (!ra || typeof ra !== 'object' || !keys.some((k) => ra[k] !== undefined)) err(`${at}: recollectionAt needs at least one of ${keys.join(', ')}`);
+          else {
+            if (stage.recollectionAtHpPct !== undefined) err(`${at}: use recollectionAt or recollectionAtHpPct, not both`);
+            for (const k of Object.keys(ra)) if (!keys.includes(k)) err(`${at}: recollectionAt.${k} is not one of ${keys.join(', ')}`);
+            if (ra.pct !== undefined && !(ra.pct > 0 && ra.pct < 100)) err(`${at}: recollectionAt.pct must be in (0, 100)`);
+            if (ra.hp !== undefined && !(Number.isInteger(ra.hp) && ra.hp >= 1 && ra.hp < e.hp)) err(`${at}: recollectionAt.hp must be a whole number in [1, hp)`);
+            for (const k of ['bothHeroesBelowPct', 'oneDownOtherBelowPct']) if (ra[k] !== undefined && !(ra[k] > 0 && ra[k] <= 100)) err(`${at}: recollectionAt.${k} must be in (0, 100]`);
+          }
+        }
+        if (stage.hpMult !== undefined && !(typeof stage.hpMult === 'number' && stage.hpMult > 0)) err(`${at}: hpMult must be a number > 0`);
+        if (i === 0 && stage.hpMult !== undefined) err(`${at}: hpMult belongs to a later stage (the first opens at hpPct of hp)`);
+        if (stage.defendChanceMult !== undefined && !(typeof stage.defendChanceMult === 'number' && stage.defendChanceMult >= 0)) err(`${at}: defendChanceMult must be a number >= 0`);
         if (stage.tint !== undefined && !/^0x[0-9a-fA-F]{6}$/.test(stage.tint)) err(`${at}: tint must be a hex string like "0xff6a5a"`);
         const a = stage.aura;
         if (a && !(/^0x[0-9a-fA-F]{6}$/.test(a.color || '') && a.radius > 0 && Array.isArray(a.alpha) && a.alpha.length === 2 && a.pulseMs > 0)) err(`${at}: aura needs color (0xRRGGBB), radius, alpha [min, max] and pulseMs`);
         if (stage.floorHp !== undefined) {
           if (!(Number.isInteger(stage.floorHp) && stage.floorHp >= 1)) err(`${at}: floorHp must be a whole number >= 1`);
-          if (stage.recollectionAtHpPct === undefined) err(`${at}: floorHp needs recollectionAtHpPct (the floor holds once the Recollection is unlocked)`);
+          if (stage.recollectionAtHpPct === undefined && stage.recollectionAt === undefined) err(`${at}: floorHp needs recollectionAt (the floor holds once the Recollection is unlocked)`);
           if (last === false) err(`${at}: floorHp belongs to the last stage`);
         }
         if (stage.laughEvery !== undefined) {
@@ -659,6 +676,8 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     for (const a of attacks) {
       for (const hit of [a, ...(a.hits || [])]) {
         if (hit.melee !== undefined && typeof hit.melee !== 'boolean') err(`enemies.${id}.${a.id}: melee must be true or false`);
+        // maxHpPct: the hit takes at most that share of the hero's max HP (an Archive that cannot one-shot).
+        if (hit.maxHpPct !== undefined && !(typeof hit.maxHpPct === 'number' && hit.maxHpPct > 0 && hit.maxHpPct <= 1)) err(`enemies.${id}.${a.id}: maxHpPct must be a number in (0, 1]`);
         if (hit.lifesteal !== undefined && !(typeof hit.lifesteal === 'number' && hit.lifesteal >= 0)) err(`enemies.${id}.${a.id}: lifesteal must be a number >= 0`);
       }
     }
@@ -676,15 +695,57 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       if (!(r && r.telegraphMs > 0)) err(`enemies.${id}.defend.reparry.telegraphMs must be > 0 (a parried Strike is answered with a ring)`);
       if (!(r && typeof r.dmg === 'number' && r.dmg >= 0)) err(`enemies.${id}.defend.reparry.dmg must be a number >= 0`);
       if (r?.melee !== undefined && typeof r.melee !== 'boolean') err(`enemies.${id}.defend.reparry.melee must be true or false`);
+      // counterDmg [min, max]: a PERFECT on the riposte ring returns it for this much instead of the usual counter.
+      const cd = r?.counterDmg;
+      if (cd !== undefined && !(Array.isArray(cd) && cd.length === 2 && cd.every((n) => Number.isInteger(n) && n >= 0) && cd[0] <= cd[1])) err(`enemies.${id}.defend.reparry.counterDmg must be [min, max] whole numbers`);
+      if (cd !== undefined && !(typeof battleEvents.defend?.counterText === 'string' && battleEvents.defend.counterText && battleEvents.defend.counterColor)) err('battleEvents.defend: counterText and counterColor are required when a reparry has counterDmg');
     }
     const bd = battleEvents.defend;
     if (!(bd && typeof bd.parryText === 'string' && bd.parryText && typeof bd.dodgeText === 'string' && bd.dodgeText && bd.color && bd.sidestepPx >= 0 && bd.sidestepMs > 0)) {
       err('battleEvents.defend: parryText, dodgeText, color, sidestepPx and sidestepMs are required');
     }
   }
+  // ai (EnemyTuning.js): focusLowHpChance in [0, 1]; rules pick one of the enemy's attacks on known conditions.
+  const allAttackIds = (e) => new Set(((e.stages || e.phases) ? (e.stages || e.phases).flatMap((p) => p.attacks || []) : e.attacks || []).map((a) => a.id));
+  for (const [id, e] of Object.entries(enemies)) {
+    const ai = e.ai;
+    if (ai === undefined) continue;
+    const at = `enemies.${id}.ai`;
+    if (ai.focusLowHpChance !== undefined && !(typeof ai.focusLowHpChance === 'number' && ai.focusLowHpChance >= 0 && ai.focusLowHpChance <= 1)) err(`${at}.focusLowHpChance must be a number in [0, 1]`);
+    const ids = allAttackIds(e);
+    (ai.rules || []).forEach((r, i) => {
+      if (!r.when || typeof r.when !== 'object' || !Object.keys(r.when).length) err(`${at}.rules[${i}]: when needs at least one of ${AI_CONDITIONS.join(', ')}`);
+      else {
+        for (const k of Object.keys(r.when)) {
+          if (!AI_CONDITIONS.includes(k)) err(`${at}.rules[${i}].when.${k} is not one of ${AI_CONDITIONS.join(', ')}`);
+          else if (!(typeof r.when[k] === 'number' && r.when[k] >= 0)) err(`${at}.rules[${i}].when.${k} must be a number >= 0`);
+        }
+      }
+      if (!ids.has(r.pick)) err(`${at}.rules[${i}]: pick "${r.pick}" is not one of the enemy's attacks`);
+      if (r.chance !== undefined && !(typeof r.chance === 'number' && r.chance >= 0 && r.chance <= 1)) err(`${at}.rules[${i}].chance must be a number in [0, 1]`);
+    });
+  }
+  // difficulty.<id> (EnemyTuning.tuneEnemyDef): per-difficulty multipliers and overrides, by known difficulty id.
+  for (const [id, e] of Object.entries(enemies)) {
+    if (e.difficulty === undefined) continue;
+    const at = `enemies.${id}.difficulty`;
+    const attackIds = allAttackIds(e);
+    const stageIds = new Set((e.stages || []).map((s) => s.id));
+    for (const [did, t] of Object.entries(e.difficulty)) {
+      if (!qteDifficultyIds(data).includes(did)) err(`${at}.${did}: not a qte.json difficulty id`);
+      for (const k of ['hpMult', 'telegraphMult', 'dmgMult']) if (t[k] !== undefined && !(typeof t[k] === 'number' && t[k] > 0)) err(`${at}.${did}.${k} must be a number > 0`);
+      for (const aid of Object.keys(t.attacks || {})) if (!attackIds.has(aid)) err(`${at}.${did}.attacks.${aid}: not one of the enemy's attacks`);
+      for (const sid of Object.keys(t.stages || {})) if (!stageIds.has(sid)) err(`${at}.${did}.stages.${sid}: not one of the enemy's stage ids`);
+      for (const k of Object.keys(t)) if (!['hpMult', 'telegraphMult', 'dmgMult', 'attacks', 'stages', 'defend', 'ai'].includes(k)) err(`${at}.${did}.${k}: unknown tuning key`);
+    }
+  }
   for (const id of data.qte?.difficulties?.order || []) {
-    const c = data.qte.difficulties[id]?.enemyDefendChance;
+    const d = data.qte.difficulties[id];
+    const c = d?.enemyDefendChance;
     if (!(typeof c === 'number' && c >= 0 && c <= 1)) err(`qte.difficulties.${id}.enemyDefendChance must be a number in [0, 1]`);
+    // perfectWindowMult: the PERFECT window's own factor (default windowMult); it never widens past the GOOD window.
+    if (d?.perfectWindowMult !== undefined && !(typeof d.perfectWindowMult === 'number' && d.perfectWindowMult > 0)) err(`qte.difficulties.${id}.perfectWindowMult must be a number > 0`);
+    if (d && data.qte.windows && data.qte.windows.perfectMs * (d.perfectWindowMult ?? d.windowMult) > data.qte.windows.goodMs * d.windowMult) err(`qte.difficulties.${id}: the PERFECT window (perfectWindowMult) must not exceed the GOOD window (windowMult)`);
   }
   // Two gestures on every ring (qte.json dodge): a tap parries, a swipe dodges with the easier dodge.windows.
   if (data.qte) {
@@ -1112,7 +1173,12 @@ function validateRecollection(data, dialogue, enemies, ui, err) {
   }
   const t = b.taps;
   if (t) {
-    if (!(Number.isInteger(t.taps) && t.taps >= 1) || !pos(t.tapWindowMs) || !(t.perfectSpareMs >= 0 && t.perfectSpareMs < t.tapWindowMs) || !pos(t.waitMs)) err(`${at}: beats.taps needs taps (>= 1), tapWindowMs, perfectSpareMs in [0, tapWindowMs) and waitMs`);
+    // taps: one count, or one per difficulty id (every id of qte.json difficulties.order), in the same window
+    // (tapWindowScales, default false, makes the window follow the difficulty's windowMult instead).
+    const tapCounts = typeof t.taps === 'number' ? [t.taps] : Object.values(t.taps || {});
+    if (!tapCounts.length || !tapCounts.every((n) => Number.isInteger(n) && n >= 1) || !pos(t.tapWindowMs) || !(t.perfectSpareMs >= 0 && t.perfectSpareMs < t.tapWindowMs) || !pos(t.waitMs)) err(`${at}: beats.taps needs taps (>= 1, a number or {difficulty id: number}), tapWindowMs, perfectSpareMs in [0, tapWindowMs) and waitMs`);
+    if (t.taps && typeof t.taps === 'object') for (const id of qteDifficultyIds(data)) if (!(Number.isInteger(t.taps?.[id]) && t.taps[id] >= 1)) err(`${at}: beats.taps.taps.${id} (a whole number >= 1) is missing`);
+    if (t.tapWindowScales !== undefined && typeof t.tapWindowScales !== 'boolean') err(`${at}: beats.taps.tapWindowScales must be true or false`);
     if (!t.meter || ![t.meter.x, t.meter.y, t.meter.w, t.meter.h, t.meter.timeBarH].every(pos)) err(`${at}: beats.taps.meter needs x, y, w, h and timeBarH`);
     const tc = t.counter;
     if (!tc || !str(tc.text) || !tc.text.includes('{i}') || !tc.text.includes('{n}') || ![tc.x, tc.y, tc.fontSize, tc.popScale, tc.popMs].every(pos)) err(`${at}: beats.taps.counter needs text with {i} and {n}, x, y, fontSize, popScale, popMs`);
@@ -1122,7 +1188,7 @@ function validateRecollection(data, dialogue, enemies, ui, err) {
       const sfx = data.audio?.sfx;
       for (const name of [fx.tapSfx, fx.milestoneSfx]) if (name && sfx && !(name in sfx)) err(`${at}: beats.taps.fx sfx "${name}" is not in audio.json sfx`);
       for (const [n, m] of Object.entries(fx.milestones || {})) {
-        if (!(Number(n) >= 1 && Number(n) <= t.taps)) err(`${at}: beats.taps.fx.milestones.${n}: must be a tap count in 1-${t.taps}`);
+        if (!(Number(n) >= 1 && Number(n) <= 100)) err(`${at}: beats.taps.fx.milestones.${n}: must be a share of the taps in 1-100 (%)`);
         if (!pos(m.pitch)) err(`${at}: beats.taps.fx.milestones.${n}.pitch must be a number > 0`);
       }
     }

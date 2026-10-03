@@ -38,12 +38,14 @@
     "unforgettable": {
       "label": "Unforgettable",
       "pick": "Unforgettable (hard)",
-      "hint": "Unforgettable: tight timing, fierce enemies, Echo comes slowly.",
-      "windowMult": 0.65,
-      "damageMult": 1.5,
+      "hint": "Unforgettable: tight timing, fierce enemies, Echo comes slowly. You are meant to fall a few times.",
+      "_windows": "windowMult scales the GOOD window (and every other timing window); perfectWindowMult (default windowMult) the PERFECT window alone: here 45 ms PERFECT, 150 ms GOOD.",
+      "windowMult": 0.75,
+      "perfectWindowMult": 0.5,
+      "damageMult": 1.6,
       "enemyHpMult": 1.35,
       "echoMult": 0.5,
-      "enemyDefendChance": 0.15
+      "enemyDefendChance": 0.2
     }
   },
   "chain": {

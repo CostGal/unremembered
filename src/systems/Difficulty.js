@@ -11,8 +11,13 @@ export function difficultyIds() {
 }
 
 export function difficultyDef(settings) {
+  return D[difficultyId(settings)];
+}
+
+// The id of the chosen difficulty ('story' | 'normal' | 'unforgettable'), falling back to the default.
+export function difficultyId(settings) {
   const id = settings?.difficulty;
-  return D[id] || D[D.default];
+  return D[id] ? id : D.default;
 }
 
 // A settings object may still carry the old storyMode flag (saved before the

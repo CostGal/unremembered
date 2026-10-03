@@ -19,7 +19,8 @@ import { swipeDirection } from './Qte.js';
 // resume. scene.recollectionBeat describes the live beat (the playtest bot and
 // QA read it): {kind, index, startAt, ...}.
 //
-// runBeats(scene, {cfg, windowMult, swipe, target, onResult, force}) -> [result x3]
+// runBeats(scene, {cfg, windowMult, difficulty, swipe, target, onResult, force}) -> [result x3]
+//   difficulty: the difficulty id; beats.taps.taps may be a number or {story, normal, unforgettable} (tapsFor).
 //   target: the enemy the taps FX land on (omit = no FX).
 //   onResult(result, index): the scene's feedback (pop text, hit on the target).
 //   force: dev/QA only — a result (or a list) every beat takes after forceMs.
@@ -33,7 +34,14 @@ export function gradeOf(results) {
   return null;
 }
 
-export async function runBeats(scene, { cfg, windowMult = 1, swipe, target = null, onResult = () => {}, force = null }) {
+// The taps the finale asks for on this difficulty (recollection.json beats.taps.taps: a number, or one per id).
+export function tapsFor(def, difficulty) {
+  const t = def.taps;
+  if (typeof t === 'number') return t;
+  return t?.[difficulty] ?? t?.normal ?? Object.values(t || {})[0] ?? 20;
+}
+
+export async function runBeats(scene, { cfg, windowMult = 1, difficulty = 'normal', swipe, target = null, onResult = () => {}, force = null }) {
   const results = [];
   const tapFx = target && cfg.order.includes('taps') ? makeTapFx(scene, cfg, target) : null;
   scene.recollectionTapFx = tapFx; // QA reads / wraps it
@@ -58,7 +66,7 @@ export async function runBeats(scene, { cfg, windowMult = 1, swipe, target = nul
     const forced = Array.isArray(force) ? force[i] : force;
     let result;
     do {
-      result = await BEATS[kind](scene, cfg, def, windowMult, { index: i, swipe, forced, tapFx });
+      result = await BEATS[kind](scene, cfg, def, windowMult, { index: i, swipe, forced, tapFx, difficulty });
       if (result === 'INTERRUPTED') await resumed(scene);
     } while (result === 'INTERRUPTED' && scene.sys.isActive());
     scene.recollectionBeat = null;
@@ -157,8 +165,11 @@ function makeTapFx(scene, cfg, target) {
       if (fx.tapShake) Fx.shake(scene, fx.tapShake, fx.tapShakeMs);
       if (fx.tapSfx) playSfx(fx.tapSfx, { pitch: 1 + 0.5 * pct });
     },
-    milestone(count) {
-      const m = fx.milestones?.[count];
+    // beats.taps.fx.milestones is keyed by the share of the taps done (25/50/75/100 %), so the
+    // beats land at the same points whatever the difficulty's tap count.
+    milestone(count, total) {
+      const key = Object.keys(fx.milestones || {}).find((pct) => count === Math.ceil((total * Number(pct)) / 100));
+      const m = key ? fx.milestones[key] : null;
       if (!m) return;
       Fx.screenFlash(scene, m.flash, cfg.depth - 1);
       emitter.burst(m.sparks, target.container.x, target.container.y);
@@ -266,13 +277,16 @@ const BEATS = {
     });
   },
 
-  taps(scene, cfg, def, mult, { index, forced, tapFx }) {
-    const windowMs = def.tapWindowMs * mult;
-    return beat(scene, { kind: 'taps', index, forced, taps: def.taps, windowMs, count: 0 }, ({ add, on, finish: end, start, live }) => {
+  // The difficulty asks for more taps (tapsFor), in the same time unless tapWindowScales is true
+  // (then the window follows the difficulty's windowMult like every other beat).
+  taps(scene, cfg, def, mult, { index, forced, tapFx, difficulty }) {
+    const windowMs = def.tapWindowMs * (def.tapWindowScales ? mult : 1);
+    const total = tapsFor(def, difficulty);
+    return beat(scene, { kind: 'taps', index, forced, taps: total, windowMs, count: 0 }, ({ add, on, finish: end, start, live }) => {
       const m = def.meter;
       const c = def.counter;
       const col = cfg.colors;
-      const label = (n) => c.text.replace('{i}', n).replace('{n}', def.taps);
+      const label = (n) => c.text.replace('{i}', n).replace('{n}', total);
       tapFx?.reset();
       const finish = (result) => {
         tapFx?.end(result);
@@ -293,16 +307,16 @@ const BEATS = {
       on(scene.input, 'pointerdown', (pointer) => {
         const t = stamp(pointer.downTime);
         if (firstAt === null) firstAt = t;
-        if (count >= def.taps) return;
+        if (count >= total) return;
         count += 1;
         live.count = count;
         big.setText(label(count));
         scene.tweens.killTweensOf(big);
         scene.tweens.add({ targets: big, scale: { from: c.popScale, to: 1 }, duration: c.popMs, ease: 'Back.easeOut' });
-        fill.setScale(count / def.taps, 1);
-        tapFx?.tap({ count, total: def.taps, x: pointer.worldX, y: pointer.worldY });
-        tapFx?.milestone(count);
-        if (count < def.taps) return;
+        fill.setScale(count / total, 1);
+        tapFx?.tap({ count, total: total, x: pointer.worldX, y: pointer.worldY });
+        tapFx?.milestone(count, total);
+        if (count < total) return;
         const elapsed = t - firstAt;
         finish(elapsed > windowMs ? 'MISS' : windowMs - elapsed >= def.perfectSpareMs ? 'PERFECT' : 'GOOD');
       });

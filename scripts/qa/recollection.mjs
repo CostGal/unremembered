@@ -11,9 +11,9 @@
 //   E: the threshold is crossed during Quill's own two-hit attack: the 2nd ring is cancelled, the cast follows
 //   D: the real Keepsake: Quill crosses the threshold, Rhea is DOWN, the keepsake_burn dialogue ends ->
 //      MEMORY READY, she gets up (autoCast.reviveHp) and the Recollection casts itself (no menu pick),
-//      the recollection track from the dialogue start (no one-shot, no silence), 20-tap finale -> Victory
-// The finale (taps): a big "n / 20" counter, 1 px shake + sparks per tap, Quill cracks (tint), pitch-rising
-// tap_milestone sfx at 5 / 10 / 15 / 20, at most 6 extra objects.
+//      the recollection track from the dialogue start (no one-shot, no silence), 30-tap finale (Normal) -> Victory
+// The finale (taps): a big "n / 30" counter, 1 px shake + sparks per tap, Quill cracks (tint), pitch-rising
+// tap_milestone sfx at 25 / 50 / 75 / 100 % of the taps, at most 6 extra objects.
 import { readFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { INIT, open, playBeats, root, sleep, withBrowser } from './lib.mjs';
@@ -24,7 +24,11 @@ const rc = read('src/data/recollection.json');
 const dialogue = read('src/data/dialogue.json');
 const clerk = read('src/data/enemies.json').clerk;
 const taps = rc.beats.taps;
-const milestones = Object.keys(taps.fx.milestones).map(Number);
+// The page runs on Normal: its tap count (recollection.json beats.taps.taps per difficulty id).
+const TAPS = typeof taps.taps === 'number' ? taps.taps : taps.taps.normal;
+// Milestones are keyed by the share of the taps done; the tap each lands on at this count.
+const milestonePcts = Object.keys(taps.fx.milestones);
+const milestones = milestonePcts.map((pct) => Math.ceil((TAPS * Number(pct)) / 100));
 const slots = ui.commands.slots;
 const out = process.argv[process.argv.indexOf('--out') + 1];
 mkdirSync(out, { recursive: true });
@@ -92,7 +96,8 @@ async function shotBeat(page, name) {
 
 await withBrowser(async ({ chrome, server }) => {
   const url = `${server.url}?battle=boss_clerk&level=4&echo=10&pauses=0`;
-  const threshold = Math.floor((clerk.hp * clerk.stages[1].recollectionAtHpPct) / 100);
+  const threshold = clerk.stages[1].recollectionAt.hp;
+  const stage2Max = Math.round(clerk.hp * (clerk.stages[1].hpMult ?? 1)); // the enraged stage's own max (Normal)
 
   // ============ A: cut-in tapped through, PERFECT x3 ============
   {
@@ -129,17 +134,17 @@ await withBrowser(async ({ chrome, server }) => {
     await waitFlag(page, `window.__beats.length === 3`, 10000);
     const finale = await page.ev(`window.__fin`);
     const beats = await page.ev(`window.__beats.slice()`);
-    log(beats.join() === 'PERFECT,PERFECT,PERFECT', `A: HOLD (release at 70%), SWIPE (arrow way), TAPS (${taps.taps} quick) each judged PERFECT`, `${beats.join(' ')} in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+    log(beats.join() === 'PERFECT,PERFECT,PERFECT', `A: HOLD (release at 70%), SWIPE (arrow way), TAPS (${TAPS} quick) each judged PERFECT`, `${beats.join(' ')} in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
     const texts = new Set(finale.map((f) => f.text));
-    log(taps.taps === 20 && taps.tapWindowMs === 5000 && taps.perfectSpareMs === 1000, 'A: finale data: taps 20, window 5000 ms, PERFECT with >= 1000 ms to spare');
-    log(finale.length === taps.taps && finale.every((f, i) => f.text === `${i + 1} / ${taps.taps}`), `A: the big counter shows 1 / ${taps.taps} ... ${taps.taps} / ${taps.taps}, one step per tap`, `${finale.length} taps seen`);
+    log(TAPS === 30 && taps.taps.unforgettable === 40 && taps.taps.story === 20 && taps.tapWindowMs === 5000 && taps.tapWindowScales === false && taps.perfectSpareMs === 1000, 'A: finale data: taps 30 on Normal (20 Story / 40 Unforgettable), the same 5000 ms window, PERFECT with >= 1000 ms to spare');
+    log(finale.length === TAPS && finale.every((f, i) => f.text === `${i + 1} / ${TAPS}`), `A: the big counter shows 1 / ${TAPS} ... ${TAPS} / ${TAPS}, one step per tap`, `${finale.length} taps seen`);
     log(taps.counter.popScale >= 1.3 && finale.every((f) => f.tw > 0), 'A: the counter pops on every tap (a scale tween from popScale ' + taps.counter.popScale + ' to 1 starts with each tap)', `${finale.filter((f) => f.tw > 0).length} of ${finale.length} taps`);
     const green = (t) => (t >> 8) & 0xff;
     log(finale.every((f, i) => i === 0 || green(f.tint) <= green(finale[i - 1].tint)) && green(finale.at(-1).tint) <= green(finale[0].tint) * 0.4, 'A: Quill cracks: his tint goes from white toward red as the count rises', `green ${green(finale[0].tint)} -> ${green(finale.at(-1).tint)}`);
     const own = finale[0].hi - 2;
     log(own <= 6, 'A: the finale keeps at most 6 objects of its own alive (counter, meter x2, time bar, 1 pooled spark emitter)', `${own} persistent, peak with transients +${Math.max(...finale.map((f) => f.hi)) - finale[0].hi}`);
     const sfx = (await page.ev(`(window.__audio.log || []).filter((e) => e.ev === 'sfx' && e.name === ${JSON.stringify(taps.fx.milestoneSfx)}).map((e) => e.pitch)`));
-    log(sfx.join() === milestones.map((m) => taps.fx.milestones[m].pitch).join() && sfx.every((p, i) => i === 0 || p > sfx[i - 1]), `A: ${taps.fx.milestoneSfx} plays at taps ${milestones.join(' / ')} with a rising pitch`, sfx.join(' '));
+    log(sfx.join() === milestonePcts.map((m) => taps.fx.milestones[m].pitch).join() && sfx.every((p, i) => i === 0 || p > sfx[i - 1]), `A: ${taps.fx.milestoneSfx} plays at taps ${milestones.join(' / ')} with a rising pitch`, sfx.join(' '));
     log(await waitFlag(page, `window.__battle.children.list.some((c) => c.type === 'Text' && c.text === ${JSON.stringify(rc.grades.FLAWLESS.title)})`, 4000), 'A: FLAWLESS finisher title');
     await sleep(250);
     await page.shot(join(out, 'finisher_flawless.png'));
@@ -175,6 +180,12 @@ await withBrowser(async ({ chrome, server }) => {
     let noEscape = false;
     const end = Date.now() + 40000;
     while (Date.now() < end && !(await B(page, 'B.battleOver'))) {
+      // Quill may parry Dov's Strike (stage 2 guards twice as often): the first parry plays quill_parry, tap it through.
+      if (await hasDialogue(page)) {
+        await page.tap(180, 560);
+        await sleep(200);
+        continue;
+      }
       if (await B(page, '!!(B.menu && B.menu.pending && B.activeHero)')) {
         await sleep(400);
         await page.tap(...slots.strike);
@@ -205,7 +216,7 @@ await withBrowser(async ({ chrome, server }) => {
     await page.tap(...slots.retryRecollection);
     log(await waitFlag(page, `!!(window.__battle && window.__battle.cutInState && window.__battle.cutInState.beat === 0)`, 20000), 'B: Try again re-enters the cut-in directly');
     const r = await page.ev(`window.__resume.slice(-1)[0] || null`);
-    log(!!r && r.echo === 10 && r.hp === threshold && r.max === clerk.hp && r.phase === 1 && r.aura, `B: rewound to the cast: Rhea Echo 10, Quill ${threshold}/${clerk.hp} in stage 2 (aura on)`, JSON.stringify(r));
+    log(!!r && r.echo === 10 && r.hp === threshold && r.max === stage2Max && r.phase === 1 && r.aura, `B: rewound to the cast: Rhea Echo 10, Quill ${threshold}/${stage2Max} in stage 2 (aura on)`, JSON.stringify(r));
     await page.shot(join(out, 'rewind_cutin.png'));
     await page.ev(`window.__beats.length = 0`);
     await playBeats(page, { results: ['GOOD', 'GOOD', 'GOOD'] });

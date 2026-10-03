@@ -14,8 +14,9 @@ export function judge(dtMs, windows) {
 }
 
 // Story Mode widens the timing windows; the early-ignore cutoff stays put.
-export function scaledWindows(windows, mult) {
-  return { ...windows, perfectMs: windows.perfectMs * mult, goodMs: windows.goodMs * mult };
+// perfectMult (default mult): the PERFECT window's own factor (qte.json difficulties.perfectWindowMult).
+export function scaledWindows(windows, mult, perfectMult = mult) {
+  return { ...windows, perfectMs: windows.perfectMs * perfectMult, goodMs: windows.goodMs * mult };
 }
 
 // Shows the ring at (x, y) and resolves with {result, dtMs, input} once the

@@ -369,11 +369,12 @@ await withBrowser(async ({ chrome, server }) => {
   if (want('keepsake')) {
     const page = await battle(chrome, server, 'boss_clerk');
     await waitMenu(page);
-    // Story: the Recollection unlocks in stage 2 once HP is <= recollectionAtHpPct (quill.mjs checks the whole rise).
-    await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; e.phase = 1; e.maxHp = ${clerkDef.hp}; e.hp = Math.floor(e.maxHp * ${clerkDef.stages[1].recollectionAtHpPct} / 100) + 3; B.updateLabel(e); })()`);
+    // Story: the Recollection unlocks in stage 2 once his HP is <= recollectionAt.hp (quill.mjs checks the whole rise).
+    const unlockHp = clerkDef.stages[1].recollectionAt.hp;
+    await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; e.phase = 1; e.maxHp = ${clerkDef.hp}; e.hp = ${unlockHp} + 3; B.updateLabel(e); })()`);
     await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; B.chain = 0; B.applyHit(e, 6); })()`);
     const queued = await B(page, 'B.pendingEvents.includes("keepsake_burn")');
-    log(queued, `Keepsake: crossing ${clerkDef.stages[1].recollectionAtHpPct}% of stage 2 queues the event`, `pending ${await B(page, 'B.pendingEvents.join()')}`);
+    log(queued, `Keepsake: dropping to ${unlockHp} HP in stage 2 queues the event`, `pending ${await B(page, 'B.pendingEvents.join()')}`);
     // The expression must not evaluate to the promise: page.ev awaits one, and this one only settles after the taps below.
     await page.ev(`window.__battle.hideCommandMenu(); window.__battle.noAutoCast = true; window.__ke = window.__battle.afterTurn().then(() => { window.__keDone = true; }); null`);
     await sleep(800);

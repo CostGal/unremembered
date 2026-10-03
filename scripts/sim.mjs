@@ -21,6 +21,7 @@ import { root } from './lib/harness.mjs';
 import { dueEvents, thenSplit } from '../src/systems/BattleEvents.js';
 import { computeGrade } from '../src/systems/Grade.js';
 import { chapterXpBefore, echoMaxFor, growth, learned, levelFor, levelUps, techniqueAt } from '../src/systems/Recall.js';
+import { aiPickAttack, aiPickTarget, currentStage, recollectionAtOf, recollectionDue, tuneEnemyDef } from '../src/systems/EnemyTuning.js';
 
 const read = (p) => JSON.parse(readFileSync(join(root, p), 'utf8'));
 const D = {
@@ -107,12 +108,13 @@ function solveProfile({ PERFECT, GOOD }) {
 
 // Odds of PERFECT/GOOD/MISS for a window pair {perfectMs, goodMs} (the parry windows or the
 // easier dodge windows), widened or narrowed by mult (Story Mode, the tutorial slow-mo).
-function qteOddsFor(profile, w, mult) {
-  const p = (1 - profile.lapse) * inWindow(w.perfectMs * mult, profile.bias, profile.sigma);
+// perfectMult (default mult): the PERFECT window's own factor (qte.json difficulties.perfectWindowMult).
+function qteOddsFor(profile, w, mult, perfectMult = mult) {
+  const p = (1 - profile.lapse) * inWindow(w.perfectMs * perfectMult, profile.bias, profile.sigma);
   const pg = (1 - profile.lapse) * inWindow(w.goodMs * mult, profile.bias, profile.sigma);
-  return { PERFECT: p, GOOD: pg - p, MISS: 1 - pg };
+  return { PERFECT: Math.min(p, pg), GOOD: Math.max(0, pg - p), MISS: 1 - pg };
 }
-const qteOdds = (profile, windowMult) => qteOddsFor(profile, D.qte.windows, windowMult);
+const qteOdds = (profile, windowMult, perfectMult = windowMult) => qteOddsFor(profile, D.qte.windows, windowMult, perfectMult);
 
 function roll(odds, rnd) {
   const r = rnd();
@@ -151,6 +153,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
   const echoMax = D.ui.hud.echo.max;
   const diff = qte.difficulties[mode];
   const storyMult = diff.windowMult;
+  const perfectMult = diff.perfectWindowMult ?? diff.windowMult;
   const dmgTakenMult = diff.damageMult;
   const think = D.sim.thinkMs[profileName];
 
@@ -177,7 +180,11 @@ function simulateBattle(battleId, profileName, mode, rnd) {
   // enemies.json `stages`: the first stage opens at hpPct % of the HP (the bar shows that stage's own max).
   const fullHp = (def) => Math.round(def.hp * diff.enemyHpMult);
   const startHp = (def) => (def.stages ? Math.round((fullHp(def) * def.stages[0].hpPct) / 100) : fullHp(def));
-  const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: startHp(D.enemies[id]), max: startHp(D.enemies[id]), phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false, rising: false }));
+  // enemies.json difficulty.<id> (EnemyTuning.tuneEnemyDef): the def is tuned once for this mode, as in BattleScene.
+  const tuned = (id) => tuneEnemyDef(D.enemies[id], mode);
+  const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: tuned(id), hp: startHp(tuned(id)), max: startHp(tuned(id)), phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false, rising: false }));
+  // Hero views for EnemyTuning (it reads hp / maxHp / echo).
+  const heroViews = () => heroes.map((h) => ({ hp: h.hp, maxHp: h.max, echo: h.echo, ref: h }));
 
   // A tutorial battle also costs the time to read its hint banners and its tutorial pauses
   // (tutorial.json: one tap-through per step, T.pauseMs per profile; time only, no mechanics).
@@ -243,6 +250,25 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       }
     }
   };
+  // stages recollectionAt (EnemyTuning.recollectionDue): his HP under a number / share, or the party in a
+  // last-resort state (both heroes in the red, or one down and the other at half or less) unlocks the
+  // Recollection once. Checked after every hit on him (hitEnemy) and on a hero (hurtHero).
+  const checkUnlock = (enemy) => {
+    const stage = enemy.def.stages?.[enemy.phase];
+    if (!stage || enemy.hp <= 0 || enemy.rising || enemy.recollectionUnlocked) return;
+    if (recollectionDue(recollectionAtOf(stage), { hp: enemy.hp, maxHp: enemy.max }, heroViews())) {
+      enemy.recollectionUnlocked = true;
+      st.pending.push('keepsake_burn');
+    }
+  };
+  // A hero takes dmg (already final): stats, HP, and the party-state unlock above.
+  const hurtHero = (hero, dmg) => {
+    const dealt = Math.min(dmg, hero.hp);
+    st.damageTaken += dealt;
+    hero.hp = Math.max(0, hero.hp - dmg);
+    for (const e of enemies) if (e.def.stages) checkUnlock(e);
+    return dealt;
+  };
   // poiseSource: a break.json weight key (strike/counter/ability/multiHit/ultimate); poise damage =
   // final damage x weight (x critWeight on a crit), as in BattleScene.applyHit. A broken enemy takes more damage.
   const hitEnemy = (enemy, rawDmg, poiseSource = null, crit = false) => {
@@ -273,10 +299,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       if (enemy.hp <= 0 && enemy.phase < stages.length - 1 && stage.onZero) {
         enemy.rising = true;
         enemy.exposed = null;
-      } else if (enemy.hp > 0 && stage.recollectionAtHpPct && !enemy.recollectionUnlocked && (enemy.hp / enemy.max) * 100 <= stage.recollectionAtHpPct) {
-        enemy.recollectionUnlocked = true;
-        st.pending.push('keepsake_burn');
-      }
+      } else checkUnlock(enemy);
     }
     const phases = stages ? null : enemy.def.phases;
     if (phases && enemy.hp > 0) {
@@ -296,11 +319,14 @@ function simulateBattle(battleId, profileName, mode, rnd) {
     return { ...computeGrade(stats, battleId, D.grade), stats };
   };
   // hitMult: the first real attack's own window multiplier (enemies.json firstAttackWindowMult / telegraph mult), which replaces the tutorial slow-mo.
-  const windowMult = (hitMult) => storyMult * (hitMult > 1 ? hitMult : st.tutorialSlow ? 1 / qte.tutorial.timeScale : 1);
+  const slowFactor = (hitMult) => (hitMult > 1 ? hitMult : st.tutorialSlow ? 1 / qte.tutorial.timeScale : 1);
+  const windowMult = (hitMult) => storyMult * slowFactor(hitMult);
+  const perfectWindowMult = (hitMult) => perfectMult * slowFactor(hitMult);
 
   // enemies.json defend + qte.json enemyDefendChance (story 0): mirrors BattleScene.rollDefendAs.
-  const defendChance = diff.enemyDefendChance;
-  const defends = (enemy, kind, techId) => !!enemy.def.defend?.[kind]?.includes(techId) && enemy.hp > 0 && !enemy.broken && !enemy.charge && rnd() < defendChance;
+  // x the stage's defendChanceMult (an enraged Quill guards more; Story's 0 stays 0).
+  const defendChance = (enemy) => diff.enemyDefendChance * (currentStage(enemy.def, enemy.phase)?.defendChanceMult ?? 1);
+  const defends = (enemy, kind, techId) => !!enemy.def.defend?.[kind]?.includes(techId) && enemy.hp > 0 && !enemy.broken && !enemy.charge && rnd() < defendChance(enemy);
   // How the scripted player answers one enemy ring: a red ring always with a swipe (normal
   // windows), a white ring with a swipe (the easier dodge windows) policy.dodgeChance of the
   // time, else a tap (parry windows). The tutorial slow-mo teaches the tap, so no swipes there.
@@ -308,7 +334,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
   const answerRing = (unparryable, hitMult = 0) => {
     const swipes = unparryable || (!st.tutorialSlow && rnd() < dodgeChance);
     const windows = swipes && !unparryable ? D.qte.dodge.windows : D.qte.windows;
-    return { res: roll(qteOddsFor(profile, windows, windowMult(hitMult)), rnd), dodged: swipes };
+    return { res: roll(qteOddsFor(profile, windows, windowMult(hitMult), perfectWindowMult(hitMult)), rnd), dodged: swipes };
   };
   // A parried Strike is answered with a ring on the hero (reparry): judged like any enemy hit,
   // a PERFECT earns the usual counter (applyHit on the enemy, so no parry roll, not a counted player hit).
@@ -325,12 +351,13 @@ function simulateBattle(battleId, profileName, mode, rnd) {
     st.maxChain = Math.max(st.maxChain, st.chain);
     gain(hero, cfg.echo + (res === 'PERFECT' && !dodged ? mem('perfectEchoBonus') : 0));
     const dmg = Math.round(rp.dmg * cfg.damageMult * dmgTakenMult);
-    st.damageTaken += Math.min(dmg, hero.hp);
-    hero.hp = Math.max(0, hero.hp - dmg);
+    hurtHero(hero, dmg);
     if (res === 'PERFECT' && !dodged && enemy.hp > 0) {
       const was = st.playerAction;
       st.playerAction = false;
-      hitEnemy(enemy, cfg.counterDmg + mem('counterBonus'), 'counter');
+      // A PERFECT on the riposte ring returns it hard (defend.reparry.counterDmg [min, max]).
+      const big = rp.counterDmg ? between(rnd, rp.counterDmg) : null;
+      hitEnemy(enemy, (big ?? cfg.counterDmg) + mem('counterBonus'), 'counter');
       st.playerAction = was;
     }
   };
@@ -366,7 +393,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       }
     } else {
       for (let i = 0; i < r.taps && target.hp > 0; i++) {
-        const res = roll(qteOdds(profile, storyMult), rnd);
+        const res = roll(qteOdds(profile, storyMult, perfectMult), rnd);
         hitEnemy(target, r.dmg[res.toLowerCase()], 'ultimate');
       }
     }
@@ -391,7 +418,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       e.phase += 1;
       e.turnsInPhase = 0;
       e.rising = false;
-      e.max = fullHp(e.def);
+      e.max = Math.round(fullHp(e.def) * (e.def.stages[e.phase].hpMult ?? 1)); // the stage's own max (hpMult)
       e.hp = Math.max(1, Math.round(e.max * (z.refillTo ?? 1)));
       e.exposed = null;
       e.broken = false;
@@ -565,7 +592,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
         let critChance = b.critChance;
         if (b.aimMinigame && b.aim) {
           st.ms += b.aim.ringMs;
-          if (roll(qteOdds(profile, storyMult), rnd) !== 'MISS') critChance += b.aim.critBonus;
+          if (roll(qteOdds(profile, storyMult, perfectMult), rnd) !== 'MISS') critChance += b.aim.critBonus;
         }
         for (let i = 0; i < total && target.hp > 0; i++) {
           // A crit on a base bolt fires ONE extra bolt; extra bolts (i >= base) never roll.
@@ -625,7 +652,8 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       return;
     }
     const stanceHero = st.stance && st.stance.hero.hp > 0 ? st.stance.hero : null;
-    const target = stanceHero || targets[Math.floor(rnd() * targets.length)];
+    // enemies.json ai: a chance to pick on the weakest hero, else a random one (EnemyTuning.aiPickTarget).
+    const target = stanceHero || aiPickTarget(enemy.def.ai, heroViews().filter((h) => h.hp > 0), rnd).ref;
     let attack;
     let mitigated = 0;
     if (enemy.charge) {
@@ -647,7 +675,10 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       const n = enemy.turnsInPhase || 0;
       enemy.turnsInPhase = n + 1;
       const fixedId = phase?.opening?.[n];
-      attack = (fixedId && (open.length ? open : list).find((a) => a.id === fixedId)) || pickWeighted(open.length ? open : list, rnd);
+      const pickable = open.length ? open : list;
+      // The ai rules (EnemyTuning.aiPickAttack) get a say after the opening, before the weighted roll.
+      const ruled = () => aiPickAttack(enemy.def.ai, pickable, { target: heroViews().find((h) => h.ref === target), heroes: heroViews(), enemy: { hp: enemy.hp, maxHp: enemy.max } }, rnd);
+      attack = (fixedId && pickable.find((a) => a.id === fixedId)) || ruled() || pickWeighted(pickable, rnd);
       if (attack.chargeTurns) {
         st.archives += 1;
         // onChargeStart: a battle event the first time any charge of that id starts.
@@ -697,15 +728,15 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       st.maxChain = Math.max(st.maxChain, st.chain);
       gain(target, cfg.echo + (res === 'PERFECT' && !dodged ? mem('perfectEchoBonus') : 0));
       if (res === 'MISS' && hit.onMiss?.echo) gain(target, hit.onMiss.echo);
-      const dmg = Math.round(hit.dmg * cfg.damageMult * dmgTakenMult * (st.brace ? st.brace.damageMult : 1));
+      let dmg = Math.round(hit.dmg * cfg.damageMult * dmgTakenMult * (st.brace ? st.brace.damageMult : 1));
+      // hit.maxHpPct: at most that share of the hero's max HP (the Archive never one-shots a healthy Dov).
+      if (hit.maxHpPct !== undefined) dmg = Math.min(dmg, Math.floor(target.max * hit.maxHpPct));
       // Brace: every hit that lands gives its caster Echo and the attacker poise damage.
       if (dmg > 0 && st.brace) {
         if (st.brace.echoPerHit && st.brace.hero.hp > 0) gain(st.brace.hero, st.brace.echoPerHit);
         if (st.brace.poisePerHit) hitPoise(enemy, st.brace.poisePerHit);
       }
-      const dealt = Math.min(dmg, target.hp);
-      st.damageTaken += dealt;
-      target.hp = Math.max(0, target.hp - dmg);
+      const dealt = hurtHero(target, dmg);
       // Siphon: the enemy keeps a share of the life it took.
       if (hit.lifesteal && dmg > 0 && enemy.hp > 0) enemy.hp = Math.min(enemy.max, enemy.hp + Math.round(dealt * hit.lifesteal));
       // A missed parry can leave a memory status (Fog has no effect on the numbers).
@@ -844,8 +875,8 @@ for (const mode of MODES) {
 }
 
 const story = chapterStoryMs();
-function odds(profile, mult) {
-  const o = qteOdds(profile, mult);
+function odds(profile, mult, perfectMult = mult) {
+  const o = qteOdds(profile, mult, perfectMult);
   return ['PERFECT', 'GOOD', 'MISS'].map((k) => Math.round(o[k] * 100)).join('/');
 }
 if (JSON_OUT) {
@@ -853,7 +884,7 @@ if (JSON_OUT) {
 } else {
   const pct = (x) => `${(x * 100).toFixed(1)}%`.padStart(6);
   const f1 = (x) => x.toFixed(1).padStart(5);
-  console.log(`runs per cell: ${RUNS}   QTE model: ${Object.entries(D.sim.profilesSolved).map(([k, v]) => `${k} bias=${v.bias}ms sigma=${v.sigma}ms lapse=${(v.lapse * 100).toFixed(0)}% -> normal ${odds(v, 1)} / story ${odds(v, D.qte.difficulties.story.windowMult)}`).join(', ')}\n`);
+  console.log(`runs per cell: ${RUNS}   QTE model: ${Object.entries(D.sim.profilesSolved).map(([k, v]) => `${k} bias=${v.bias}ms sigma=${v.sigma}ms lapse=${(v.lapse * 100).toFixed(0)}% -> normal ${odds(v, 1)} / story ${odds(v, D.qte.difficulties.story.windowMult)}${MODES.includes('unforgettable') ? ` / unforgettable ${odds(v, D.qte.difficulties.unforgettable.windowMult, D.qte.difficulties.unforgettable.perfectWindowMult ?? D.qte.difficulties.unforgettable.windowMult)}` : ''}`).join(', ')}\n`);
   console.log('mode    battle        profile    win    rounds  min (p10–p90)       avgEcho  recoll  archive  interrupt  breaks  P/G/M seen            score  rank ' + D.grade.ranks.map((k) => k.id).join('/') + '   perf chain dmg turns');
   for (const r of rows) {
     console.log(
@@ -891,7 +922,7 @@ if (JSON_OUT) {
     });
     console.log(`  ${id.padEnd(16)}${cells.join('')}`);
   }
-  console.log(`\n  total = cutscene + dialogue + battles (incl. expected retries); target: non-gamer <= 18 min, every battle >= 99.9% win`);
+  console.log(`\n  total = cutscene + dialogue + battles (incl. expected retries); target (Normal only): non-gamer <= 19 min, every battle >= 99.9% win. Unforgettable is exempt: it is meant to be lost a few times (CLAUDE.md > Difficulty).`);
   for (const p of profiles) {
     const worst = Math.min(...battleIds.map((id) => normal(p, id).win));
     console.log(`  ${p.padEnd(10)} ${storyMin.toFixed(1)} + ${totals[p].toFixed(1)} battles = ${(storyMin + totals[p]).toFixed(1)} min   (lowest battle win ${pct(worst).trim()})`);

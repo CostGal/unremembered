@@ -122,7 +122,9 @@ await withBrowser(async ({ chrome, server }) => {
     await page.shot(join(out, 'quill_enraged.png'));
     const st = await B(page, `({ hp: B.enemies[0].hp, max: B.enemies[0].maxHp, phase: B.enemies[0].phase, rising: B.enemies[0].rising, tint: B.enemies[0].body.tintTopLeft, base: B.enemies[0].body.baseTint, aura: !!B.enemies[0].aura, auraAlpha: B.enemies[0].aura && B.enemies[0].aura.glow.alpha, poise: B.enemies[0].poise === B.enemies[0].maxPoise, exposed: B.enemies[0].exposed, label: B.enemies[0].label.text, over: B.battleOver, anim: B.enemies[0].body.anims.currentAnim && B.enemies[0].body.anims.currentAnim.key })`);
     const tr = await trace(page);
-    log(st.hp === clerk.hp && st.max === clerk.hp && st.phase === 1 && !st.rising && st.label.includes(`${clerk.hp}/${clerk.hp}`) && st.anim === 'clerk_idle', `he rises: HP ${clerk.hp}/${clerk.hp}, stage 2, back to idle`, JSON.stringify(st));
+    // The enraged stage has its own max HP (enemies.json stages hpMult).
+    const stage2 = Math.round(clerk.hp * (clerk.stages[1].hpMult ?? 1));
+    log(st.hp === stage2 && st.max === stage2 && st.phase === 1 && !st.rising && st.label.includes(`${stage2}/${stage2}`) && st.anim === 'clerk_idle', `he rises: HP ${stage2}/${stage2} (stage 2 hpMult ${clerk.stages[1].hpMult ?? 1}), back to idle`, JSON.stringify(st));
     log(tr['playReverse:clerk_death'] === 1 && st.poise && st.exposed === null, 'poise refilled, statuses cleared, reverse anim ran once');
     log(st.aura && st.base !== undefined && st.base !== 0xffffff, 'stage 2 look: body tint + additive aura circle', `tint ${st.base && st.base.toString(16)}, aura alpha ${st.auraAlpha}`);
     const calls = await page.ev(`window.__calls.slice()`);
@@ -147,15 +149,15 @@ await withBrowser(async ({ chrome, server }) => {
     await tapThrough(page);
     await page.waitFor(`window.__done === true`, { timeout: 8000 });
 
-    // keepsake: Recollection unlock at <= recollectionAtHpPct of stage 2 (QA: no auto-cast here, the floor test follows; page B plays the auto-cast)
+    // keepsake: Recollection unlock at <= recollectionAt.hp in stage 2 (QA: no auto-cast here, the floor test follows; page B plays the auto-cast)
     await page.ev(`window.__battle.noAutoCast = true`);
-    const pct = clerk.stages[1].recollectionAtHpPct;
-    const above = Math.floor((clerk.hp * pct) / 100) + 1;
+    const unlockHp = clerk.stages[1].recollectionAt.hp;
+    const above = unlockHp + 1;
     await page.ev(`(() => { const B = window.__battle; B.dropCharge(B.enemies[0]); const e = B.enemies[0]; e.hp = ${above} + 3; B.updateLabel(e); B.chain = 0; B.applyHit(e, 2); })()`);
-    log(await B(page, '!B.pendingEvents.includes("keepsake_burn") && B.heroes[0].echoMax < 10'), `above ${pct}% of stage 2: no keepsake yet, Recollection still locked`);
+    log(await B(page, '!B.pendingEvents.includes("keepsake_burn") && B.heroes[0].echoMax < 10'), `above ${unlockHp} HP in stage 2: no keepsake yet, Recollection still locked`);
     await page.ev(`(() => { const B = window.__battle; B.chain = 0; B.applyHit(B.enemies[0], 6); })()`);
     const hpNow = await B(page, 'B.enemies[0].hp');
-    log(await B(page, 'B.pendingEvents.includes("keepsake_burn")'), `crossing ${pct}% of stage 2 (hp ${hpNow}/${clerk.hp}) queues the keepsake_burn event`);
+    log(await B(page, 'B.pendingEvents.includes("keepsake_burn")'), `dropping to ${unlockHp} HP in stage 2 (hp ${hpNow}) queues the keepsake_burn event`);
     await page.ev(`window.__done = null; window.__battle.afterTurn().then(() => { window.__done = true; }); null`);
     log(await waitDialogue(page, 'keepsake_burn'), 'keepsake_burn dialogue plays');
     await tapThrough(page);
@@ -200,8 +202,7 @@ await withBrowser(async ({ chrome, server }) => {
     await waitMenu(page); // Dov's turn
     log(await B(page, 'B.activeHero && B.activeHero.type === "dov"'), 'real loop: the turn order goes on (Dov next)');
     // Dov's Strike pushes him through the Recollection threshold
-    const pct = clerk.stages[1].recollectionAtHpPct;
-    const just = Math.floor((clerk.hp * pct) / 100) + 4;
+    const just = clerk.stages[1].recollectionAt.hp + 4;
     await page.ev(`(() => { const B = window.__battle; B.heroes.forEach((h) => { h.hp = h.maxHp; }); B.enemies[0].hp = ${just}; B.updateLabel(B.enemies[0]); })()`);
     await sleep(400); // the menu ignores a tap in its first moments
     await page.tap(...slots.strike);
