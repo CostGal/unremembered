@@ -14,7 +14,7 @@ import qte from '../data/qte.json';
 import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
 import { playAmbience, playMusic, playSfx, setMusicIntensity, setMusicWarm, vibrate } from '../systems/Audio.js';
-import { dueEvents } from '../systems/BattleEvents.js';
+import { dueEvents, thenSplit } from '../systems/BattleEvents.js';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
 import { clampX, mirrorEdges, rect as viewRect } from '../systems/View.js';
@@ -107,7 +107,7 @@ export default class BattleScene extends Phaser.Scene {
     // `when` reads. playerHits counts landed player actions (playerAction/actionLanded).
     this.flags = new Set();
     this.firedEvents = new Set();
-    this.counters = { playerHits: 0, immuneSeen: false };
+    this.counters = { playerHits: 0, parries: 0, immuneSeen: false };
     this.playerAction = false;
     this.actionLanded = false;
     this.timeScale = 1;
@@ -824,7 +824,14 @@ export default class BattleScene extends Phaser.Scene {
 
   techniqueItems(hero) {
     const slots = ui.commands.techniqueSlots;
-    const items = hero.techniques.slice(0, slots.length).map((id, i) => ({
+    const items = hero.techniques.slice(0, slots.length).map((id, i) => this.isLocked(id) ? {
+      // A technique the battle hasn't unlocked yet (battles.json lockedTechniques): a blank slot.
+      slot: slots[i],
+      label: ui.commands.lockedSlot.text,
+      locked: true,
+      enabled: false,
+      value: id,
+    } : ({
       slot: slots[i],
       label: this.fogged(hero) ? statuses.fog.label : this.techOf(hero, id).name,
       cost: this.techOf(hero, id).cost,
@@ -836,6 +843,12 @@ export default class BattleScene extends Phaser.Scene {
     }));
     items.push({ slot: 'back', label: ui.commands.labels.back, value: null });
     return items;
+  }
+
+  // battles.json lockedTechniques {techId: flag}: the technique can't be used until a battle event sets the flag.
+  isLocked(id) {
+    const flag = this.battleDef.lockedTechniques?.[id];
+    return !!flag && !this.hasFlag(flag);
   }
 
   // A heal technique has someone to help: a hurt hero, or a downed one if it revives.
@@ -909,7 +922,7 @@ export default class BattleScene extends Phaser.Scene {
 
     this.showActiveHero(hero);
     this.hints.show('strike');
-    const costs = hero.techniques.map((id) => this.techOf(hero, id).cost);
+    const costs = hero.techniques.filter((id) => !this.isLocked(id)).map((id) => this.techOf(hero, id).cost);
     if (costs.length && hero.echo >= Math.min(...costs)) this.hints.show('techniques');
     const action = await this.chooseAction(hero);
     this.hints.done('strike');
@@ -1008,6 +1021,9 @@ export default class BattleScene extends Phaser.Scene {
 
     this.tapHint.setVisible(true);
     const hits = attack.hits || [attack];
+    // enemies.json firstAttackTelegraphMult: the enemy's first real attack (a refused turn doesn't count) winds up slower.
+    const telegraphMult = !enemy.attacked && enemy.def.firstAttackTelegraphMult ? enemy.def.firstAttackTelegraphMult : 1;
+    enemy.attacked = true;
     const restoreDepth = this.bringInFront(enemy, target);
     // A melee attack walks up to its target first (before the first ring) and
     // walks home after the last hit, whatever ended the attack.
@@ -1019,6 +1035,7 @@ export default class BattleScene extends Phaser.Scene {
         if (target.hp <= 0 || enemy.hp <= 0) break;
         const hit = {
           ...hits[k],
+          telegraphMs: hits[k].telegraphMs * telegraphMult,
           unparryable: hits[k].unparryable ?? attack.unparryable ?? false,
           // Sounds can be set per hit or once for the whole attack.
           sfx: hits[k].sfx ?? attack.sfx,
@@ -1417,12 +1434,16 @@ export default class BattleScene extends Phaser.Scene {
     const ctx = {
       round: this.stats.turns,
       playerHits: this.counters.playerHits,
+      parries: this.counters.parries,
       immuneSeen: this.counters.immuneSeen,
       enemies: this.enemies.map((e) => ({ hp: e.hp, maxHp: e.maxHp })),
     };
     for (const event of dueEvents(events, this.firedEvents, ctx)) {
       if (this.battleOver) return;
       this.firedEvents.add(event.id);
+      // Order: the PRE actions (nalaJumpIn), the dialogue, the banner, the other actions.
+      const { pre, post } = thenSplit(event.then);
+      for (const action of pre) await this.runEventAction(action);
       if (event.dialogue) {
         if (!dialogues[event.dialogue]) {
           if (import.meta.env.DEV) console.warn(`battle event "${event.id}": no dialogue "${event.dialogue}", skipped`);
@@ -1430,12 +1451,41 @@ export default class BattleScene extends Phaser.Scene {
         }
         await this.playDialogueOverlay(event.dialogue);
       }
-      if (event.then === 'endBattle') {
-        this.onBattleEnd('INTERRUPTED');
-        return;
+      if (event.banner) {
+        this.hints.hide(); // an older banner may still be up from before the dialogue
+        this.hints.show(event.banner);
       }
-      if (event.then?.setFlag) this.flags.add(event.then.setFlag);
+      for (const action of post) {
+        if (action === 'endBattle') {
+          this.onBattleEnd('INTERRUPTED');
+          return;
+        }
+        await this.runEventAction(action);
+      }
     }
+  }
+
+  // One `then` action of a battle event (the endBattle word is handled by checkEvents).
+  async runEventAction(action) {
+    if (action?.setFlag) this.flags.add(action.setFlag);
+    else if (action === 'nalaJumpIn') await this.eventNalaJumpIn();
+  }
+
+  // Nala leaps in from the left edge and lands between the heroes and the enemies. A battle
+  // without Nala (b0_duel) gets her created on the spot, off screen on the left.
+  async eventNalaJumpIn() {
+    if (!this.nala) this.createNala();
+    if (!this.nala) return;
+    const c = this.nala.container;
+    const hero = this.heroes.find((h) => h.hp > 0) || this.heroes[0];
+    const foe = this.enemies.find((e) => e.hp > 0) || this.enemies[0];
+    const toX = Math.round(((hero?.container.x ?? c.x) + (foe?.container.x ?? c.x)) / 2);
+    const toY = c.y;
+    // Hidden until the arc starts (createNala puts her at her usual spot), then in from the left edge.
+    const fromX = viewRect().x - this.nala.image.width;
+    c.setVisible(false);
+    await this.nalaJumpIn(fromX, toY, toX, toY);
+    this.nala.glow.setAlpha(0);
   }
 
   // Flags set by battle events ({setFlag}); e.g. an enemy's refuseUntilFlag reads this.
@@ -1727,6 +1777,9 @@ export default class BattleScene extends Phaser.Scene {
     const x = hero.container.x;
     const y = hero.container.y;
 
+    // Battle events {parries: n}: a PERFECT or GOOD answered with a tap (not a dodge, not a reparry ring).
+    if (!dodged && result !== 'MISS' && !hit.reparry) this.counters.parries += 1;
+
     if (cfg.text) Fx.popText(this, x, y, cfg.text, cfg.color, qte.text);
     if (cfg.flash) Fx.screenFlash(this, cfg.flash, qte.flashDepth);
     // The prop lands (the Clerk's stamp), parried or not.
@@ -1898,17 +1951,20 @@ export default class BattleScene extends Phaser.Scene {
     });
   }
 
-  // Blast: 3–6 bolts; every bolt has a chance to crit, and each crit adds a
-  // bolt (up to maxHits). With a blast sheet the bolts fly while the anim holds
-  // its aim frame.
-  // Echo: one landed volley is one player hit (+echoOnHit), not one per bolt.
+  // Blast: `hits` base bolts; every base bolt has a chance to crit, and a crit
+  // fires ONE extra bolt (up to maxHits) that can never crit itself. With a blast
+  // sheet the bolts fly while the anim holds its aim frame.
+  // Echo: techniques never give Echo (no echoOnHit in techniques.json); gainEcho
+  // ignores an undefined amount, so a technique may still define one.
   async playBlast(hero, target, tech, techId) {
-    let total = Phaser.Math.Between(tech.hits[0], tech.hits[1]);
+    const base = Phaser.Math.Between(tech.hits[0], tech.hits[1]);
+    let total = base;
     // enemies.json defend.dodge: rolled once per cast; the whole volley misses (the bolts still fly).
     const dodged = this.rollDodge(target, techId);
     const fire = async () => {
       for (let i = 0; i < total && target.hp > 0; i++) {
-        const crit = Math.random() < Math.max(tech.critChance, effectMax(this.fragments, 'blastCritChance')) && total < tech.maxHits;
+        // Only a base bolt (i < base) rolls; the extra bolts it queued at the end never do.
+        const crit = i < base && Math.random() < Math.max(tech.critChance, effectMax(this.fragments, 'blastCritChance')) && total < tech.maxHits;
         if (crit) total += 1;
         await this.fireBolt(hero, target, tech);
         if (dodged) {
@@ -2029,8 +2085,8 @@ export default class BattleScene extends Phaser.Scene {
       else target.hp = Math.min(target.maxHp, target.hp + tech.amount);
       const healed = target.hp - before;
       Fx.damageNumber(this, target.container.x, target.container.y - 80, `${ui.heal.textPrefix}${healed}`, null, 'heal');
-      // Anchor also clears the target's statuses.
-      if (this.clearStatuses(target)) Fx.popText(this, target.container.x, target.container.y, statuses.ui.clearedText, statuses.ui.clearedColor, qte.text);
+      // Anchor also clears the target's statuses (techniques.json clearStatuses, on unless a level turns it off).
+      if (tech.clearStatuses !== false && this.clearStatuses(target)) Fx.popText(this, target.container.x, target.container.y, statuses.ui.clearedText, statuses.ui.clearedColor, qte.text);
       this.refreshHud();
     });
   }
@@ -2202,7 +2258,7 @@ export default class BattleScene extends Phaser.Scene {
   // on the enemy, never a Strike, so it can't be parried in turn.
   async reparry(enemy, hero) {
     const rp = enemy.def.defend.reparry;
-    const hit = { id: 'reparry', telegraphMs: rp.telegraphMs, dmg: rp.dmg, unparryable: false };
+    const hit = { id: 'reparry', telegraphMs: rp.telegraphMs, dmg: rp.dmg, unparryable: false, reparry: true };
     // Not a counted player hit (applyHit would mark the PERFECT counter as one).
     const wasPlayerAction = this.playerAction;
     this.playerAction = false;

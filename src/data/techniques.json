@@ -2,18 +2,18 @@
   "strike": { "name": "Strike", "cost": 0, "type": "strike", "target": "enemy", "echoOnHit": 1, "immuneText": "IMMUNE", "immuneColor": "#9db4c8" },
   "blast": {
     "name": "Blast",
-    "cost": 3,
+    "cost": 4,
     "type": "blast",
     "target": "enemy",
-    "echoOnHit": 1,
-    "hits": [3, 6],
+    "hits": [4, 6],
     "dmg": [3, 4],
-    "critChance": 0.3,
+    "critChance": 0.25,
     "levels": {
-      "1": { "cost": 1, "hits": [2, 2], "critChance": 0 },
-      "2": { "cost": 2, "hits": [3, 3], "critChance": 0 },
-      "3": { "cost": 3, "hits": [3, 5], "critChance": 0.2 },
-      "4": { "cost": 3, "hits": [3, 6], "critChance": 0.3 }
+      "1": { "cost": 2, "hits": [2, 2], "critChance": 0 },
+      "2": { "cost": 3, "hits": [4, 4], "critChance": 0 },
+      "3": { "cost": 4, "hits": [4, 6], "critChance": 0.2 },
+      "4": { "cost": 4, "hits": [4, 6], "critChance": 0.25 },
+      "5": { "cost": 4, "hits": [4, 6], "dmg": [4, 5], "critChance": 0.3, "aimMinigame": true }
     },
     "maxHits": 10,
     "boltIntervalMs": 110,
@@ -25,7 +25,7 @@
   },
   "return_to_sender": {
     "name": "Return to Sender",
-    "cost": 3,
+    "cost": 2,
     "type": "counterStance",
     "counterDmg": [14, 18],
     "perfectMult": 1.5,
@@ -40,7 +40,6 @@
     "target": "all",
     "anims": ["attack", "cast"],
     "dmg": [7, 9],
-    "echoOnHit": 1,
     "castText": "Tremor!",
     "color": "#e0a040",
     "shake": 5,
@@ -50,16 +49,20 @@
   },
   "anchor": {
     "name": "Anchor",
-    "cost": 4,
+    "cost": 2,
     "type": "heal",
     "anims": ["cast"],
     "amount": 25,
     "canRevive": true,
+    "levels": {
+      "1": { "amount": 20, "canRevive": false },
+      "3": { "amount": 25, "canRevive": true, "clearStatuses": true }
+    },
     "color": "#e0a040"
   },
   "brace": {
     "name": "Brace",
-    "cost": 3,
+    "cost": 4,
     "type": "brace",
     "anims": ["brace", "cast"],
     "damageMult": 0.5,

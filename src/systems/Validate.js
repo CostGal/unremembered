@@ -7,7 +7,7 @@
 // options.sheetExists(fileName) -> bool: checks sheet files on disk (Node only).
 // Returns {errors: [...], warnings: [...]}.
 
-import { whenErrors, thenValid } from './BattleEvents.js';
+import { whenErrors, thenValid, thenSplit } from './BattleEvents.js';
 import { compileTrack } from './MusicData.js';
 import { echoMaxFor, learned, techniqueAt } from './Recall.js';
 
@@ -87,8 +87,15 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       else eventIds.add(ev.id);
       for (const m of whenErrors(ev.when)) err(`${at}: ${m}`);
       if (ev.dialogue !== undefined && !dialogue[ev.dialogue]) err(`${at}: no dialogue "${ev.dialogue}" in dialogue.json`);
-      if (!thenValid(ev.then)) err(`${at}: then must be "continue", "endBattle" or {"setFlag": "<name>"}`);
+      if (!thenValid(ev.then)) err(`${at}: then must be an action or a list of actions: "continue", "endBattle", "nalaJumpIn" or {"setFlag": "<name>"}`);
+      if (ev.banner !== undefined && !ui.tutorial?.hints?.[ev.banner]) err(`${at}: banner "${ev.banner}" is not in ui.tutorial.hints`);
     });
+    // lockedTechniques: {techniqueId: flag}; the flag must be set by one of the battle's events.
+    const setFlags = new Set((battle.events || []).flatMap((ev) => thenSplit(ev.then).post.map((a) => a?.setFlag).filter(Boolean)));
+    for (const [tech, flag] of Object.entries(battle.lockedTechniques || {})) {
+      if (!techniques[tech]) err(`battles.${id}.lockedTechniques: "${tech}" is not in techniques.json`);
+      if (!setFlags.has(flag)) err(`battles.${id}.lockedTechniques.${tech}: no event of the battle sets the flag "${flag}"`);
+    }
   }
 
   // sfx on a dialogue line or a cutscene shot: a string naming an audio.json sfx recipe or a
@@ -291,6 +298,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
         else if (!animationSets[def.animSet]) warn(`${group}.${id}: animSet "${def.animSet}" has no ${def.animSet}_animations.json (rig fallback)`);
       }
       if (def.refuseUntilFlag !== undefined && typeof def.refuseUntilFlag !== 'string') err(`${group}.${id}: refuseUntilFlag must be a string`);
+      if (def.firstAttackTelegraphMult !== undefined && !(typeof def.firstAttackTelegraphMult === 'number' && def.firstAttackTelegraphMult >= 1)) err(`${group}.${id}: firstAttackTelegraphMult must be a number >= 1`);
     }
   }
   // displayScale: whole numbers only (a fractional scale breaks the pixel grid).

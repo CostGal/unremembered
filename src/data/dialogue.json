@@ -26,17 +26,27 @@
     { "speaker": "Dov", "style": "normal", "text": "Fine. Wake up, then!", "portrait": "dov_fierce" },
     { "speaker": null, "style": "narration", "text": "He raises his fists. He's holding back, but not by much.", "portrait": null }
   ],
+  "duel_parry": [
+    { "speaker": "Dov", "style": "normal", "text": "What else could I expect? First parry, and it's perfect.", "portrait": "dov_warm" },
+    { "speaker": "Rhea", "style": "normal", "text": "Hey. Turns out I'm pretty good at this.", "portrait": "rhea_determined" }
+  ],
+  "duel_blast_unlock": [
+    { "speaker": null, "style": "narration", "text": "Something flickers behind her eyes. Not a memory. The edge of one.", "portrait": null },
+    { "speaker": "Rhea", "style": "normal", "text": "Oh. Okay.", "portrait": "rhea_confused" },
+    { "speaker": "Rhea", "style": "normal", "text": "Now I can do this.", "portrait": "rhea_determined" }
+  ],
   "duel_nala": [
-    { "speaker": null, "style": "narration", "text": "A calico cat bolts out of the rain and plants herself between them.", "portrait": null },
+    { "speaker": "Nala", "style": "narration", "text": "Nala leaps out of the rain and lands between them, fur on end.", "portrait": "nala_hiss", "sfx": "sfx_hiss" },
     { "speaker": "Rhea", "style": "normal", "text": "...Nala?", "portrait": "rhea_confused" }
   ],
   "after_duel": [
-    { "speaker": "Dov", "style": "normal", "text": "Nala! Easy, girl. Easy.", "portrait": "dov_warm" },
+    { "speaker": "Dov", "style": "normal", "text": "Nala! Easy, girl. Easy.", "portrait": "dov_pet_nala" },
+    { "speaker": "Nala", "style": "narration", "text": "Nala meows at Rhea, once, like a question.", "portrait": "nala_meow", "sfx": "sfx_meow" },
     { "speaker": "Rhea", "style": "normal", "text": "I know her. I don't know my own name, but I know hers.", "portrait": "rhea_confused" },
     { "speaker": "Dov", "style": "normal", "text": "You remember the cat... and not me?", "portrait": "dov_worried" },
     { "speaker": "Dov", "style": "normal", "text": "No idea why you remember her. But she's never wrong about people.", "portrait": "dov_neutral" },
     { "speaker": "Rhea", "style": "normal", "text": "...Then I'll trust her. For now.", "portrait": "rhea_serious" },
-    { "speaker": null, "style": "narration", "text": "Nala's fur stands on end. She hisses at the dark.", "portrait": null },
+    { "speaker": "Nala", "style": "narration", "text": "Nala's fur stands on end. She hisses at the dark.", "portrait": "nala_hiss", "sfx": "sfx_hiss" },
     { "speaker": null, "style": "narration", "text": "Grey raincoats in the fog. Smooth faces. No eyes.", "portrait": null },
     { "speaker": "Dov", "style": "normal", "text": "Forgotten. Quill's strays.", "portrait": "dov_fierce" },
     { "speaker": "Rhea", "style": "normal", "text": "Who's Quill?", "portrait": "rhea_confused" },

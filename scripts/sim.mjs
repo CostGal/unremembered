@@ -16,7 +16,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { root } from './lib/harness.mjs';
-import { dueEvents } from '../src/systems/BattleEvents.js';
+import { dueEvents, thenSplit } from '../src/systems/BattleEvents.js';
 import { computeGrade } from '../src/systems/Grade.js';
 import { chapterXpBefore, echoMaxFor, growth, learned, levelFor, techniqueAt } from '../src/systems/Recall.js';
 
@@ -154,7 +154,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: D.enemies[id].hp, max: D.enemies[id].hp, phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false }));
 
   // A tutorial battle also costs the time to read its hint banners.
-  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], flags: [], playerHits: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], flags: [], playerHits: 0, parrySuccess: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   // Echo is per hero (each has their own reserve).
   const gain = (hero, n) => (hero.echo = Math.max(0, Math.min(hero.echoMax, hero.echo + n)));
   const rhea = heroes.find((h) => h.id === 'rhea'); // may be absent (battles.json party)
@@ -274,18 +274,23 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const firedEvents = new Set();
   const checkEvents = () => {
     if (!battle.events?.length || st.interrupted || !living(heroes).length) return;
-    const ctx = { round: st.rounds, playerHits: st.playerHits, immuneSeen: st.immuneSeen, enemies: enemies.map((e) => ({ hp: e.hp, maxHp: e.max })) };
+    const ctx = { round: st.rounds, playerHits: st.playerHits, parries: st.parrySuccess, immuneSeen: st.immuneSeen, enemies: enemies.map((e) => ({ hp: e.hp, maxHp: e.max })) };
     for (const ev of dueEvents(battle.events, firedEvents, ctx)) {
       firedEvents.add(ev.id);
+      // Same order as BattleScene.checkEvents: PRE actions (nalaJumpIn: a time cost), dialogue, banner, the rest.
+      const { pre, post } = thenSplit(ev.then);
+      for (const a of pre) if (a === 'nalaJumpIn') st.ms += T.nalaJumpMs;
       if (ev.dialogue) {
         if (!D.dialogue[ev.dialogue]) continue;
         st.ms += T.eventMs;
       }
-      if (ev.then === 'endBattle') {
-        st.interrupted = true;
-        return;
+      for (const a of post) {
+        if (a === 'endBattle') {
+          st.interrupted = true;
+          return;
+        }
+        if (a?.setFlag && !st.flags.includes(a.setFlag)) st.flags.push(a.setFlag);
       }
-      if (ev.then?.setFlag && !st.flags.includes(ev.then.setFlag)) st.flags.push(ev.then.setFlag);
     }
   };
   // An interrupted battle counts as a win (XP is given) without a grade.
@@ -329,14 +334,18 @@ function simulateBattle(battleId, profileName, story, rnd) {
     }
     // Techniques as they are at this Recall level (techniques.json `levels`).
     const tk = (id) => techniqueAt(id, level, tech);
-    const can = (id) => hero.techniques.includes(id) && hero.echo >= tk(id).cost && hero.redacted?.tech !== id;
+    // battles.json lockedTechniques {techId: flag}: unusable until a battle event sets the flag.
+    const locked = (id) => !!battle.lockedTechniques?.[id] && !st.flags.includes(battle.lockedTechniques[id]);
+    const can = (id) => hero.techniques.includes(id) && !locked(id) && hero.echo >= tk(id).cost && hero.redacted?.tech !== id;
 
     if (hero.id === 'dov') {
-      if ((down || hurt.length) && can('anchor')) {
+      // Anchor revives a downed hero only at the levels where canRevive is on (techniques.json levels).
+      const revive = tk('anchor')?.canRevive !== false ? down : null;
+      if ((revive || hurt.length) && can('anchor')) {
         hero.echo -= tk('anchor').cost;
-        const t = down || hurt.sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
+        const t = revive || hurt.sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
         t.hp = Math.min(t.max, (t.hp > 0 ? t.hp : 0) + tk('anchor').amount);
-        t.redacted = null; // Anchor clears statuses
+        if (tk('anchor').clearStatuses !== false) t.redacted = null;
         st.ms += T.castMs;
         return;
       }
@@ -367,11 +376,13 @@ function simulateBattle(battleId, profileName, story, rnd) {
       if (can('blast')) {
         hero.echo -= tk('blast').cost;
         const b = tk('blast');
-        let total = between(rnd, b.hits);
+        const base = between(rnd, b.hits);
+        let total = base;
         let bolts = 0;
         const dodged = defends(target, 'dodge', 'blast'); // once per cast: the whole volley misses
         for (let i = 0; i < total && target.hp > 0; i++) {
-          const crit = rnd() < b.critChance && total < b.maxHits;
+          // A crit on a base bolt fires ONE extra bolt; extra bolts (i >= base) never roll.
+          const crit = i < base && rnd() < b.critChance && total < b.maxHits;
           if (crit) total += 1;
           if (!dodged) {
             hitEnemy(target, between(rnd, b.dmg), 'multiHit', crit);
@@ -455,8 +466,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
     }
     // A melee attacker walks up before the first ring and home after the last (approach + return).
     if (attack.melee) st.ms += T.meleeMs;
+    // enemies.json firstAttackTelegraphMult: the first real attack winds up slower.
+    const telegraphMult = !enemy.attacked && enemy.def.firstAttackTelegraphMult ? enemy.def.firstAttackTelegraphMult : 1;
+    enemy.attacked = true;
     for (const h of attack.hits || [attack]) {
-      const hit = { ...h, unparryable: h.unparryable ?? attack.unparryable ?? false };
+      const hit = { ...h, telegraphMs: h.telegraphMs * telegraphMult, unparryable: h.unparryable ?? attack.unparryable ?? false };
       // crit.json enemy: per hit, before the parry's damage multiplier (same in Story Mode).
       if (rnd() < D.crit.enemy.chance) hit.dmg = Math.round(hit.dmg * D.crit.enemy.mult);
       if (target.hp <= 0 || enemy.hp <= 0) break;
@@ -476,6 +490,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
       // A swipe is a dodge: its own results (no counter, no Echo) and not a parry for Return to Sender.
       const { res, dodged } = answerRing(!!hit.unparryable);
       st.qtes[res] += 1;
+      if (!dodged && res !== 'MISS') st.parrySuccess += 1; // battle events {parries: n}
       const cfg = dodged ? { ...qte.results[res], ...qte.dodge.results[res] } : qte.results[res];
       if (cfg.chain !== 0) {
         if (res === 'PERFECT') st.chain += 1;

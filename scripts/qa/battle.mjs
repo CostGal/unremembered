@@ -332,6 +332,112 @@ await withBrowser(async ({ chrome, server }) => {
     log(Math.abs(j1.x - j0.x) < 0.5 && Math.abs(j1.y - j0.y) < 0.5 && j0.y - j1.apex > 60 && j1.sx < 0 && j1.sy === 1 && j1.anim === 'nala_idle' && j1.trace, 'Nala: jumpIn() arcs ~70px over the ground, lands where she stood (flip kept), back to idle', JSON.stringify({ j0, j1 }));
   }
 
+  // ============ F-duel: refuse -> wake -> slow first ring -> parry -> events -> Blast -> Nala -> interrupted end ============
+  if (want('duel')) {
+    const page = await battle(chrome, server, 'b0_duel');
+    await waitMenu(page);
+    // The telegraph of every real Dov attack, as handed to the ring (enemyHit wrapper).
+    await page.ev(`(() => { const B = window.__battle; window.__tele = []; const o = B.enemyHit.bind(B); B.enemyHit = (en, t, hit, sh, k) => { window.__tele.push(hit.telegraphMs); return o(en, t, hit, sh, k); }; })()`);
+    const tapDialogue = async (label) => {
+      let n = 0;
+      for (let i = 0; i < 80 && (await page.scenes()).includes('Dialogue'); i++) {
+        await page.tap(180, 560);
+        n++;
+        await sleep(450);
+      }
+      return n;
+    };
+    const start = await B(page, `({ echo: B.heroes[0].echo, max: B.heroes[0].echoMax, level: B.level, party: B.heroes.map((h) => h.type) })`);
+    log(start.party.length === 1 && start.max === 2 && start.level === 1 && start.echo === 1, 'Duel: Rhea alone, Echo cap 2 at Recall 1, one turn Echo on her first turn', JSON.stringify(start));
+
+    // Technique menu is visible and clickable, its Blast slot blank.
+    await page.tap(...slots.technique);
+    await sleep(300);
+    const tm = await B(page, `B.menu.items.map((i) => ({ slot: i.slot, label: i.label, locked: !!i.locked, enabled: i.enabled !== false, cost: i.cost ?? null }))`);
+    const blastSlot = tm.find((i) => i.slot === 'technique' || i.locked);
+    log(!!blastSlot?.locked && !blastSlot.enabled && blastSlot.cost === null && blastSlot.label === ui.commands.lockedSlot.text, 'Duel: Technique menu opens; the Blast slot is blank and not selectable', JSON.stringify(tm));
+    await page.shot(join(out, 'duel_blast_locked.png'));
+    await page.tap(...slots.back);
+    await sleep(300);
+
+    // Strike until Dov wakes (duel_refuse after the first hit; he refuses until duel_wake). His first real
+    // attack follows in the same round: slow ring (telegraph x2.5) on top of the tutorial slow-mo, then a real tap on impact.
+    let ring = null;
+    let refusedFirst = null;
+    for (let i = 0; i < 10 && !ring; i++) {
+      await waitMenuThroughDialogue(page, 60000);
+      await page.tap(...slots.strike);
+      await sleep(600); // the tapped button's menu is still "pending" for a moment
+      for (let t = 0; t < 400 && !ring; t++) {
+        if (await page.ev(`!!(window.__battle.qteRings && window.__battle.qteRings.size > 0)`)) ring = await page.ev(`({ at: [...window.__battle.qteRings][0].impactAt, now: performance.now(), scale: window.__battle.timeScale, tele: window.__tele.slice() })`);
+        else if (await page.ev(`!!(window.__battle.menu && window.__battle.menu.pending)`)) break;
+        else if ((await page.scenes()).includes('Dialogue')) await page.tap(180, 560);
+        await sleep(150);
+      }
+      if (i === 0) refusedFirst = !(await B(page, 'B.hasFlag("duelWake")'));
+    }
+    log(refusedFirst === true && !!ring, 'Duel: Dov refuses at first; duel_wake sets duelWake and his first attack comes');
+    const baseMs = await B(page, `B.enemies[0].def.attacks.map((a) => a.telegraphMs)`);
+    const first = ring.tele[0];
+    log(ring.tele.length === 1 && baseMs.includes(first / 2.5) && ring.scale < 1, 'Duel: the first real attack telegraph is x2.5 and the tutorial slow-mo is on top', `telegraphMs ${first} (bases ${baseMs}), timeScale ${ring.scale}, ring ${Math.round(ring.at - ring.now)} ms left`);
+    await sleep(Math.max(0, ring.at - ring.now - 6));
+    await page.tap(180, 610);
+    await page.waitFor(`window.__results.length > 0`, { timeout: 5000 });
+    const res = await page.ev(`window.__results[0]`);
+    log(res.result !== 'MISS' && res.input === 'tap', 'Duel: a tap parry on impact is not a MISS', JSON.stringify(res));
+
+    // duel_parry + duel_blast_unlock (+ banner) fire between turns.
+    await page.waitFor(`window.__battle.firedEvents.has('duel_parry')`, { timeout: 20000 });
+    const seen = new Set();
+    for (let i = 0; i < 80 && !(await B(page, 'B.hasFlag("blastUnlocked")')); i++) {
+      if ((await page.scenes()).includes('Dialogue')) await page.tap(180, 560);
+      await sleep(400);
+    }
+    await sleep(300);
+    const banner = await B(page, `B.hints.isShowing('blast_unlocked')`);
+    log(await B(page, `B.firedEvents.has('duel_blast_unlock') && B.hasFlag('blastUnlocked')`), 'Duel: duel_parry then duel_blast_unlock fire after the first parry and set blastUnlocked');
+    await tapDialogue();
+    await sleep(300);
+    log((await B(page, `B.hints.isShowing('blast_unlocked')`)) || banner, 'Duel: the "Blast unlocked" banner shows after the dialogue');
+    await page.shot(join(out, 'duel_blast_unlocked.png'));
+
+    // Rhea's next turn: Blast is selectable with Echo 2.
+    await waitMenuThroughDialogue(page, 60000);
+    await page.ev(`(() => { const h = window.__battle.heroes[0]; h.echo = h.echoMax; window.__battle.refreshHud(); })()`);
+    await page.tap(...slots.technique);
+    await sleep(300);
+    const tm2 = await B(page, `B.menu.items.map((i) => ({ slot: i.slot, label: i.label, locked: !!i.locked, enabled: i.enabled !== false, cost: i.cost ?? null }))`);
+    const blast = tm2.find((i) => i.label === 'Blast');
+    log(!!blast && blast.enabled && blast.cost === 2, 'Duel: after the unlock Blast is selectable (L1 cost 2)', JSON.stringify(tm2));
+    const hp0 = await B(page, 'B.enemies[0].hp');
+    const hitsBefore = await B(page, 'B.counters.playerHits');
+    await page.tap(...slots.strike); // the technique list puts its first technique (Blast) on the first slot
+    await page.waitFor(`window.__battle.counters.playerHits > ${hitsBefore}`, { timeout: 15000 }).catch(() => {});
+    const echoAfter = await B(page, 'B.heroes[0].echo');
+    log((await B(page, 'B.enemies[0].hp')) < hp0 && echoAfter === 0, 'Duel: Blast deals damage, spends 2 Echo and gives none back (techniques never give Echo)', `enemy hp ${hp0} -> ${await B(page, 'B.enemies[0].hp')}, echo ${echoAfter}`);
+
+    // Push Dov under 50 %: duel_nala = Nala jumps in (created on the spot), the dialogue, then the interrupted end.
+    await page.ev(`window.__battle.enemies[0].hp = Math.floor(window.__battle.enemies[0].maxHp * 0.49)`);
+    await page.waitFor(`window.__battle.firedEvents.has('duel_nala') || !!window.__battle.nala`, { timeout: 60000 });
+    const nalaSeen = await page.ev(`(() => { const B = window.__battle; const n = B.nala; return n ? { x: Math.round(n.container.x), vis: n.container.visible, hero: Math.round(B.heroes[0].container.x), foe: Math.round(B.enemies[0].container.x) } : null; })()`);
+    log(!!nalaSeen, 'Duel: Nala is created on demand for the jump-in', JSON.stringify(nalaSeen));
+    await page.waitFor(`window.__battle.nala && !window.__battle.nala.busy`, { timeout: 5000 });
+    await sleep(500);
+    const landed = await B(page, `({ x: Math.round(B.nala.container.x), hero: Math.round(B.heroes[0].container.x), foe: Math.round(B.enemies[0].container.x), dialogue: !!B.scene.get('Dialogue') })`);
+    log(landed.x > landed.hero && landed.x < landed.foe, 'Duel: Nala lands between Rhea and Dov', JSON.stringify(landed));
+    await page.waitFor(`window.__game.scene.getScenes(true).some((s) => s.scene.key === 'Dialogue')`, { timeout: 8000 });
+    const dl = await page.ev(`(() => { const d = window.__game.scene.getScene('Dialogue'); return { line: d.lines && d.lines[0] && { speaker: d.lines[0].speaker, portrait: d.lines[0].portrait, style: d.lines[0].style } }; })()`);
+    log(dl.line?.speaker === 'Nala' && dl.line?.portrait === 'nala_hiss' && dl.line?.style === 'narration', 'Duel: duel_nala opens with the Nala narration line (nala_hiss portrait)', JSON.stringify(dl));
+    await page.shot(join(out, 'duel_nala_jump.png'));
+    await tapDialogue();
+    await page.waitFor(`window.__battle.battleOver === true`, { timeout: 8000 });
+    await sleep(1500);
+    await page.shot(join(out, 'duel_recall_card.png'));
+    const end = await B(page, `({ over: B.battleOver, xp: B.registry.get('recallXp'), level: B.level, texts: B.children.list.filter((o) => o.type === 'Text' && o.visible).map((o) => o.text) })`);
+    const levelUp = end.texts.some((t) => /RECALL \d/.test(t));
+    log(end.over && end.xp === 40 && !levelUp && end.texts.some((t) => /\+40/.test(t)) && end.texts.some((t) => /Recall 1/.test(t)), 'Duel: interrupted end gives +40 Memories (40/60), Recall 1, no level-up', JSON.stringify({ xp: end.xp, level: end.level, levelUp }));
+  }
+
   // ============ F-down: Anchor revive, both down → lose → Retry snapshot ============
   if (want('down')) {
     const page = await battle(chrome, server, 'boss_clerk');
@@ -393,7 +499,8 @@ await withBrowser(async ({ chrome, server }) => {
     await sleep(2200);
     const d1 = await page.ev(`({ hp1: window.__battle.enemies[1].hp, hp0: window.__battle.enemies[0].hp, echo: window.__battle.heroes[0].echo })`);
     log(d1.hp1 < e1.hp && d1.hp0 === e1.hp0, 'Tapping the 2nd enemy hits that one only (Rhea Strike)', `enemy1 ${e1.hp}→${d1.hp1}, enemy0 ${e1.hp0}→${d1.hp0}; echo ${d1.echo}`);
-    log(d1.echo === 1, 'Strike that lands gives +1 Echo to the striker', `echo ${d1.echo}`);
+    // Rhea's cap is 2 at Recall 1: her turn Echo (+1) and the landed Strike (+1) fill it.
+    log(d1.echo === 2, 'Strike that lands gives +1 Echo to the striker (on top of the turn Echo; cap 2)', `echo ${d1.echo}`);
     // Dov's turn: Strike
     await waitMenu(page);
     const heroNow = await B(page, 'B.activeHero.type');

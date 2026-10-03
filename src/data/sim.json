@@ -30,6 +30,7 @@
     "insightMs": 12000,
     "eventMs": 6000,
     "refuseMs": 1200,
+    "nalaJumpMs": 1800,
     "recollectionFadeMs": 400,
     "victoryMs": 2500,
     "loseMs": 2500,

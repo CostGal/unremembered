@@ -1,14 +1,14 @@
 {
   "_about": "Recall (leveling). The party shares one pool of Memories (XP): enemies.json xp per enemy, given on a win. xpAt[i] = Memories needed for Recall i+1. Per level past 1, each hero gains growth. learn = the Recall level at which a hero remembers a technique (a technique not listed is always known). echoMax[hero][i] = the hero\u0027s Echo capacity at Recall i+1 (Rhea\u0027s Keepsake can still raise hers). A technique with `levels` in techniques.json grows at those Recall levels.",
-  "xpAt": [0, 40, 100, 180, 280],
-  "echoMax": { "rhea": [1, 3, 5, 7, 8], "dov": [5, 5, 5, 5, 5] },
+  "xpAt": [0, 60, 110, 190, 300],
+  "echoMax": { "rhea": [2, 3, 5, 7, 8], "dov": [5, 5, 5, 5, 5] },
   "growth": {
     "rhea": { "hp": 6, "strike": 1 },
     "dov": { "hp": 10, "strike": 1 }
   },
   "learn": {
     "rhea": { "blast": 1, "return_to_sender": 2 },
-    "dov": { "tremor": 1, "anchor": 2, "brace": 3 }
+    "dov": { "anchor": 1, "tremor": 3, "brace": 4 }
   },
   "flavor": {
     "return_to_sender": "A courier's rule: every letter finds its way home.",
@@ -26,7 +26,7 @@
     "upgrade": "{tech} grows: {detail}",
     "hud": "Lv{n}"
   },
-  "upgradeDetail": { "cost": "{n} Echo", "hits": "{a}–{b} bolts", "hitsSame": "{a} bolts", "critChance": "{pct}% crit" },
+  "upgradeDetail": { "cost": "{n} Echo", "hits": "{a}–{b} bolts", "hitsSame": "{a} bolts", "critChance": "{pct}% crit", "amount": "heals {n}" },
   "hud": { "fontSize": 10, "color": "#f0c060", "gap": 3, "dy": 1 },
   "card": {
     "x": 30,

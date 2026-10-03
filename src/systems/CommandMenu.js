@@ -78,7 +78,13 @@ export default class CommandMenu {
       body.addAt(bar, 1);
     }
 
-    const hasCost = item.cost !== undefined && item.cost !== null;
+    // A locked technique (battles.json lockedTechniques): a blank slot, no name, no cost.
+    if (item.locked) {
+      const l = this.cfg.lockedSlot;
+      text.setColor(l.color);
+    }
+
+    const hasCost = !item.locked && item.cost !== undefined && item.cost !== null;
     if (hasCost) {
       text.setY(b.labelOffsetY);
       const costLabel = typeof item.cost === 'string' ? item.cost : this.cfg.labels.cost.replace('{n}', item.cost);

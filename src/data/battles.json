@@ -8,10 +8,19 @@
     "statuses": false,
     "nala": false,
     "music": "battle",
+    "lockedTechniques": { "blast": "blastUnlocked" },
     "events": [
       { "id": "duel_refuse", "when": { "playerHits": 1 }, "dialogue": "duel_refuse" },
       { "id": "duel_wake", "when": { "firstOf": [{ "playerHits": 3 }, { "round": 3 }] }, "dialogue": "duel_wake", "then": { "setFlag": "duelWake" } },
-      { "id": "duel_nala", "when": { "enemyHpBelowPct": 50 }, "dialogue": "duel_nala", "then": "endBattle" }
+      { "id": "duel_parry", "when": { "parries": 1 }, "dialogue": "duel_parry" },
+      {
+        "id": "duel_blast_unlock",
+        "when": { "all": [{ "parries": 1 }, { "playerHits": 1 }] },
+        "dialogue": "duel_blast_unlock",
+        "then": { "setFlag": "blastUnlocked" },
+        "banner": "blast_unlocked"
+      },
+      { "id": "duel_nala", "when": { "enemyHpBelowPct": 50 }, "dialogue": "duel_nala", "then": ["nalaJumpIn", "endBattle"] }
     ]
   },
   "b1_forgotten": {

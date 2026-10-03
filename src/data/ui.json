@@ -145,6 +145,7 @@
       "cost": "{n} Echo",
       "ultimateProgress": "{n}/{max} Echo"
     },
+    "lockedSlot": { "text": "? ? ?", "color": "#5a5f73" },
     "targetTint": "0xfff066"
   },
   "animtest": {
@@ -584,7 +585,8 @@
       "break": { "text": "Empty its golden line to BREAK it", "always": true },
       "status": { "text": "Statuses fade. Anchor clears them", "always": true },
       "dodge": { "text": "Swipe to dodge: safer, but no Echo", "always": true },
-      "recollection": { "text": "Recollection is ready. Make him relive it.", "always": true }
+      "recollection": { "text": "Recollection is ready. Make him relive it.", "always": true },
+      "blast_unlocked": { "text": "Blast unlocked", "always": true }
     }
   },
   "activeHero": { "color": "0x3fd0c9", "size": 7, "gapY": 6, "bobPx": 3, "bobMs": 380, "depth": 905, "nameColor": "#3fd0c9" },
