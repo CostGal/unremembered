@@ -72,7 +72,8 @@
   },
   "ui": {
     "logo": { "file": "ui/logo.png", "w": 720, "h": 207, "optional": true },
-    "title_bg": { "file": "ui/title_bg.jpg", "w": 720, "h": 1280, "optional": true }
+    "title_bg": { "file": "ui/title_bg.jpg", "w": 720, "h": 1280, "optional": true },
+    "ui_badge_postjam": { "file": "ui/ui_badge_postjam.png", "w": 160, "h": 40, "optional": true }
   },
   "cutscene": {
     "city": { "file": "cutscene/city.jpg", "w": 720, "h": 1280 },

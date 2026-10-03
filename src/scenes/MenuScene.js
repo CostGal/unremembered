@@ -47,6 +47,7 @@ export default class MenuScene extends Phaser.Scene {
       // Locked items answer on the tap itself (the toast), the rest after the press.
       const button = makeGlassButton(this, 180, y, cfg.button, ui.glass, variant, item.label, () => this.choose(item, y), { instant: !!item.locked });
       button.container.setDepth(cfg.buttonDepth);
+      if (item.id === 'credits') this.addBadge(button);
       const delay = cfg.enter.delayMs + i * cfg.enter.staggerMs;
       this.enter(button.body, delay);
       if (item.id === 'new') this.pulse(y, delay + cfg.enter.ms);
@@ -79,14 +80,38 @@ export default class MenuScene extends Phaser.Scene {
     });
   }
 
+  // "POST GAME JAM" on the right of the Credits item: the art badge when the
+  // texture is really there, otherwise a pill drawn in code. It sits in the
+  // button's body, so it slides in with it.
+  addBadge(button) {
+    const c = cfg.credits;
+    const x = cfg.button.w / 2 - c.badgeRightInset;
+    if (isRealTexture(this, c.badgeTexture)) {
+      const img = this.add.image(x, 0, c.badgeTexture).setOrigin(1, 0.5);
+      img.setScale(c.badgeW / img.width);
+      button.body.add(img);
+      return;
+    }
+    const label = this.add
+      .text(0, 0, c.badgeText, { fontFamily: ui.font, fontSize: `${c.badgeFontSize}px`, color: c.badgeTextColor })
+      .setOrigin(0.5);
+    const w = label.width + c.badgePadX * 2;
+    const pill = this.add.graphics();
+    pill.fillStyle(Number(c.badgeFill), 1);
+    pill.fillRoundedRect(x - w, -c.badgeH / 2, w, c.badgeH, c.badgeRadius);
+    label.setPosition(x - w / 2, 0);
+    button.body.add([pill, label]);
+  }
+
   choose(item, y) {
+    // Credits stay on show but closed until after the jam (the tick is the button's own).
+    if (item.inert) return;
     if (item.locked) {
       Fx.popText(this, 180, y + cfg.button.h / 2, cfg.lockedText, cfg.lockedColor, qte.text);
       return;
     }
     if (item.id === 'new') this.newGame();
     else if (item.id === 'settings') this.scene.start('Settings');
-    else if (item.id === 'credits') this.scene.start('End', { credits: true });
   }
 
   // Every New Game asks how hard the fights should be (qte.json difficulties;
@@ -97,6 +122,11 @@ export default class MenuScene extends Phaser.Scene {
     const d = cfg.difficulty;
     const v = viewRect();
     const blocker = this.add.rectangle(v.x, v.y, v.w, v.h, Number(d.dim.color), d.dim.alpha).setOrigin(0).setInteractive();
+    // A tap on the dim, outside the panel, closes it.
+    blocker.on('pointerdown', (pointer) => {
+      const inside = Math.abs(pointer.worldX - 180) <= d.box.w / 2 && Math.abs(pointer.worldY - d.box.y) <= d.box.h / 2;
+      if (!inside) this.closeDifficulty();
+    });
     const box = glassPanel(this, 180, d.box.y, d.box.w, d.box.h, d.box);
     const title = addText(this, 180, d.title.y, d.title.text, d.title);
     const pick = (difficulty) => {
@@ -112,7 +142,14 @@ export default class MenuScene extends Phaser.Scene {
       return button.container;
     });
     const hint = addText(this, 180, d.hint.y, d.hint.text, d.hint);
-    this.panel = [blocker, box, title, ...buttons, hint];
+    const back = makeGlassButton(this, 180, d.back.y, d.back, ui.glass, 'secondary', d.back.text, () => this.closeDifficulty());
+    this.panel = [blocker, box, title, ...buttons, hint, back.container];
     for (const [i, o] of this.panel.entries()) o.setDepth(d.depth + i);
+  }
+
+  closeDifficulty() {
+    if (!this.panel) return;
+    for (const o of this.panel) o.destroy();
+    this.panel = null;
   }
 }

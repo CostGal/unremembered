@@ -42,6 +42,9 @@ export function unlockAudio() {
     sfxBus.connect(master);
     applyVolumes();
     document.addEventListener('visibilitychange', onVisibility);
+    // Whenever the context (re)starts running, make sure the wanted music is
+    // actually playing: the first gesture can resolve resume() a beat late.
+    ctx.onstatechange = onStateChange;
     if (wantedMusic) playMusic(wantedMusic);
     if (wantedAmbience) startAmbience(wantedAmbience, audioData.ambience.beds[wantedAmbience]);
   }
@@ -60,6 +63,29 @@ export function unlockAudio() {
     ctx.resume().catch(() => {});
   }
   return ctx;
+}
+
+function onStateChange() {
+  if (!ctx || ctx.state !== 'running') return;
+  if (wantedMusic && !current) playMusic(wantedMusic);
+  if (wantedAmbience && !ambience) startAmbience(wantedAmbience, audioData.ambience.beds[wantedAmbience]);
+}
+
+// Document-level gesture hooks (called once from main.js): every pointerdown
+// and touchend (capture, passive, so nothing can stop them) creates/resumes
+// the context. iOS counts touchend (not always pointerdown) as the gesture
+// that may start audio; 'interrupted' (iOS: a call, Siri) is resumed too.
+let listening = false;
+export function installAudioUnlock() {
+  if (listening || typeof document === 'undefined') return;
+  listening = true;
+  const opts = { capture: true, passive: true };
+  const handler = () => {
+    if (ctx && ctx.state === 'running') return;
+    unlockAudio();
+  };
+  document.addEventListener('pointerdown', handler, opts);
+  document.addEventListener('touchend', handler, opts);
 }
 
 export function getAudioContext() {

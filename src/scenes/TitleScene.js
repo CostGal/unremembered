@@ -70,7 +70,14 @@ export default class TitleScene extends Phaser.Scene {
     this.tweens.killTweensOf(this.tapText);
     this.tweens.add({ targets: this.tapText, alpha: 0, duration: l.fadeMs });
     const s = this.logo.scaleX;
-    this.tweens.add({ targets: this.logo, scale: s * l.logoPulseScale, duration: l.logoPulseMs, yoyo: true, ease: 'Sine.easeInOut' });
+    // A punch up, then it settles back with an overshoot.
+    this.tweens.chain({
+      targets: this.logo,
+      tweens: [
+        { scale: s * l.logoPulseScale, duration: l.logoPulseUpMs, ease: l.logoPulseUpEase },
+        { scale: s, duration: l.logoPulseMs, ease: l.logoPulseEase },
+      ],
+    });
     this.time.delayedCall(l.delayMs, () => this.scene.start('Menu'));
   }
 

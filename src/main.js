@@ -12,7 +12,7 @@ import AnimTestScene from './scenes/AnimTestScene.js';
 import PauseScene from './scenes/PauseScene.js';
 import LoaderScene from './scenes/LoaderScene.js';
 import RewardScene from './scenes/RewardScene.js';
-import { unlockAudio } from './systems/Audio.js';
+import { installAudioUnlock } from './systems/Audio.js';
 import { devParam } from './systems/DevParams.js';
 import { VIEW, install as installView } from './systems/View.js';
 
@@ -49,7 +49,19 @@ else if (sideways.addListener) sideways.addListener(onSideways);
 // Every tap (re)unlocks audio: the first one creates the context (dev params
 // skip the Title tap), later ones resume it after an iOS interruption (a call,
 // Siri, an app switch) that left it stopped, so the music comes back.
-document.addEventListener('pointerdown', () => unlockAudio());
+installAudioUnlock();
+
+// Browser toolbars (iOS Safari, the Instagram in-app browser) grow and shrink
+// the visible viewport: re-fit the canvas (the logical width stays as measured
+// at boot, see systems/View.js).
+let refitTimer = null;
+const refit = () => {
+  clearTimeout(refitTimer);
+  refitTimer = setTimeout(() => game.scale.refresh(), 100);
+};
+window.addEventListener('resize', refit);
+window.addEventListener('orientationchange', refit);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', refit);
 
 // ?music=<key>: one procedural track on its own with a tiny panel (loaded only then).
 if (devParam('music')) import('./systems/MusicPanel.js').then((m) => m.openMusicPanel(devParam('music')));

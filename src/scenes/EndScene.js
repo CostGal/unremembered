@@ -32,12 +32,22 @@ export default class EndScene extends Phaser.Scene {
     glassPanel(this, 180, p.y, p.w, p.h, p).setDepth(depth);
     addText(this, 180, cfg.title.y, this.creditsOnly ? credits.creditsTitle : credits.endTitle, cfg.title).setDepth(depth);
 
-    let y = cfg.firstY;
-    for (const line of credits.lines) {
-      addText(this, 180, y, line.role, { fontSize: cfg.roleFontSize, color: cfg.roleColor }).setDepth(depth);
-      addText(this, 180, y + cfg.lineH * 0.7, line.name, { fontSize: cfg.nameFontSize, color: cfg.nameColor }).setDepth(depth);
-      y += cfg.lineH * 1.8;
+    if (credits.revealed) {
+      let y = cfg.firstY;
+      for (const line of credits.lines) {
+        addText(this, 180, y, line.role, { fontSize: cfg.roleFontSize, color: cfg.roleColor }).setDepth(depth);
+        addText(this, 180, y + cfg.lineH * 0.7, line.name, { fontSize: cfg.nameFontSize, color: cfg.nameColor }).setDepth(depth);
+        y += cfg.lineH * 1.8;
+      }
+    } else {
+      addText(this, 180, cfg.hidden.y, credits.hiddenText, cfg.hidden).setDepth(depth);
     }
+    // The music licences stay on show (nothing to list while every track is procedural).
+    const m = cfg.music;
+    credits.music.forEach((track, i) => {
+      const line = m.format.replace('{title}', track.title).replace('{author}', track.author).replace('{license}', track.license);
+      addText(this, 180, m.y + i * m.lineH, line, m).setDepth(depth);
+    });
 
     this.time.delayedCall(cfg.hint.delayMs, () => {
       const hint = addText(this, 180, cfg.hint.y, cfg.hint.text, cfg.hint).setDepth(depth);

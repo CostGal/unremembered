@@ -34,7 +34,7 @@ await withBrowser(async ({ chrome, server }) => {
   const items = ui.menu.items;
   const first = ui.menu.firstY;
   for (const [i, item] of items.entries()) {
-    if (!item.locked) continue;
+    if (!item.locked || item.inert) continue;
     const y = first + i * ui.menu.spacing;
     await page.tap(180, y);
     await sleep(200);
@@ -88,12 +88,16 @@ await withBrowser(async ({ chrome, server }) => {
   check('Settings: Back returns to Menu', true);
   // ---- Credits
   await sleep(300);
+  // The Credits item is closed until after the jam: a tap does nothing; the End scene still opens directly.
   await page.tap(180, first + 4 * ui.menu.spacing);
+  await sleep(500);
+  check('Credits: menu item is inert', !(await page.scenes()).includes('End'));
+  await page.ev(`window.__game.scene.getScene('Menu').scene.start('End', { credits: true }); 1`);
   await waitScene(page, 'End');
   await sleep(2200);
   await page.shot(join(out, 'credits.png'));
   const ct = await texts(page, 'End');
-  check('Credits: lines rendered', ct.length > 8, `${ct.length} text objects; hint "${ct.find((t) => /Tap to return/i.test(t.t))?.t}" a=${ct.find((t) => /Tap to return/i.test(t.t))?.a}`);
+  check('Credits: hidden text + hint rendered', ct.some((t) => /post game jam/i.test(t.t)) && ct.some((t) => /Tap to return/i.test(t.t)), `${ct.length} text objects; hint "${ct.find((t) => /Tap to return/i.test(t.t))?.t}" a=${ct.find((t) => /Tap to return/i.test(t.t))?.a}`);
   const maxY = Math.max(...ct.map((t) => t.y));
   check('Credits: nothing past y 580 (bottom 60 px)', maxY <= 580, `max y ${maxY}`);
   await page.tap(180, 300);

@@ -382,7 +382,7 @@
       "pulseAlpha": 0.35,
       "pulseMs": 700
     },
-    "leave": { "delayMs": 1200, "fadeMs": 400, "logoPulseScale": 1.04, "logoPulseMs": 300 },
+    "leave": { "delayMs": 1200, "fadeMs": 400, "logoPulseScale": 1.08, "logoPulseUpMs": 110, "logoPulseUpEase": "Quad.easeOut", "logoPulseMs": 340, "logoPulseEase": "Back.easeOut" },
     "silent": { "text": "🔈 Turn off silent mode for sound", "y": 566, "fontSize": 12, "color": "#8a8f9e" },
     "fullscreen": {
       "y": 602,
@@ -442,17 +442,30 @@
       { "id": "chapter2", "label": "Chapter 2 🔒", "locked": true },
       { "id": "arena", "label": "Arena 🔒", "locked": true },
       { "id": "settings", "label": "Settings" },
-      { "id": "credits", "label": "Credits" }
+      { "id": "credits", "label": "Credits", "locked": true, "inert": true }
     ],
+    "credits": {
+      "badgeTexture": "ui_badge_postjam",
+      "badgeW": 96,
+      "badgeText": "POST GAME JAM",
+      "badgeFill": "0xe0a040",
+      "badgeTextColor": "#0b0d14",
+      "badgeFontSize": 10,
+      "badgePadX": 7,
+      "badgeH": 20,
+      "badgeRadius": 10,
+      "badgeRightInset": 10
+    },
     "difficulty": {
       "depth": 100,
       "dim": { "color": "0x04050b", "alpha": 0.8 },
-      "box": { "y": 336, "w": 320, "h": 344, "fill": "0x111726", "fillAlpha": 0.94, "stroke": "0x3fd0c9", "strokeAlpha": 0.6, "radius": 10 },
+      "box": { "y": 352, "w": 320, "h": 400, "fill": "0x111726", "fillAlpha": 0.94, "stroke": "0x3fd0c9", "strokeAlpha": 0.6, "radius": 10 },
       "title": { "text": "How do you like your fights?", "y": 206, "fontSize": 18, "color": "#f1efe8", "wrap": 280 },
       "button": { "w": 280, "h": 56, "fontSize": 17 },
       "firstY": 268,
       "spacing": 68,
-      "hint": { "text": "You can change this any time in Settings.", "y": 470, "fontSize": 12, "color": "#8a8fa3", "wrap": 280 }
+      "hint": { "text": "You can change this any time in Settings.", "y": 470, "fontSize": 12, "color": "#8a8fa3", "wrap": 280 },
+      "back": { "text": "Back", "y": 520, "w": 200, "h": 56, "fontSize": 16 }
     },
     "lockedText": "Coming soon",
     "lockedColor": "#e0a040"
@@ -489,6 +502,8 @@
     "roleColor": "#8a8fa3",
     "nameFontSize": 16,
     "nameColor": "#f1efe8",
+    "hidden": { "y": 322, "fontSize": 20, "color": "#f1efe8", "wrap": 250 },
+    "music": { "y": 478, "lineH": 16, "fontSize": 11, "color": "#8a8fa3", "wrap": 280, "format": "Music: {title} — {author} ({license})" },
     "hint": {
       "text": "Tap to return to the menu",
       "y": 566,

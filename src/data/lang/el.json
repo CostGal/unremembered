@@ -71,7 +71,13 @@
         },
         "hint": {
           "text": "Μπορείς να το αλλάξεις όποτε θες στις Ρυθμίσεις."
+        },
+        "back": {
+          "text": "Πίσω"
         }
+      },
+      "credits": {
+        "badgeText": "ΜΕΤΑ ΤΟ JAM"
       },
       "lockedText": "Έρχεται σύντομα"
     },
@@ -156,6 +162,7 @@
   "credits": {
     "endTitle": "Τέλος του demo",
     "creditsTitle": "Συντελεστές",
+    "hiddenText": "Θα αποκαλυφθούν μετά το game jam",
     "lines": [
       {
         "role": "Ένα παιχνίδι του"
