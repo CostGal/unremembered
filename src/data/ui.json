@@ -152,7 +152,9 @@
       "recollection": [94, 546],
       "back": [266, 546],
       "ultimate": [180, 546],
-      "retry": [180, 540]
+      "retry": [180, 540],
+      "retryRecollection": [94, 540],
+      "quit": [266, 540]
     },
     "slotWidths": { "ultimate": 328 },
     "progress": { "inset": 4, "radius": 5, "color": "0x3fd0c9", "alpha": 0.3 },
@@ -231,6 +233,8 @@
     "interruptedText": "",
     "continueText": "Tap to continue",
     "retryText": "Retry",
+    "retryRecollectionText": "Try again",
+    "quitText": "Quit",
     "textY": 300,
     "fontSize": 28,
     "color": "#f1efe8",
@@ -640,5 +644,17 @@
   },
   "activeHero": { "color": "0x3fd0c9", "size": 7, "gapY": 6, "bobPx": 3, "bobMs": 380, "depth": 905, "nameColor": "#3fd0c9" },
   "targetMarker": { "color": "0xfff066", "size": 7, "gapY": 20, "bobPx": 3, "bobMs": 320, "depth": 905 },
-  "victory": { "band": { "h": 56, "color": "0x0b0d14", "alpha": 0.8, "lineColor": "0x3fd0c9" }, "popScale": 1.6, "popMs": 360 }
+  "victory": { "band": { "h": 56, "color": "0x0b0d14", "alpha": 0.8, "lineColor": "0x3fd0c9" }, "popScale": 1.6, "popMs": 360 },
+  "cutIn": {
+    "_about": "The Recollection cut-in (systems/CutIn.js): a band across the screen with Rhea's portrait and one line per beat (dialogue.json recollection_cutin). Tap = next beat.",
+    "depth": 1500,
+    "dim": { "color": "0x000000", "alpha": 0.55, "fadeMs": 200 },
+    "vignette": { "color": "0x000000", "alpha": 0.8, "inner": 0.35, "bands": 5 },
+    "band": { "y": 200, "h": 120, "fill": "0x0b0d14", "alpha": 0.94, "edgeW": 2, "edgeTop": "0x3fd0c9", "edgeBottom": "0xf0c060", "slideMs": 220, "outMs": 200, "sfx": "ultimate" },
+    "portrait": { "w": 360, "h": 120, "x": 0, "swapMs": 160, "fallback": { "scale": 1.15, "srcX": 148, "srcY": 16, "x": 92 } },
+    "name": { "x": 344, "y": 214, "fontSize": 13, "color": "#3fd0c9" },
+    "text": { "x": 344, "y": 306, "wrap": 170, "fontSize": 16, "color": "#f1efe8", "stroke": "#0b0d14", "strokeThickness": 3, "charsPerSec": 40 },
+    "holdMs": 2200,
+    "inputDelayMs": 250
+  }
 }

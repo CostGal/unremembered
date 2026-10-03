@@ -17,6 +17,13 @@
     "dodgeChance": { "non-gamer": 0.35, "average": 0.2, "good": 0.1 },
     "nalaTapChance": { "non-gamer": 0.7, "average": 0.85, "good": 0.95 }
   },
+  "recollection": {
+    "_about": "Per-beat success chance (HOLD, SWIPE, TAPS) on Normal; a beat's miss chance is divided by the difficulty windowMult (Story fewer misses, Unforgettable more). 3 MISS = the memory slips: Unwriting, LOSE, Try again from the cast (timing.memoryFailMs).",
+    "non-gamer": [0.6, 0.7, 0.75],
+    "average": [0.8, 0.85, 0.9],
+    "good": [0.92, 0.95, 0.97],
+    "perfectShare": { "non-gamer": 0.3, "average": 0.5, "good": 0.7 }
+  },
   "timing": {
     "introMs": 1000,
     "targetMs": 900,
@@ -35,6 +42,10 @@
     "refuseMs": 1200,
     "nalaJumpMs": 1800,
     "recollectionFadeMs": 400,
+    "cutInMs": 4400,
+    "beatsMs": 6200,
+    "finisherMs": 1800,
+    "memoryFailMs": 9000,
     "victoryMs": 2500,
     "loseMs": 2500,
     "readAfterLineMs": 1200

@@ -41,6 +41,7 @@ const D = {
   cutscene: read('src/data/cutscene_origin.json'),
   ui: read('src/data/ui.json'),
   sim: read('src/data/sim.json'),
+  recollection: read('src/data/recollection.json'),
   tutorial: read('src/data/tutorial.json'),
   fragments: read('src/data/fragments.json'),
 };
@@ -132,7 +133,8 @@ const dialogueMs = (id) => (D.dialogue[id] || []).reduce((n, line) => n + (line.
 // ---------- one battle ----------
 const between = (rnd, [a, b]) => a + Math.floor(rnd() * (b - a + 1));
 function pickWeighted(list, rnd) {
-  const total = list.reduce((s, i) => s + (i.weight || 1), 0);
+  // weight 0 = never picked (only forced or fixed by an opening), as in BattleScene.
+  const total = list.reduce((s, i) => s + (i.weight ?? 1), 0);
   let r = rnd() * total;
   for (const item of list) {
     r -= item.weight ?? 1;
@@ -179,7 +181,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
   const pauseSteps = battle.tutorial
     ? [battle.pauses?.battleStart, ...Object.values(battle.pauses?.enemyAttack || {}), D.tutorial.recallCard].reduce((n, id) => n + (D.tutorial.pauses[id] ? (D.tutorial.pauses[id].steps || [0]).length : 0), 0)
     : 0;
-  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0) + pauseSteps * (T.pauseMs?.[profileName] ?? 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], firedCharge: new Set(), flags: [], playerHits: 0, parrySuccess: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0) + pauseSteps * (T.pauseMs?.[profileName] ?? 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, memoryCasts: 0, memoryFails: 0, memoryGrade: null, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], firedCharge: new Set(), flags: [], playerHits: 0, parrySuccess: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   // Echo is per hero (each has their own reserve).
   // A difficulty with echoMult < 1 earns Echo more slowly (the fraction carries over); raw skips it (the Keepsake).
   const gain = (hero, n, raw = false) => {
@@ -391,9 +393,32 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       hero.echo -= tech.recollection.cost;
       st.recollections += 1;
       const r = tech.recollection;
-      for (let i = 0; i < r.taps && target.hp > 0; i++) {
-        const res = roll(qteOdds(profile, storyMult), rnd);
-        hitEnemy(target, r.dmg[res.toLowerCase()], 'ultimate');
+      const beats = D.recollection.mode !== 'rings';
+      if (beats) {
+        // "Burn the memory": per-beat success chances (sim.json recollection); the difficulty's windowMult
+        // divides a beat's miss chance. 3 MISS = the memory slips: Unwriting, LOSE, Try again from the
+        // cast (timing.memoryFailMs), then the same cast again. Any success kills (below).
+        const chances = D.sim.recollection[profileName];
+        const perfectShare = D.sim.recollection.perfectShare[profileName];
+        while (true) {
+          st.memoryCasts += 1;
+          st.ms += T.cutInMs + T.beatsMs;
+          const hits = chances.map((p) => rnd() >= Math.min(1, (1 - p) / storyMult));
+          if (hits.some(Boolean)) {
+            const perfect = hits.map((h) => h && rnd() < perfectShare);
+            st.memoryGrade = perfect.every(Boolean) ? 'FLAWLESS' : hits.every(Boolean) ? 'CLEAN' : 'ROUGH';
+            st.ms += T.finisherMs;
+            break;
+          }
+          st.memoryFails += 1;
+          st.ms += T.memoryFailMs;
+          if (st.memoryFails > 50) break;
+        }
+      } else {
+        for (let i = 0; i < r.taps && target.hp > 0; i++) {
+          const res = roll(qteOdds(profile, storyMult), rnd);
+          hitEnemy(target, r.dmg[res.toLowerCase()], 'ultimate');
+        }
       }
       // techniques.json recollection.kill: the memory ends it, whatever the rings did.
       if (r.kill && target.hp > 0) {
@@ -405,8 +430,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
           target.exposed = null;
         }
       }
-      if (r.applies && target.hp > 0) target.exposed = { mult: D.statuses[r.applies.status].damageTakenMult, turns: r.applies.turns };
-      st.ms += T.recollectionFadeMs * 2 + r.taps * (qte.recollection.ringMs + r.intervalMs);
+      st.ms += T.recollectionFadeMs * 2 + (beats ? 0 : r.taps * (qte.recollection.ringMs + r.intervalMs));
       return;
     }
     // Techniques as they are at this Recall level (techniques.json `levels`).
@@ -526,7 +550,8 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       enemy.charge = null;
     } else {
       const phase = (enemy.def.stages || enemy.def.phases)?.[enemy.phase] ?? null;
-      const list = phase ? phase.attacks : enemy.def.attacks;
+      // A noInput attack (Unwriting) is only ever forced after a failed Recollection (modelled in the cast).
+      const list = (phase ? phase.attacks : enemy.def.attacks).filter((a) => !a.noInput);
       // The parry tutorial teaches the tap first: no red ring until it's done.
       const open = st.tutorialSlow || battle.redRings === false ? list.filter((a) => !a.unparryable) : list;
       // A phase's "opening" fixes its first turns' attacks.
@@ -705,6 +730,9 @@ for (const mode of MODES) {
         winMinutes: avg((r) => r.ms, wins) / 60000,
         avgEcho: avg((r) => r.echoCurve.reduce((a, b) => a + b, 0) / Math.max(1, r.echoCurve.length)),
         recollections: avg((r) => r.recollections),
+        memoryCasts: res.reduce((n, r) => n + r.memoryCasts, 0),
+        memoryFails: res.reduce((n, r) => n + r.memoryFails, 0),
+        memoryGrades: Object.fromEntries(['FLAWLESS', 'CLEAN', 'ROUGH'].map((g) => [g, res.filter((r) => r.memoryGrade === g).length / Math.max(1, res.filter((r) => r.memoryGrade).length)])),
         archives: avg((r) => r.archives),
         breaks: avg((r) => r.breaks),
         ranks: Object.fromEntries(D.grade.ranks.map((k) => [k.id, graded.filter((r) => r.grade.rank === k.id).length / Math.max(1, graded.length)])),
@@ -733,6 +761,19 @@ if (JSON_OUT) {
     console.log(
       `${r.mode.padEnd(7)} ${r.battle.padEnd(13)} ${r.profile.padEnd(10)} ${pct(r.win)}  ${f1(r.rounds)}  ${f1(r.minutes)} (${r.p10.toFixed(1)}–${r.p90.toFixed(1)})   ${f1(r.avgEcho)}   ${r.recollections.toFixed(2)}    ${r.archives.toFixed(2)}    ${r.archives ? pct(r.interruptRate) : '   –  '}    ${r.breaks.toFixed(2)}   ${pct(r.qte.PERFECT)}/${pct(r.qte.GOOD)}/${pct(r.qte.MISS)}   ${r.score.toFixed(0).padStart(4)}   ${D.grade.ranks.map((k) => Math.round(r.ranks[k.id] * 100).toString().padStart(3)).join('/')}   ${r.gradeStats.perfects.toFixed(1).padStart(4)} ${r.gradeStats.maxChain.toFixed(1).padStart(4)} ${r.gradeStats.damageTaken.toFixed(0).padStart(4)} ${r.gradeStats.turns.toFixed(1).padStart(4)}`
     );
+  }
+  // The Recollection minigame: how often all three beats miss (-> Unwriting, LOSE, Try again).
+  const memRows = rows.filter((r) => r.memoryCasts > 0);
+  if (memRows.length && D.recollection.mode !== 'rings') {
+    console.log(`\nRecollection "Burn the memory" (sim.json recollection: per-beat success; all-miss = Unwriting -> LOSE -> Try again)`);
+    console.log(`  ${'mode'.padEnd(14)}${'battle'.padEnd(13)}${'profile'.padEnd(11)}beat odds          all-miss (calc / sim)   Try again per cast   grade FLAWLESS/CLEAN/ROUGH`);
+    for (const r of memRows) {
+      const mult = D.qte.difficulties[r.mode].windowMult;
+      const odds = D.sim.recollection[r.profile].map((p) => 1 - Math.min(1, (1 - p) / mult));
+      const calc = odds.reduce((m, p) => m * (1 - p), 1);
+      const g = r.memoryGrades;
+      console.log(`  ${r.mode.padEnd(14)}${r.battle.padEnd(13)}${r.profile.padEnd(11)}${odds.map((p) => p.toFixed(2)).join('/').padEnd(19)}${pct(calc)} / ${pct(r.memoryFails / r.memoryCasts)}        ${(r.memoryFails / Math.max(1, r.memoryCasts - r.memoryFails)).toFixed(3)}             ${[g.FLAWLESS, g.CLEAN, g.ROUGH].map((x) => Math.round(x * 100).toString().padStart(3)).join('/')}`);
+    }
   }
   // Chapter table (normal mode): per profile, each battle's average rounds and minutes per attempt,
   // then cutscene + dialogue + battles (minutes / win rate = expected time including retries).

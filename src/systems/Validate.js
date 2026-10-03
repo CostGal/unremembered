@@ -577,6 +577,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     }
   }
   if (techniques.recollection?.kill !== undefined && typeof techniques.recollection.kill !== 'boolean') err('techniques.recollection.kill must be true or false');
+  validateRecollection(data, dialogue, enemies, ui, err);
   const keepsake = battleEvents.keepsake_burn?.dialogue;
   if (keepsake && !dialogue[keepsake]) err(`battleEvents.keepsake_burn: no dialogue "${keepsake}"`);
 
@@ -778,4 +779,67 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   }
 
   return { errors, warnings };
+}
+
+// recollection.json (the minigame "Burn the memory"), the forced no-input attack it falls back on
+// (enemies.json `noInput`, e.g. Unwriting), the cut-in (ui.json cutIn) and the lose card's buttons.
+function validateRecollection(data, dialogue, enemies, ui, err) {
+  const rc = data.recollection;
+  const pos = (v) => typeof v === 'number' && v > 0;
+  const nonNeg = (v) => typeof v === 'number' && v >= 0;
+  const str = (v) => typeof v === 'string' && v.length > 0;
+  const allAttacks = Object.entries(enemies).flatMap(([id, e]) => (e.stages || e.phases || [{ attacks: e.attacks }]).flatMap((p) => (p.attacks || []).map((a) => [id, a])));
+  for (const [id, a] of allAttacks) {
+    const at = `enemies.${id}.${a.id}`;
+    if (a.noInput !== undefined && typeof a.noInput !== 'boolean') err(`${at}: noInput must be true or false`);
+    if (a.allHeroes !== undefined && typeof a.allHeroes !== 'boolean') err(`${at}: allHeroes must be true or false`);
+    if (a.noInput) {
+      if (a.weight !== 0) err(`${at}: a noInput attack must have weight 0 (it is only ever forced)`);
+      if (a.hits || a.chargeTurns) err(`${at}: a noInput attack is a single hit (no hits, no chargeTurns)`);
+      if (!pos(a.telegraphMs) || !pos(a.dmg)) err(`${at}: a noInput attack needs telegraphMs and dmg`);
+    }
+  }
+  if (!rc) return;
+  const at = 'recollection.json';
+  if (!['beats', 'rings'].includes(rc.mode)) err(`${at}: mode must be "beats" or "rings"`);
+  if (rc.mode === 'rings') return;
+  if (!dialogue[rc.cutIn]) err(`${at}: cutIn "${rc.cutIn}" is not in dialogue.json`);
+  if (!nonNeg(rc.startDelayMs) || !nonNeg(rc.gapMs) || !pos(rc.depth)) err(`${at}: startDelayMs, gapMs (>= 0) and depth are required`);
+  const kinds = ['hold', 'swipe', 'taps'];
+  if (!Array.isArray(rc.order) || !rc.order.length || rc.order.some((k) => !kinds.includes(k))) err(`${at}: order must list beats from ${kinds.join(', ')}`);
+  const b = rc.beats || {};
+  for (const k of rc.order || []) if (!b[k] || !str(b[k].prompt)) err(`${at}: beats.${k} needs a prompt`);
+  const h = b.hold;
+  if (h) {
+    const z = h.zonePct;
+    if (!pos(h.holdMs) || !(h.centrePct > 0 && h.centrePct < 1)) err(`${at}: beats.hold needs holdMs and centrePct in (0, 1)`);
+    if (!(Array.isArray(z) && z.length === 2 && z[0] >= 0 && z[0] < z[1] && z[1] <= 1 && h.centrePct >= z[0] && h.centrePct <= z[1])) err(`${at}: beats.hold.zonePct must be [from, to] in 0-1 around centrePct`);
+    if (!pos(h.perfectMs) || !(h.goodMs >= h.perfectMs) || !nonNeg(h.graceMs) || !pos(h.waitMs)) err(`${at}: beats.hold needs perfectMs <= goodMs, graceMs and waitMs`);
+    if (!h.gauge || ![h.gauge.x, h.gauge.y, h.gauge.w, h.gauge.h].every(pos)) err(`${at}: beats.hold.gauge needs x, y, w, h`);
+  }
+  const sw = b.swipe;
+  if (sw) {
+    if (!pos(sw.swipeMs) || !(sw.perfectMs > 0 && sw.perfectMs <= sw.swipeMs)) err(`${at}: beats.swipe needs swipeMs and perfectMs in (0, swipeMs]`);
+    if (!Array.isArray(sw.directions) || !sw.directions.length || sw.directions.some((d) => !['up', 'down', 'left', 'right'].includes(d))) err(`${at}: beats.swipe.directions must list up / down / left / right`);
+    if (!sw.arrow || ![sw.arrow.length, sw.arrow.shaft, sw.arrow.head].every(pos)) err(`${at}: beats.swipe.arrow needs length, shaft, head`);
+  }
+  const t = b.taps;
+  if (t) {
+    if (!(Number.isInteger(t.taps) && t.taps >= 1) || !pos(t.tapWindowMs) || !(t.perfectSpareMs >= 0 && t.perfectSpareMs < t.tapWindowMs) || !pos(t.waitMs)) err(`${at}: beats.taps needs taps (>= 1), tapWindowMs, perfectSpareMs in [0, tapWindowMs) and waitMs`);
+    if (!t.meter || ![t.meter.pip, t.meter.timeBarH].every(pos)) err(`${at}: beats.taps.meter needs pip and timeBarH`);
+  }
+  for (const r of ['PERFECT', 'GOOD', 'MISS']) if (!rc.results?.[r] || !str(rc.results[r].text) || !str(rc.results[r].color) || !str(rc.results[r].sfx)) err(`${at}: results.${r} needs text, color and sfx`);
+  for (const g of ['FLAWLESS', 'CLEAN', 'ROUGH']) if (!rc.grades?.[g] || !str(rc.grades[g].title) || typeof rc.grades[g].sub !== 'string' || !str(rc.grades[g].color)) err(`${at}: grades.${g} needs title, sub and color`);
+  const f = rc.fail;
+  if (!f || !str(f.text)) err(`${at}: fail.text is required`);
+  else if (!allAttacks.some(([, a]) => a.id === f.forceAttack && a.noInput)) err(`${at}: fail.forceAttack "${f.forceAttack}" is not a noInput attack in enemies.json`);
+  if (!str(rc.noEscape?.text)) err(`${at}: noEscape.text is required`);
+  if (!str(rc.card?.text) || !rc.card.text.includes('{grade}')) err(`${at}: card.text must contain {grade}`);
+  if (!str(rc.finisher?.sfx) || !pos(rc.finisher?.sparks?.count) || !nonNeg(rc.finisher?.hitstopMs)) err(`${at}: finisher needs sfx, sparks.count and hitstopMs`);
+  const end = ui.battleEnd || {};
+  if (!str(end.retryRecollectionText) || !str(end.quitText)) err('ui.battleEnd: retryRecollectionText and quitText are required (the lose card after a failed Recollection)');
+  for (const slot of ['retryRecollection', 'quit']) if (!ui.commands?.slots?.[slot]) err(`ui.commands.slots.${slot} is required`);
+  const c = ui.cutIn;
+  if (!c || !c.band || !pos(c.band.h) || !pos(c.band.slideMs) || !pos(c.holdMs) || !c.portrait?.fallback || !pos(c.text?.charsPerSec)) err('ui.cutIn: band {y, h, slideMs, ...}, portrait {fallback}, text {charsPerSec} and holdMs are required');
+  for (const line of dialogue[rc.cutIn] || []) if (line.portrait && !data.assets?.portraits?.[line.portrait]) err(`dialogue.${rc.cutIn}: portrait "${line.portrait}" is not in assets.json portraits`);
 }

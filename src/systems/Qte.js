@@ -44,7 +44,8 @@ export function scaledWindows(windows, mult) {
 // window, so a late swipe still counts.
 // onImpact: called once at T when no touch has come yet (the hit visibly lands;
 // a late touch can still make it a GOOD).
-export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe = null, unparryable = false, dodgeWindows = null, onImpact = null }) {
+// noInput (Quill's Unwriting): no gesture answers the ring; it always ends as a MISS.
+export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe = null, unparryable = false, dodgeWindows = null, onImpact = null, noInput = false }) {
   const dodge = swipe && !unparryable && dodgeWindows ? { ...windows, ...dodgeWindows } : null;
   const missAfterMs = dodge ? Math.max(windows.goodMs, dodge.goodMs) : windows.goodMs;
   const start = performance.now();
@@ -65,7 +66,7 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
     let impacted = false;
 
     const onDown = (pointer) => {
-      if (judged) return;
+      if (judged || noInput) return;
       const time = tapTime(pointer);
       // Overlapping rings (Recollection): a tap counts for one ring only.
       if (pointer.qteUsedAt === pointer.downTime) return;
@@ -184,6 +185,16 @@ export function interruptRings(scene) {
 function liveRings(scene) {
   if (!scene.qteRings) scene.qteRings = new Set();
   return scene.qteRings;
+}
+
+// The direction of a swipe ('up' | 'down' | 'left' | 'right', the dominant axis), or null
+// while the gesture is not a swipe (shorter than swipe.minPx, or slower than swipe.maxMs).
+export function swipeDirection(pointer, swipe) {
+  if (pointer.getDistance() < swipe.minPx || gestureMs(pointer) > swipe.maxMs) return null;
+  const dx = (pointer.isDown ? pointer.x : pointer.upX) - pointer.downX;
+  const dy = (pointer.isDown ? pointer.y : pointer.upY) - pointer.downY;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left';
+  return dy >= 0 ? 'down' : 'up';
 }
 
 // How long the pointer has been down (its last move or up vs its down).

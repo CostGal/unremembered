@@ -4,7 +4,7 @@
 // beat; page B plays the real turn loop (UI taps) through the kill, the rise and the Recollection to Victory.
 import { readFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { open, root, sleep, withBrowser } from './lib.mjs';
+import { open, playBeats, root, sleep, withBrowser } from './lib.mjs';
 
 const ui = JSON.parse(readFileSync(join(root, 'src/data/ui.json'), 'utf8'));
 const enemiesDef = JSON.parse(readFileSync(join(root, 'src/data/enemies.json'), 'utf8'));
@@ -156,13 +156,13 @@ await withBrowser(async ({ chrome, server }) => {
       await sleep(1800);
     }
     log(res.every(([hp]) => hp === floor) && res[0][1] === 1 && res[1][1] === 0 && res[2][1] === 1 && (await B(page, '!B.enemies[0].rising && B.enemies.some((e) => e.hp > 0)')), `floor: 999-damage hits leave him at ${floor} HP, "${events.stage.floorText}" on every 2nd clamped hit`, JSON.stringify(res));
-    // Recollection always kills (the three rings are left unanswered: MISS x3 = 60 damage, far under his HP)
+    // A Recollection that lands kills him from any HP (beats forced to one GOOD, two MISS = ROUGH; no damage dealt).
     const rhea = await B(page, 'B.heroes.findIndex((h) => h.def.canUltimate)');
-    await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; e.hp = e.maxHp; B.updateLabel(e); window.__done = null; B.playRecollection(B.heroes[${rhea}], e).then(() => { window.__done = true; }); })()`);
-    await page.waitFor(`window.__done === true`, { timeout: 20000 });
+    await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; e.hp = e.maxHp; B.updateLabel(e); B.recollectionForce = ['MISS', 'GOOD', 'MISS']; window.__done = null; B.playRecollection(B.heroes[${rhea}], e).then(() => { window.__done = true; }); })()`);
+    await page.waitFor(`window.__done === true`, { timeout: 30000 });
     const k = await B(page, '({ hp: B.enemies[0].hp, rising: B.enemies[0].rising, allDown: B.enemies.every((e) => e.hp <= 0 && !e.rising), aura: !!B.enemies[0].aura })');
     const tr2 = await trace(page);
-    log(k.hp === 0 && !k.rising && k.allDown && tr2['play:clerk_death'] === 2, 'Recollection kills him from full HP: the normal death, defeated (not rising)', JSON.stringify({ ...k, deaths: tr2['play:clerk_death'] }));
+    log(k.hp === 0 && !k.rising && k.allDown && tr2['play:clerk_death'] === 2 && (await B(page, 'B.stats.recollectionGrade')) === 'ROUGH', 'Recollection (one beat of three landed: ROUGH) kills him from full HP: the normal death, defeated (not rising)', JSON.stringify({ ...k, deaths: tr2['play:clerk_death'] }));
     await sleep(600);
     await page.shot(join(out, 'quill_recollection_kill.png'));
     log(page.errors.length === 0, 'page A: no console errors', page.errors.slice(0, 2).join(' | '));
@@ -204,6 +204,9 @@ await withBrowser(async ({ chrome, server }) => {
       await sleep(250);
     }
     log(cast, 'real loop: Recollection offered to Rhea and cast');
+    // The cut-in moves on by itself; the minigame is played with real pointer input (hold, swipe, taps).
+    const played = await playBeats(page, { results: ['PERFECT', 'GOOD', 'PERFECT'] });
+    log(played === 3, 'real loop: the three Recollection beats were answered (hold / swipe / taps)');
     log(await waitFlag(page, `window.__battle.battleOver === true`, 40000), 'real loop: the Recollection kills him: Victory');
     const fin = await B(page, '({ hp: B.enemies[0].hp, rising: B.enemies[0].rising })');
     log(fin.hp === 0 && !fin.rising, 'real loop: final state (0 HP, not rising)', JSON.stringify(fin));

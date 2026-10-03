@@ -8,6 +8,14 @@ export default class BattleStateMachine {
   async run(heroes, enemies, { initiative = 'hero' } = {}) {
     await this.hooks.intro();
     if (this.hooks.isOver?.()) return 'INTERRUPTED';
+    // hooks.resume (a rewind to the Recollection): that move first, then the rounds as usual.
+    if (this.hooks.resume) {
+      await this.hooks.resume();
+      if (this.hooks.afterTurn) await this.hooks.afterTurn();
+      if (this.hooks.isOver?.()) return 'INTERRUPTED';
+      if (this.hooks.allEnemiesDown()) return this.finish('WIN');
+      if (this.hooks.allHeroesDown()) return this.finish('LOSE');
+    }
 
     const phases = initiative === 'enemy' ? [this.enemyPhase, this.heroPhase] : [this.heroPhase, this.enemyPhase];
     while (true) {

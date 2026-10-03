@@ -78,7 +78,6 @@
     "taps": 3,
     "intervalMs": 500,
     "dmg": { "perfect": 60, "good": 40, "miss": 20 },
-    "applies": { "status": "exposed", "turns": 3 },
     "kill": true
   }
 }

@@ -1,0 +1,73 @@
+{
+  "_about": "Recollection minigame 'Burn the memory' (systems/RecollectionBeats.js, BattleScene.playRecollection). mode: 'beats' (3 gestures) or 'rings' (the old 3 rhythm rings). Windows are scaled by qte.json difficulties.<mode>.windowMult. Any success kills the target; 3 MISS = fail.",
+  "mode": "beats",
+  "cutIn": "recollection_cutin",
+  "startDelayMs": 350,
+  "gapMs": 450,
+  "order": ["hold", "swipe", "taps"],
+  "depth": 1200,
+  "colors": { "gold": "0xf0c060", "ink": "0x0b0d14", "white": "0xf1efe8", "dim": "0x5a5f73" },
+  "counter": { "text": "{i}/{n}", "x": 180, "y": 96, "fontSize": 18, "color": "#f0c060", "stroke": "#0b0d14", "strokeThickness": 3, "popScale": 1.5, "popMs": 200 },
+  "prompt": { "x": 180, "y": 500, "fontSize": 20, "color": "#f0c060", "stroke": "#0b0d14", "strokeThickness": 4, "pulseMs": 380, "pulseAlpha": 0.55 },
+  "beats": {
+    "hold": {
+      "prompt": "HOLD… release in the gold",
+      "holdMs": 1400,
+      "centrePct": 0.7,
+      "zonePct": [0.6, 0.8],
+      "perfectMs": 90,
+      "goodMs": 200,
+      "graceMs": 300,
+      "waitMs": 2500,
+      "gauge": { "x": 180, "y": 130, "w": 26, "h": 170, "border": 2, "inkAlpha": 0.9, "zoneAlpha": 0.35, "tickW": 2, "tickOverhang": 6 }
+    },
+    "swipe": {
+      "prompt": "SWIPE the way she points",
+      "swipeMs": 900,
+      "perfectMs": 350,
+      "directions": ["up", "down", "left", "right"],
+      "arrow": { "x": 180, "y": 215, "length": 70, "shaft": 14, "head": 36, "stroke": 2, "popScale": 1.4, "popMs": 180 }
+    },
+    "taps": {
+      "prompt": "TAP TAP TAP!",
+      "taps": 6,
+      "tapWindowMs": 1300,
+      "perfectSpareMs": 200,
+      "waitMs": 2500,
+      "_clock": "the tapWindowMs clock starts at the first tap",
+      "meter": { "x": 180, "y": 215, "pip": 24, "gap": 6, "stroke": 2, "inkAlpha": 0.9, "popScale": 1.35, "popMs": 120, "timeBarY": 245, "timeBarH": 6 }
+    }
+  },
+  "results": {
+    "PERFECT": { "text": "PERFECT", "color": "#f0c060", "shake": 6, "shakeMs": 160, "sfx": "perfect", "sparks": 14 },
+    "GOOD": { "text": "GOOD", "color": "#f1efe8", "shake": 3, "shakeMs": 110, "sfx": "good", "sparks": 0 },
+    "MISS": { "text": "MISS", "color": "#8a8fa3", "shake": 0, "shakeMs": 0, "sfx": "miss", "sparks": 0 }
+  },
+  "grades": {
+    "FLAWLESS": { "title": "FLAWLESS", "sub": "Every ember burned true.", "color": "#f0c060" },
+    "CLEAN": { "title": "CLEAN", "sub": "Nothing of him left to keep.", "color": "#f1efe8" },
+    "ROUGH": { "title": "ROUGH", "sub": "It was enough. It had to be.", "color": "#b9b5a8" }
+  },
+  "finisher": {
+    "flash": { "color": "0xffffff", "alpha": 1, "ms": 300 },
+    "hitstopMs": 200,
+    "sparks": { "count": 40, "color": "0xf0c060", "speed": [60, 220], "lifeMs": 800, "size": 3 },
+    "shake": 8,
+    "shakeMs": 300,
+    "sfx": "ultimate",
+    "title": { "y": 190, "fontSize": 34, "stroke": "#0b0d14", "strokeThickness": 5, "popScale": 1.8, "popMs": 320 },
+    "sub": { "y": 226, "fontSize": 14, "color": "#f1efe8", "stroke": "#0b0d14", "strokeThickness": 3 },
+    "holdMs": 1500,
+    "fadeMs": 300
+  },
+  "fail": {
+    "text": "The memory slips…",
+    "color": "#8a8fa3",
+    "y": 200,
+    "fontSize": 22,
+    "holdMs": 1600,
+    "forceAttack": "unwriting"
+  },
+  "noEscape": { "text": "NO ESCAPE", "color": "#d8505a" },
+  "card": { "text": "Memory: {grade}", "x": 314, "y": 76, "fontSize": 14 }
+}

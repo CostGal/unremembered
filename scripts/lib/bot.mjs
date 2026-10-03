@@ -12,6 +12,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { root, sleep, swipe, tap } from './harness.mjs';
 
+// The Recollection minigame (recollection.json): one gesture per beat, played well.
+const SWIPE_STEP = { up: [0, -20], down: [0, 20], left: [-20, 0], right: [20, 0] };
+
 const ui = JSON.parse(readFileSync(join(root, 'src/data/ui.json'), 'utf8'));
 const qte = JSON.parse(readFileSync(join(root, 'src/data/qte.json'), 'utf8'));
 const simPolicy = JSON.parse(readFileSync(join(root, 'src/data/sim.json'), 'utf8')).policy;
@@ -43,6 +46,8 @@ export function probe(page) {
         heroes: (b.heroes || []).map((h) => ({ id: h.type, hp: h.hp, maxHp: h.maxHp, echo: h.echo })),
         enemies: (b.enemies || []).map((e) => ({ id: e.id, type: e.type, hp: e.hp, maxHp: e.maxHp, x: e.container.x, y: e.container.y, phase: e.phase || 0, charging: !!e.charge, strikeImmune: !!e.def?.immune?.includes('strike') })),
         echo: (b.heroes || []).map((h) => h.echo).join('|'),
+        // The live Recollection beat (RecollectionBeats.js): hold / swipe (dir) / taps.
+        beat: b.recollectionBeat ? { kind: b.recollectionBeat.kind, index: b.recollectionBeat.index, startAt: b.recollectionBeat.startAt, dir: b.recollectionBeat.dir || null, centreMs: b.recollectionBeat.centreMs || 0, taps: b.recollectionBeat.taps || 0 } : null,
       };
     }
     const d = g.scene.getScene('Dialogue');
@@ -115,6 +120,16 @@ export class Bot {
     // A tutorial pause (spotlight + text): any tap continues (it ignores the first 300 ms).
     if (b.pause) return this.tapOnce(180, 320, 450);
 
+    // A Recollection beat: answered once, the way a player who gets it would.
+    if (b.beat) {
+      const id = `beat:${b.beat.index}:${Math.round(b.beat.startAt)}`;
+      if (!this.handledRings.has(id)) {
+        this.handledRings.add(id);
+        await this.playBeat(b.beat);
+      }
+      return;
+    }
+
     // Rings: decide once per ring, tap on a timer so the loop keeps polling.
     for (const impactAt of b.rings) {
       const id = Math.round(impactAt);
@@ -157,6 +172,28 @@ export class Bot {
     else await this.tapOnce(d.x, d.y, 250);
   }
 
+  // hold: press and release at the gauge's centre; swipe: the arrow's way; taps: the meter's taps, fast.
+  async playBeat(beat) {
+    const [x, y] = TAP_ZONE;
+    const m = this.page.mouse;
+    this.events.push(`beat:${beat.kind}`);
+    if (beat.kind === 'hold') {
+      await m.move(x, y);
+      const t0 = Date.now();
+      await m.down();
+      await sleep(Math.max(0, beat.centreMs - (Date.now() - t0) - 4));
+      await m.up();
+    } else if (beat.kind === 'swipe') {
+      const [dx, dy] = SWIPE_STEP[beat.dir];
+      await m.move(x, y);
+      await m.down();
+      await m.move(x + dx * 4, y + dy * 4, { steps: 4 });
+      await m.up();
+    } else if (beat.kind === 'taps') {
+      for (let i = 0; i < beat.taps; i++) await tap(this.page, x, y);
+    }
+  }
+
   // -> {slot} or {x, y} (an enemy to target).
   decide(b) {
     const items = b.items;
@@ -164,6 +201,11 @@ export class Bot {
     if (values.includes('retry')) {
       this.events.push('retry');
       return { slot: 'retry' };
+    }
+    // The lose card after a failed Recollection: Try again (back to the cast).
+    if (values.includes('rewind')) {
+      this.events.push('retry');
+      return { slot: 'retryRecollection' };
     }
     // Target prompt (cards + Back): tap a card. Enemies: the weakest one (for a Strike, the
     // weakest it can hurt: Hollows are immune). Heroes (Anchor): a downed one, else the lowest HP share.
@@ -231,7 +273,7 @@ export function defaultSignature(st) {
   if (st.cutscene) parts.push(`c:${st.cutscene.index}`);
   if (st.battle) {
     const b = st.battle;
-    parts.push(`b:${b.hero}:${b.echo}:${b.rings.length}:${b.pending}:${b.over}:${b.pause}`);
+    parts.push(`b:${b.hero}:${b.echo}:${b.rings.length}:${b.pending}:${b.over}:${b.pause}:${b.beat ? b.beat.kind : ''}`);
     parts.push(b.heroes.map((h) => h.hp).join(','), b.enemies.map((e) => e.hp).join(','));
   }
   return parts.join('|');

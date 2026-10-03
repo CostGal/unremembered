@@ -11,6 +11,7 @@ import brk from '../data/break.json';
 import crit from '../data/crit.json';
 import statuses from '../data/statuses.json';
 import qte from '../data/qte.json';
+import recollection from '../data/recollection.json';
 import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
 import audioData from '../data/audio.json';
@@ -22,6 +23,8 @@ import { clampX, mirrorEdges, rect as viewRect } from '../systems/View.js';
 import { difficultyDef } from '../systems/Difficulty.js';
 import CommandMenu from '../systems/CommandMenu.js';
 import { createBackdrop, createPlatform } from '../systems/BattleBackdrop.js';
+import CutIn from '../systems/CutIn.js';
+import { gradeOf, runBeats } from '../systems/RecollectionBeats.js';
 import Hud from '../systems/Hud.js';
 import { nalaJumpIn } from '../systems/Nala.js';
 import PoiseBar from '../systems/PoiseBar.js';
@@ -123,6 +126,10 @@ export default class BattleScene extends Phaser.Scene {
     this.actionLanded = false;
     this.timeScale = 1;
     this.resumeGate = null;
+    // Recollection (recollection.json): the moment it was cast (Try again comes back there) and
+    // whether a memory slipped (3 MISS: the next LOSE offers Try again / Quit).
+    this.recollectionSnapshot = this.initData.rewind || null;
+    this.memoryFailed = false;
     this.listenForBackground();
     addPauseButton(this, () => this.openPause(true));
     this.hints = new TutorialHints(this, !!this.battleDef.tutorial);
@@ -193,6 +200,8 @@ export default class BattleScene extends Phaser.Scene {
     this.hud = new Hud(this, ui.hud, ui.font, this.heroes);
     this.hud.setFragments(this.fragments);
     this.refreshHud();
+    // Try again after a failed Recollection: the battle as it was when she cast it.
+    if (this.initData.rewind) this.applyRewind(this.initData.rewind);
     if (import.meta.env.DEV) {
       this.enableHudDebug();
       window.__battle = this;
@@ -213,6 +222,8 @@ export default class BattleScene extends Phaser.Scene {
       allEnemiesDown: () => this.enemies.every((e) => e.hp <= 0 && !e.rising),
       allHeroesDown: () => this.heroes.every((h) => h.hp <= 0),
       roundStart: () => (this.stats.turns += 1),
+      // A rewind re-enters the Recollection right after the intro (cut-in and minigame again).
+      resume: this.initData.rewind ? () => this.resumeRecollection() : null,
       playerTurn: (hero) => this.playerTurn(hero),
       enemyTurn: (enemy) => this.enemyTurn(enemy),
       afterTurn: () => this.afterTurn(),
@@ -789,16 +800,21 @@ export default class BattleScene extends Phaser.Scene {
   // an ENRAGED pop with a flash, and the first laugh.
   enterStage(enemy, stage) {
     const cfg = battleEvents.stage;
+    this.applyStageLook(enemy, stage);
+    Fx.popText(this, enemy.container.x, enemy.container.y, cfg.enragedText, cfg.enragedColor, qte.text);
+    if (cfg.flash) Fx.screenFlash(this, cfg.flash, qte.flashDepth);
+    if (cfg.shake) Fx.shake(this, cfg.shake.amount, cfg.shake.ms);
+    this.laugh(enemy, stage, cfg.laughOffsetY);
+  }
+
+  // The lasting part of a stage's look (tint, aura, music, laugh clock); also restored by a rewind.
+  applyStageLook(enemy, stage) {
     const images = [enemy.body, ...Object.values(enemy.parts).map((p) => p.img)];
     if (stage.tint) Fx.setBaseTint(images, multiplyTints(enemy.body.baseTint ?? 0xffffff, Number(stage.tint)));
     if (stage.aura) this.startAura(enemy, stage.aura);
     if (stage.music) playMusic(stage.music);
     if (stage.musicIntensity !== undefined) setMusicIntensity(stage.musicIntensity);
     if (stage.laughEvery) enemy.laughIn = Phaser.Math.Between(stage.laughEvery[0], stage.laughEvery[1]);
-    Fx.popText(this, enemy.container.x, enemy.container.y, cfg.enragedText, cfg.enragedColor, qte.text);
-    if (cfg.flash) Fx.screenFlash(this, cfg.flash, qte.flashDepth);
-    if (cfg.shake) Fx.shake(this, cfg.shake.amount, cfg.shake.ms);
-    this.laugh(enemy, stage, cfg.laughOffsetY);
   }
 
   // The enemy laughs: its stage's laughSfx and a small pop of laughText (may be empty).
@@ -1230,6 +1246,15 @@ export default class BattleScene extends Phaser.Scene {
   // Each hit of the attack is its own parry ring on the targeted hero.
   // A hero in a counter stance draws the attack.
   async enemyAct(enemy) {
+    // A failed Recollection forces this enemy's next turn (recollection.json fail.forceAttack): Unwriting.
+    if (enemy.forceNextAttack) {
+      const forced = this.enemyAttacks(enemy).find((a) => a.id === enemy.forceNextAttack);
+      enemy.forceNextAttack = null;
+      if (forced?.noInput) {
+        await this.playUnwriting(enemy, forced);
+        return;
+      }
+    }
     if (enemy.broken) {
       await this.skipBrokenTurn(enemy);
       return;
@@ -1912,12 +1937,23 @@ export default class BattleScene extends Phaser.Scene {
 
   // ---------- Recollection (ultimate) ----------
 
-  // The screen warms to gold (and the background becomes memory_city if it
-  // exists), then three rhythm rings close on the target, intervalMs apart.
+  // The cut-in (Rhea's two lines in a band, systems/CutIn.js), then the screen warms to gold (and
+  // the background becomes memory_city if it exists) and the minigame runs on the target:
+  // recollection.json mode "beats" = HOLD / SWIPE / TAPS (systems/RecollectionBeats.js), "rings" =
+  // the old three rhythm rings. Any success (and every rings run) ends him: the finisher, then
+  // the kill (techniques.json recollection.kill). Three MISS: the memory slips (memorySlips).
   async playRecollection(hero, target) {
     const tech = techniques.recollection;
     const r = qte.recollection;
+    const beats = recollection.mode !== 'rings';
     this.hints.done('recollection');
+    // Music: the Recollection track from the cut-in to the end of the attack (placement.overlay.recollection).
+    if (musicPlan.overlay.recollection) playMusic(musicPlan.overlay.recollection.track);
+    if (beats) {
+      // Try again (after a failed memory) comes back to this moment.
+      this.recollectionSnapshot = this.takeRecollectionSnapshot(hero, tech);
+      if (dialogues[recollection.cutIn]) await new CutIn(this).play(dialogues[recollection.cutIn]);
+    }
 
     const view = viewRect();
     const overlay = this.add.rectangle(view.x, 0, view.w, layout.sceneBottom, Number(r.tint.color), 0).setOrigin(0).setDepth(r.tint.depth);
@@ -1935,20 +1971,30 @@ export default class BattleScene extends Phaser.Scene {
       };
     }
     Fx.popText(this, hero.container.x, hero.container.y, tech.name, r.textColor, qte.text);
-    playSfx('ultimate');
-    // Music: the Recollection track from the cast to the end of the attack (placement.overlay.recollection).
-    if (musicPlan.overlay.recollection) playMusic(musicPlan.overlay.recollection.track);
+    if (!beats) playSfx('ultimate'); // the cut-in's band already played it
     setMusicWarm(true);
     const castDone = this.playCastLoop(hero);
     await this.wait(r.tint.fadeMs);
 
-    this.tapHint.setVisible(true);
-    await this.recollectionRings(target, tech);
-    this.tapHint.setVisible(false);
-    // The memory ends it: the ultimate's kill is unconditional (techniques.json recollection.kill).
-    if (tech.kill && target.hp > 0) this.killEnemy(target);
-    // The memory leaves its mark: the target takes more damage for a few turns.
-    if (tech.applies && target.hp > 0) this.applyEnemyStatus(target, tech.applies.status, tech.applies.turns);
+    let grade = null;
+    if (beats) {
+      const results = await runBeats(this, {
+        cfg: recollection,
+        windowMult: this.difficulty.windowMult,
+        swipe: qte.dodge.swipe,
+        force: this.recollectionForce ?? null, // dev/QA only
+        onResult: (result) => this.beatHit(target, result),
+      });
+      grade = gradeOf(results);
+      if (grade) await this.recollectionFinisher(target, grade);
+      else await this.memorySlips(hero, target);
+    } else {
+      this.tapHint.setVisible(true);
+      await this.recollectionRings(target, tech);
+      this.tapHint.setVisible(false);
+    }
+    // The memory ends it: the ultimate's kill is unconditional once it lands (techniques.json recollection.kill).
+    if (tech.kill && target.hp > 0 && (grade || !beats)) this.killEnemy(target);
     castDone.stop();
     setMusicWarm(false);
     // Still fighting after the attack: back to the stage's track (a kill goes on to the Victory jingle).
@@ -1957,6 +2003,208 @@ export default class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: overlay, fillAlpha: 0, duration: r.tint.fadeMs, onComplete: () => overlay.destroy() });
     if (memoryBg) this.tweens.add({ targets: [memoryBg, ...(memoryBg.edges || [])], alpha: 0, duration: r.tint.fadeMs, onComplete: () => memoryBg.destroy() });
     await this.wait(r.tint.fadeMs);
+  }
+
+  // One beat's feedback on the target: PERFECT / GOOD / MISS pop (gold / white / grey) and a hit
+  // (flash + shake scaled by the result; no damage, the finisher decides).
+  beatHit(target, result) {
+    const cfg = recollection.results[result];
+    const { x, y } = target.container;
+    playSfx(cfg.sfx);
+    Fx.popText(this, x, y, cfg.text, cfg.color, qte.text);
+    if (result === 'MISS' || target.hp <= 0) return;
+    Fx.flash(this, [target.body, ...Object.values(target.parts).map((p) => p.img)], 80);
+    if (cfg.shake) Fx.shake(this, cfg.shake, cfg.shakeMs);
+    if (cfg.sparks) Fx.sparks(this, x, y, cfg.sparks, { ...qte.sparks, color: recollection.colors.gold }, qte.ring.depth);
+    this.playHurt(target);
+  }
+
+  // At least one beat landed: white-out, a burst of sparks, the kill under a hitstop, then the grade
+  // (FLAWLESS / CLEAN / ROUGH) with its line. The result card shows the grade too (stats.recollectionGrade).
+  async recollectionFinisher(target, grade) {
+    const f = recollection.finisher;
+    const g = recollection.grades[grade];
+    this.stats.recollectionGrade = grade;
+    Fx.screenFlash(this, f.flash, qte.flashDepth);
+    Fx.sparks(this, target.container.x, target.container.y, f.sparks.count, f.sparks, qte.ring.depth);
+    Fx.shake(this, f.shake, f.shakeMs);
+    playSfx(f.sfx);
+    vibrate(qte.results.PERFECT.vibrateMs);
+    if (target.hp > 0) this.killEnemy(target);
+    await Fx.hitstop(this, f.hitstopMs);
+    const title = this.add
+      .text(180, f.title.y, g.title, { fontFamily: ui.font, fontSize: `${f.title.fontSize}px`, color: g.color, stroke: f.title.stroke, strokeThickness: f.title.strokeThickness })
+      .setOrigin(0.5)
+      .setDepth(recollection.depth + 2)
+      .setScale(f.title.popScale);
+    const sub = this.add
+      .text(180, f.sub.y, g.sub, { fontFamily: ui.font, fontSize: `${f.sub.fontSize}px`, color: f.sub.color, stroke: f.sub.stroke, strokeThickness: f.sub.strokeThickness })
+      .setOrigin(0.5)
+      .setDepth(recollection.depth + 2)
+      .setAlpha(0);
+    this.tweens.add({ targets: title, scale: 1, duration: f.title.popMs, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: sub, alpha: 1, duration: f.title.popMs, delay: f.title.popMs / 2 });
+    await this.wait(f.holdMs);
+    await this.tweenPromise([title, sub], { alpha: 0 }, f.fadeMs);
+    title.destroy();
+    sub.destroy();
+  }
+
+  // Three MISS: "The memory slips…". Her Echo is gone, he hangs on at his floor (1 HP) and his next
+  // turn is the forced Unwriting (enemyAct): the party falls and the LOSE card offers Try again / Quit.
+  async memorySlips(hero, target) {
+    const f = recollection.fail;
+    this.memoryFailed = true;
+    hero.echo = 0;
+    this.refreshHud();
+    if (target.hp > 0) {
+      target.hp = target.def.stages?.[target.phase || 0]?.floorHp ?? 1;
+      this.updateLabel(target);
+      target.forceNextAttack = f.forceAttack;
+    }
+    playSfx('miss');
+    const text = this.add
+      .text(180, f.y, f.text, { fontFamily: ui.font, fontSize: `${f.fontSize}px`, color: f.color, stroke: '#0b0d14', strokeThickness: 4 })
+      .setOrigin(0.5)
+      .setDepth(recollection.depth + 2)
+      .setAlpha(0);
+    await this.tweenPromise(text, { alpha: 1 }, qte.recollection.tint.fadeMs);
+    await this.wait(f.holdMs);
+    await this.tweenPromise(text, { alpha: 0 }, qte.recollection.tint.fadeMs);
+    text.destroy();
+  }
+
+  // Unwriting (enemies.json `noInput`): a red ring on every living hero that nothing answers (a tap
+  // or a swipe only shows NO ESCAPE), then attack.dmg to each of them.
+  async playUnwriting(enemy, attack) {
+    const heroes = this.heroes.filter((h) => h.hp > 0);
+    if (!heroes.length) return;
+    this.dropCharge(enemy);
+    const red = qte.unparryable;
+    const ne = recollection.noEscape;
+    const ringCfg = { ...qte.ring, color: red.ringColor, targetColor: red.targetColor };
+    this.noEscapeShown = 0; // QA reads it
+    const shout = () => {
+      this.noEscapeShown += 1;
+      Fx.popText(this, heroes[0].container.x, heroes[0].container.y, ne.text, ne.color, qte.text);
+    };
+    this.input.on('pointerdown', shout);
+    this.tapHint.setText(ne.text).setVisible(true);
+    const restoreDepth = this.bringInFront(enemy, heroes[0]);
+    try {
+      while (true) {
+        const rings = heroes.map((h) => Qte.runRing(this, { x: h.container.x, y: h.container.y + qte.ring.offsetY, telegraphMs: attack.telegraphMs, windows: this.parryWindows(), ring: ringCfg, unparryable: true, noInput: true }));
+        const icons = heroes.map((h) => this.showUnparryableIcon(h.container.x, h.container.y + qte.ring.offsetY));
+        if (attack.sfx) playSfx(attack.sfx);
+        const abort = { aborted: false };
+        const sheet = this.enemyAttackSheet(enemy, attack, 1);
+        const attackDone = sheet ? sheet.strike(0, rings[0].impactAt, abort, 0) : this.playLungeTelegraph(enemy, rings[0].impactAt, abort);
+        const outcomes = await Promise.all(rings.map((r) => r.promise));
+        icons.forEach((i) => i.destroy());
+        if (outcomes.some((o) => o.result === 'INTERRUPTED')) {
+          rings.forEach((r) => r.interrupt());
+          abort.aborted = true;
+          sheet?.abort();
+          await this.resumeGate;
+          await attackDone;
+          continue;
+        }
+        Fx.screenFlash(this, qte.results.MISS.flash, qte.flashDepth);
+        for (const h of heroes) if (h.hp > 0) this.applyHit(h, attack.dmg, ne.color);
+        await attackDone;
+        if (sheet) await sheet.finish();
+        break;
+      }
+    } finally {
+      this.input.off('pointerdown', shout);
+      this.tapHint.setText(qte.hint.text).setVisible(false);
+      restoreDepth();
+    }
+  }
+
+  // What Try again restores: the party (Rhea with the Echo she just spent), every enemy (stage, HP,
+  // poise, unlocks), statuses, flags, fired events and the running stats.
+  takeRecollectionSnapshot(hero, tech) {
+    return {
+      heroes: this.heroes.map((h) => ({ hp: h.hp, maxHp: h.maxHp, echoMax: h.echoMax, echo: h === hero ? Math.min(h.echoMax, h.echo + tech.cost) : h.echo, statuses: JSON.parse(JSON.stringify(h.statuses || {})) })),
+      enemies: this.enemies.map((e) => ({ phase: e.phase || 0, hp: e.hp, maxHp: e.maxHp, poise: e.poise, recollectionUnlocked: !!e.recollectionUnlocked, turnsInPhase: e.turnsInPhase || 0, attacked: !!e.attacked, attackCount: e.attackCount || 0, released: e.released || null, floorHits: e.floorHits || 0, exposed: e.exposed ? { ...e.exposed } : null })),
+      flags: [...this.flags],
+      firedEvents: [...this.firedEvents],
+      counters: { ...this.counters },
+      stats: { ...this.stats },
+      chain: this.chain,
+      maxChain: this.maxChain,
+      nalaUsed: this.nala ? this.nala.used : null,
+    };
+  }
+
+  // A fresh build puts the snapshot back (Try again, see rewind()).
+  applyRewind(snap) {
+    snap.heroes.forEach((s, i) => {
+      const h = this.heroes[i];
+      if (!h) return;
+      Object.assign(h, { hp: s.hp, maxHp: s.maxHp, echoMax: s.echoMax, echo: s.echo, statuses: JSON.parse(JSON.stringify(s.statuses)) });
+      if (h.hp <= 0) this.markDown(h);
+    });
+    snap.enemies.forEach((s, i) => {
+      const e = this.enemies[i];
+      if (!e) return;
+      const { poise, ...rest } = s;
+      Object.assign(e, rest);
+      if (e.maxPoise && poise !== undefined) {
+        e.poise = poise;
+        e.poiseBar?.set(poise);
+      }
+      const stage = e.def.stages?.[e.phase];
+      if (e.phase > 0 && stage) this.applyStageLook(e, stage);
+      this.updateLabel(e);
+      this.updateEnemyStatus(e);
+    });
+    this.flags = new Set(snap.flags);
+    this.firedEvents = new Set(snap.firedEvents);
+    this.counters = { ...snap.counters };
+    this.stats = { ...snap.stats };
+    this.chain = snap.chain;
+    this.maxChain = snap.maxChain;
+    if (this.nala && snap.nalaUsed) this.nala.used = true;
+    this.refreshHud();
+  }
+
+  // The rewound battle's first move: Rhea casts the Recollection again.
+  async resumeRecollection() {
+    const hero = this.heroes.find((h) => h.def.canUltimate && h.hp > 0);
+    const target = this.enemies.find((e) => e.hp > 0);
+    if (!hero || !target) return;
+    this.spendEcho(hero, techniques.recollection.cost);
+    const restoreDepth = this.bringInFront(hero, target);
+    try {
+      await this.playRecollection(hero, target);
+    } finally {
+      restoreDepth();
+    }
+  }
+
+  // Dev/QA (window.__battle.forceRecollectionReady()): a staged boss jumps to its last stage at the
+  // Recollection unlock HP, the Keepsake already burnt, Rhea at full Echo.
+  forceRecollectionReady() {
+    const e = this.enemies.find((x) => x.def.stages);
+    if (!e) return;
+    const last = e.def.stages.length - 1;
+    const stage = e.def.stages[last];
+    if ((e.phase || 0) !== last) {
+      e.phase = last;
+      e.turnsInPhase = 0;
+      e.maxHp = Math.round(e.def.hp * this.difficulty.enemyHpMult);
+      this.applyStageLook(e, stage);
+    }
+    e.hp = Math.floor((e.maxHp * (stage.recollectionAtHpPct ?? 100)) / 100);
+    e.recollectionUnlocked = true;
+    this.updateLabel(e);
+    const rhea = this.heroes.find((h) => h.def.canUltimate);
+    if (!rhea) return;
+    rhea.echoMax = Math.max(rhea.echoMax, battleEvents.keepsake_burn.echoMax || 0);
+    rhea.echo = rhea.echoMax;
+    this.refreshHud();
   }
 
   // One ring at a time, each with its own "1/3" counter and feedback; the next
@@ -2892,6 +3140,15 @@ export default class BattleScene extends Phaser.Scene {
           .then(() => this.continueChapter());
         return;
       }
+      // Lost after a memory slipped (the Unwriting): Try again rewinds to the Recollection, or Quit.
+      if (result === 'LOSE' && this.memoryFailed && this.recollectionSnapshot) {
+        const items = [
+          { slot: 'retryRecollection', label: cfg.retryRecollectionText, value: 'rewind' },
+          { slot: 'quit', label: cfg.quitText, value: 'quit' },
+        ];
+        this.menu.show(items).then((choice) => (choice === 'quit' ? this.quitToMenu() : this.rewind()));
+        return;
+      }
       this.menu.show([{ slot: 'retry', label: cfg.retryText, value: 'retry' }]).then(() => this.retry());
     });
   }
@@ -2919,7 +3176,23 @@ export default class BattleScene extends Phaser.Scene {
 
   // Retry restarts the same battle from its starting state (full HP, starting Echo).
   retry() {
-    this.scene.restart(this.initData);
+    const { rewind, ...data } = this.initData;
+    this.scene.restart(data);
+  }
+
+  // Try again (after the Unwriting): the same battle, back at the moment the Recollection was cast.
+  rewind() {
+    this.scene.restart({ ...this.initData, rewind: this.recollectionSnapshot });
+  }
+
+  // Quit from the lose card: the run ends, back to the Menu (as the pause menu's Quit does).
+  quitToMenu() {
+    playMusic(null);
+    for (const key of ui.pause.menu.quitScenes) {
+      if (key !== this.scene.key && (this.scene.isActive(key) || this.scene.isPaused(key))) this.scene.stop(key);
+    }
+    this.registry.remove('runner');
+    this.scene.start('Menu');
   }
 
   continueChapter() {

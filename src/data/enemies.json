@@ -113,6 +113,16 @@
             "unparryable": true,
             "telegraphMs": 800,
             "dmg": 65
+          },
+          {
+            "id": "unwriting", "anim": "archive_release",
+            "weight": 0,
+            "_about": "Forced once after a failed Recollection (recollection.json fail.forceAttack): no input answers it, every living hero takes dmg.",
+            "noInput": true,
+            "allHeroes": true,
+            "unparryable": true,
+            "telegraphMs": 1100,
+            "dmg": 999
           }
         ]
       }

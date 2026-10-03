@@ -147,6 +147,10 @@
     { "speaker": "Quill", "style": "normal", "text": "You don't close a Ledger. It closes you.", "portrait": "clerk_furious" },
     { "speaker": null, "style": "narration", "text": "He rises. His wounds are ink, and the ink is flowing back.", "portrait": null }
   ],
+  "recollection_cutin": [
+    { "speaker": "Rhea", "style": "normal", "text": "Look at it, Quill. Look at what you took.", "portrait": "rhea_cutin_power" },
+    { "speaker": "Rhea", "style": "normal", "text": "…Goodbye.", "portrait": "rhea_cutin_tears" }
+  ],
   "keepsake_burn": [
     { "speaker": "Rhea", "style": "normal", "text": "He's right. I can't beat him like this.", "portrait": "rhea_pained" },
     { "speaker": null, "style": "narration", "text": "A Keepsake: a memory held back for the end. Rhea has one. The page.", "portrait": null },

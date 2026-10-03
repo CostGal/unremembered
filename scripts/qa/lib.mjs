@@ -134,3 +134,49 @@ export function adaptBot(page) {
     },
   };
 }
+
+// The Recollection minigame (recollection.json beats), played through the dev hook window.__battle:
+// each beat is answered once with the wanted result ('PERFECT' | 'GOOD' | 'MISS' = no input).
+// hold: press, release at the centre (+150 ms for a GOOD); swipe: the arrow's way, at once (GOOD:
+// after 500 ms); taps: 6 quick taps (GOOD: spread so less than perfectSpareMs is left).
+const BEAT_AT = [180, 560];
+const STEP = { up: [0, -20], down: [0, 20], left: [-20, 0], right: [20, 0] };
+export async function playBeats(page, { results = ['PERFECT', 'PERFECT', 'PERFECT'], timeout = 40000, onBeat = null } = {}) {
+  const done = new Set();
+  const end = Date.now() + timeout;
+  while (done.size < results.length && Date.now() < end) {
+    const beat = await page.ev(`(() => { const b = window.__battle && window.__battle.recollectionBeat; return b ? { kind: b.kind, index: b.index, dir: b.dir || null, centreMs: b.centreMs || 0, taps: b.taps || 0, windowMs: b.windowMs || 0, forced: b.forced || null } : null; })()`);
+    if (!beat || done.has(beat.index)) {
+      await sleep(20);
+      continue;
+    }
+    done.add(beat.index);
+    if (onBeat) await onBeat(beat);
+    const want = results[beat.index];
+    if (want === 'MISS' || beat.forced) continue;
+    const [x, y] = BEAT_AT;
+    if (beat.kind === 'hold') {
+      await page.move(x, y);
+      await page.down(x, y);
+      const t0 = Date.now();
+      await sleep(Math.max(0, beat.centreMs + (want === 'GOOD' ? 150 : 0) - (Date.now() - t0) - 4));
+      await page.up(x, y);
+    } else if (beat.kind === 'swipe') {
+      if (want === 'GOOD') await sleep(500);
+      const [dx, dy] = STEP[beat.dir];
+      await page.move(x, y);
+      await page.down(x, y);
+      for (let i = 1; i <= 4; i++) await page.move(x + dx * i, y + dy * i);
+      await page.up(x + dx * 4, y + dy * 4);
+    } else if (beat.kind === 'taps') {
+      // GOOD: the last tap lands 120 ms before the window closes (under perfectSpareMs to spare).
+      const span = want === 'GOOD' ? beat.windowMs - 120 : 0;
+      const t0 = Date.now();
+      for (let i = 0; i < beat.taps; i++) {
+        if (span) await sleep(Math.max(0, t0 + (span * i) / (beat.taps - 1) - Date.now()));
+        await page.click(x, y);
+      }
+    }
+  }
+  return done.size;
+}

@@ -1,5 +1,6 @@
 import grade from '../data/grade.json';
 import qte from '../data/qte.json';
+import recollection from '../data/recollection.json';
 import ui from '../data/ui.json';
 import { playSfx } from './Audio.js';
 import * as Fx from './Fx.js';
@@ -83,6 +84,15 @@ export default class ResultCard {
     const title = this.text(c.title.x, c.title.y, c.title.text, c.title.fontSize, c.title.color).setOrigin(0, 0.5);
     scene.tweens.add({ targets: title, alpha: 1, duration: c.fadeMs });
     this.items.push(title);
+
+    // The Recollection's grade (recollection.json card), on the title line, when the battle ended with one.
+    const memory = recollection.grades[this.stats.recollectionGrade];
+    if (memory) {
+      const m = recollection.card;
+      const line = this.text(m.x, m.y, m.text.replace('{grade}', memory.title), m.fontSize, memory.color).setOrigin(1, 0.5);
+      scene.tweens.add({ targets: line, alpha: 1, duration: c.fadeMs });
+      this.items.push(line);
+    }
 
     const r = c.rows;
     const values = {
