@@ -2,9 +2,9 @@ import { normalizeDifficulty } from './Difficulty.js';
 
 const KEY = 'unremembered:settings';
 
-// Fresh-install defaults: full music and SFX, Normal difficulty.
+// Fresh-install defaults: music 75 %, full SFX, Normal difficulty.
 const DEFAULTS = {
-  musicVolume: 1,
+  musicVolume: 0.75,
   sfxVolume: 1,
   difficulty: 'normal',
   font: 'play',

@@ -1,7 +1,7 @@
 // QA: music + SFX wiring (audio.json music.placement). Runs the dev build headless and asserts the
 // play/stop sequence the game REQUESTS (window.__audio.log, see Audio.js audioLog) for each scene:
 //   A  ?step=0            the cutscene: a track per shot range, silence on the cs_hush_2 shot, the shot sfx
-//   B  ?step=12           records_office: the track, quill_intro one-shot on Quill's first line, then the boss
+//   B  ?step=16           records_office: the track, quill_intro one-shot on Quill's first line, then the boss
 //   C  ?battle=boss_clerk&level=4   boss, stage change (stop, quill_rise, boss_enraged), keepsake, silence,
 //                         recollection, victory
 //   D  ?battle=b1_forgotten         LOSE: gameover; Retry: the battle track again; a level-up: memory_return
@@ -116,7 +116,7 @@ await withBrowser(async ({ chrome, server }) => {
 
   // ============ B: records_office -> quill_intro -> boss ============
   if (want('B')) {
-    const page = await open(chrome, `${server.url}?step=12`, { init: [INIT.audioLog] });
+    const page = await open(chrome, `${server.url}?step=16`, { init: [INIT.audioLog] });
     await waitScene(page, 'Dialogue');
     await page.waitFor(`!!(${sc(page, 'Dialogue')}.lines && ${sc(page, 'Dialogue')}.index >= 0)`, { timeout: 30000 });
     await unlock(page);

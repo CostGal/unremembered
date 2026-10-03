@@ -2,17 +2,39 @@
   "music": {
     "dir": "assets/audio/music/",
     "ext": ".mp3",
-    "crossfadeMs": 600,
-    "oneShot": { "duck": 0.3, "duckMs": 200, "restoreMs": 400 },
-    "scenes": { "Title": "title", "Menu": "title", "End": "ending" },
-    "ambience": { "Title": null, "Menu": null, "Cutscene": null, "Dialogue": null, "End": null },
-    "prefetch": ["title", "cutscene", "battle", "boss", "ending"],
+    "crossfadeMs": 1200,
+    "oneShot": {
+      "duck": 0.3,
+      "duckMs": 200,
+      "restoreMs": 400
+    },
+    "scenes": {
+      "Title": "title",
+      "Menu": "title",
+      "End": "ending"
+    },
+    "ambience": {
+      "Title": null,
+      "Menu": null,
+      "Cutscene": null,
+      "Dialogue": null,
+      "End": null
+    },
+    "prefetch": [
+      "title",
+      "cutscene",
+      "battle",
+      "boss",
+      "ending"
+    ],
     "prefetchPolicy": "next-step",
     "loopPoints": {},
-    "bootPrefetch": ["title"],
+    "bootPrefetch": [
+      "title"
+    ],
     "crossfadeRangeMs": [
-      500,
-      800
+      1000,
+      1400
     ],
     "aliases": {
       "street": "cs_forgotten",
@@ -59,7 +81,8 @@
         "Where each track plays (read by systems/MusicPlan.js, CutsceneScene, DialogueScene, RewardScene, BattleScene). A null track = silence.",
         "cutscene_origin ranges are 0-based INDICES into cutscene_origin.json shots[] in the FINAL order, i.e. after the wiring item inserts the new shot with bg cs_hush_mid at index 22 (between cs_hush_1 and cs_hush_2). Today's file has 32 entries and cs_hush_2 at index 22; with the insertion it has 33 and cs_hush_2 is index 23. Match by bg when in doubt (startBg).",
         "Kostas's story numbering (1-based, STORY.md) maps: golden 1-6, war 7-11, fall 12-18, hush 19-23 (incl. hush_1 and hush_mid), silence = the cs_hush_2 shot (his 24), forgotten 25-30 = from 'When the light returned' to the end of the cutscene.",
-        "Crossfades 500-800 ms (crossfadeRangeMs). Prefetch only the next step's tracks (prefetchPolicy next-step) and decode on demand."
+        "Crossfades 500-800 ms (crossfadeRangeMs). Prefetch only the next step's tracks (prefetchPolicy next-step) and decode on demand.",
+        "Option A (17:15): six changes in the opening instead of ten; crossfades 1.2 s; music.gain 0.9 = all music -10 % under the Settings volume."
       ],
       "scenes": {
         "Title": "title",
@@ -70,86 +93,54 @@
         "ranges": [
           {
             "from": 0,
-            "to": 5,
-            "track": "cs_golden"
-          },
-          {
-            "from": 6,
             "to": 10,
-            "track": "cs_war"
+            "track": "cs_golden",
+            "note": "Option A (Kostas 17:15): golden through the war shots; the war mood comes from ambience + horn/crystal SFX"
           },
           {
             "from": 11,
-            "to": 17,
-            "track": "cs_fall"
+            "to": 20,
+            "track": "cs_fall",
+            "note": "the fall through the return for the engine"
           },
           {
-            "from": 18,
+            "from": 21,
             "to": 22,
             "track": "cs_hush",
-            "startBg": "(shot 'He did not come back for his throne', bg reliquary)",
-            "note": "ends with the cs_hush_mid shot"
+            "note": "the Hush: cs_hush_1 + the cs_hush_mid shot"
           },
           {
             "from": 23,
             "to": 23,
             "track": null,
             "startBg": "cs_hush_2",
-            "note": "SILENCE: stop the music (500 ms fade) on this shot"
+            "note": "SILENCE on the black shot"
           },
           {
             "from": 24,
             "to": 32,
             "track": "cs_forgotten",
-            "startBg": "cs_hush_2 (shot 'When the light returned')",
-            "note": "from 'When the light returned' to the end of the cutscene"
-          }
-        ],
-        "currentOrderWithoutHushMid": [
-          {
-            "from": 0,
-            "to": 5,
-            "track": "cs_golden"
-          },
-          {
-            "from": 6,
-            "to": 10,
-            "track": "cs_war"
-          },
-          {
-            "from": 11,
-            "to": 17,
-            "track": "cs_fall"
-          },
-          {
-            "from": 18,
-            "to": 21,
-            "track": "cs_hush"
-          },
-          {
-            "from": 22,
-            "to": 22,
-            "track": null
-          },
-          {
-            "from": 23,
-            "to": 31,
-            "track": "cs_forgotten"
+            "note": "from 'When the light returned' to the end; continues under wake and letter"
           }
         ]
       },
       "dialogue": {
-        "wake": null,
-        "letter": null,
+        "wake": "cs_forgotten",
+        "letter": "cs_forgotten",
         "meet_dov": "meet_dov",
-        "after_duel": "warm",
+        "after_duel": "meet_dov",
         "before_gate": "street",
         "after_b1": "rest_sad",
         "records_office": "records_office",
         "ending": "ending"
       },
       "dialogueSwitch": {
-        "records_office": { "speaker": "Quill", "key": "quill_intro", "oneShot": true, "resume": false }
+        "records_office": {
+          "speaker": "Quill",
+          "key": "quill_intro",
+          "oneShot": true,
+          "resume": false
+        }
       },
       "keepsakeDialogue": "keepsake_burn",
       "keepsakeSilenceAfterLine": 4,
@@ -212,157 +203,950 @@
         "sfx_bell_toll": "shot 11 = 'His sentence was his own weapon: the Unwriting'",
         "sfx_stone_crumble": "shot 13 -> 14 = the statue falls"
       }
-    }
+    },
+    "gain": 0.9
   },
-  "sfxFiles": { "dir": "assets/audio/sfx/", "ext": ".mp3" },
-  "sfxGain": { "sfx_crowd_murmur": 0.45 },
-  "sfxLong": ["sfx_crowd_cheer", "sfx_crowd_murmur", "sfx_scream_crowd", "sfx_war_horn", "sfx_bell_toll", "sfx_red_surge", "sfx_crystal_resonance", "sfx_stone_crumble"],
+  "sfxFiles": {
+    "dir": "assets/audio/sfx/",
+    "ext": ".mp3"
+  },
+  "sfxGain": {
+    "sfx_crowd_murmur": 0.45
+  },
+  "sfxLong": [
+    "sfx_crowd_cheer",
+    "sfx_crowd_murmur",
+    "sfx_scream_crowd",
+    "sfx_war_horn",
+    "sfx_bell_toll",
+    "sfx_red_surge",
+    "sfx_crystal_resonance",
+    "sfx_stone_crumble"
+  ],
   "sfxFadeMs": 400,
-  "pause": { "musicDuck": 0.35 },
-  "master": { "threshold": -6, "knee": 8, "ratio": 10, "attack": 0.004, "release": 0.18 },
-  "blip": { "minGapMs": 35, "attackMs": 2 },
+  "pause": {
+    "musicDuck": 0.35
+  },
+  "master": {
+    "threshold": -6,
+    "knee": 8,
+    "ratio": 10,
+    "attack": 0.004,
+    "release": 0.18
+  },
+  "blip": {
+    "minGapMs": 35,
+    "attackMs": 2
+  },
   "ambience": {
     "fadeMs": 1200,
     "beds": {
       "rain": [
-        { "type": "noise", "filterHz": 2600, "highpassHz": 500, "gain": 0.035, "wobble": { "depth": 0.3, "periodMs": 3800 } },
-        { "type": "noise", "filterHz": 600, "highpassHz": 80, "gain": 0.02, "wobble": { "depth": 0.2, "periodMs": 6100 } }
+        {
+          "type": "noise",
+          "filterHz": 2600,
+          "highpassHz": 500,
+          "gain": 0.035,
+          "wobble": {
+            "depth": 0.3,
+            "periodMs": 3800
+          }
+        },
+        {
+          "type": "noise",
+          "filterHz": 600,
+          "highpassHz": 80,
+          "gain": 0.02,
+          "wobble": {
+            "depth": 0.2,
+            "periodMs": 6100
+          }
+        }
       ],
       "city": [
-        { "type": "noise", "filterHz": 320, "highpassHz": 60, "gain": 0.03, "wobble": { "depth": 0.35, "periodMs": 5200 } },
-        { "type": "osc", "wave": "sine", "hz": 55, "gain": 0.015, "wobble": { "depth": 0.5, "periodMs": 7300 } }
+        {
+          "type": "noise",
+          "filterHz": 320,
+          "highpassHz": 60,
+          "gain": 0.03,
+          "wobble": {
+            "depth": 0.35,
+            "periodMs": 5200
+          }
+        },
+        {
+          "type": "osc",
+          "wave": "sine",
+          "hz": 55,
+          "gain": 0.015,
+          "wobble": {
+            "depth": 0.5,
+            "periodMs": 7300
+          }
+        }
       ],
       "office": [
-        { "type": "osc", "wave": "sine", "hz": 60, "gain": 0.02, "wobble": { "depth": 0.3, "periodMs": 4100 } },
-        { "type": "noise", "filterHz": 900, "highpassHz": 300, "gain": 0.012, "wobble": { "depth": 0.4, "periodMs": 5600 } }
+        {
+          "type": "osc",
+          "wave": "sine",
+          "hz": 60,
+          "gain": 0.02,
+          "wobble": {
+            "depth": 0.3,
+            "periodMs": 4100
+          }
+        },
+        {
+          "type": "noise",
+          "filterHz": 900,
+          "highpassHz": 300,
+          "gain": 0.012,
+          "wobble": {
+            "depth": 0.4,
+            "periodMs": 5600
+          }
+        }
       ],
-      "war": {"layers": [{"type": "noise", "filterHz": 170, "highpassHz": 30, "gain": 0.05, "wobble": {"depth": 0.4, "periodMs": 4700}}, {"type": "noise", "filterHz": 900, "highpassHz": 300, "gain": 0.012, "wobble": {"depth": 0.6, "periodMs": 3100}}], "events": [{"everyMs": [1600, 4000], "sound": [{"type": "osc", "wave": "sine", "from": 95, "to": 38, "ms": 380, "gain": 0.14}, {"type": "noise", "filterHz": 260, "ms": 220, "gain": 0.08}]}, {"everyMs": [5000, 11000], "sound": [{"type": "osc", "wave": "triangle", "from": 1230, "to": 1180, "ms": 650, "gain": 0.022}, {"type": "osc", "wave": "square", "from": 2460, "to": 2380, "ms": 260, "gain": 0.006}]}, {"everyMs": [6000, 13000], "sound": [{"type": "noise", "filterHz": 140, "ms": 1100, "gain": 0.12}]}]},
-      "council": {"layers": [{"type": "noise", "filterHz": 500, "highpassHz": 120, "gain": 0.01}, {"type": "noise", "filterHz": 850, "highpassHz": 260, "gain": 0.018, "wobble": {"depth": 0.7, "periodMs": 900}}, {"type": "osc", "wave": "sine", "hz": 98, "gain": 0.005, "wobble": {"depth": 0.3, "periodMs": 6000}}], "events": [{"everyMs": [5500, 11000], "sound": [{"type": "noise", "filterHz": 1400, "ms": 60, "gain": 0.22}, {"type": "osc", "wave": "sine", "from": 230, "to": 140, "ms": 130, "gain": 0.13}, {"type": "noise", "filterHz": 1400, "ms": 60, "gain": 0.18, "delayMs": 190}, {"type": "osc", "wave": "sine", "from": 230, "to": 140, "ms": 130, "gain": 0.1, "delayMs": 190}]}]},
-      "reliquary": {"layers": [{"type": "osc", "wave": "sine", "hz": 110, "gain": 0.018, "wobble": {"depth": 0.3, "periodMs": 5300}}, {"type": "osc", "wave": "sine", "hz": 165, "gain": 0.01, "wobble": {"depth": 0.4, "periodMs": 3900}}, {"type": "osc", "wave": "triangle", "hz": 220.6, "gain": 0.004}, {"type": "noise", "filterHz": 9000, "highpassHz": 5000, "gain": 0.005, "wobble": {"depth": 0.6, "periodMs": 2300}}], "events": [{"everyMs": [2500, 6000], "sound": [{"type": "osc", "wave": "sine", "from": 1760, "to": 1748, "ms": 1300, "gain": 0.018}, {"type": "osc", "wave": "sine", "from": 2637, "to": 2630, "ms": 900, "gain": 0.01, "delayMs": 70}]}]},
-      "wind": [{"type": "noise", "filterHz": 700, "highpassHz": 150, "gain": 0.03, "wobble": {"depth": 0.6, "periodMs": 4300}}, {"type": "noise", "filterHz": 2000, "highpassHz": 900, "gain": 0.008, "wobble": {"depth": 0.7, "periodMs": 2700}}]
+      "war": {
+        "layers": [
+          {
+            "type": "noise",
+            "filterHz": 170,
+            "highpassHz": 30,
+            "gain": 0.05,
+            "wobble": {
+              "depth": 0.4,
+              "periodMs": 4700
+            }
+          },
+          {
+            "type": "noise",
+            "filterHz": 900,
+            "highpassHz": 300,
+            "gain": 0.012,
+            "wobble": {
+              "depth": 0.6,
+              "periodMs": 3100
+            }
+          }
+        ],
+        "events": [
+          {
+            "everyMs": [
+              1600,
+              4000
+            ],
+            "sound": [
+              {
+                "type": "osc",
+                "wave": "sine",
+                "from": 95,
+                "to": 38,
+                "ms": 380,
+                "gain": 0.14
+              },
+              {
+                "type": "noise",
+                "filterHz": 260,
+                "ms": 220,
+                "gain": 0.08
+              }
+            ]
+          },
+          {
+            "everyMs": [
+              5000,
+              11000
+            ],
+            "sound": [
+              {
+                "type": "osc",
+                "wave": "triangle",
+                "from": 1230,
+                "to": 1180,
+                "ms": 650,
+                "gain": 0.022
+              },
+              {
+                "type": "osc",
+                "wave": "square",
+                "from": 2460,
+                "to": 2380,
+                "ms": 260,
+                "gain": 0.006
+              }
+            ]
+          },
+          {
+            "everyMs": [
+              6000,
+              13000
+            ],
+            "sound": [
+              {
+                "type": "noise",
+                "filterHz": 140,
+                "ms": 1100,
+                "gain": 0.12
+              }
+            ]
+          }
+        ]
+      },
+      "council": {
+        "layers": [
+          {
+            "type": "noise",
+            "filterHz": 500,
+            "highpassHz": 120,
+            "gain": 0.01
+          },
+          {
+            "type": "noise",
+            "filterHz": 850,
+            "highpassHz": 260,
+            "gain": 0.018,
+            "wobble": {
+              "depth": 0.7,
+              "periodMs": 900
+            }
+          },
+          {
+            "type": "osc",
+            "wave": "sine",
+            "hz": 98,
+            "gain": 0.005,
+            "wobble": {
+              "depth": 0.3,
+              "periodMs": 6000
+            }
+          }
+        ],
+        "events": [
+          {
+            "everyMs": [
+              5500,
+              11000
+            ],
+            "sound": [
+              {
+                "type": "noise",
+                "filterHz": 1400,
+                "ms": 60,
+                "gain": 0.22
+              },
+              {
+                "type": "osc",
+                "wave": "sine",
+                "from": 230,
+                "to": 140,
+                "ms": 130,
+                "gain": 0.13
+              },
+              {
+                "type": "noise",
+                "filterHz": 1400,
+                "ms": 60,
+                "gain": 0.18,
+                "delayMs": 190
+              },
+              {
+                "type": "osc",
+                "wave": "sine",
+                "from": 230,
+                "to": 140,
+                "ms": 130,
+                "gain": 0.1,
+                "delayMs": 190
+              }
+            ]
+          }
+        ]
+      },
+      "reliquary": {
+        "layers": [
+          {
+            "type": "osc",
+            "wave": "sine",
+            "hz": 110,
+            "gain": 0.018,
+            "wobble": {
+              "depth": 0.3,
+              "periodMs": 5300
+            }
+          },
+          {
+            "type": "osc",
+            "wave": "sine",
+            "hz": 165,
+            "gain": 0.01,
+            "wobble": {
+              "depth": 0.4,
+              "periodMs": 3900
+            }
+          },
+          {
+            "type": "osc",
+            "wave": "triangle",
+            "hz": 220.6,
+            "gain": 0.004
+          },
+          {
+            "type": "noise",
+            "filterHz": 9000,
+            "highpassHz": 5000,
+            "gain": 0.005,
+            "wobble": {
+              "depth": 0.6,
+              "periodMs": 2300
+            }
+          }
+        ],
+        "events": [
+          {
+            "everyMs": [
+              2500,
+              6000
+            ],
+            "sound": [
+              {
+                "type": "osc",
+                "wave": "sine",
+                "from": 1760,
+                "to": 1748,
+                "ms": 1300,
+                "gain": 0.018
+              },
+              {
+                "type": "osc",
+                "wave": "sine",
+                "from": 2637,
+                "to": 2630,
+                "ms": 900,
+                "gain": 0.01,
+                "delayMs": 70
+              }
+            ]
+          }
+        ]
+      },
+      "wind": [
+        {
+          "type": "noise",
+          "filterHz": 700,
+          "highpassHz": 150,
+          "gain": 0.03,
+          "wobble": {
+            "depth": 0.6,
+            "periodMs": 4300
+          }
+        },
+        {
+          "type": "noise",
+          "filterHz": 2000,
+          "highpassHz": 900,
+          "gain": 0.008,
+          "wobble": {
+            "depth": 0.7,
+            "periodMs": 2700
+          }
+        }
+      ]
     }
   },
   "sfx": {
     "hit": [
-      { "type": "noise", "ms": 90, "gain": 0.35, "filterHz": 1800 },
-      { "type": "osc", "wave": "square", "from": 180, "to": 60, "ms": 90, "gain": 0.15 }
+      {
+        "type": "noise",
+        "ms": 90,
+        "gain": 0.35,
+        "filterHz": 1800
+      },
+      {
+        "type": "osc",
+        "wave": "square",
+        "from": 180,
+        "to": 60,
+        "ms": 90,
+        "gain": 0.15
+      }
     ],
     "perfect": [
-      { "type": "osc", "wave": "triangle", "from": 880, "to": 1760, "ms": 120, "gain": 0.3 },
-      { "type": "osc", "wave": "sine", "from": 1320, "to": 1320, "ms": 240, "gain": 0.2, "delayMs": 60 }
+      {
+        "type": "osc",
+        "wave": "triangle",
+        "from": 880,
+        "to": 1760,
+        "ms": 120,
+        "gain": 0.3
+      },
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 1320,
+        "to": 1320,
+        "ms": 240,
+        "gain": 0.2,
+        "delayMs": 60
+      }
     ],
-    "good": [{ "type": "osc", "wave": "triangle", "from": 660, "to": 880, "ms": 110, "gain": 0.25 }],
+    "good": [
+      {
+        "type": "osc",
+        "wave": "triangle",
+        "from": 660,
+        "to": 880,
+        "ms": 110,
+        "gain": 0.25
+      }
+    ],
     "miss": [
-      { "type": "osc", "wave": "sawtooth", "from": 220, "to": 90, "ms": 180, "gain": 0.15 },
-      { "type": "noise", "ms": 120, "gain": 0.2, "filterHz": 800 }
+      {
+        "type": "osc",
+        "wave": "sawtooth",
+        "from": 220,
+        "to": 90,
+        "ms": 180,
+        "gain": 0.15
+      },
+      {
+        "type": "noise",
+        "ms": 120,
+        "gain": 0.2,
+        "filterHz": 800
+      }
     ],
-    "menu": [{ "type": "osc", "wave": "square", "from": 520, "to": 520, "ms": 40, "gain": 0.08 }],
-    "echo": [{ "type": "osc", "wave": "sine", "from": 990, "to": 1480, "ms": 90, "gain": 0.12 }],
+    "menu": [
+      {
+        "type": "osc",
+        "wave": "square",
+        "from": 520,
+        "to": 520,
+        "ms": 40,
+        "gain": 0.08
+      }
+    ],
+    "echo": [
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 990,
+        "to": 1480,
+        "ms": 90,
+        "gain": 0.12
+      }
+    ],
     "victory": [
-      { "type": "osc", "wave": "triangle", "from": 523, "to": 523, "ms": 140, "gain": 0.22 },
-      { "type": "osc", "wave": "triangle", "from": 659, "to": 659, "ms": 140, "gain": 0.22, "delayMs": 110 },
-      { "type": "osc", "wave": "triangle", "from": 784, "to": 784, "ms": 160, "gain": 0.22, "delayMs": 220 },
-      { "type": "osc", "wave": "sine", "from": 1047, "to": 1047, "ms": 420, "gain": 0.2, "delayMs": 330 }
+      {
+        "type": "osc",
+        "wave": "triangle",
+        "from": 523,
+        "to": 523,
+        "ms": 140,
+        "gain": 0.22
+      },
+      {
+        "type": "osc",
+        "wave": "triangle",
+        "from": 659,
+        "to": 659,
+        "ms": 140,
+        "gain": 0.22,
+        "delayMs": 110
+      },
+      {
+        "type": "osc",
+        "wave": "triangle",
+        "from": 784,
+        "to": 784,
+        "ms": 160,
+        "gain": 0.22,
+        "delayMs": 220
+      },
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 1047,
+        "to": 1047,
+        "ms": 420,
+        "gain": 0.2,
+        "delayMs": 330
+      }
     ],
     "ultimate": [
-      { "type": "osc", "wave": "sine", "from": 220, "to": 880, "ms": 700, "gain": 0.3 },
-      { "type": "osc", "wave": "triangle", "from": 330, "to": 1320, "ms": 700, "gain": 0.15, "delayMs": 80 }
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 220,
+        "to": 880,
+        "ms": 700,
+        "gain": 0.3
+      },
+      {
+        "type": "osc",
+        "wave": "triangle",
+        "from": 330,
+        "to": 1320,
+        "ms": 700,
+        "gain": 0.15,
+        "delayMs": 80
+      }
     ],
     "stamp": [
-      { "type": "noise", "ms": 120, "gain": 0.45, "filterHz": 500 },
-      { "type": "osc", "wave": "sine", "from": 140, "to": 45, "ms": 200, "gain": 0.5 }
+      {
+        "type": "noise",
+        "ms": 120,
+        "gain": 0.45,
+        "filterHz": 500
+      },
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 140,
+        "to": 45,
+        "ms": 200,
+        "gain": 0.5
+      }
     ],
     "thunder": [
-      { "type": "noise", "ms": 1900, "gain": 0.5, "filterHz": 220 },
-      { "type": "noise", "ms": 700, "gain": 0.22, "filterHz": 650 },
-      { "type": "noise", "ms": 1500, "gain": 0.3, "filterHz": 180, "delayMs": 350 },
-      { "type": "osc", "wave": "sine", "from": 75, "to": 32, "ms": 1700, "gain": 0.3 }
+      {
+        "type": "noise",
+        "ms": 1900,
+        "gain": 0.5,
+        "filterHz": 220
+      },
+      {
+        "type": "noise",
+        "ms": 700,
+        "gain": 0.22,
+        "filterHz": 650
+      },
+      {
+        "type": "noise",
+        "ms": 1500,
+        "gain": 0.3,
+        "filterHz": 180,
+        "delayMs": 350
+      },
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 75,
+        "to": 32,
+        "ms": 1700,
+        "gain": 0.3
+      }
     ],
     "break": [
-      { "type": "noise", "ms": 220, "gain": 0.4, "filterHz": 900 },
-      { "type": "osc", "wave": "square", "from": 520, "to": 90, "ms": 260, "gain": 0.2 },
-      { "type": "osc", "wave": "triangle", "from": 880, "to": 440, "ms": 200, "gain": 0.12, "delayMs": 60 }
+      {
+        "type": "noise",
+        "ms": 220,
+        "gain": 0.4,
+        "filterHz": 900
+      },
+      {
+        "type": "osc",
+        "wave": "square",
+        "from": 520,
+        "to": 90,
+        "ms": 260,
+        "gain": 0.2
+      },
+      {
+        "type": "osc",
+        "wave": "triangle",
+        "from": 880,
+        "to": 440,
+        "ms": 200,
+        "gain": 0.12,
+        "delayMs": 60
+      }
     ],
     "crystal_hum": [
-      { "type": "osc", "wave": "sine", "from": 660, "to": 700, "ms": 2200, "gain": 0.07 },
-      { "type": "osc", "wave": "triangle", "from": 1320, "to": 1340, "ms": 1800, "gain": 0.025, "delayMs": 250 },
-      { "type": "osc", "wave": "sine", "from": 330, "to": 330, "ms": 2600, "gain": 0.04, "delayMs": 120 }
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 660,
+        "to": 700,
+        "ms": 2200,
+        "gain": 0.07
+      },
+      {
+        "type": "osc",
+        "wave": "triangle",
+        "from": 1320,
+        "to": 1340,
+        "ms": 1800,
+        "gain": 0.025,
+        "delayMs": 250
+      },
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 330,
+        "to": 330,
+        "ms": 2600,
+        "gain": 0.04,
+        "delayMs": 120
+      }
     ],
     "lights_out": [
-      { "type": "noise", "ms": 320, "gain": 0.3, "filterHz": 320 },
-      { "type": "osc", "wave": "sine", "from": 130, "to": 28, "ms": 1100, "gain": 0.35 },
-      { "type": "osc", "wave": "sawtooth", "from": 420, "to": 40, "ms": 700, "gain": 0.06, "delayMs": 40 }
+      {
+        "type": "noise",
+        "ms": 320,
+        "gain": 0.3,
+        "filterHz": 320
+      },
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 130,
+        "to": 28,
+        "ms": 1100,
+        "gain": 0.35
+      },
+      {
+        "type": "osc",
+        "wave": "sawtooth",
+        "from": 420,
+        "to": 40,
+        "ms": 700,
+        "gain": 0.06,
+        "delayMs": 40
+      }
     ],
     "hush": [
-      { "type": "noise", "ms": 1500, "gain": 0.28, "filterHz": 1400 },
-      { "type": "osc", "wave": "sine", "from": 520, "to": 48, "ms": 1700, "gain": 0.22 },
-      { "type": "osc", "wave": "triangle", "from": 1040, "to": 96, "ms": 1500, "gain": 0.06, "delayMs": 60 }
+      {
+        "type": "noise",
+        "ms": 1500,
+        "gain": 0.28,
+        "filterHz": 1400
+      },
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 520,
+        "to": 48,
+        "ms": 1700,
+        "gain": 0.22
+      },
+      {
+        "type": "osc",
+        "wave": "triangle",
+        "from": 1040,
+        "to": 96,
+        "ms": 1500,
+        "gain": 0.06,
+        "delayMs": 60
+      }
     ],
     "letter": [
-      { "type": "noise", "ms": 190, "gain": 0.22, "filterHz": 2600 },
-      { "type": "noise", "ms": 140, "gain": 0.14, "filterHz": 3400, "delayMs": 150 }
+      {
+        "type": "noise",
+        "ms": 190,
+        "gain": 0.22,
+        "filterHz": 2600
+      },
+      {
+        "type": "noise",
+        "ms": 140,
+        "gain": 0.14,
+        "filterHz": 3400,
+        "delayMs": 150
+      }
     ],
     "glitch": [
-      { "type": "osc", "wave": "square", "from": 1300, "to": 280, "ms": 60, "gain": 0.14 },
-      { "type": "noise", "ms": 90, "gain": 0.2, "filterHz": 4200, "delayMs": 30 },
-      { "type": "osc", "wave": "square", "from": 2200, "to": 900, "ms": 50, "gain": 0.12, "delayMs": 80 },
-      { "type": "osc", "wave": "sawtooth", "from": 160, "to": 150, "ms": 120, "gain": 0.08, "delayMs": 120 }
+      {
+        "type": "osc",
+        "wave": "square",
+        "from": 1300,
+        "to": 280,
+        "ms": 60,
+        "gain": 0.14
+      },
+      {
+        "type": "noise",
+        "ms": 90,
+        "gain": 0.2,
+        "filterHz": 4200,
+        "delayMs": 30
+      },
+      {
+        "type": "osc",
+        "wave": "square",
+        "from": 2200,
+        "to": 900,
+        "ms": 50,
+        "gain": 0.12,
+        "delayMs": 80
+      },
+      {
+        "type": "osc",
+        "wave": "sawtooth",
+        "from": 160,
+        "to": 150,
+        "ms": 120,
+        "gain": 0.08,
+        "delayMs": 120
+      }
     ],
     "ledger": [
-      { "type": "noise", "ms": 100, "gain": 0.26, "filterHz": 2800 },
-      { "type": "osc", "wave": "square", "from": 300, "to": 210, "ms": 60, "gain": 0.06, "delayMs": 10 },
-      { "type": "noise", "ms": 100, "gain": 0.22, "filterHz": 2600, "delayMs": 170 },
-      { "type": "noise", "ms": 80, "gain": 0.18, "filterHz": 2200, "delayMs": 320 }
+      {
+        "type": "noise",
+        "ms": 100,
+        "gain": 0.26,
+        "filterHz": 2800
+      },
+      {
+        "type": "osc",
+        "wave": "square",
+        "from": 300,
+        "to": 210,
+        "ms": 60,
+        "gain": 0.06,
+        "delayMs": 10
+      },
+      {
+        "type": "noise",
+        "ms": 100,
+        "gain": 0.22,
+        "filterHz": 2600,
+        "delayMs": 170
+      },
+      {
+        "type": "noise",
+        "ms": 80,
+        "gain": 0.18,
+        "filterHz": 2200,
+        "delayMs": 320
+      }
     ],
     "archive": [
-      { "type": "osc", "wave": "sine", "from": 55, "to": 190, "ms": 1300, "gain": 0.3 },
-      { "type": "osc", "wave": "sawtooth", "from": 90, "to": 380, "ms": 1300, "gain": 0.07 },
-      { "type": "noise", "ms": 1100, "gain": 0.14, "filterHz": 520, "delayMs": 150 }
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 55,
+        "to": 190,
+        "ms": 1300,
+        "gain": 0.3
+      },
+      {
+        "type": "osc",
+        "wave": "sawtooth",
+        "from": 90,
+        "to": 380,
+        "ms": 1300,
+        "gain": 0.07
+      },
+      {
+        "type": "noise",
+        "ms": 1100,
+        "gain": 0.14,
+        "filterHz": 520,
+        "delayMs": 150
+      }
     ],
     "sfx_laugh": [
-      {"type": "osc", "wave": "sawtooth", "from": 560, "to": 330, "ms": 80, "gain": 0.1},
-      {"type": "osc", "wave": "sawtooth", "from": 500, "to": 290, "ms": 80, "gain": 0.1, "delayMs": 120},
-      {"type": "osc", "wave": "sawtooth", "from": 440, "to": 250, "ms": 80, "gain": 0.1, "delayMs": 240}
+      {
+        "type": "osc",
+        "wave": "sawtooth",
+        "from": 560,
+        "to": 330,
+        "ms": 80,
+        "gain": 0.1
+      },
+      {
+        "type": "osc",
+        "wave": "sawtooth",
+        "from": 500,
+        "to": 290,
+        "ms": 80,
+        "gain": 0.1,
+        "delayMs": 120
+      },
+      {
+        "type": "osc",
+        "wave": "sawtooth",
+        "from": 440,
+        "to": 250,
+        "ms": 80,
+        "gain": 0.1,
+        "delayMs": 240
+      }
     ],
     "sfx_scream_crowd": [
-      {"type": "noise", "ms": 1500, "gain": 0.28, "filterHz": 1400},
-      {"type": "osc", "wave": "sine", "from": 520, "to": 48, "ms": 1700, "gain": 0.22},
-      {"type": "osc", "wave": "triangle", "from": 1040, "to": 96, "ms": 1500, "gain": 0.06, "delayMs": 60}
+      {
+        "type": "noise",
+        "ms": 1500,
+        "gain": 0.28,
+        "filterHz": 1400
+      },
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 520,
+        "to": 48,
+        "ms": 1700,
+        "gain": 0.22
+      },
+      {
+        "type": "osc",
+        "wave": "triangle",
+        "from": 1040,
+        "to": 96,
+        "ms": 1500,
+        "gain": 0.06,
+        "delayMs": 60
+      }
     ],
     "sfx_crowd_cheer": [
-      {"type": "noise", "ms": 1200, "gain": 0.2, "filterHz": 2200, "attackMs": 600},
-      {"type": "osc", "wave": "triangle", "from": 520, "to": 660, "ms": 700, "gain": 0.07},
-      {"type": "osc", "wave": "triangle", "from": 660, "to": 880, "ms": 700, "gain": 0.06, "delayMs": 250}
+      {
+        "type": "noise",
+        "ms": 1200,
+        "gain": 0.2,
+        "filterHz": 2200,
+        "attackMs": 600
+      },
+      {
+        "type": "osc",
+        "wave": "triangle",
+        "from": 520,
+        "to": 660,
+        "ms": 700,
+        "gain": 0.07
+      },
+      {
+        "type": "osc",
+        "wave": "triangle",
+        "from": 660,
+        "to": 880,
+        "ms": 700,
+        "gain": 0.06,
+        "delayMs": 250
+      }
     ],
     "sfx_meow": [
-      {"type": "osc", "wave": "sine", "from": 700, "to": 950, "ms": 180, "gain": 0.25}
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 700,
+        "to": 950,
+        "ms": 180,
+        "gain": 0.25
+      }
     ],
     "sfx_hiss": [
-      {"type": "noise", "ms": 300, "gain": 0.2, "filterHz": 3000, "filter": "highpass"}
+      {
+        "type": "noise",
+        "ms": 300,
+        "gain": 0.2,
+        "filterHz": 3000,
+        "filter": "highpass"
+      }
     ],
     "sfx_heartbeat": [
-      {"type": "osc", "wave": "sine", "from": 60, "to": 50, "ms": 90, "gain": 0.5},
-      {"type": "osc", "wave": "sine", "from": 60, "to": 50, "ms": 90, "gain": 0.5, "delayMs": 320}
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 60,
+        "to": 50,
+        "ms": 90,
+        "gain": 0.5
+      },
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 60,
+        "to": 50,
+        "ms": 90,
+        "gain": 0.5,
+        "delayMs": 320
+      }
     ],
     "sfx_door_creak": [
-      {"type": "osc", "wave": "sawtooth", "from": 180, "to": 240, "ms": 700, "gain": 0.05}
+      {
+        "type": "osc",
+        "wave": "sawtooth",
+        "from": 180,
+        "to": 240,
+        "ms": 700,
+        "gain": 0.05
+      }
     ],
     "sfx_paper": [
-      {"type": "noise", "ms": 190, "gain": 0.22, "filterHz": 2600},
-      {"type": "noise", "ms": 140, "gain": 0.14, "filterHz": 3400, "delayMs": 150}
+      {
+        "type": "noise",
+        "ms": 190,
+        "gain": 0.22,
+        "filterHz": 2600
+      },
+      {
+        "type": "noise",
+        "ms": 140,
+        "gain": 0.14,
+        "filterHz": 3400,
+        "delayMs": 150
+      }
     ],
     "stone_crack": [
-      {"type": "noise", "ms": 140, "gain": 0.4, "filterHz": 3200},
-      {"type": "noise", "ms": 380, "gain": 0.35, "filterHz": 420, "delayMs": 60},
-      {"type": "osc", "wave": "sine", "from": 90, "to": 34, "ms": 520, "gain": 0.45, "delayMs": 90}
+      {
+        "type": "noise",
+        "ms": 140,
+        "gain": 0.4,
+        "filterHz": 3200
+      },
+      {
+        "type": "noise",
+        "ms": 380,
+        "gain": 0.35,
+        "filterHz": 420,
+        "delayMs": 60
+      },
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 90,
+        "to": 34,
+        "ms": 520,
+        "gain": 0.45,
+        "delayMs": 90
+      }
     ],
     "ember_hiss": [
-      {"type": "noise", "ms": 1500, "gain": 0.09, "filter": "highpass", "filterHz": 3500, "attackMs": 900},
-      {"type": "noise", "ms": 1100, "gain": 0.03, "filter": "highpass", "filterHz": 6000, "attackMs": 700, "delayMs": 200}
+      {
+        "type": "noise",
+        "ms": 1500,
+        "gain": 0.09,
+        "filter": "highpass",
+        "filterHz": 3500,
+        "attackMs": 900
+      },
+      {
+        "type": "noise",
+        "ms": 1100,
+        "gain": 0.03,
+        "filter": "highpass",
+        "filterHz": 6000,
+        "attackMs": 700,
+        "delayMs": 200
+      }
     ],
     "sfx_red_surge": [
-      {"type": "osc", "wave": "sine", "from": 110, "to": 440, "ms": 900, "gain": 0.25},
-      {"type": "noise", "ms": 900, "gain": 0.15, "filterHz": 1800, "attackMs": 500}
+      {
+        "type": "osc",
+        "wave": "sine",
+        "from": 110,
+        "to": 440,
+        "ms": 900,
+        "gain": 0.25
+      },
+      {
+        "type": "noise",
+        "ms": 900,
+        "gain": 0.15,
+        "filterHz": 1800,
+        "attackMs": 500
+      }
     ],
     "sfx_war_horn": [],
     "sfx_crystal_resonance": [],

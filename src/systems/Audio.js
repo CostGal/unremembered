@@ -108,7 +108,8 @@ export function setVolumes(settings) {
 
 function applyVolumes() {
   if (!ctx) return;
-  musicBus.gain.value = volumes.musicVolume * (paused ? audioData.pause.musicDuck : 1);
+  // audio.json music.gain: a global trim under the Settings volume (Kostas: all music -10 %).
+  musicBus.gain.value = volumes.musicVolume * (audioData.music.gain ?? 1) * (paused ? audioData.pause.musicDuck : 1);
   sfxBus.gain.value = paused ? 0 : volumes.sfxVolume;
 }
 
