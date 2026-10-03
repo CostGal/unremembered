@@ -19,6 +19,7 @@
     "introMs": 1000,
     "targetMs": 900,
     "tutorialHintsMs": 10000,
+    "pauseMs": { "non-gamer": 6000, "average": 4000, "good": 2500 },
     "dashMs": 180,
     "meleeMs": 360,
     "attackMs": 700,

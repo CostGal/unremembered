@@ -2,6 +2,7 @@ import battles from '../data/battles.json';
 import enemies from '../data/enemies.json';
 import levels from '../data/levels.json';
 import { devInt } from './DevParams.js';
+import { resetPauses } from './TutorialPause.js';
 import { chapterXpBefore, xpForLevel } from './Recall.js';
 
 // Walks a chapter's step list (src/data/chapter1.json). Each scene calls
@@ -21,6 +22,8 @@ export default class ChapterRunner {
     scene.registry.set('runner', runner);
     // Fragments picked between battles last for one run.
     scene.registry.set('fragments', []);
+    // Tutorial pauses show once per run (TutorialPause.js).
+    resetPauses(scene.registry);
     // Parry assist (BattleScene.parryAssist) starts fresh too.
     scene.registry.set('parryAssistMs', 0);
     scene.registry.set('parryMissStreak', 0);

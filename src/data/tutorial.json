@@ -1,0 +1,67 @@
+{
+  "_about": "Tutorial pauses (systems/TutorialPause.js): the game freezes, everything darkens except the spotlight targets, a short text box appears and a tap continues. Each pause shows once per run (?pauses=0 turns them all off, ?pauses=all shows them every time). Only tutorial battles (battles.json tutorial: true) show them unless the pause says always: true.",
+  "style": {
+    "depth": 6000,
+    "dimColor": "0x000000",
+    "dimAlpha": 0.72,
+    "pad": 8,
+    "radius": 10,
+    "minDismissMs": 300,
+    "tapZone": { "y": 440, "bleed": 12 },
+    "fadeMs": 160,
+    "outline": { "color": "0x3fd0c9", "width": 2, "alphaMin": 0.45, "alphaMax": 1, "pulseMs": 900 },
+    "box": {
+      "x": 180, "w": 328, "padX": 14, "padY": 12, "gap": 14,
+      "edgeMin": 60, "edgeMax": 610,
+      "fill": "0x0b0d14", "alpha": 0.96, "stroke": "0x3fd0c9", "radius": 12,
+      "fontSize": 17, "wrap": 300, "color": "#f1efe8", "lineSpacing": 2,
+      "hint": { "text": "Tap to continue", "fontSize": 13, "color": "#8a8fa3", "gap": 8, "alphaMin": 0.35, "pulseMs": 700 },
+      "steps": { "fontSize": 12, "color": "#7fc4bf" }
+    },
+    "tapIndicator": { "color": "0xf1efe8", "r0": 12, "r1": 34, "ms": 800, "width": 3 },
+    "swipeIndicator": { "color": "0xf1efe8", "dotR": 11, "travel": 120, "ms": 1100, "pauseMs": 350, "trail": 6, "trailMs": 28 }
+  },
+  "targets": ["hud.hp", "hud.echo", "cmd.strike", "cmd.technique", "cmd.recollection", "cmd.ultimate", "cmd.back", "enemy", "hero", "nala", "tapzone", "recall.bar"],
+  "targetsWithHero": ["hud.hp", "hud.echo"],
+  "recallCard": "leveling",
+  "pauses": {
+    "battle_start": {
+      "steps": [
+        { "text": "This is your HP. Reach zero and the memory fades.", "targets": ["hud.hp"] },
+        { "text": "Echo. Strikes and PERFECT parries fill it.", "targets": ["hud.echo"] },
+        { "text": "Strike: free, always available.", "targets": ["cmd.strike"], "indicator": "tap" },
+        { "text": "Techniques spend Echo. Yours is still locked.", "targets": ["cmd.technique"] }
+      ]
+    },
+    "parry": {
+      "text": "Dov attacks! Tap anywhere when the ring closes on Rhea.",
+      "targets": ["hero", "tapzone"],
+      "indicator": "tap"
+    },
+    "dodge": {
+      "text": "Or swipe to dodge: safer, but a dodge earns no Echo and no counter.",
+      "targets": ["tapzone"],
+      "indicator": "swipe",
+      "skipHints": ["dodge"]
+    },
+    "leveling": {
+      "steps": [
+        { "text": "Memories return after every fight.", "targets": ["recall.bar"] },
+        { "text": "Recall grows: more HP, harder Strikes, and new techniques remembered.", "targets": ["recall.bar"] }
+      ]
+    },
+    "crush": {
+      "text": "A heavy blow: only a PERFECT dodge avoids it fully. Swipe early!",
+      "targets": ["tapzone"],
+      "indicator": "swipe",
+      "always": true
+    },
+    "nala_glow": {
+      "steps": [
+        { "text": "Nala lends her Echo: this round your Strikes can wound Hollows.", "targets": ["nala"] },
+        { "text": "Tap her when she glows to call it again.", "targets": ["nala"], "indicator": "tap" }
+      ],
+      "always": true
+    }
+  }
+}

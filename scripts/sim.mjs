@@ -39,6 +39,7 @@ const D = {
   cutscene: read('src/data/cutscene_origin.json'),
   ui: read('src/data/ui.json'),
   sim: read('src/data/sim.json'),
+  tutorial: read('src/data/tutorial.json'),
 };
 const animSets = {};
 for (const id of Object.keys({ ...D.characters, ...D.enemies })) {
@@ -153,8 +154,12 @@ function simulateBattle(battleId, profileName, story, rnd) {
   });
   const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: D.enemies[id].hp, max: D.enemies[id].hp, phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false }));
 
-  // A tutorial battle also costs the time to read its hint banners.
-  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], flags: [], playerHits: 0, parrySuccess: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  // A tutorial battle also costs the time to read its hint banners and its tutorial pauses
+  // (tutorial.json: one tap-through per step, T.pauseMs per profile; time only, no mechanics).
+  const pauseSteps = battle.tutorial
+    ? [battle.pauses?.battleStart, ...Object.values(battle.pauses?.enemyAttack || {}), D.tutorial.recallCard].reduce((n, id) => n + (D.tutorial.pauses[id] ? (D.tutorial.pauses[id].steps || [0]).length : 0), 0)
+    : 0;
+  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0) + pauseSteps * (T.pauseMs?.[profileName] ?? 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], flags: [], playerHits: 0, parrySuccess: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   // Echo is per hero (each has their own reserve).
   const gain = (hero, n) => (hero.echo = Math.max(0, Math.min(hero.echoMax, hero.echo + n)));
   const rhea = heroes.find((h) => h.id === 'rhea'); // may be absent (battles.json party)

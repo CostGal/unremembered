@@ -33,6 +33,7 @@ export function probe(page) {
         id: b.battleId,
         over: !!b.battleOver,
         pending: !!b.menu.pending,
+        pause: b.tutorialPause ? `${b.tutorialPause.id}:${b.tutorialPause.step}` : null, // a tutorial pause is up: any tap continues
         items: (b.menu.items || []).map((i) => ({ slot: i.slot, value: i.value && typeof i.value === 'object' ? 'enemy' : i.value, enabled: i.enabled !== false })),
         rings: [...(b.qteRings || [])].map((r) => r.impactAt),
         redRings: [...(b.qteRings || [])].filter((r) => r.unparryable).map((r) => r.impactAt),
@@ -109,6 +110,9 @@ export class Bot {
 
   async battleStep(st, nodeNow) {
     const b = st.battle;
+
+    // A tutorial pause (spotlight + text): any tap continues (it ignores the first 300 ms).
+    if (b.pause) return this.tapOnce(180, 320, 450);
 
     // Rings: decide once per ring, tap on a timer so the loop keeps polling.
     for (const impactAt of b.rings) {
@@ -224,7 +228,7 @@ export function defaultSignature(st) {
   if (st.cutscene) parts.push(`c:${st.cutscene.index}`);
   if (st.battle) {
     const b = st.battle;
-    parts.push(`b:${b.hero}:${b.echo}:${b.rings.length}:${b.pending}:${b.over}`);
+    parts.push(`b:${b.hero}:${b.echo}:${b.rings.length}:${b.pending}:${b.over}:${b.pause}`);
     parts.push(b.heroes.map((h) => h.hp).join(','), b.enemies.map((e) => e.hp).join(','));
   }
   return parts.join('|');

@@ -3,6 +3,8 @@ import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
 import { playSfx } from './Audio.js';
 import * as Fx from './Fx.js';
+import tutorial from '../data/tutorial.json';
+import * as TutorialPause from './TutorialPause.js';
 import { growth, levelFor, levelUps, maxLevel, techniqueAt, xpForLevel } from './Recall.js';
 
 const color = (hex) => Number(hex);
@@ -24,7 +26,10 @@ export default class RecallCard {
     this.items = [];
     this.lineY = levels.card.lines.firstY;
     this.lineObjs = [];
-    this.phase = 'filling'; // filling -> ending -> ready
+    this.phase = 'filling'; // filling -> ending -> (paused) -> ready
+    // Spotlight targets for the tutorial pause (tutorial.json recallCard): the level text and the bar.
+    const c = levels.card;
+    if (scene.tutorialTargets) scene.tutorialTargets['recall.bar'] = { x: c.level.x, y: c.level.y - 10, w: c.bar.w, h: c.bar.y - c.level.y + 18 };
   }
 
   show() {
@@ -219,7 +224,12 @@ export default class RecallCard {
     if (this.phase !== 'filling') return;
     this.phase = 'ending';
     const b = ui.battleEnd;
-    this.after(levels.card.fadeMs, () => {
+    this.after(levels.card.fadeMs, async () => {
+      // The Recall card's tutorial pause (the first card of the run): the card is still, the bar drawn.
+      if (tutorial.recallCard && TutorialPause.wouldShow(this.scene, tutorial.recallCard)) {
+        this.phase = 'paused';
+        await TutorialPause.show(this.scene, tutorial.recallCard);
+      }
       this.phase = 'ready';
       const go = this.scene.add
         .text(180, b.hintY, b.continueText, { fontFamily: ui.font, fontSize: `${b.hintFontSize}px`, color: b.hintColor })

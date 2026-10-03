@@ -14,6 +14,14 @@ export default class CommandMenu {
     this.buttons = [];
     this.pending = null;
 
+    // Spotlight targets for the tutorial pauses: every slot, whether or not a button is in it now.
+    if (scene.tutorialTargets) {
+      for (const [slot, [x, y]] of Object.entries(cfg.slots)) {
+        const w = cfg.slotWidths?.[slot] ?? cfg.button.w;
+        scene.tutorialTargets[`cmd.${slot}`] = { x: x - w / 2, y: y - cfg.button.h / 2, w, h: cfg.button.h };
+      }
+    }
+
     const { prompt } = cfg;
     this.promptText = scene.add
       .text(prompt.x, prompt.y, prompt.text, {

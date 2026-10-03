@@ -25,6 +25,8 @@ import { nalaJumpIn } from '../systems/Nala.js';
 import PoiseBar from '../systems/PoiseBar.js';
 import ResultCard from '../systems/ResultCard.js';
 import TutorialHints from '../systems/TutorialHints.js';
+import tutorialData from '../data/tutorial.json';
+import * as TutorialPause from '../systems/TutorialPause.js';
 import { addPauseButton, pauseScene } from '../systems/PauseButton.js';
 import * as Qte from '../systems/Qte.js';
 import { devInt } from '../systems/DevParams.js';
@@ -101,6 +103,11 @@ export default class BattleScene extends Phaser.Scene {
     setMusicWarm(false);
     this.difficulty = difficultyDef(this.registry.get('settings'));
     this.tutorialSlow = !!this.battleDef.tutorial;
+    // Spotlight targets for the tutorial pauses (TutorialPause.js); Hud, CommandMenu and the
+    // helpers below register theirs. battles.json `pauses.battleStart` fires on the first command menu.
+    this.tutorialTargets = {};
+    this.tutorialPause = null;
+    this.pauseOnFirstMenu = this.battleDef.pauses?.battleStart || null;
     this.pendingEvents = [];
     // Generic battle events (battles.json `events`, see systems/BattleEvents.js):
     // flags set by {setFlag}, which events already fired, and the counters their
@@ -191,6 +198,7 @@ export default class BattleScene extends Phaser.Scene {
 
     this.buildCommandMenu();
     this.buildTapHint();
+    this.registerTutorialTargets();
 
     const machine = new BattleStateMachine({
       intro: async () => {
@@ -778,7 +786,15 @@ export default class BattleScene extends Phaser.Scene {
       if (ultimate) main.push(ultimate);
       // The banner may have been busy when the Echo filled: it gets another chance here.
       if (ultimate?.value === 'ultimate') this.hints.show('recollection');
-      const pick = await this.menu.show(main);
+      const picking = this.menu.show(main);
+      // The first menu of a tutorial battle opens with its battleStart pause: the buttons are
+      // already drawn (the spotlight needs them) but the dim swallows every tap.
+      if (this.pauseOnFirstMenu) {
+        const id = this.pauseOnFirstMenu;
+        this.pauseOnFirstMenu = null;
+        await this.runPause(id);
+      }
+      const pick = await picking;
 
       if (pick === 'strike') {
         const target = await this.pickEnemy();
@@ -883,6 +899,42 @@ export default class BattleScene extends Phaser.Scene {
     });
   }
 
+  // ---------- Tutorial pauses ----------
+
+  // Spotlight targets that belong to the battle itself (the HUD and command buttons register their own).
+  registerTutorialTargets() {
+    const t = this.tutorialTargets;
+    const v = viewRect();
+    // The lower screen is the tap zone of every ring; it bleeds past the screen edges.
+    const z = tutorialData.style.tapZone;
+    t.tapzone = { x: v.x - z.bleed, y: z.y, w: v.w + z.bleed * 2, h: v.h - z.y + z.bleed, pad: 0 };
+    t.nala = () => (this.nala ? this.entityRect(this.nala.container, 56, 56, this.nala.container.y + 28) : null);
+    t.enemy = () => {
+      const e = this.enemies.find((x) => x.hp > 0) || this.enemies[0];
+      return e ? this.entityRect(e) : null;
+    };
+    t.hero = () => {
+      const h = this.activeHero || this.heroes.find((x) => x.hp > 0) || this.heroes[0];
+      return h ? this.entityRect(h) : null;
+    };
+  }
+
+  // A fighter's body box (the sprite canvas is mostly empty): feet on the baseline, ~70x100 at scale 1.
+  entityRect(entity, w = 70, h = 100, feetY = entity.container.y + entity.height / 2) {
+    const s = entity.def?.displayScale ?? 1;
+    return { x: entity.container.x - (w * s) / 2, y: feetY - h * s, w: w * s, h: h * s };
+  }
+
+  // Runs tutorial pause `id` (tutorial.json) if it applies; `extra` adds targets for this call
+  // (the attacker / its target). Safe points only: nothing live (no ring) while it is up.
+  runPause(id, extra = {}) {
+    if (!id || this.battleOver) return Promise.resolve(false);
+    const targets = {};
+    if (extra.enemy) targets.enemy = () => this.entityRect(extra.enemy);
+    if (extra.hero) targets.hero = () => this.entityRect(extra.hero);
+    return TutorialPause.show(this, id, targets);
+  }
+
   // ---------- Turn flow ----------
 
   playIntro() {
@@ -921,9 +973,11 @@ export default class BattleScene extends Phaser.Scene {
     this.gainEcho(hero, hero.def.turnEcho || 0);
 
     this.showActiveHero(hero);
-    this.hints.show('strike');
+    // The opening pause explains Strike and Techniques itself: no banner on top of it.
+    const opening = this.pauseOnFirstMenu && TutorialPause.wouldShow(this, this.pauseOnFirstMenu);
+    if (!opening) this.hints.show('strike');
     const costs = hero.techniques.filter((id) => !this.isLocked(id)).map((id) => this.techOf(hero, id).cost);
-    if (costs.length && hero.echo >= Math.min(...costs)) this.hints.show('techniques');
+    if (!opening && costs.length && hero.echo >= Math.min(...costs)) this.hints.show('techniques');
     const action = await this.chooseAction(hero);
     this.hints.done('strike');
     this.hints.done('techniques');
@@ -1024,12 +1078,16 @@ export default class BattleScene extends Phaser.Scene {
     // enemies.json firstAttackTelegraphMult: the enemy's first real attack (a refused turn doesn't count) winds up slower.
     const telegraphMult = !enemy.attacked && enemy.def.firstAttackTelegraphMult ? enemy.def.firstAttackTelegraphMult : 1;
     enemy.attacked = true;
+    enemy.attackCount = (enemy.attackCount || 0) + 1;
     const restoreDepth = this.bringInFront(enemy, target);
     // A melee attack walks up to its target first (before the first ring) and
     // walks home after the last hit, whatever ended the attack.
     const melee = !!attack.melee;
     try {
       if (melee) await this.meleeApproach(enemy, target);
+      // battles.json pauses.enemyAttack {"1": id, "2": id}: a tutorial pause before the ring of the
+      // enemy's nth real attack (the ring does not exist yet).
+      await this.runPause(this.battleDef.pauses?.enemyAttack?.[enemy.attackCount], { enemy, hero: target });
       const sheet = this.enemyAttackSheet(enemy, attack, hits.length);
       for (let k = 0; k < hits.length; k++) {
         if (target.hp <= 0 || enemy.hp <= 0) break;

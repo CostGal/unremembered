@@ -23,6 +23,30 @@ export default class Hud {
 
     this.rows = heroes.map((hero, i) => this.buildRow(hero, config.rows.firstY + i * config.rows.spacing));
     this.buildChain();
+    this.registerTargets(heroes);
+  }
+
+  // Spotlight targets for the tutorial pauses (scene.tutorialTargets, see TutorialPause.js):
+  // hud.hp / hud.echo (Rhea's row, else the first) and hud.hp.<hero> / hud.echo.<hero>.
+  registerTargets(heroes) {
+    const targets = this.scene.tutorialTargets;
+    if (!targets) return;
+    const { name, hpText, echo, hpBar } = this.cfg;
+    const first = Math.max(0, heroes.findIndex((h) => h.type === 'rhea'));
+    heroes.forEach((hero, i) => {
+      const row = this.rows[i];
+      const hp = () => ({ x: name.x, y: row.y - hpBar.h / 2 - 1, w: hpText.x - name.x, h: hpBar.h + 2, pad: 3 });
+      const echoRect = () => {
+        const right = echo.pipX + row.pips.length * (echo.pipW + echo.pipGap) - echo.pipGap;
+        return { x: echo.labelX, y: row.y + echo.offsetY - echo.pipH / 2 - 2, w: right - echo.labelX, h: echo.pipH + 4, pad: 3 };
+      };
+      targets[`hud.hp.${hero.type}`] = hp;
+      targets[`hud.echo.${hero.type}`] = echoRect;
+      if (i === first) {
+        targets['hud.hp'] = hp;
+        targets['hud.echo'] = echoRect;
+      }
+    });
   }
 
   text(x, y, str, size) {

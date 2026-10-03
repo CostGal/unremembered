@@ -3,6 +3,7 @@
     "bg": "street_rain",
     "party": ["rhea"],
     "enemies": ["dov_rival"],
+    "pauses": { "battleStart": "battle_start", "enemyAttack": { "1": "parry", "2": "dodge" } },
     "tutorial": true,
     "redRings": false,
     "statuses": false,
