@@ -48,3 +48,11 @@ export function effectTotal(owned, key) {
 export function effectMax(owned, key) {
   return owned.reduce((best, id) => Math.max(best, fragments.pool[id]?.effects[key] || 0), 0);
 }
+
+// Adds a memory to the run's registry list (a no-op when owned). Returns true when it was added.
+export function pickFragment(registry, id) {
+  const kept = registry.get('fragments') || [];
+  if (!fragments.pool[id] || kept.includes(id)) return false;
+  registry.set('fragments', [...kept, id]);
+  return true;
+}

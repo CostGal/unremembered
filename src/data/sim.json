@@ -16,6 +16,7 @@
     "braceOnArchive": true,
     "dodgeChance": { "non-gamer": 0.35, "average": 0.2, "good": 0.1 },
     "nalaTapChance": { "non-gamer": 0.7, "average": 0.85, "good": 0.95 },
+    "scenePickupChance": { "non-gamer": 0.5, "average": 0.9, "good": 0.95 },
     "nalaGlowChance": { "non-gamer": 0.6, "average": 0.8, "good": 0.95 }
   },
   "recollection": {

@@ -10,6 +10,7 @@ import { dialogueTrack } from '../systems/MusicPlan.js';
 import * as Fx from '../systems/Fx.js';
 import { manifestDef, whenReady } from '../systems/Assets.js';
 import { mirrorEdges, rect as viewRect } from '../systems/View.js';
+import MemorySpot from '../systems/MemorySpot.js';
 
 const cfg = ui.dialogue;
 const placement = audioData.music.placement;
@@ -44,6 +45,7 @@ export default class DialogueScene extends Phaser.Scene {
   init(data) {
     // Scene instances are reused (dialogue -> dialogue), so reset state here.
     this.finished = false;
+    this.spot = null;
     this.silhouette = null;
     this.typing = false;
     this.typeEvent = null;
@@ -97,7 +99,9 @@ export default class DialogueScene extends Phaser.Scene {
 
     this.index = -1;
     this.typing = false;
-    this.input.on('pointerdown', () => this.onTap());
+    // A memory spot (fragments.json scenes) swallows the tap that lands on it.
+    this.spot = this.overlay ? null : new MemorySpot(this, this.dialogueId);
+    this.input.on('pointerdown', (pointer, over) => this.onTap(over));
     // The previous dialogue ended with a "close" transition: open from black.
     if (this.fadeIn && !this.overlay) {
       const v = viewRect();
@@ -359,8 +363,8 @@ export default class DialogueScene extends Phaser.Scene {
     return true;
   }
 
-  onTap() {
-    if (this.finished || this.introActive || this.closing) return;
+  onTap(over) {
+    if (this.finished || this.introActive || this.closing || this.spot?.swallows(over)) return;
     if (this.typing) this.completeLine();
     else this.advance();
   }
@@ -405,6 +409,7 @@ export default class DialogueScene extends Phaser.Scene {
     this.nameText.setColor(nameColor);
 
     this.updatePortraits(line, style);
+    this.spot?.onLine(this.index);
     if (line.silhouette) this.showSilhouette(line.silhouette);
     const wait = this.changeBackground(line.bg);
 
@@ -528,6 +533,7 @@ export default class DialogueScene extends Phaser.Scene {
 
   finishNow() {
     this.finished = true;
+    this.spot?.hide();
     if (this.overlay) {
       this.scene.stop();
       if (this.onDone) this.onDone();

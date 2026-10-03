@@ -593,7 +593,9 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     if (!known(s.id)) err(`fragments.scenes.${scene}: unknown memory "${s.id}"`);
     if (!(Array.isArray(s.at) && s.at.length === 2 && s.at.every((v) => v >= 0 && v <= 1))) err(`fragments.scenes.${scene}.at: [x, y] between 0 and 1`);
     if (!(Array.isArray(s.lines) && s.lines.length === 2 && s.lines[0] <= s.lines[1])) err(`fragments.scenes.${scene}.lines: [first, last]`);
+    else if (dialogue[scene] && s.lines[1] >= dialogue[scene].length) err(`fragments.scenes.${scene}.lines: the last line ${s.lines[1]} is past the end of the dialogue`);
   }
+  if (Object.keys(memories.scenes || {}).some((k) => !k.startsWith('_')) && !String(memories.pickupBanner?.text || '').includes('{name}')) err('fragments.pickupBanner.text: needs {name}');
   for (const [type, d] of Object.entries(memories.drops || {})) {
     if (!enemies[type]) err(`fragments.drops.${type}: no enemy "${type}" in enemies.json`);
     if (!known(d.id)) err(`fragments.drops.${type}: unknown memory "${d.id}"`);

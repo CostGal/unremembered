@@ -269,6 +269,9 @@
     }
   },
   "fragments": {
+    "pickupBanner": {
+      "text": "Μια ανάμνηση επιστρέφει: {name}"
+    },
     "screen": {
       "title": {
         "text": "Μια ανάμνηση επιστρέφει…"

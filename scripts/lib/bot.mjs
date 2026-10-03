@@ -53,7 +53,8 @@ export function probe(page) {
       };
     }
     const d = g.scene.getScene('Dialogue');
-    if (active.includes('Dialogue')) st.dialogue = { id: d.dialogueId, index: d.index };
+    // d.spot: a memory spot (MemorySpot.js) is up on the picture, at its x / y.
+    if (active.includes('Dialogue')) st.dialogue = { id: d.dialogueId, index: d.index, spot: d.spot?.active ? { x: d.spot.x, y: d.spot.y } : null };
     // The first New Game's difficulty panel (MenuScene).
     st.menuPanel = active.includes('Menu') && !!g.scene.getScene('Menu').panel;
     const c = g.scene.getScene('Cutscene');
@@ -84,6 +85,7 @@ export class Bot {
     this.alwaysAnchor = !!opts.alwaysAnchor;
     this.log = opts.log || (() => {});
     this.handledRings = new Set();
+    this.spotTries = {};
     this.turns = {};
     this.want = null;
     this.lastTapAt = 0;
@@ -107,7 +109,16 @@ export class Bot {
     if (has('Pause')) await this.tapOnce(180, 320, 400);
     else if (st.battle && has('Battle') && !has('Dialogue')) await this.battleStep(st, nodeNow);
     else if (has('Reward')) await this.tapOnce(180, 190, 1500); // the first card
-    else if (has('Dialogue')) await this.tapOnce(180, 560, 200);
+    // A memory spot on the picture is tapped first (a few tries per dialogue), else the line advances.
+    else if (has('Dialogue')) {
+      const sp = st.dialogue?.spot;
+      const tries = this.spotTries[st.dialogue?.id] || 0;
+      if (sp && tries < 3) {
+        this.spotTries[st.dialogue.id] = tries + 1;
+        this.events.push(`spot:${st.dialogue.id}`);
+        await this.tapOnce(sp.x, sp.y, 200);
+      } else await this.tapOnce(180, 560, 200);
+    }
     else if (has('Cutscene')) await this.tapOnce(180, 480, 250);
     else if (has('Title')) await this.tapOnce(180, ui.title.tap.y, 500);
     // The difficulty panel asks on every New Game: pick the second entry (Normal).

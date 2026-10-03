@@ -158,9 +158,12 @@ function simulateBattle(battleId, profileName, mode, rnd) {
   const stepIndex = D.chapter.findIndex((step) => step.type === 'battle' && step.id === battleId);
   const level = levelFor(chapterXpBefore(D.chapter, stepIndex < 0 ? 0 : stepIndex, D.battles, D.enemies), D.levels);
   // Memories (fragments.json) owned by now: the reward picks (sim.json memoryPicks) and the
-  // drops of the enemy types killed in earlier battles (once each). Scene pickups can't be obtained.
+  // drops of the enemy types killed in earlier battles (once each), and the scene pickups
+  // (fragments.json scenes) of the earlier dialogues, each found with policy.scenePickupChance.
   const owned = [];
   for (const step of D.chapter.slice(0, stepIndex < 0 ? 0 : stepIndex)) {
+    const scene = step.type === 'dialogue' ? D.fragments.scenes?.[step.id] : null;
+    if (scene && D.fragments.pool[scene.id] && !owned.includes(scene.id) && rnd() < D.sim.policy.scenePickupChance[profileName]) owned.push(scene.id);
     const gets = step.type === 'reward' ? [D.sim.memoryPicks?.[step.id]] : step.type === 'battle' && !D.battles[step.id].events?.some((e) => e.then === 'endBattle') ? D.battles[step.id].enemies.map((t) => D.fragments.drops[t]?.id) : [];
     for (const id of gets) if (id && D.fragments.pool[id] && !owned.includes(id)) owned.push(id);
   }

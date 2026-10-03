@@ -55,6 +55,23 @@
     "after_duel": { "id": "old_ticket", "at": [0.72, 0.62], "lines": [0, 3] },
     "records_office": { "id": "worn_glove", "at": [0.5, 0.55], "lines": [0, 2] }
   },
+  "pickupSpot": {
+    "depth": 880,
+    "color": "0x3fd0c9",
+    "coreRadius": 9,
+    "coreAlpha": 0.9,
+    "ringWidth": 2,
+    "ringAlpha": 0.85,
+    "pulse": { "radiusFrom": 22, "radiusTo": 30, "alphaFrom": 0.25, "alphaTo": 0.5, "ms": 900 },
+    "tapSize": 56,
+    "fadeInMs": 300,
+    "fadeOutMs": 200,
+    "glyph": { "text": "?", "fontSize": 16, "color": "#f1efe8", "alpha": 1, "stroke": "#0b0d14", "strokeThickness": 3 },
+    "sparkle": { "size": 4, "dx": 15, "dy": -17, "ms": 700, "color": "0xf1efe8" },
+    "sfx": "echo",
+    "burst": { "count": 16, "speed": [40, 120], "lifeMs": 500, "size": 3, "color": "0x3fd0c9" }
+  },
+  "pickupBanner": { "text": "A memory returns: {name}", "ms": 1600, "fadeMs": 250, "x": 180, "y": 44, "depth": 985, "fontSize": 14, "color": "#f0c060", "fill": "0x0b0d14", "fillAlpha": 0.85, "stroke": "0xf0c060", "strokeAlpha": 0.5, "padX": 14, "padY": 8 },
   "drops": {
     "blank": { "id": "grey_raincoat", "chance": 1, "once": true },
     "hollow": { "id": "dust_shard", "chance": 1, "once": true }
