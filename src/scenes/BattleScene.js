@@ -214,6 +214,8 @@ export default class BattleScene extends Phaser.Scene {
     const machine = new BattleStateMachine({
       intro: async () => {
         await this.playIntro();
+        // Dev: ?recollection=1 jumps a staged boss to the Recollection unlock (phone-testable, no console needed).
+        if (devInt('recollection')) this.forceRecollectionReady();
         await this.checkEvents(); // `when: "battleStart"`
       },
       isOver: () => this.battleOver,
