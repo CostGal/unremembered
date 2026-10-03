@@ -1515,6 +1515,10 @@ export default class BattleScene extends Phaser.Scene {
       // battles.json pauses.enemyAttack {"1": id, "2": id}: a tutorial pause before the ring of the
       // enemy's nth real attack (the ring does not exist yet).
       await this.runPause(this.battleDef.pauses?.enemyAttack?.[enemy.attackCount], { enemy, hero: target });
+      // enemies.json attack.firstUsePause: a tutorial pause before the first ring of THIS move (once per
+      // run: the crush). When it shows, it stands in for the generic red_ring pause (enemyHit skips that one).
+      const usePaused = attack.firstUsePause ? await this.runPause(attack.firstUsePause, { enemy, hero: target }) : false;
+      if (usePaused && attack.unparryable) TutorialPause.markSeen(this.registry, 'red_ring');
       const sheet = this.enemyAttackSheet(enemy, attack, hits.length);
       for (let k = 0; k < hits.length; k++) {
         if (target.hp <= 0 || enemy.hp <= 0) break;
@@ -1526,6 +1530,7 @@ export default class BattleScene extends Phaser.Scene {
           // The slowed first attack is the lesson itself: no extra slow-mo on top, windows widened by the same factor.
           firstSlow: firstWindowMult > 1 ? firstWindowMult : 0,
           unparryable: hits[k].unparryable ?? attack.unparryable ?? false,
+          pausedBefore: k === 0 && usePaused,
           // Sounds can be set per hit or once for the whole attack.
           sfx: hits[k].sfx ?? attack.sfx,
           impactSfx: hits[k].impactSfx ?? attack.impactSfx,
@@ -1574,7 +1579,9 @@ export default class BattleScene extends Phaser.Scene {
   // done. A battle with "redRings": false (battles.json) never throws one, so
   // the swipe lesson waits for a later fight.
   pickableAttacks(enemy) {
-    const attacks = this.enemyAttacks(enemy);
+    // battles.json disabledAttacks {"<enemy id>": ["<attack id>"]}: moves this fight never throws.
+    const off = this.battleDef.disabledAttacks?.[enemy.type] || [];
+    const attacks = this.enemyAttacks(enemy).filter((a) => !off.includes(a.id));
     const noRed = this.tutorialSlow || this.battleDef.redRings === false;
     const parryable = noRed ? attacks.filter((a) => !a.unparryable) : attacks;
     return parryable.length ? parryable : attacks;
@@ -1669,7 +1676,7 @@ export default class BattleScene extends Phaser.Scene {
     const lesson = hit.unparryable && !dodgeLesson.learned && dodgeLesson.runs < red.lesson.attempts;
     // The first red ring of the run: a spotlight pause before the ring exists (tutorial.json red_ring).
     // The slow-mo lesson below still runs; its own text prompt would repeat the pause, so it stays off.
-    const redPaused = hit.unparryable && (await this.runPause('red_ring', { enemy, hero: target }));
+    const redPaused = hit.pausedBefore || (hit.unparryable && (await this.runPause('red_ring', { enemy, hero: target })));
     this.tapHint.setText(hit.unparryable ? red.hint : qte.hint.text);
     // The second gesture (ui.json tutorial.hints.dodge) is taught on the first white ring after the
     // slow-mo tap lesson, in whichever battle that is; it shows once and waits if another banner is up.
@@ -2688,6 +2695,9 @@ export default class BattleScene extends Phaser.Scene {
   // PERFECT: the hero answers with a counter. With a parry sheet the damage
   // lands on its impact frame; otherwise straight away.
   async playCounter(hero, enemy, dmg) {
+    // Hollow rule: nothing touches a Hollow unless it carries Echo. A PERFECT parry's counter (and Return
+    // to Sender's, and Blast / Tremor) carries it, so it goes through applyHit with no isImmune() check;
+    // only a plain Strike is checked (playerStrike).
     const counter = () => {
       if (enemy.hp > 0) this.applyHit(enemy, dmg, undefined, { poiseSource: 'counter' });
     };

@@ -50,6 +50,7 @@
         "idle": { "frames": 14, "loop": true },
         "punch": { "frames": 11, "loop": false, "windupFrame": 2, "impactFrames": [5] },
         "lunge": { "frames": 11, "loop": false, "windupFrame": 3, "impactFrames": [5] },
+        "crush": { "frames": 10, "loop": false, "windupFrame": 3, "impactFrames": [6] },
         "hurt": { "frames": 7, "loop": false },
         "death": { "frames": 9, "loop": false, "holdLastFrame": true }
       }
@@ -59,6 +60,7 @@
       "animations": {
         "idle": { "frames": 8, "loop": true },
         "claw": { "frames": 10, "loop": false, "windupFrame": 2, "impactFrames": [6] },
+        "slam": { "frames": 10, "loop": false, "windupFrame": 3, "impactFrames": [6] },
         "hurt": { "frames": 7, "loop": false },
         "death": { "frames": 11, "loop": false, "holdLastFrame": true },
         "siphon": { "frames": 9, "loop": false, "windupFrame": 2, "holdFrame": 4, "impactFrames": [5], "projectile": "siphon_fx", "spawn_px": [50, 48] },

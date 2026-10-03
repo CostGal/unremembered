@@ -104,6 +104,24 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
         if (!characters[hero]) err(`battles.${id}.party: no character "${hero}" in characters.json`);
       }
     }
+    // disabledAttacks: {"<enemy id>": ["<attack id>"]} moves this fight never throws (the enemy keeps at least one).
+    if (battle.disabledAttacks !== undefined) {
+      const da = battle.disabledAttacks;
+      if (typeof da !== 'object' || da === null || Array.isArray(da)) err(`battles.${id}.disabledAttacks: must be an object {"<enemy id>": ["<attack id>", ...]}`);
+      else {
+        for (const [eid, off] of Object.entries(da)) {
+          const def = enemies[eid];
+          if (!def) err(`battles.${id}.disabledAttacks: no enemy "${eid}" in enemies.json`);
+          else if (!(battle.enemies || []).includes(eid)) err(`battles.${id}.disabledAttacks: "${eid}" is not in this battle`);
+          else if (!Array.isArray(off)) err(`battles.${id}.disabledAttacks.${eid}: must be a list of attack ids`);
+          else {
+            const all = (def.stages || def.phases || [{ attacks: def.attacks }]).flatMap((p) => p.attacks.map((a) => a.id));
+            for (const aid of off) if (!all.includes(aid)) err(`battles.${id}.disabledAttacks.${eid}: no attack "${aid}"`);
+            for (const p of def.stages || def.phases || [{ attacks: def.attacks }]) if (p.attacks.every((a) => off.includes(a.id))) err(`battles.${id}.disabledAttacks.${eid}: every attack of a stage is disabled`);
+          }
+        }
+      }
+    }
     // initiative: who opens each round ("hero" = default, "enemy" = the enemies act first).
     if (battle.initiative !== undefined && !['hero', 'enemy'].includes(battle.initiative)) err(`battles.${id}.initiative: must be "hero" or "enemy"`);
     // formation: a key of ui.battleLayout.enemies with a slot per enemy.
@@ -362,6 +380,11 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       }
     }
     for (const a of lists.flatMap(([, attacks]) => attacks || [])) {
+      // firstUsePause: a tutorial.json pause shown before the first ring of this move (once per run).
+      if (a.firstUsePause !== undefined && !tutorial?.pauses?.[a.firstUsePause]) err(`enemies.${id}.${a.id}: firstUsePause "${a.firstUsePause}" is not in tutorial.json pauses`);
+      // anim: the sheet slot this move plays; the set must list it (a missing file is fine: placeholder strip).
+      const set = animationSets[e.animSet || id];
+      if (a.anim && set && !set.animations?.[a.anim]) err(`enemies.${id}.${a.id}: anim "${a.anim}" is not listed in ${e.animSet || id}_animations.json`);
       for (const hit of a.hits || [a]) {
         if (hit.onMiss?.status && !data.statuses?.[hit.onMiss.status]) err(`enemies.${id}.${a.id}: onMiss status "${hit.onMiss.status}" is not in statuses.json`);
       }

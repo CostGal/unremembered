@@ -3,7 +3,7 @@
     "name": "Forgotten",
     "hp": 55,
     "xp": 15,
-    "poise": 18,
+    "poise": 23,
     "body": "blank",
     "displayScale": 1,
     "reach": 34,
@@ -11,14 +11,15 @@
     "hollow": false,
     "attacks": [
       { "id": "punch", "melee": true, "weight": 1, "telegraphMs": 900, "dmg": 10 },
-      { "id": "lunge", "melee": true, "weight": 1, "telegraphMs": 600, "dmg": 8, "unparryable": true }
+      { "id": "lunge", "melee": true, "weight": 1, "telegraphMs": 600, "dmg": 8, "unparryable": true },
+      { "id": "crush", "melee": true, "weight": 1, "telegraphMs": 1000, "dmg": 18, "unparryable": true, "anim": "crush", "firstUsePause": "crush" }
     ]
   },
   "hollow": {
     "name": "Hollow",
     "hp": 45,
     "xp": 30,
-    "poise": 24,
+    "poise": 30,
     "body": "hollow",
     "displayScale": 1,
     "reach": 40,
@@ -42,7 +43,7 @@
     "name": "Quill",
     "hp": 220,
     "xp": 120,
-    "poise": 60,
+    "poise": 75,
     "body": "clerk",
     "displayScale": 1,
     "reach": 70,
@@ -151,7 +152,7 @@
     "name": "Warden Hollow",
     "hp": 50,
     "xp": 50,
-    "poise": 36,
+    "poise": 45,
     "body": "hollow",
     "reach": 40,
     "animSet": "hollow",
@@ -167,7 +168,8 @@
         "anim": "claw",
         "weight": 2,
         "hits": [{ "telegraphMs": 700, "dmg": 6 }, { "telegraphMs": 600, "dmg": 6, "feint": { "atPct": 0.6, "pauseMs": 350 } }]
-      }
+      },
+      { "id": "slam", "melee": true, "anim": "slam", "weight": 2, "telegraphMs": 900, "dmg": 12, "unparryable": true }
     ]
   }
 }

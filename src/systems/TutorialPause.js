@@ -40,6 +40,11 @@ export function resetPauses(registry) {
   registry.set(REGISTRY_KEY, []);
 }
 
+// Counts a pause as seen without showing it (a more specific pause stood in for it).
+export function markSeen(registry, id) {
+  if (!hasSeen(registry, id)) registry.set(REGISTRY_KEY, [...(registry.get(REGISTRY_KEY) || []), id]);
+}
+
 export function hasSeen(registry, id) {
   return (registry.get(REGISTRY_KEY) || []).includes(id);
 }

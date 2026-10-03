@@ -494,20 +494,20 @@
     {
       "speaker": "Dov",
       "style": "normal",
-      "text": "Hollows are made of Echo. Steel won't touch them. Only Echo will.",
+      "text": "Nothing touches a Hollow unless it carries Echo. Steel alone won't.",
       "portrait": "dov_fierce"
-    },
-    {
-      "speaker": "Rhea",
-      "style": "normal",
-      "text": "Then I burn something.",
-      "portrait": "rhea_determined"
     },
     {
       "speaker": "Dov",
       "style": "normal",
-      "text": "You don't have much left to burn. Make it count.",
-      "portrait": "dov_worried"
+      "text": "Your Blast carries it. So does a clean parry. That spark you feel? That's Echo.",
+      "portrait": "dov_neutral"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Then I make every parry count.",
+      "portrait": "rhea_determined"
     }
   ],
   "before_gate": [

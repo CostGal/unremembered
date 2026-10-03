@@ -121,6 +121,28 @@
         128,
         128
       ]
+    },
+    "slam": {
+      "frames": 10,
+      "sheet": "hollow_slam.png",
+      "durations_ms": [
+        90,
+        100,
+        150,
+        200,
+        60,
+        45,
+        50,
+        90,
+        110,
+        105
+      ],
+      "loop": false,
+      "windupFrame": 3,
+      "impactFrames": [
+        6
+      ],
+      "optional": true
     }
   }
 }

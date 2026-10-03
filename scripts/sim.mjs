@@ -180,10 +180,16 @@ function simulateBattle(battleId, profileName, mode, rnd) {
   // (tutorial.json: one tap-through per step, T.pauseMs per profile; time only, no mechanics).
   // Only tutorial battles show them, except pauses marked `always`. red_ring comes in the first battle of the
   // chapter that throws a red ring. Guided pauses (one step) cost a step too.
-  const hasRed = (b) => b.redRings !== false && b.enemies.some((e) => /"unparryable":\s*true/.test(JSON.stringify(D.enemies[e])));
+  // battles.json disabledAttacks {"<enemy id>": ["<attack id>"]}: moves that fight never throws.
+  const disabled = (b, e) => b.disabledAttacks?.[e] || [];
+  const reds = (b, e) => ((D.enemies[e].stages || D.enemies[e].phases)?.flatMap((p) => p.attacks) || D.enemies[e].attacks).filter((a) => a.unparryable && !disabled(b, e).includes(a.id));
+  const hasRed = (b) => b.redRings !== false && b.enemies.some((e) => reds(b, e).length);
   const firstRed = D.chapter.filter((c) => c.type === 'battle').map((c) => c.id).find((id) => hasRed(D.battles[id]));
+  // A move with firstUsePause (the crush) stands in for the generic red_ring pause when every red ring of that fight has one.
+  const redAttacks = battle.enemies.flatMap((e) => reds(battle, e));
+  const redPause = redAttacks.length && redAttacks.every((a) => a.firstUsePause) ? redAttacks[0].firstUsePause : 'red_ring';
   const pauseIds = [battle.pauses?.battleStart, ...Object.values(battle.pauses?.enemyAttack || {}), ...Object.values(battle.pauses?.menuAfterFlag || {}), battle.pauses?.techniqueMenu, battle.tutorial ? D.tutorial.recallCard : null];
-  if (battleId === firstRed) pauseIds.push('red_ring');
+  if (battleId === firstRed) pauseIds.push(redPause);
   const pauseSteps = pauseIds.reduce((n, id) => {
     const def = D.tutorial.pauses[id];
     return n + (def && (battle.tutorial || def.always) ? (def.steps || [0]).length : 0);
@@ -610,7 +616,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
     } else {
       const phase = (enemy.def.stages || enemy.def.phases)?.[enemy.phase] ?? null;
       // A noInput attack (Unwriting) is only ever forced after a failed Recollection (modelled in the cast).
-      const list = (phase ? phase.attacks : enemy.def.attacks).filter((a) => !a.noInput);
+      const list = (phase ? phase.attacks : enemy.def.attacks).filter((a) => !a.noInput && !disabled(battle, enemy.type).includes(a.id));
       // The parry tutorial teaches the tap first: no red ring until it's done.
       const open = st.tutorialSlow || battle.redRings === false ? list.filter((a) => !a.unparryable) : list;
       // A phase's "opening" fixes its first turns' attacks.

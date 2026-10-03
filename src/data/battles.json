@@ -33,7 +33,8 @@
     "env": "street_rain",
     "enemies": ["blank", "blank"],
     "pauses": { "battleStart": "break_intro" },
-    "redRings": false,
+    "redRings": true,
+    "disabledAttacks": { "blank": ["lunge"] },
     "statuses": false,
     "nala": false,
     "music": "battle"
