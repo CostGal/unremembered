@@ -356,7 +356,10 @@
         "frequency": 70,
         "max": 45
       },
-      "lights_out": { "startPct": 0.3, "ms": 1500, "steps": 5 },
+      "lights_out": { "startPct": 0.42, "ms": 1500, "steps": 5 },
+      "red_tint": { "color": "0xd8303a", "alpha": 0.28, "fadeMs": 600, "pulseColor": "0xffb0a8", "pulseMs": 1600 },
+      "shake": { "fromPx": 1, "toPx": 6, "ms": 1500, "steps": 6 },
+      "red_surge": { "color": "0xd8303a", "at": [0.5, 0.35], "delayMs": 1500, "waveMs": 700, "alpha": 0.6, "overshoot": 1.05, "wash": { "alpha": 0.3, "ms": 800 } },
       "dissolve_layer": { "startPct": 0.35, "ms": 1800, "steps": 8 },
       "eyes_glow": {
         "at": [[0.297, 0.4], [0.717, 0.402]],

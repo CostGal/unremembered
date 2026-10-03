@@ -12,7 +12,7 @@ import { compileTrack } from './MusicData.js';
 import { echoMaxFor, learned, techniqueAt } from './Recall.js';
 
 const STEP_TYPES = ['cutscene', 'dialogue', 'battle', 'reward', 'end'];
-const SHOT_FX = ['crystal_particles', 'rain', 'flash', 'lights_out', 'dissolve_layer', 'embers', 'eyes_glow'];
+const SHOT_FX = ['crystal_particles', 'rain', 'flash', 'lights_out', 'dissolve_layer', 'embers', 'eyes_glow', 'red_tint', 'shake', 'red_surge'];
 const SHOT_MOVES = ['none', 'pan_left', 'pan_right', 'zoom_in', 'zoom_out'];
 const SPLITS = ['none', 'vertical', 'horizontal'];
 const PLACEHOLDER_SHAPES = ['figure', 'room', 'street', 'band', 'none'];
@@ -471,6 +471,13 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       }
       for (const layer of shot.layers || []) if (!anyAsset[layer.img]) err(`${at}: layer "${layer.img}" is not in assets.json`);
       for (const fx of shot.fx || []) if (!SHOT_FX.includes(fx)) err(`${at}: unknown fx "${fx}"`);
+      for (const [field, v] of [['redTint', shot.redTint], ['redTint', shot.whenArt?.redTint]]) {
+        if (v !== undefined && !(typeof v === 'number' && v >= 0 && v <= 1)) err(`${at}: ${field} must be an alpha 0-1`);
+      }
+      for (const v of [shot.surgeAt, shot.whenArt?.surgeAt]) {
+        if (v !== undefined && !(Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === 'number' && n >= 0 && n <= 1))) err(`${at}: surgeAt must be [x, y], each 0-1 of the picture`);
+      }
+      if ((shot.redTint !== undefined || shot.whenArt?.redTint !== undefined) && ![...(shot.fx || []), ...(shot.whenArt?.fx || [])].includes('red_tint')) warn(`${at}: redTint is set but the shot has no red_tint fx`);
       if (shot.move && !SHOT_MOVES.includes(shot.move)) err(`${at}: unknown move "${shot.move}"`);
       if (shot.split && !SPLITS.includes(shot.split)) err(`${at}: unknown split "${shot.split}"`);
       if (beds && shot.ambience && !beds[shot.ambience]) err(`${at}: ambience "${shot.ambience}" is not in audio.json ambience.beds`);

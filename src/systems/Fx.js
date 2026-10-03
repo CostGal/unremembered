@@ -440,3 +440,26 @@ export function shadow(scene, frameW, cfg) {
     .setTint(Number(cfg.color))
     .setAlpha(cfg.alpha);
 }
+
+// A camera shake that builds: `steps` shakes back to back, from `fromPx` to
+// `toPx` (real pixels of offset on the 360-wide view) over `ms`, then it stops.
+// Timed on the tween clock (like the other cutscene fx, so they stay in step) and
+// returns the tweens so a caller can cancel them (stopShake also clears the camera).
+export function shakeRamp(scene, fromPx, toPx, ms, steps) {
+  const cam = scene.cameras.main;
+  const tweens = [];
+  for (let i = 0; i < steps; i++) {
+    const px = fromPx + ((toPx - fromPx) * i) / Math.max(1, steps - 1);
+    tweens.push(afterMs(scene, (ms * i) / steps, () => cam.shake(ms / steps + 16, px / cam.width, true)));
+  }
+  return tweens;
+}
+
+// Runs fn after ms on the tween clock. Returns the tween (remove() cancels it).
+export function afterMs(scene, ms, fn) {
+  return scene.tweens.addCounter({ from: 0, to: 1, duration: 1, delay: ms, onComplete: fn });
+}
+
+export function stopShake(scene) {
+  scene.cameras.main.shakeEffect.reset();
+}

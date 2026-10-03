@@ -19,6 +19,15 @@ const CUTSCENES = { origin: cutsceneOrigin };
 // so it plays with zero art. The picture fills the screen (9:16 illustrations);
 // the line sits on a dark gradient at the bottom. ?cutscene=origin&shot=N
 // (1-based, as numbered in docs/STORY.md) starts at shot N (dev).
+//
+// Shot fx beyond the picture fx (ui.json cutscene.fx holds every number):
+//   red_tint    a red wash fading in over the picture and staying for the shot, plus a
+//               slow red pulse on the picture. Strength = the shot field `redTint`
+//               (alpha; default fx.red_tint.alpha, a lighter 0.14 on the red tower).
+//               whenArt {redTint: 0.1} lightens it once the real red art is in.
+//   shake       the camera shake builds 1 -> 6 px over 1.5 s, then stops (the Hush).
+//   red_surge   a red wave rolls out of `surgeAt` ([x, y], 0-1 of the picture, default the
+//               tower) over the view, then a red tint fades out (the Hush, after the shake).
 export default class CutsceneScene extends Phaser.Scene {
   constructor() {
     super('Cutscene');
@@ -30,6 +39,8 @@ export default class CutsceneScene extends Phaser.Scene {
     this.typeEvent = null;
     this.shotTimer = null;
     this.fxObjects = [];
+    this.fxTweens = [];
+    this.pictures = [];
     this.cutsceneId = data.id || 'origin';
     this.shots = (CUTSCENES[this.cutsceneId] || { shots: [] }).shots;
     this.firstShot = Math.max(1, Math.min(this.shots.length, data.shot ?? devInt('shot') ?? 1)) - 1;
@@ -170,8 +181,7 @@ export default class CutsceneScene extends Phaser.Scene {
     if (this.shotTimer) this.shotTimer.remove();
     this.tweens.killTweensOf(this.shotLayer.list);
     this.shotLayer.removeAll(true);
-    for (const e of this.fxObjects || []) e.destroy();
-    this.fxObjects = [];
+    this.clearFx();
 
     const duration = shot.durationMs || cfg.defaultDurationMs;
     const stage = this.add.container(180, this.area.y + this.area.h / 2);
@@ -207,6 +217,16 @@ export default class CutsceneScene extends Phaser.Scene {
       if (this.typing) this.completeText();
       this.nextShot();
     });
+  }
+
+  // Everything a shot's fx made: objects, their tweens and timers, the camera shake.
+  clearFx() {
+    for (const t of this.fxTweens) t.remove();
+    this.fxTweens = [];
+    for (const e of this.fxObjects) e.destroy();
+    this.fxObjects = [];
+    this.pictures = [];
+    Fx.stopShake(this);
   }
 
   // The shot's ambience bed (audio.json ambience.beds): its own "ambience"
@@ -259,6 +279,7 @@ export default class CutsceneScene extends Phaser.Scene {
     }
     stage.add(img);
     img.cell = { x, y, w, h };
+    this.pictures.push(img);
     return img;
   }
 
@@ -322,7 +343,66 @@ export default class CutsceneScene extends Phaser.Scene {
       this.tweens.add({ targets: layers, alpha: 0, delay: duration * f.dissolve_layer.startPct, duration: f.dissolve_layer.ms, ease: 'Stepped', easeParams: [f.dissolve_layer.steps] });
     } else if (fx === 'eyes_glow') {
       this.eyesGlow(stage, shot, f.eyes_glow);
+    } else if (fx === 'red_tint') {
+      this.redTint(shot, f.red_tint);
+    } else if (fx === 'shake') {
+      this.fxTweens.push(...Fx.shakeRamp(this, f.shake.fromPx, f.shake.toPx, f.shake.ms, f.shake.steps));
+    } else if (fx === 'red_surge') {
+      this.redSurge(stage, shot, f.red_surge);
     }
+  }
+
+  // The Reliquary / the tower turning red: a red wash fades in and stays, and the
+  // picture breathes slowly between its own colour and a red-leaning one.
+  redTint(shot, r) {
+    const area = this.area;
+    const wash = this.add.rectangle(180, area.y + area.h / 2, area.w, area.h, Number(r.color), 0).setDepth(cfg.depth.fx);
+    this.fxObjects.push(wash);
+    this.fxTweens.push(this.tweens.add({ targets: wash, fillAlpha: shot.redTint ?? r.alpha, duration: r.fadeMs }));
+    const channels = (c) => [(c >> 16) & 255, (c >> 8) & 255, c & 255];
+    for (const img of this.pictures) {
+      const base = channels(shot.tint ? Number(shot.tint) : 0xffffff);
+      const mul = channels(Number(r.pulseColor));
+      const to = base.map((v, i) => Math.round((v * mul[i]) / 255));
+      const pulse = this.tweens.addCounter({
+        from: 0,
+        to: 1,
+        duration: r.pulseMs,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+        onUpdate: (tween) => {
+          const k = tween.getValue();
+          img.setTint(Phaser.Display.Color.GetColor(...base.map((v, i) => Math.round(v + (to[i] - v) * k))));
+        },
+      });
+      this.fxTweens.push(pulse);
+    }
+  }
+
+  // The Hush's red wave: a disc grows from `surgeAt` (in the stage, so it sits on the
+  // picture) to cover the whole view, fading as it goes; then a red wash fades out.
+  redSurge(stage, shot, r) {
+    const pic = this.picture;
+    const [sx, sy] = shot.surgeAt || r.at;
+    const x = pic ? pic.x - pic.displayWidth / 2 + sx * pic.displayWidth : (sx - 0.5) * this.area.w;
+    const y = pic ? pic.y - pic.displayHeight / 2 + sy * pic.displayHeight : (sy - 0.5) * this.area.h;
+    const reach = Math.hypot(Math.max(x + this.area.w / 2, this.area.w / 2 - x), Math.max(y + this.area.h / 2, this.area.h / 2 - y)) * r.overshoot;
+    const wave = this.add.circle(x, y, reach, Number(r.color), r.alpha).setScale(0).setVisible(false);
+    stage.add(wave);
+    this.fxObjects.push(wave);
+    const area = this.area;
+    const wash = this.add.rectangle(180, area.y + area.h / 2, area.w, area.h, Number(r.color), 0).setDepth(cfg.depth.fx);
+    this.fxObjects.push(wash);
+    this.fxTweens.push(
+      Fx.afterMs(this, r.delayMs, () => {
+        wave.setVisible(true);
+        this.fxTweens.push(this.tweens.add({ targets: wave, scale: 1, duration: r.waveMs, ease: 'Cubic.easeOut' }));
+        this.fxTweens.push(this.tweens.add({ targets: wave, fillAlpha: 0, duration: r.waveMs, ease: 'Quad.easeIn' }));
+        wash.setFillStyle(Number(r.color), r.wash.alpha);
+        this.fxTweens.push(this.tweens.add({ targets: wash, fillAlpha: 0, delay: r.waveMs, duration: r.wash.ms }));
+      }),
+    );
   }
 
   // The eyes light up teal: per eye a soft halo plus a bright almond-shaped
@@ -399,6 +479,7 @@ export default class CutsceneScene extends Phaser.Scene {
   finish() {
     if (this.done) return;
     this.done = true;
+    this.clearFx();
     playAmbience(null);
     this.cameras.main.fadeOut(cfg.fadeOutMs, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {

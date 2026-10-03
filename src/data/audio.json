@@ -141,6 +141,15 @@
       {"type": "noise", "ms": 190, "gain": 0.22, "filterHz": 2600},
       {"type": "noise", "ms": 140, "gain": 0.14, "filterHz": 3400, "delayMs": 150}
     ],
+    "stone_crack": [
+      {"type": "noise", "ms": 140, "gain": 0.4, "filterHz": 3200},
+      {"type": "noise", "ms": 380, "gain": 0.35, "filterHz": 420, "delayMs": 60},
+      {"type": "osc", "wave": "sine", "from": 90, "to": 34, "ms": 520, "gain": 0.45, "delayMs": 90}
+    ],
+    "ember_hiss": [
+      {"type": "noise", "ms": 1500, "gain": 0.09, "filter": "highpass", "filterHz": 3500, "attackMs": 900},
+      {"type": "noise", "ms": 1100, "gain": 0.03, "filter": "highpass", "filterHz": 6000, "attackMs": 700, "delayMs": 200}
+    ],
     "sfx_red_surge": [
       {"type": "osc", "wave": "sine", "from": 110, "to": 440, "ms": 900, "gain": 0.25},
       {"type": "noise", "ms": 900, "gain": 0.15, "filterHz": 1800, "attackMs": 500}
