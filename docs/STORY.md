@@ -87,56 +87,42 @@ Narrator, third person. Same art and shot layout as v1 unless noted.
 | # | Text | Visual |
 |---|---|---|
 | 1 | Veyra was a city of lanterns that never went dark. | `city`, zoom out, crystal particles |
-| 2 | Their light came from memories: the fading ones, given freely. | `city`, pan right |
-| 3 | Beneath the city, an engine of crystal and runes turned them into light. | `reliquary`, wide |
-| 4 | They called it the Reliquary. | `reliquary` zoom in, light pulse |
-| 5 | It was built by a king who was also an engineer. | split `reliquary` / `aurelian_king` |
-| 6 | His name was Aurelian. | `aurelian_king`, zoom on face |
-| 7 | Then came the Long War. Twenty years of it. | `battlefield`, embers |
-| 8 | To end it, he taught the engine to tear a soldier out of every mind that knew him. | `battlefield` desaturated + `aurelian_king_kneel` |
-| 9 | The enemy broke. But the council saw what their king now held. | `council` |
-| 10 | Afraid of him, they took the engine and named him the butcher of the war he had won. | `council`, zoom, red tint |
-| 11 | His sentence was his own weapon: the Unwriting. | `council` + teal particles |
-| 12 | Every memory of him was torn from every mind in Veyra. | `reliquary` + `aurelian_king`, dissolve |
-| 13 | His statues fell. His name was chiseled from the stone. | `statue` |
-| 14 | Even those who loved him forgot he had ever lived. | `statue`, zoom |
-| 15 | For years, he wandered the ruins beyond the wall. | `battlefield` night + `aurelian_exile_kneel` |
-| 16 | Once, he came back in secret, to see his daughter. | `street_rain` + `aurelian_exile` |
-| 17 | She looked straight at him, and saw a stranger. | split `cs_castle_daughter` / `exile_close` |
-| 18 | That was the day his grief became hatred. | `exile_close`, eyes glow |
-| 19 | He did not come back for his throne. | `reliquary`, dark tint |
-| 20 | He came back for the engine they had stolen. | split `reliquary` / `aurelian_exile` |
-| 21 | That night, he fed it thousands. | `reliquary`, flash + particles |
-| 22 | Every light in Veyra went dark. They call it the Hush. | `city`, lights_out, sfx `hush`, 5000 ms |
-| 23 | When the light returned, the king and the engine were one. | `city`, flash only (**changed:** no lights_out, the city is lit again) |
-| 24 | A hundred years later, he still rules. His servants live for decades more. | `city` night tint + rain |
-| 25 | Those who defy him are unwritten. No one can keep a memory of them: the Forgotten. | `street_rain` + Forgotten sprite |
-| 26 | From what is taken, his memorists shape monsters: the Hollows. | `street_rain` + Hollows |
-| 27 | Everything passes through a Hollow like smoke. Everything but memory. | black + Hollow, flash |
-| 28 | A Hollow is made of memory. Only memory can wound it. | black + particles |
-| 29 | So the people learned to burn their own. They call it Echo. | black + Rhea glowing |
-| 30 | And a few of them learned to fight back. | black, 3500 ms → dialogue `letter` |
+| 2 | Their light came from memories, fed to an engine beneath the city: the Reliquary. | `reliquary` zoom in, light pulse |
+| 3 | It was built by a king who was also an engineer. Aurelian. | `cs_aurelian_cheered` + `aurelian_king`, zoom, crowd cheer |
+| 4 | Then came twenty years of war. To end it, he taught the engine to tear a soldier out of every mind that knew him. | `cs_aurelian_engine_war` desaturated + `aurelian_king_kneel`, embers, war horn + resonance |
+| 5 | The war was won. Afraid of what their king now held, the council took the engine and named him a butcher. | `cs_council_trial`, zoom, red tint, crowd murmur |
+| 6 | His sentence was his own weapon: every memory of him, torn from every mind in Veyra. | `reliquary` + `aurelian_king`, dissolve, bell toll |
+| 7 | His statues fell. Even those who loved him forgot he had ever lived. | `cs_statue_2`, zoom, stone crumble |
+| 8 | Years later he came back in secret, to see his daughter. She looked straight at him, and saw a stranger. | split `cs_castle_daughter` / `exile_close`, rain |
+| 9 | That was the day his grief became hatred. | `exile_close`, eyes glow |
+| 10 | He came back for the engine they had stolen. That night, he fed it thousands. | `cs_reliquary_red`, zoom, flash + particles, red surge |
+| 11 | Every light in Veyra went dark. They call it the Hush. | `cs_hush_1` -> `cs_hush_mid`, shake + red surge, sfx `hush`, 6000 ms |
+| 12 | (no text) | `cs_hush_mid` hold, 3000 ms |
+| 13 | (no text) | black (`cs_hush_2`), 2000 ms, silence |
+| 14 | When the light returned, the king and the engine were one. A hundred years later, he still rules. | `cs_hush_2`, flash, night tint + rain |
+| 15 | Those who defy him are unwritten: the Forgotten. From what is taken, his memorists shape the Hollows. | `cs_hollows` + two Hollow sprites, rain |
+| 16 | So the people learned to burn their own memories. They call it Echo. And a few of them learned to fight back. | `cs_echo_called` + Rhea glowing, 3500 ms -> dialogue `wake` |
+
+**Opening trim (Sat 3/10, player feedback: too much text at the start):** the 30-shot script above was merged to 14 text shots (+ the two Hush holds); the cut shots were the engine/Reliquary split, the exile in the ruins, the two Hollow-lore shots ("Everything passes through a Hollow like smoke" / "Only memory can wound it": Dov says it in `b2_immune`) and "Ordinary people learned it too". Every picture but `cs_aurelian_build`, `cs_exile_ruins`, `cs_forgotten` and `cs_echo_learning` still appears.
 
 ## Dialogue
 Notation: `Speaker [portrait]: text`. `>` = narration (no speaker). `✉` = letter style. Speaker `▯▯▯` uses the existing glitch name style.
 
-### letter (bg black)
-- Rhea [rhea_pained]: Ow... my head.
-- > A cold floor. Rain on a window. A letter in her hand.
-- > The handwriting is hers. She doesn't remember writing it.
-- > She doesn't remember anything.
+### wake (bg_abandoned_home_fpv, silent eyelid intro)
+- Rhea: Ow... my head.
+- > A ceiling she doesn't know. A door hanging open. Rain.
+
+### letter (bg_letter_fpv)
+- > The handwriting is hers. She doesn't remember writing it. She doesn't remember anything.
 - ✉ If you're reading this, he got me. He took everything.
 - ✉ Trust Dov. You won't remember why. — R.
 - Rhea [rhea_confused]: Who is Dov? ...Who am I?
 
-### meet_dov (street_rain)
-- > Night. The street outside is drowning in rain.
-- Dov [dov_worried]: Rhea! I've been looking for you all day. Are you hurt?
+### meet_dov (street_far_room)
+- Dov [dov_worried]: Rhea! It's me, Dov. I've been looking for you all day.
 - Rhea [rhea_serious]: Stay where you are.
-- Dov [dov_neutral]: It's me. Dov.
-- Rhea [rhea_angry]: Anyone can read a letter and say a name.
 - Dov [dov_sad]: Rhea, please. What did he do to you?
-- Rhea [rhea_angry]: Last chance. Back off.
+- Rhea [rhea_angry]: Anyone can read a letter and say a name. Last chance. Back off.
 - > She draws her baton. Her hands know how, even if she doesn't.
 
 ### Battle b0_duel — events
@@ -149,7 +135,7 @@ Notation: `Speaker [portrait]: text`. `>` = narration (no speaker). `✉` = lett
 - Tutorial pause `technique_guided` (Rhea's first command menu after `duel_blast_unlock`; guided: only a tap on the spotlit Technique button gets through):
   - "Tap Technique."
 - Tutorial pause `blast_explain` (the first time the Technique list opens with Blast usable; tap to continue, 2 steps):
-  - 1/2 "Blast: your first Technique. 2 Echo, 2 bolts of pure memory." (spotlight: Blast)
+  - 1/2 "Blast: your first Technique. 2 Echo, 2 bolts of pure memory. Hold it to read more." (spotlight: Blast)
   - 2/2 "Techniques spend the Echo your Strikes and PERFECT parries earn. When Echo runs out, Strike." (spotlight: Blast + Echo row; with less than 2 Echo it adds "(Strike once more to afford it.)")
 - `duel_nala` (Dov at or below 50% HP; the battle ends). Nala's jump plays in silence, with no dialogue and no portrait; the dialogue opens only once she has landed:
   - > [nala_meow, right; sfx meow] Nala leaps out of the rain and lands between them. One sharp meow, like an order.
@@ -159,32 +145,26 @@ Notation: `Speaker [portrait]: text`. `>` = narration (no speaker). `✉` = lett
 - `break_intro` (b1_forgotten, Rhea's first menu): 1/2 "The golden line is its footing. Every hit chips it." (spotlight: the poise line) - 2/2 "Empty it and the enemy BREAKS: it loses its next turn and takes extra damage." (poise line + Strike).
 - `red_ring` (before the first red ring of the run, b2): 1/2 "A RED ring can't be parried. Swipe anywhere to dodge it." (attacker + tap zone, swipe hint) - 2/2 "A PERFECT dodge takes nothing. Late takes half. A tap takes it all."
 
-### after_duel (street_rain)
-- Dov [dov_warm]: Nala! Easy, girl. Easy.
+### after_duel (street_far_room)
+- Dov [dov_pet_nala, sfx meow]: Nala! Easy, girl. Easy.
 - Rhea [rhea_confused]: I know her. I don't know my own name, but I know hers.
-- Dov [dov_worried]: You remember the cat... and not me?
-- Dov [dov_neutral]: No idea why you remember her. But she's never wrong about people.
+- Dov [dov_worried]: You remember the cat and not me? ...Well. She's never wrong about people.
 - Rhea [rhea_serious]: ...Then I'll trust her. For now.
-- > Nala's fur stands on end. She hisses at the dark.
-- > Grey raincoats in the fog. Smooth faces. No eyes.
+- > [nala_hissing, sfx hiss] Nala hisses at the dark. Grey raincoats in the fog. Smooth faces. No eyes.
 - Dov [dov_fierce]: Forgotten. Quill's strays.
 - Rhea [rhea_confused]: Who's Quill?
 - Dov [dov_fierce]: Later. Stay close!
 
-### after_b1 (street_rain)
+### after_b1 (rest scene, 3 panels)
 - Rhea [rhea_serious]: Talk. Who am I?
 - Dov [dov_neutral]: Rhea. My sister. My parents took you in when you were small.
 - Dov [dov_sad]: Quill is the magistrate of our ward. Years ago, he had our mother unwritten.
-- Dov [dov_sad]: Dad died fighting his men. Mom became Forgotten.
-- Rhea [rhea_serious]: Like the ones we just fought?
-- Dov [dov_sad]: Nobody can hold on to them, not even for a minute. Most of them break.
-- Dov [dov_sad]: One day Mom walked out of the city. We don't know where she is.
+- Dov [dov_sad]: Dad died fighting his men. Mom became Forgotten, like the ones we just fought.
 - Rhea [rhea_pained]: And me?
 - Dov [dov_neutral]: You became a courier. Carried Quill's letters, smiled at his clerks.
 - Dov [dov_fierce]: You wanted to get close enough to kill him. Then the King.
-- Dov [dov_neutral]: You trained at the Memorist School. You got strong. Too strong.
-- Dov [dov_worried]: The King signed a warrant to unwrite you. Quill cast it. It backfired.
-- Dov [dov_worried]: People started forgetting him. So he hit you with everything he had.
+- Dov [dov_worried]: Quill cast the King's warrant to unwrite you. It backfired: people began forgetting him.
+- Dov [dov_worried]: So he hit you with everything he had.
 - Rhea [rhea_pained]: And instead of the world forgetting me... I forgot the world.
 - Dov [dov_neutral]: Memorists write down everything they take. It's all in his Ledger.
 - Rhea [rhea_determined]: Then we pay the magistrate a visit.
@@ -196,9 +176,8 @@ Notation: `Speaker [portrait]: text`. `>` = narration (no speaker). `✉` = lett
   - Dov [dov_fierce]: A Hollow. Watch Nala. She feels them before they strike.
 - `b2_immune` (first Strike on a Hollow, after its IMMUNE text):
   - Rhea [rhea_confused]: It went right through!
-  - Dov [dov_fierce]: Hollows are made of Echo. Steel won't touch them. Only Echo will.
-  - Rhea [rhea_determined]: Then I burn something.
-  - Dov [dov_worried]: You don't have much left to burn. Make it count.
+  - Dov [dov_fierce]: Nothing touches a Hollow unless it carries Echo. Your Blast does. So does a clean parry.
+  - Rhea [rhea_determined]: Then I make every parry count.
 
 ### before_gate (street_rain)
 - > The Records Office. Two shapes of dust guard the door. One is twice the size of the other.

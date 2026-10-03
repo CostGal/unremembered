@@ -648,9 +648,9 @@ await withBrowser(async ({ chrome, server }) => {
       await page.tap(x, y);
     };
 
-    // (a) battle_start: 4 steps, each advanced by a tap; the dim sits above everything else.
+    // (a) battle_start: 2 steps, each advanced by a tap; the dim sits above everything else.
     await waitPause('battle_start');
-    log((await tp()).steps === 4, 'Pauses: battle_start has 4 steps', JSON.stringify(await tp()));
+    log((await tp()).steps === 2, 'Pauses: battle_start has 2 steps', JSON.stringify(await tp()));
     const depths = await B(page, `({ dim: Math.max(...B.children.list.filter((o) => o.type === 'Rectangle' && o.depth === 6000).map((o) => o.depth)), others: Math.max(...B.children.list.filter((o) => o.depth < 6000 && o.visible !== false).map((o) => o.depth)), hud: B.hud.rows.length })`);
     log(depths.dim === 6000 && depths.others < 6000, 'Pauses: the dim is above the HUD and every other object', JSON.stringify(depths));
     // A tap within 300 ms of the step appearing is ignored (accidental skips).
@@ -663,26 +663,17 @@ await withBrowser(async ({ chrome, server }) => {
     } else log(true, 'Pauses: early-tap check skipped (the poll found the pause late)', `${Math.round(age)} ms old`);
     await sleep(500);
     const t1 = await pauseTexts();
-    log(t1.some((t) => /This is your HP/.test(t.text)) && t1.every((t) => t.lines <= 2 || /\d\/\d|Tap to continue/.test(t.text)), 'Pauses: step 1 text (HP) is up, at most 2 lines', JSON.stringify(t1));
-    await page.shot(join(out, 'pause_a1_hp.png'));
+    log(t1.some((t) => /^Echo: \+1 every turn, \+1 per Strike, \+2 per PERFECT parry\.$/.test(t.text)) && t1.every((t) => t.lines <= 2 || /\d\/\d|Tap to continue/.test(t.text)), 'Pauses: step 1 text (Echo: +1 every turn, +1 per Strike, +2 per PERFECT parry) is up, at most 2 lines', JSON.stringify(t1));
+    await page.shot(join(out, 'pause_a1_echo.png'));
     await continueTap();
     await waitStep(1);
     await sleep(500);
-    await page.shot(join(out, 'pause_a2_echo.png'));
+    await page.shot(join(out, 'pause_a2_strike.png'));
     const t2 = await pauseTexts();
-    log(t2.some((t) => /^Echo: \+1 every turn, \+1 per Strike, \+2 per PERFECT parry\.$/.test(t.text) && t.lines <= 2), 'Pauses: tap advances to step 2 (Echo: +1 every turn, +1 per Strike, +2 per PERFECT parry; at most 2 lines)', JSON.stringify(t2.map((t) => t.text)));
-    await continueTap();
-    await waitStep(2);
-    await sleep(500);
-    await page.shot(join(out, 'pause_a3_strike.png'));
-    // Step 3 spotlights the Strike button: a tap ON it must advance the pause, not strike.
-    await sleep(0);
-    await page.tap(...slots.strike);
-    await waitStep(3);
+    log(t2.some((t) => /^Strike: free, always available\.$/.test(t.text) && t.lines <= 2), 'Pauses: tap advances to step 2 (Strike: free, always available; at most 2 lines)', JSON.stringify(t2.map((t) => t.text)));
+    // Step 2 spotlights the Strike button: a tap ON it must end the pause, not strike.
     const hits0 = await B(page, 'B.counters.playerHits');
-    await sleep(500);
-    await page.shot(join(out, 'pause_a4_technique.png'));
-    await continueTap();
+    await page.tap(...slots.strike);
     await page.waitFor(`!window.__battle.tutorialPause`, { timeout: 5000 });
     await sleep(400);
     const after = await B(page, `({ pending: !!B.menu.pending, hits: B.counters.playerHits, hp: B.enemies[0].hp, max: B.enemies[0].maxHp, scales: [B.tweens.timeScale, B.anims.globalTimeScale, B.time.timeScale] })`);
@@ -749,18 +740,13 @@ await withBrowser(async ({ chrome, server }) => {
     await sleep(500);
     await page.shot(join(out, 'pause_e2_blast.png'));
     const b1t = await pauseTexts();
-    log((await tp())?.steps === 3 && b1t.some((t) => /^Blast: your first Technique\. 2 Echo, 2 bolts of pure memory\.$/.test(t.text)) && b1t.every((t) => t.lines <= 3 || /\d\/\d|Tap to continue/.test(t.text)), 'Pauses: blast_explain step 1 text', JSON.stringify(b1t.map((t) => [t.text, t.lines])));
+    log((await tp())?.steps === 2 && b1t.some((t) => /^Blast: your first Technique\. 2 Echo, 2 bolts of pure memory\. Hold it to read more\.$/.test(t.text)) && b1t.every((t) => t.lines <= 3 || /\d\/\d|Tap to continue/.test(t.text)), 'Pauses: blast_explain step 1 text', JSON.stringify(b1t.map((t) => [t.text, t.lines])));
     await continueTap();
     await waitStep(1);
     await sleep(500);
     await page.shot(join(out, 'pause_e3_echo.png'));
     const b2t = await pauseTexts();
     log(b2t.some((t) => /^Techniques spend the Echo your Strikes and PERFECT parries earn\. When Echo runs out, Strike\. \(Strike once more to afford it\.\)$/.test(t.text)), 'Pauses: blast_explain step 2 text (with the "Strike once more" line when Echo < 2)', JSON.stringify(b2t.map((t) => t.text)));
-    await continueTap();
-    await waitStep(2);
-    await sleep(500);
-    const b3t = await pauseTexts();
-    log(b3t.some((t) => /^Hold any ability to read what it does\.$/.test(t.text)) && b3t.every((t) => t.lines <= 2 || /\d\/\d|Tap to continue/.test(t.text)), 'Pauses: blast_explain step 3 text ("Hold any ability ...", at most 2 lines)', JSON.stringify(b3t.map((t) => [t.text, t.lines])));
     await continueTap();
     await page.waitFor(`!window.__battle.tutorialPause`, { timeout: 5000 });
     await sleep(300);

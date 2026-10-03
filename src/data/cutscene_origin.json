@@ -9,16 +9,7 @@
       ]
     },
     {
-      "text": "Their light came from memories: the fading ones, given freely.",
-      "bg": "city",
-      "move": "pan_right"
-    },
-    {
-      "text": "Beneath the city, an engine of crystal and runes turned them into light.",
-      "bg": "reliquary"
-    },
-    {
-      "text": "They called it the Reliquary.",
+      "text": "Their light came from memories, fed to an engine beneath the city: the Reliquary.",
       "bg": "reliquary",
       "move": "zoom_in",
       "fx": [
@@ -27,24 +18,7 @@
       ]
     },
     {
-      "text": "It was built by a king who was also an engineer.",
-      "bg": "cs_aurelian_build",
-      "bgFallback": "reliquary",
-      "bg2": "aurelian_king",
-      "split": "vertical",
-      "bg2View": {
-        "focus": [
-          0.5,
-          0.34
-        ]
-      },
-      "whenArt": {
-        "bg2": null,
-        "split": "none"
-      }
-    },
-    {
-      "text": "His name was Aurelian.",
+      "text": "It was built by a king who was also an engineer. Aurelian.",
       "bg": "cs_aurelian_cheered",
       "bgFallback": null,
       "layers": [
@@ -62,16 +36,7 @@
       "sfx": "sfx_crowd_cheer"
     },
     {
-      "text": "Then came the Long War. Twenty years of it.",
-      "bg": "cs_aurelian_war",
-      "bgFallback": "battlefield",
-      "fx": [
-        "embers"
-      ],
-      "sfx": "sfx_war_horn"
-    },
-    {
-      "text": "To end it, he taught the engine to tear a soldier out of every mind that knew him.",
+      "text": "Then came twenty years of war. To end it, he taught the engine to tear a soldier out of every mind that knew him.",
       "bg": "cs_aurelian_engine_war",
       "bgFallback": "battlefield",
       "tint": "0x8a8a96",
@@ -90,30 +55,21 @@
         "layers": [],
         "tint": null
       },
-      "sfx": "sfx_crystal_resonance"
+      "sfx": [
+        "sfx_war_horn",
+        "sfx_crystal_resonance"
+      ]
     },
     {
-      "text": "The enemy broke. But the council saw what their king now held.",
-      "bg": "council",
-      "sfx": "sfx_crowd_murmur"
-    },
-    {
-      "text": "Afraid of him, they took the engine and named him the butcher of the war he had won.",
+      "text": "The war was won. Afraid of what their king now held, the council took the engine and named him a butcher.",
       "bg": "cs_council_trial",
       "bgFallback": "council",
       "move": "zoom_in",
-      "tint": "0xff8a80"
+      "tint": "0xff8a80",
+      "sfx": "sfx_crowd_murmur"
     },
     {
-      "text": "His sentence was his own weapon: the Unwriting.",
-      "bg": "council",
-      "fx": [
-        "crystal_particles"
-      ],
-      "sfx": "sfx_bell_toll"
-    },
-    {
-      "text": "Every memory of him was torn from every mind in Veyra.",
+      "text": "His sentence was his own weapon: every memory of him, torn from every mind in Veyra.",
       "bg": "reliquary",
       "layers": [
         {
@@ -126,16 +82,11 @@
       "fx": [
         "dissolve_layer",
         "crystal_particles"
-      ]
+      ],
+      "sfx": "sfx_bell_toll"
     },
     {
-      "text": "His statues fell. His name was chiseled from the stone.",
-      "bg": "cs_statue",
-      "bgFallback": "statue",
-      "sfx": "stone_crack"
-    },
-    {
-      "text": "Even those who loved him forgot he had ever lived.",
+      "text": "His statues fell. Even those who loved him forgot he had ever lived.",
       "bg": "cs_statue_2",
       "bgFallback": "statue",
       "move": "zoom_in",
@@ -148,45 +99,7 @@
       "sfx": "sfx_stone_crumble"
     },
     {
-      "text": "For years, he wandered the ruins beyond the wall.",
-      "bg": "cs_exile_ruins",
-      "bgFallback": "battlefield",
-      "ambience": "wind",
-      "tint": "0x6070b0",
-      "layers": [
-        {
-          "img": "aurelian_exile_kneel",
-          "x": 0.5,
-          "y": 0.48,
-          "scale": 0.42
-        }
-      ],
-      "whenArt": {
-        "layers": []
-      }
-    },
-    {
-      "text": "Once, he came back in secret, to see his daughter.",
-      "bg": "cs_castle_daughter",
-      "bgFallback": "street_rain",
-      "layers": [
-        {
-          "img": "aurelian_exile",
-          "x": 0.3,
-          "y": 0.54,
-          "scale": 0.34
-        }
-      ],
-      "fx": [
-        "rain"
-      ],
-      "whenArt": {
-        "layers": [],
-        "fx": []
-      }
-    },
-    {
-      "text": "She looked straight at him, and saw a stranger.",
+      "text": "Years later he came back in secret, to see his daughter. She looked straight at him, and saw a stranger.",
       "bg": "cs_castle_daughter",
       "bg2": "exile_close",
       "split": "vertical",
@@ -214,36 +127,7 @@
       "sfx": "ember_hiss"
     },
     {
-      "text": "He did not come back for his throne.",
-      "bg": "reliquary",
-      "tint": "0x505a78"
-    },
-    {
-      "text": "He came back for the engine they had stolen.",
-      "bg": "cs_reliquary_red",
-      "bgFallback": "reliquary",
-      "bg2": "aurelian_exile",
-      "split": "vertical",
-      "tint": "0x505a78",
-      "bg2View": {
-        "focus": [
-          0.62,
-          0.3
-        ]
-      },
-      "fx": [
-        "red_tint"
-      ],
-      "sfx": "sfx_red_surge",
-      "whenArt": {
-        "bg2": null,
-        "split": "none",
-        "tint": null,
-        "redTint": 0.1
-      }
-    },
-    {
-      "text": "That night, he fed it thousands.",
+      "text": "He came back for the engine they had stolen. That night, he fed it thousands.",
       "bg": "cs_reliquary_red",
       "bgFallback": "reliquary",
       "fx": [
@@ -254,7 +138,8 @@
       "move": "zoom_in",
       "whenArt": {
         "redTint": 0.1
-      }
+      },
+      "sfx": "sfx_red_surge"
     },
     {
       "text": "Every light in Veyra went dark. They call it the Hush.",
@@ -303,7 +188,7 @@
       ],
       "sfx": null,
       "ambience": null,
-      "durationMs": 4500
+      "durationMs": 3000
     },
     {
       "text": "",
@@ -315,24 +200,12 @@
       "durationMs": 2000
     },
     {
-      "text": "When the light returned, the king and the engine were one.",
-      "bg": "cs_hush_2",
-      "bgFallback": "city",
-      "fx": [
-        "flash",
-        "red_tint"
-      ],
-      "redTint": 0.14,
-      "whenArt": {
-        "redTint": 0.1
-      }
-    },
-    {
-      "text": "A hundred years later, he still rules. His servants live for decades more.",
+      "text": "When the light returned, the king and the engine were one. A hundred years later, he still rules.",
       "bg": "cs_hush_2",
       "bgFallback": "city",
       "tint": "0x6070b0",
       "fx": [
+        "flash",
         "rain",
         "red_tint"
       ],
@@ -342,27 +215,7 @@
       }
     },
     {
-      "text": "Those who defy him are unwritten. No one can keep a memory of them: the Forgotten.",
-      "bg": "cs_forgotten",
-      "bgFallback": "street_rain",
-      "layers": [
-        {
-          "img": "blank",
-          "x": 0.62,
-          "y": 0.58,
-          "scale": 2,
-          "flip": true
-        }
-      ],
-      "fx": [
-        "rain"
-      ],
-      "whenArt": {
-        "layers": []
-      }
-    },
-    {
-      "text": "From what is taken, his memorists shape monsters: the Hollows.",
+      "text": "Those who defy him are unwritten: the Forgotten. From what is taken, his memorists shape the Hollows.",
       "bg": "cs_hollows",
       "bgFallback": "street_rain",
       "layers": [
@@ -388,37 +241,7 @@
       }
     },
     {
-      "text": "Everything passes through a Hollow like smoke. Everything but memory.",
-      "bg": null,
-      "layers": [
-        {
-          "img": "hollow",
-          "x": 0.5,
-          "y": 0.5,
-          "scale": 2
-        }
-      ],
-      "fx": [
-        "flash"
-      ]
-    },
-    {
-      "text": "A Hollow is made of memory. Only memory can wound it.",
-      "bg": null,
-      "fx": [
-        "crystal_particles"
-      ]
-    },
-    {
-      "text": "Ordinary people learned it too: a little light, a little warmth, held in the hand.",
-      "bg": "cs_echo_learning",
-      "bgFallback": null,
-      "fx": [
-        "crystal_particles"
-      ]
-    },
-    {
-      "text": "So the people learned to burn their own. They call it Echo.",
+      "text": "So the people learned to burn their own memories. They call it Echo. And a few of them learned to fight back.",
       "bg": "cs_echo_called",
       "bgFallback": null,
       "layers": [
@@ -435,11 +258,7 @@
       ],
       "whenArt": {
         "layers": []
-      }
-    },
-    {
-      "text": "And a few of them learned to fight back.",
-      "bg": null,
+      },
       "durationMs": 3500
     }
   ]

@@ -93,13 +93,13 @@ await withBrowser(async ({ chrome, server }) => {
     }
     const sfxAt = (i, names) => names.every((n) => sfxByShot[i].includes(n));
     const idx = (bg) => origin.shots.findIndex((s) => s.bg === bg);
-    log(sfxAt(6, ['sfx_war_horn']) && sfxAt(7, ['sfx_crystal_resonance']) && sfxAt(8, ['sfx_crowd_murmur']) && !sfxByShot[9].includes('sfx_crowd_murmur') && sfxAt(10, ['sfx_bell_toll']), 'sfx: war_horn on shot 7, crystal_resonance 8, crowd_murmur on 9 only, bell_toll 11 (story numbering)', JSON.stringify([6, 7, 8, 9, 10].map((i) => sfxByShot[i])));
-    log(sfxAt(idx('cs_statue_2'), ['sfx_stone_crumble']), 'sfx: stone_crumble on the cs_statue_2 shot (13 -> 14 change)', JSON.stringify(sfxByShot[idx('cs_statue_2')]));
+    log(sfxAt(3, ['sfx_war_horn', 'sfx_crystal_resonance']) && sfxAt(4, ['sfx_crowd_murmur']) && !sfxByShot[5].includes('sfx_crowd_murmur') && sfxAt(5, ['sfx_bell_toll']), 'sfx: war_horn + crystal_resonance on shot 4, crowd_murmur on 5 only, bell_toll on 6 (story numbering)', JSON.stringify([3, 4, 5].map((i) => sfxByShot[i])));
+    log(sfxAt(idx('cs_statue_2'), ['sfx_stone_crumble']), 'sfx: stone_crumble on the cs_statue_2 shot (the statue falls)', JSON.stringify(sfxByShot[idx('cs_statue_2')]));
     log(sfxAt(idx('cs_hush_1'), ['hush', 'sfx_scream_crowd']), 'sfx: hush + scream_crowd on the cs_hush_1 shot (list)', JSON.stringify(sfxByShot[idx('cs_hush_1')]));
     await page2.ev(`(() => { const s = ${sc(page2, 'Cutscene')}; s.index = ${idx('cs_statue_2')} - 1; s.nextShot(); })()`);
     await sleep(300);
     const statue = await page2.ev(`(() => { const s = ${sc(page2, 'Cutscene')}; const p = s.pictures[0]; return { shot: s.index, key: p && p.texture.key, scale: p && p.scale, y: p && p.y }; })()`);
-    log(statue.key === 'cs_statue_2' && statue.shot === 13, 'statue: shot 14 (index 13) draws cs_statue_2 (focus zoom applied)', JSON.stringify(statue));
+    log(statue.key === 'cs_statue_2' && statue.shot === idx('cs_statue_2'), `statue: shot ${idx('cs_statue_2') + 1} (index ${idx('cs_statue_2')}) draws cs_statue_2 (focus zoom applied)`, JSON.stringify(statue));
     // the hush crossfade picture exists on that shot
     await page2.ev(`(() => { const s = ${sc(page2, 'Cutscene')}; s.index = ${idx('cs_hush_1')} - 1; s.nextShot(); })()`);
     await sleep(300);

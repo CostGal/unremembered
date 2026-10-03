@@ -29,10 +29,8 @@
   "pauses": {
     "battle_start": {
       "steps": [
-        { "text": "This is your HP. Reach zero and the memory fades.", "targets": ["hud.hp"] },
         { "text": "Echo: +1 every turn, +1 per Strike, +2 per PERFECT parry.", "targets": ["hud.echo"] },
-        { "text": "Strike: free, always available.", "targets": ["cmd.strike"], "indicator": "tap" },
-        { "text": "Techniques spend Echo. Yours is still locked.", "targets": ["cmd.technique"] }
+        { "text": "Strike: free, always available.", "targets": ["cmd.strike"], "indicator": "tap" }
       ]
     },
     "parry": {
@@ -54,13 +52,12 @@
     },
     "blast_explain": {
       "steps": [
-        { "text": "Blast: your first Technique. 2 Echo, 2 bolts of pure memory.", "targets": ["cmd.blast"] },
+        { "text": "Blast: your first Technique. 2 Echo, 2 bolts of pure memory. Hold it to read more.", "targets": ["cmd.blast"] },
         {
           "text": "Techniques spend the Echo your Strikes and PERFECT parries earn. When Echo runs out, Strike.",
           "textIfShort": "Techniques spend the Echo your Strikes and PERFECT parries earn. When Echo runs out, Strike. (Strike once more to afford it.)",
           "targets": ["cmd.blast", "hud.echo.rhea"]
-        },
-        { "text": "Hold any ability to read what it does.", "targets": ["cmd.blast"] }
+        }
       ]
     },
     "break_intro": {

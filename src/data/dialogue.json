@@ -19,19 +19,7 @@
     {
       "speaker": null,
       "style": "narration",
-      "text": "A letter in her hand.",
-      "portrait": null
-    },
-    {
-      "speaker": null,
-      "style": "narration",
-      "text": "The handwriting is hers. She doesn't remember writing it.",
-      "portrait": null
-    },
-    {
-      "speaker": null,
-      "style": "narration",
-      "text": "She doesn't remember anything.",
+      "text": "The handwriting is hers. She doesn't remember writing it. She doesn't remember anything.",
       "portrait": null
     },
     {
@@ -57,21 +45,9 @@
   ],
   "meet_dov": [
     {
-      "speaker": null,
-      "style": "narration",
-      "text": "She steps through the open door, into the street.",
-      "portrait": null
-    },
-    {
-      "speaker": null,
-      "style": "narration",
-      "text": "Night. Rain drowning everything.",
-      "portrait": null
-    },
-    {
       "speaker": "Dov",
       "style": "normal",
-      "text": "Rhea! I've been looking for you all day. Are you hurt?",
+      "text": "Rhea! It's me, Dov. I've been looking for you all day.",
       "portrait": "dov_worried"
     },
     {
@@ -83,25 +59,13 @@
     {
       "speaker": "Dov",
       "style": "normal",
-      "text": "It's me. Dov.",
-      "portrait": "dov_neutral"
-    },
-    {
-      "speaker": "Rhea",
-      "style": "normal",
-      "text": "Anyone can read a letter and say a name.",
-      "portrait": "rhea_angry"
-    },
-    {
-      "speaker": "Dov",
-      "style": "normal",
       "text": "Rhea, please. What did he do to you?",
       "portrait": "dov_sad"
     },
     {
       "speaker": "Rhea",
       "style": "normal",
-      "text": "Last chance. Back off.",
+      "text": "Anyone can read a letter and say a name. Last chance. Back off.",
       "portrait": "rhea_angry"
     },
     {
@@ -163,13 +127,7 @@
     {
       "speaker": "Rhea",
       "style": "normal",
-      "text": "Oh. Okay.",
-      "portrait": "rhea_confused"
-    },
-    {
-      "speaker": "Rhea",
-      "style": "normal",
-      "text": "Now I can do this.",
+      "text": "Oh. Okay. Now I can do this.",
       "portrait": "rhea_determined"
     }
   ],
@@ -193,13 +151,7 @@
       "speaker": "Dov",
       "style": "normal",
       "text": "Nala! Easy, girl. Easy.",
-      "portrait": "dov_pet_nala"
-    },
-    {
-      "speaker": "Nala",
-      "style": "narration",
-      "text": "Nala meows at Rhea, once, like a question.",
-      "portrait": "nala_meow",
+      "portrait": "dov_pet_nala",
       "sfx": "sfx_meow"
     },
     {
@@ -211,14 +163,8 @@
     {
       "speaker": "Dov",
       "style": "normal",
-      "text": "You remember the cat... and not me?",
+      "text": "You remember the cat and not me? ...Well. She's never wrong about people.",
       "portrait": "dov_worried"
-    },
-    {
-      "speaker": "Dov",
-      "style": "normal",
-      "text": "No idea why you remember her. But she's never wrong about people.",
-      "portrait": "dov_neutral"
     },
     {
       "speaker": "Rhea",
@@ -229,15 +175,9 @@
     {
       "speaker": "Nala",
       "style": "narration",
-      "text": "Nala's fur stands on end. She hisses at the dark.",
+      "text": "Nala hisses at the dark. Grey raincoats in the fog. Smooth faces. No eyes.",
       "portrait": "nala_hissing",
       "sfx": "sfx_hiss"
-    },
-    {
-      "speaker": null,
-      "style": "narration",
-      "text": "Grey raincoats in the fog. Smooth faces. No eyes.",
-      "portrait": null
     },
     {
       "speaker": "Dov",
@@ -281,33 +221,15 @@
     {
       "speaker": "Dov",
       "style": "normal",
-      "text": "Dad died fighting his men. Mom became Forgotten.",
-      "portrait": "dov_sad"
-    },
-    {
-      "speaker": "Rhea",
-      "style": "normal",
-      "text": "Like the ones we just fought?",
-      "portrait": "rhea_serious",
-      "bg": "rest_panel_2"
-    },
-    {
-      "speaker": "Dov",
-      "style": "normal",
-      "text": "Nobody can hold on to them, not even for a minute. Most of them break.",
-      "portrait": "dov_sad"
-    },
-    {
-      "speaker": "Dov",
-      "style": "normal",
-      "text": "One day Mom walked out of the city. We don't know where she is.",
+      "text": "Dad died fighting his men. Mom became Forgotten, like the ones we just fought.",
       "portrait": "dov_sad"
     },
     {
       "speaker": "Rhea",
       "style": "normal",
       "text": "And me?",
-      "portrait": "rhea_pained"
+      "portrait": "rhea_pained",
+      "bg": "rest_panel_2"
     },
     {
       "speaker": "Dov",
@@ -324,19 +246,13 @@
     {
       "speaker": "Dov",
       "style": "normal",
-      "text": "You trained at the Memorist School. You got strong. Too strong.",
-      "portrait": "dov_neutral"
-    },
-    {
-      "speaker": "Dov",
-      "style": "normal",
-      "text": "The King signed a warrant to unwrite you. Quill cast it. It backfired.",
+      "text": "Quill cast the King's warrant to unwrite you. It backfired: people began forgetting him.",
       "portrait": "dov_worried"
     },
     {
       "speaker": "Dov",
       "style": "normal",
-      "text": "People started forgetting him. So he hit you with everything he had.",
+      "text": "So he hit you with everything he had.",
       "portrait": "dov_worried"
     },
     {
@@ -494,14 +410,8 @@
     {
       "speaker": "Dov",
       "style": "normal",
-      "text": "Nothing touches a Hollow unless it carries Echo. Steel alone won't.",
+      "text": "Nothing touches a Hollow unless it carries Echo. Your Blast does. So does a clean parry.",
       "portrait": "dov_fierce"
-    },
-    {
-      "speaker": "Dov",
-      "style": "normal",
-      "text": "Your Blast carries it. So does a clean parry. That spark you feel? That's Echo.",
-      "portrait": "dov_neutral"
     },
     {
       "speaker": "Rhea",
