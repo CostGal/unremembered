@@ -82,7 +82,8 @@
         "cutscene_origin ranges are 0-based INDICES into cutscene_origin.json shots[] in the FINAL order, i.e. after the wiring item inserts the new shot with bg cs_hush_mid at index 22 (between cs_hush_1 and cs_hush_2). Today's file has 32 entries and cs_hush_2 at index 22; with the insertion it has 33 and cs_hush_2 is index 23. Match by bg when in doubt (startBg).",
         "Kostas's story numbering (1-based, STORY.md) maps: golden 1-6, war 7-11, fall 12-18, hush 19-23 (incl. hush_1 and hush_mid), silence = the cs_hush_2 shot (his 24), forgotten 25-30 = from 'When the light returned' to the end of the cutscene.",
         "Crossfades 500-800 ms (crossfadeRangeMs). Prefetch only the next step's tracks (prefetchPolicy next-step) and decode on demand.",
-        "Option A (17:15): six changes in the opening instead of ten; crossfades 1.2 s; music.gain 0.9 = all music -10 % under the Settings volume."
+        "Option A (17:15): six changes in the opening instead of ten; crossfades 1.2 s; music.gain 0.9 = all music -10 % under the Settings volume.",
+        "A dialogue entry may be {track, crossfadeMs}: the fade for that change (wake: a long fade out of the cutscene track into meet_dov)."
       ],
       "scenes": {
         "Title": "title",
@@ -93,21 +94,15 @@
         "ranges": [
           {
             "from": 0,
-            "to": 10,
-            "track": "cs_golden",
-            "note": "Option A (Kostas 17:15): golden through the war shots; the war mood comes from ambience + horn/crystal SFX"
+            "to": 7,
+            "track": "cutscene",
+            "note": "Kostas 17:30: the original chill procedural track for the opening shots"
           },
           {
-            "from": 11,
-            "to": 20,
-            "track": "cs_fall",
-            "note": "the fall through the return for the engine"
-          },
-          {
-            "from": 21,
+            "from": 8,
             "to": 22,
-            "track": "cs_hush",
-            "note": "the Hush: cs_hush_1 + the cs_hush_mid shot"
+            "track": "cs_fall",
+            "note": "from the council (shot 9) through the Unwriting, the exile and the Hush; no cs_hush in between"
           },
           {
             "from": 23,
@@ -120,13 +115,16 @@
             "from": 24,
             "to": 32,
             "track": "cs_forgotten",
-            "note": "from 'When the light returned' to the end; continues under wake and letter"
+            "note": "'A hundred years later' to the end of the cutscene"
           }
         ]
       },
       "dialogue": {
-        "wake": "cs_forgotten",
-        "letter": "cs_forgotten",
+        "wake": {
+          "track": "meet_dov",
+          "crossfadeMs": 2500
+        },
+        "letter": "meet_dov",
         "meet_dov": "meet_dov",
         "after_duel": "meet_dov",
         "before_gate": "street",
@@ -204,7 +202,7 @@
         "sfx_stone_crumble": "shot 13 -> 14 = the statue falls"
       }
     },
-    "gain": 0.9
+    "gain": 0.72
   },
   "sfxFiles": {
     "dir": "assets/audio/sfx/",

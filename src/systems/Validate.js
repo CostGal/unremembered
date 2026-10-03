@@ -684,6 +684,11 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     const resolves = (key) => known(am.aliases?.[key] || key);
     const need = (at, key, { oneShot = false } = {}) => {
       if (key === null || key === undefined) return;
+      // A placement entry may be {track, crossfadeMs}: the fade for that one change.
+      if (key && typeof key === 'object' && !Array.isArray(key)) {
+        if (key.crossfadeMs !== undefined && !(Number.isFinite(key.crossfadeMs) && key.crossfadeMs >= 0)) err(`${at}.crossfadeMs: must be a number >= 0`);
+        return need(at + '.track', key.track, { oneShot });
+      }
       if (typeof key !== 'string') err(`${at}: a music key must be a string or null`);
       else if (!resolves(key)) err(`${at}: music "${key}" has no file in public/assets/audio/music/, no procedural track in music.json and no alias`);
       else if (oneShot && am.loop?.[key] !== false) err(`${at}: "${key}" plays as a one-shot, so audio.json music.loop.${key} must be false`);

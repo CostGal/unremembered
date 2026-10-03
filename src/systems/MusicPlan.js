@@ -39,7 +39,10 @@ export function musicKeysForStep(step, shot = 0) {
   if (!step) return [];
   const keys = [];
   if (step.type === 'cutscene') keys.push(...cutsceneKeys(step.id, shot));
-  else if (step.type === 'dialogue') keys.push(plan.dialogue[step.id], plan.dialogueSwitch?.[step.id]?.key);
+  else if (step.type === 'dialogue') {
+    const e = plan.dialogue[step.id];
+    keys.push(e && typeof e === 'object' ? e.track : e, plan.dialogueSwitch?.[step.id]?.key);
+  }
   else if (step.type === 'reward') keys.push(plan.step?.[step.id]?.over?.track, plan.step?.[step.id]?.oneShot);
   else if (step.type === 'end') keys.push(plan.events.end?.track);
   else if (step.type === 'battle') {

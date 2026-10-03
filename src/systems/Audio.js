@@ -465,7 +465,10 @@ export function playSceneMusic(sceneKey) {
 
 // Crossfades to the track `key` (null = fade to silence). Asking for the
 // track that is already playing does nothing (a ducked one comes back up).
-export function playMusic(key) {
+// opts.crossfadeMs overrides audio.json music.crossfadeMs for this one change (placement entries {track, crossfadeMs}).
+let fadeOverrideMs = null;
+export function playMusic(key, opts) {
+  fadeOverrideMs = opts && Number.isFinite(opts.crossfadeMs) ? opts.crossfadeMs : null;
   const id = resolveMusicKey(key);
   audioLog(key ? { ev: 'play', key, id, same: !!(current && current.id === id && !current.ended) } : { ev: 'stop', key: wantedMusic });
   applyMusic(key);
@@ -489,7 +492,7 @@ function applyMusic(key) {
     return;
   }
   if (!ctx) return;
-  const fade = mcfg.crossfadeMs / 1000;
+  const fade = (fadeOverrideMs ?? mcfg.crossfadeMs) / 1000;
   if (oneShot) endOneShot(fade);
   if (current && current.id === id && !current.ended) {
     current.setDuck(1, mcfg.oneShot.duckMs / 1000);
@@ -522,7 +525,7 @@ export function musicSilence(ms) {
 export function playOneShot(key, { duck = mcfg.oneShot.duck, resume = true } = {}) {
   const id = resolveMusicKey(key);
   audioLog({ ev: 'oneshot', key, id, duck, resume });
-  const fade = mcfg.crossfadeMs / 1000;
+  const fade = (fadeOverrideMs ?? mcfg.crossfadeMs) / 1000;
   if (oneShot) endOneShot(fade);
   const rec = { key, id, resume, stop: null };
   oneShot = rec;

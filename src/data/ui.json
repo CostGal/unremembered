@@ -1,26 +1,92 @@
 {
   "font": "\"Play\", sans-serif",
-  "view": { "designW": 360, "designH": 640, "maxW": 448 },
-  "languages": { "default": "en", "list": [{ "id": "en", "label": "English" }, { "id": "el", "label": "Ελληνικά", "font": "play" }] },
+  "view": {
+    "designW": 360,
+    "designH": 640,
+    "maxW": 448
+  },
+  "languages": {
+    "default": "en",
+    "list": [
+      {
+        "id": "en",
+        "label": "English"
+      },
+      {
+        "id": "el",
+        "label": "Ελληνικά",
+        "font": "play"
+      }
+    ]
+  },
   "fonts": {
     "default": "play",
     "loadTimeoutMs": 1000,
-    "greekTag": " (Greek)", "greekSample": "Aa Ωω άέ 0",
+    "greekTag": " (Greek)",
+    "greekSample": "Aa Ωω άέ 0",
     "list": [
-      { "id": "play", "label": "Play", "family": "\"Play\", sans-serif", "greek": true },
-      { "id": "pixelify", "label": "Pixelify Sans", "family": "\"Pixelify Sans\", monospace", "greek": false },
-      { "id": "handjet", "label": "Handjet", "family": "\"Handjet UI\", \"Handjet\", monospace", "greek": true },
-      { "id": "tiny5", "label": "Tiny5", "family": "\"Tiny5\", monospace", "greek": true },
-      { "id": "system", "label": "System", "family": "sans-serif", "greek": true }
+      {
+        "id": "play",
+        "label": "Play",
+        "family": "\"Play\", sans-serif",
+        "greek": true
+      },
+      {
+        "id": "pixelify",
+        "label": "Pixelify Sans",
+        "family": "\"Pixelify Sans\", monospace",
+        "greek": false
+      },
+      {
+        "id": "handjet",
+        "label": "Handjet",
+        "family": "\"Handjet UI\", \"Handjet\", monospace",
+        "greek": true
+      },
+      {
+        "id": "tiny5",
+        "label": "Tiny5",
+        "family": "\"Tiny5\", monospace",
+        "greek": true
+      },
+      {
+        "id": "system",
+        "label": "System",
+        "family": "sans-serif",
+        "greek": true
+      }
     ]
   },
   "hud": {
-    "panel": { "x": 0, "y": 360, "w": 360, "h": 80, "color": "0x0b0d14", "alpha": 0.45, "borderColor": "0x2a2e3d" },
+    "panel": {
+      "x": 0,
+      "y": 360,
+      "w": 360,
+      "h": 80,
+      "color": "0x0b0d14",
+      "alpha": 0.45,
+      "borderColor": "0x2a2e3d"
+    },
     "textColor": "#f1efe8",
     "activeColor": "#3fd0c9",
-    "lowHp": { "pct": 0.25, "color": "0xff4050", "pad": 2, "alphaMin": 0.15, "alphaMax": 0.9, "pulseMs": 380, "nameColor": "#ff8a80" },
-    "rows": { "firstY": 371, "spacing": 34, "downedAlpha": 0.4 },
-    "name": { "x": 16, "fontSize": 14 },
+    "lowHp": {
+      "pct": 0.25,
+      "color": "0xff4050",
+      "pad": 2,
+      "alphaMin": 0.15,
+      "alphaMax": 0.9,
+      "pulseMs": 380,
+      "nameColor": "#ff8a80"
+    },
+    "rows": {
+      "firstY": 371,
+      "spacing": 34,
+      "downedAlpha": 0.4
+    },
+    "name": {
+      "x": 16,
+      "fontSize": 14
+    },
     "hpBar": {
       "x": 72,
       "w": 196,
@@ -35,9 +101,29 @@
       "lagDelayMs": 250,
       "lagTweenMs": 400
     },
-    "hpText": { "x": 344, "fontSize": 12 },
-    "fragments": { "x": 284, "y": 418, "size": 14, "gap": 4, "fontSize": 11, "fill": "0x0b0d14" },
-    "statusBadge": { "x": 270, "w": 16, "h": 12, "gap": 2, "fontSize": 10, "fill": "0x0b0d14", "strokeAlpha": 1, "popScale": 1.4, "popMs": 160 },
+    "hpText": {
+      "x": 344,
+      "fontSize": 12
+    },
+    "fragments": {
+      "x": 284,
+      "y": 418,
+      "size": 14,
+      "gap": 4,
+      "fontSize": 11,
+      "fill": "0x0b0d14"
+    },
+    "statusBadge": {
+      "x": 270,
+      "w": 16,
+      "h": 12,
+      "gap": 2,
+      "fontSize": 10,
+      "fill": "0x0b0d14",
+      "strokeAlpha": 1,
+      "popScale": 1.4,
+      "popMs": 160
+    },
     "echo": {
       "offsetY": 14,
       "max": 10,
@@ -78,25 +164,104 @@
       "breakFadeMs": 200
     }
   },
-  "enemyStatus": { "offsetY": -16, "fontSize": 11, "color": "#f0c060", "stroke": "#0b0d14", "strokeThickness": 3 },
+  "enemyStatus": {
+    "offsetY": -16,
+    "fontSize": 11,
+    "color": "#f0c060",
+    "stroke": "#0b0d14",
+    "strokeThickness": 3
+  },
   "battleLayout": {
     "sceneBottom": 360,
     "labelGap": 6,
     "labelMargin": 4,
     "labelDepth": 900,
     "attackerDepthGap": 1,
-    "shadow": { "widthPct": 0.5, "heightPct": 0.12, "texRadius": 32, "color": "0x000000", "alpha": 0.8, "offsetY": -8 },
-    "melee": { "gap": 6, "approachMs": 180, "returnMs": 180, "reachDefault": 40 },
-    "label": { "fontSize": 12, "color": "#f1efe8", "stroke": "#0b0d14", "strokeThickness": 3 },
-    "defaultParty": ["rhea", "dov"],
-    "heroes": { "rhea": { "x": 116, "feetY": 346 }, "dov": { "x": 76, "feetY": 316 } },
-    "nala": { "x": 36, "feetY": 340 },
+    "shadow": {
+      "widthPct": 0.5,
+      "heightPct": 0.12,
+      "texRadius": 32,
+      "color": "0x000000",
+      "alpha": 0.8,
+      "offsetY": -8
+    },
+    "melee": {
+      "gap": 6,
+      "approachMs": 180,
+      "returnMs": 180,
+      "reachDefault": 40
+    },
+    "label": {
+      "fontSize": 12,
+      "color": "#f1efe8",
+      "stroke": "#0b0d14",
+      "strokeThickness": 3
+    },
+    "defaultParty": [
+      "rhea",
+      "dov"
+    ],
+    "heroes": {
+      "rhea": {
+        "x": 116,
+        "feetY": 346
+      },
+      "dov": {
+        "x": 76,
+        "feetY": 316
+      }
+    },
+    "nala": {
+      "x": 36,
+      "feetY": 340
+    },
     "enemies": {
-      "1": [{ "x": 256, "feetY": 332 }],
-      "2": [{ "x": 292, "feetY": 308 }, { "x": 224, "feetY": 346 }],
-      "3": [{ "x": 296, "feetY": 296 }, { "x": 204, "feetY": 322 }, { "x": 268, "feetY": 350 }],
-      "boss": [{ "x": 236, "feetY": 340 }],
-      "gate": [{ "x": 262, "feetY": 322 }, { "x": 196, "feetY": 350 }]
+      "1": [
+        {
+          "x": 256,
+          "feetY": 332
+        }
+      ],
+      "2": [
+        {
+          "x": 292,
+          "feetY": 308
+        },
+        {
+          "x": 224,
+          "feetY": 346
+        }
+      ],
+      "3": [
+        {
+          "x": 296,
+          "feetY": 296
+        },
+        {
+          "x": 204,
+          "feetY": 322
+        },
+        {
+          "x": 268,
+          "feetY": 350
+        }
+      ],
+      "boss": [
+        {
+          "x": 236,
+          "feetY": 340
+        }
+      ],
+      "gate": [
+        {
+          "x": 262,
+          "feetY": 322
+        },
+        {
+          "x": 196,
+          "feetY": 350
+        }
+      ]
     }
   },
   "battleBackdrop": {
@@ -104,7 +269,12 @@
     "desaturate": 0.6,
     "darken": 0.2,
     "tallMinH": 400,
-    "fallback": { "scale": 1, "y": 0, "reflectTint": "0x9aa4c4", "reflectAlpha": 0.9 },
+    "fallback": {
+      "scale": 1,
+      "y": 0,
+      "reflectTint": "0x9aa4c4",
+      "reflectAlpha": 0.9
+    },
     "fog": {
       "depth": 0.2,
       "texW": 512,
@@ -115,13 +285,36 @@
       "speedPx": 40,
       "alpha": 0.18,
       "color": "0xaebbd6",
-      "bands": [{ "y": 0.15, "h": 90, "dir": 1 }, { "y": 0.3, "h": 64, "dir": -1 }]
+      "bands": [
+        {
+          "y": 0.15,
+          "h": 90,
+          "dir": 1
+        },
+        {
+          "y": 0.3,
+          "h": 64,
+          "dir": -1
+        }
+      ]
     },
-    "glow": { "max": 4, "texRadius": 32 }
+    "glow": {
+      "max": 4,
+      "texRadius": 32
+    }
   },
-  "hurt": { "knockbackPx": 6, "durationMs": 160 },
+  "hurt": {
+    "knockbackPx": 6,
+    "durationMs": 160
+  },
   "commands": {
-    "glass": { "y": 440, "color": "0x0b0d14", "alpha": 0.45, "strokeColor": "0x2a2e3d", "depth": 0.6 },
+    "glass": {
+      "y": 440,
+      "color": "0x0b0d14",
+      "alpha": 0.45,
+      "strokeColor": "0x2a2e3d",
+      "depth": 0.6
+    },
     "button": {
       "depth": 0.8,
       "w": 156,
@@ -148,19 +341,59 @@
       "coverH": 46
     },
     "slots": {
-      "strike": [94, 476],
-      "technique": [266, 476],
-      "recollection": [94, 546],
-      "back": [266, 546],
-      "ultimate": [180, 546],
-      "retry": [180, 540],
-      "retryRecollection": [94, 540],
-      "quit": [266, 540]
+      "strike": [
+        94,
+        476
+      ],
+      "technique": [
+        266,
+        476
+      ],
+      "recollection": [
+        94,
+        546
+      ],
+      "back": [
+        266,
+        546
+      ],
+      "ultimate": [
+        180,
+        546
+      ],
+      "retry": [
+        180,
+        540
+      ],
+      "retryRecollection": [
+        94,
+        540
+      ],
+      "quit": [
+        266,
+        540
+      ]
     },
-    "slotWidths": { "ultimate": 328 },
-    "progress": { "inset": 4, "radius": 5, "color": "0x3fd0c9", "alpha": 0.3 },
-    "prompt": { "x": 180, "y": 458, "fontSize": 14, "text": "Choose a target" },
-    "techniqueSlots": ["strike", "technique", "recollection"],
+    "slotWidths": {
+      "ultimate": 328
+    },
+    "progress": {
+      "inset": 4,
+      "radius": 5,
+      "color": "0x3fd0c9",
+      "alpha": 0.3
+    },
+    "prompt": {
+      "x": 180,
+      "y": 458,
+      "fontSize": 14,
+      "text": "Choose a target"
+    },
+    "techniqueSlots": [
+      "strike",
+      "technique",
+      "recollection"
+    ],
     "labels": {
       "strike": "Strike",
       "technique": "Technique",
@@ -169,7 +402,10 @@
       "cost": "{n} Echo",
       "ultimateProgress": "{n}/{max} Echo"
     },
-    "lockedSlot": { "text": "? ? ?", "color": "#5a5f73" },
+    "lockedSlot": {
+      "text": "? ? ?",
+      "color": "#5a5f73"
+    },
     "targetTint": "0xfff066"
   },
   "target": {
@@ -179,17 +415,85 @@
     "showNumbers": false,
     "promptY": 446,
     "promptFontSize": 12,
-    "grid": { "cols": [94, 266], "rows": [482, 548], "cardW": 156, "backFullW": 328 },
-    "button": { "h": 56, "fontSize": 14, "pad": 14, "nameY": 4, "noteGap": 2, "noteFontSize": 11, "textColor": "#f1efe8", "numberColor": "#c8ccd8", "depth": 0 },
-    "hpBar": { "y": 0, "h": 8, "midPct": 0.5, "lowPct": 0.25, "colors": { "bg": "0x2a2e3d", "full": "0x5fcf86", "mid": "0xe0b040", "low": "0xd8505a" } },
-    "tag": { "fontSize": 10, "h": 14, "padX": 3, "gap": 3, "fill": "0x0b0d14", "strokeAlpha": 1 },
-    "badge": { "size": 14, "gap": 4, "fontSize": 10, "fill": "0x3fd0c9", "stroke": "0x0b0d14", "color": "#0b0d14" },
-    "text": { "immune": "IMMUNE to {tech}", "downed": "DOWNED", "broken": "BRK", "charging": "CHG" },
-    "tagColors": { "broken": "#f0c060", "charging": "#d8505a" },
+    "grid": {
+      "cols": [
+        94,
+        266
+      ],
+      "rows": [
+        482,
+        548
+      ],
+      "cardW": 156,
+      "backFullW": 328
+    },
+    "button": {
+      "h": 56,
+      "fontSize": 14,
+      "pad": 14,
+      "nameY": 4,
+      "noteGap": 2,
+      "noteFontSize": 11,
+      "textColor": "#f1efe8",
+      "numberColor": "#c8ccd8",
+      "depth": 0
+    },
+    "hpBar": {
+      "y": 0,
+      "h": 8,
+      "midPct": 0.5,
+      "lowPct": 0.25,
+      "colors": {
+        "bg": "0x2a2e3d",
+        "full": "0x5fcf86",
+        "mid": "0xe0b040",
+        "low": "0xd8505a"
+      }
+    },
+    "tag": {
+      "fontSize": 10,
+      "h": 14,
+      "padX": 3,
+      "gap": 3,
+      "fill": "0x0b0d14",
+      "strokeAlpha": 1
+    },
+    "badge": {
+      "size": 14,
+      "gap": 4,
+      "fontSize": 10,
+      "fill": "0x3fd0c9",
+      "stroke": "0x0b0d14",
+      "color": "#0b0d14"
+    },
+    "text": {
+      "immune": "IMMUNE to {tech}",
+      "downed": "DOWNED",
+      "broken": "BRK",
+      "charging": "CHG"
+    },
+    "tagColors": {
+      "broken": "#f0c060",
+      "charging": "#d8505a"
+    },
     "immuneColor": "#9db4c8",
     "downedColor": "#d8505a",
     "noteColor": "#9db4c8",
-    "highlight": { "color": "0x3fd0c9", "alpha": [0.3, 0.7], "pulseMs": 520, "glowW": 0.9, "glowH": 14, "glowOffsetY": 2, "focusScale": 1.35, "chipGap": 12, "chipFontSize": 12, "chipColor": "#3fd0c9" }
+    "highlight": {
+      "color": "0x3fd0c9",
+      "alpha": [
+        0.3,
+        0.7
+      ],
+      "pulseMs": 520,
+      "glowW": 0.9,
+      "glowH": 14,
+      "glowOffsetY": 2,
+      "focusScale": 1.35,
+      "chipGap": 12,
+      "chipFontSize": 12,
+      "chipColor": "#3fd0c9"
+    }
   },
   "animtest": {
     "character": "rhea",
@@ -200,12 +504,25 @@
     "holdMs": 700,
     "replayMs": 900,
     "impactFlashMs": 150,
-    "panel": { "y": 360, "h": 280, "color": "0x12151f" },
+    "panel": {
+      "y": 360,
+      "h": 280,
+      "color": "0x12151f"
+    },
     "textColor": "#f1efe8",
     "dimColor": "#8a8fa3",
-    "title": { "y": 374, "fontSize": 18 },
-    "frameLine": { "y": 402, "fontSize": 14 },
-    "markerLine": { "y": 424, "fontSize": 12 },
+    "title": {
+      "y": 374,
+      "fontSize": 18
+    },
+    "frameLine": {
+      "y": 402,
+      "fontSize": 14
+    },
+    "markerLine": {
+      "y": 424,
+      "fontSize": 12
+    },
     "strip": {
       "y": 456,
       "boxW": 24,
@@ -214,19 +531,49 @@
       "idleStroke": "0x2a2e3d",
       "currentStroke": "0xf1efe8"
     },
-    "legend": { "y": 508, "fontSize": 12, "windup": "W windup", "impact": "I impact", "hold": "H hold" },
-    "colors": { "windup": "0xe0a040", "impact": "0xd8505a", "hold": "0x3fd0c9" },
-    "banner": { "y": 150, "fontSize": 20, "impact": "IMPACT", "hold": "HOLD" },
-    "hint": { "y": 612, "fontSize": 14, "text": "Tap: next animation" },
+    "legend": {
+      "y": 508,
+      "fontSize": 12,
+      "windup": "W windup",
+      "impact": "I impact",
+      "hold": "H hold"
+    },
+    "colors": {
+      "windup": "0xe0a040",
+      "impact": "0xd8505a",
+      "hold": "0x3fd0c9"
+    },
+    "banner": {
+      "y": 150,
+      "fontSize": 20,
+      "impact": "IMPACT",
+      "hold": "HOLD"
+    },
+    "hint": {
+      "y": 612,
+      "fontSize": 14,
+      "text": "Tap: next animation"
+    },
     "missingText": "No animation sheets found for this character."
   },
   "debug": {
     "hpStep": 10,
     "echoStep": 1,
-    "keys": { "hurtRhea": "ONE", "hurtDov": "TWO", "echoUp": "E", "echoDown": "Q" }
+    "keys": {
+      "hurtRhea": "ONE",
+      "hurtDov": "TWO",
+      "echoUp": "E",
+      "echoDown": "Q"
+    }
   },
-  "heal": { "textPrefix": "+", "fontSize": 16 },
-  "cast": { "hopPx": 6, "hopMs": 120 },
+  "heal": {
+    "textPrefix": "+",
+    "fontSize": 16
+  },
+  "cast": {
+    "hopPx": 6,
+    "hopMs": 120
+  },
   "battleEnd": {
     "victoryText": "Victory",
     "loseText": "The memory fades…",
@@ -250,20 +597,76 @@
     "hintPulseMs": 700,
     "inputDelayMs": 900
   },
-  "downed": { "heroAlpha": 0.35, "fadeMs": 200, "enemyFadeMs": 500 },
+  "downed": {
+    "heroAlpha": 0.35,
+    "fadeMs": 200,
+    "enemyFadeMs": 500
+  },
   "dialogue": {
     "charsPerSec": 40,
-    "nextMark": { "w": 10, "h": 7 },
-    "nameBoxes": { "wPct": 0.55, "hPct": 0.8, "lineHeightPct": 1.1, "gap": 3, "stroke": 2 },
+    "nextMark": {
+      "w": 10,
+      "h": 7
+    },
+    "nameBoxes": {
+      "wPct": 0.55,
+      "hPct": 0.8,
+      "lineHeightPct": 1.1,
+      "gap": 3,
+      "stroke": 2
+    },
     "nextBlinkMs": 450,
     "bgFadeMs": 400,
     "intro": {
-      "wake": { "type": "eyelids", "openMs": 1600, "blinks": 2, "blinkMs": 160, "blinkGapMs": 220, "blinkDepth": 0.7, "blurFade": true, "blurAlpha": 0.7, "blurFadeMs": 1800, "blurScale": 1.04, "zoomFrom": 1.06, "zoomMs": 2600, "boxFadeMs": 300, "color": "0x000000", "depth": 950 }
+      "wake": {
+        "type": "eyelids",
+        "openMs": 1600,
+        "blinks": 2,
+        "blinkMs": 160,
+        "blinkGapMs": 220,
+        "blinkDepth": 0.7,
+        "blurFade": true,
+        "blurAlpha": 0.7,
+        "blurFadeMs": 1800,
+        "blurScale": 1.04,
+        "zoomFrom": 1.06,
+        "zoomMs": 2600,
+        "boxFadeMs": 300,
+        "color": "0x000000",
+        "depth": 950
+      }
     },
-    "noPortraits": ["wake", "letter", "after_b1"],
-    "transition": { "depth": 990, "close": { "ms": 500, "color": "0x000000" }, "open": { "ms": 300 } },
-    "bg": { "size": 360, "fadeH": 24, "fadeAlpha": 0.6, "coverH": 440, "coverInk": "0x0b0d14", "reflection": { "alpha": 0.35, "fadeH": 96, "ink": "0x0b0d14" } },
-    "overlayDim": { "color": "0x04050b", "alpha": 0.55 },
+    "noPortraits": [
+      "wake",
+      "letter",
+      "after_b1"
+    ],
+    "transition": {
+      "depth": 990,
+      "close": {
+        "ms": 500,
+        "color": "0x000000"
+      },
+      "open": {
+        "ms": 300
+      }
+    },
+    "bg": {
+      "size": 360,
+      "fadeH": 24,
+      "fadeAlpha": 0.6,
+      "coverH": 440,
+      "coverInk": "0x0b0d14",
+      "reflection": {
+        "alpha": 0.35,
+        "fadeH": 96,
+        "ink": "0x0b0d14"
+      }
+    },
+    "overlayDim": {
+      "color": "0x04050b",
+      "alpha": 0.55
+    },
     "box": {
       "x": 12,
       "y": 440,
@@ -281,7 +684,15 @@
       "textColor": "#f1efe8",
       "depth": 900
     },
-    "silhouette": { "x": 296, "bottomY": 336, "height": 210, "alpha": 0.9, "fadeMs": 1200, "tint": "0x000000", "depth": 5 },
+    "silhouette": {
+      "x": 296,
+      "bottomY": 336,
+      "height": 210,
+      "alpha": 0.9,
+      "fadeMs": 1200,
+      "tint": "0x000000",
+      "depth": 5
+    },
     "portrait": {
       "leftX": 96,
       "rightX": 264,
@@ -290,7 +701,13 @@
       "dimTint": "0x666666",
       "depth": 870
     },
-    "portraitSides": { "rhea": "left", "dov": "right", "clerk": "right", "nala": "right", "default": "right" },
+    "portraitSides": {
+      "rhea": "left",
+      "dov": "right",
+      "clerk": "right",
+      "nala": "right",
+      "default": "right"
+    },
     "nameColors": {
       "default": "#f1efe8",
       "Rhea": "#3fd0c9",
@@ -322,25 +739,69 @@
         "sfx": "letter"
       }
     },
-    "nameSfx": { "▯▯▯": "glitch" },
+    "nameSfx": {
+      "▯▯▯": "glitch"
+    },
     "nextBlinkAlpha": 0.2
   },
   "cutscene": {
-    "area": { "y": 0, "h": 640 },
-    "gradient": { "y": 420, "color": "0x000000", "alpha": 0.9, "depth": 25 },
+    "area": {
+      "y": 0,
+      "h": 640
+    },
+    "gradient": {
+      "y": 420,
+      "color": "0x000000",
+      "alpha": 0.9,
+      "depth": 25
+    },
     "pixelArtMaxW": 360,
     "focusMin": 0.08,
-    "text": { "y": 506, "fontSize": 17, "color": "#f1efe8", "lineSpacing": 6, "wrap": 312 },
-    "panel": { "padX": 14, "padY": 10, "minW": 180, "fill": "0x0b0d14", "alpha": 0.6, "stroke": "0x3fd0c9", "strokeAlpha": 0.35 },
+    "text": {
+      "y": 506,
+      "fontSize": 17,
+      "color": "#f1efe8",
+      "lineSpacing": 6,
+      "wrap": 312
+    },
+    "panel": {
+      "padX": 14,
+      "padY": 10,
+      "minW": 180,
+      "fill": "0x0b0d14",
+      "alpha": 0.6,
+      "stroke": "0x3fd0c9",
+      "strokeAlpha": 0.35
+    },
     "defaultDurationMs": 4500,
     "fadeOutMs": 500,
-    "fxSfx": { "crystal_particles": "crystal_hum", "lights_out": "lights_out", "flash": null },
+    "fxSfx": {
+      "crystal_particles": "crystal_hum",
+      "lights_out": "lights_out",
+      "flash": null
+    },
     "rainAmbience": "rain",
-    "ambienceByBg": { "city": "city", "reliquary": "reliquary", "battlefield": "war", "council": "council", "statue": "wind", "exile_close": "wind", "street_rain": "rain" },
-    "silentFx": ["lights_out"],
+    "ambienceByBg": {
+      "city": "city",
+      "reliquary": "reliquary",
+      "battlefield": "war",
+      "council": "council",
+      "statue": "wind",
+      "exile_close": "wind",
+      "street_rain": "rain"
+    },
+    "silentFx": [
+      "lights_out"
+    ],
     "splitLine": 2,
     "splitColor": "0x000000",
-    "depth": { "picture": 0, "fx": 10, "bars": 20, "text": 30, "hold": 40 },
+    "depth": {
+      "picture": 0,
+      "fx": 10,
+      "bars": 20,
+      "text": 30,
+      "hold": 40
+    },
     "skipHint": {
       "text": "Hold to skip",
       "fontSize": 12,
@@ -359,64 +820,190 @@
       "bgColor": "0xf1efe8",
       "bgAlpha": 0.25
     },
-    "move": { "panScale": 1.15, "panPx": 24, "zoomScale": 1.18 },
+    "move": {
+      "panScale": 1.15,
+      "panPx": 24,
+      "zoomScale": 1.18
+    },
     "fx": {
-      "flash": { "color": "0xffffff", "alpha": 0.8, "ms": 500 },
+      "flash": {
+        "color": "0xffffff",
+        "alpha": 0.8,
+        "ms": 500
+      },
       "crystal_particles": {
         "size": 2,
         "spawnTop": 0.2,
-        "speed": [8, 26],
+        "speed": [
+          8,
+          26
+        ],
         "drift": 6,
         "lifeMs": 3000,
         "alpha": 0.9,
-        "colors": ["0x3fd0c9", "0xa8f0ec"],
+        "colors": [
+          "0x3fd0c9",
+          "0xa8f0ec"
+        ],
         "frequency": 90,
         "max": 45
       },
       "embers": {
         "size": 2,
         "spawnTop": 0.5,
-        "speed": [20, 50],
+        "speed": [
+          20,
+          50
+        ],
         "drift": 14,
         "lifeMs": 2200,
         "alpha": 1,
-        "colors": ["0xe8883a", "0xf0c060"],
+        "colors": [
+          "0xe8883a",
+          "0xf0c060"
+        ],
         "frequency": 70,
         "max": 45
       },
-      "lights_out": { "startPct": 0.42, "ms": 1500, "steps": 5 },
-      "red_tint": { "color": "0xd8303a", "alpha": 0.28, "fadeMs": 600, "pulseColor": "0xffb0a8", "pulseMs": 1600 },
-      "shake": { "fromPx": 1, "toPx": 6, "ms": 1500, "steps": 6 },
-      "red_surge": { "color": "0xd8303a", "at": [0.5, 0.35], "delayMs": 1500, "waveMs": 700, "alpha": 0.6, "overshoot": 1.05, "wash": { "alpha": 0.3, "ms": 800 } },
-      "dissolve_layer": { "startPct": 0.35, "ms": 1800, "steps": 8 },
+      "lights_out": {
+        "startPct": 0.42,
+        "ms": 1500,
+        "steps": 5
+      },
+      "red_tint": {
+        "color": "0xd8303a",
+        "alpha": 0.28,
+        "fadeMs": 600,
+        "pulseColor": "0xffb0a8",
+        "pulseMs": 1600
+      },
+      "shake": {
+        "fromPx": 1,
+        "toPx": 6,
+        "ms": 1500,
+        "steps": 6
+      },
+      "red_surge": {
+        "color": "0xd8303a",
+        "at": [
+          0.5,
+          0.35
+        ],
+        "delayMs": 1500,
+        "waveMs": 700,
+        "alpha": 0.6,
+        "overshoot": 1.05,
+        "wash": {
+          "alpha": 0.3,
+          "ms": 800
+        }
+      },
+      "dissolve_layer": {
+        "startPct": 0.35,
+        "ms": 1800,
+        "steps": 8
+      },
       "eyes_glow": {
-        "at": [[0.297, 0.4], [0.717, 0.402]],
-        "halo": { "radius": 34, "color": "0x3fd0c9", "alpha": 0.75, "lagMs": 250 },
-        "iris": { "w": 30, "h": 18, "color": "0xa8f0ec", "alpha": 1 },
+        "at": [
+          [
+            0.297,
+            0.4
+          ],
+          [
+            0.717,
+            0.402
+          ]
+        ],
+        "halo": {
+          "radius": 34,
+          "color": "0xd8303a",
+          "alpha": 0.75,
+          "lagMs": 250
+        },
+        "iris": {
+          "w": 30,
+          "h": 18,
+          "color": "0xff8a80",
+          "alpha": 1
+        },
         "delayMs": 900,
         "ms": 1400,
-        "flare": { "color": "0x3fd0c9", "alpha": 0.18, "ms": 420 },
-        "breathe": { "min": 0.7, "ms": 1100 }
+        "flare": {
+          "color": "0xd8303a",
+          "alpha": 0.18,
+          "ms": 420
+        },
+        "breathe": {
+          "min": 0.7,
+          "ms": 1100
+        }
       }
     },
     "background": "#000000"
   },
   "title": {
     "art": {
-      "layout": { "tap": { "y": 520 }, "silent": { "y": 556 }, "logo": { "y": 90 } },
-      "logo": { "widthPct": 0.9, "topPct": 0.04, "depth": 20 },
-      "drift": { "zoom": 1.06, "x": -6, "y": -4, "ms": 14000 },
-      "gradient": { "y": 380, "color": "0x0b0d14", "alpha": 0.92, "depth": 10 },
+      "layout": {
+        "tap": {
+          "y": 520
+        },
+        "silent": {
+          "y": 556
+        },
+        "logo": {
+          "y": 90
+        }
+      },
+      "logo": {
+        "widthPct": 0.9,
+        "topPct": 0.04,
+        "depth": 20
+      },
+      "drift": {
+        "zoom": 1.06,
+        "x": -6,
+        "y": -4,
+        "ms": 14000
+      },
+      "gradient": {
+        "y": 380,
+        "color": "0x0b0d14",
+        "alpha": 0.92,
+        "depth": 10
+      },
       "textDepth": 30,
       "rain": {
-        "near": { "count": 45, "speed": 520, "wind": -30, "landY": [480, 660], "alpha": [0.12, 0.35], "length": 8, "color": "0xc2dcf0", "depth": 15 }
+        "near": {
+          "count": 45,
+          "speed": 520,
+          "wind": -30,
+          "landY": [
+            480,
+            660
+          ],
+          "alpha": [
+            0.12,
+            0.35
+          ],
+          "length": 8,
+          "color": "0xc2dcf0",
+          "depth": 15
+        }
       },
       "motes": {
         "count": 12,
         "color": "0x3fd0c9",
         "size": 2,
-        "area": { "x": 20, "y": 260, "w": 320, "h": 300 },
-        "speedY": [4, 14],
+        "area": {
+          "x": 20,
+          "y": 260,
+          "w": 320,
+          "h": 300
+        },
+        "speedY": [
+          4,
+          14
+        ],
         "driftX": 5,
         "lifeMs": 5000,
         "alpha": 0.8,
@@ -424,11 +1011,19 @@
         "depth": 16
       }
     },
-    "logo": { "x": 180, "y": 220 },
+    "logo": {
+      "x": 180,
+      "y": 220
+    },
     "fallbackText": "UNREMEMBERED",
     "fallbackFontSize": 34,
     "fallbackColor": "#3fd0c9",
-    "subtitle": { "text": "A memory RPG demo", "y": 270, "fontSize": 14, "color": "#8a8fa3" },
+    "subtitle": {
+      "text": "A memory RPG demo",
+      "y": 270,
+      "fontSize": 14,
+      "color": "#8a8fa3"
+    },
     "tap": {
       "text": "Tap to start",
       "y": 420,
@@ -437,8 +1032,21 @@
       "pulseAlpha": 0.35,
       "pulseMs": 700
     },
-    "leave": { "delayMs": 1200, "fadeMs": 400, "logoPulseScale": 1.08, "logoPulseUpMs": 110, "logoPulseUpEase": "Quad.easeOut", "logoPulseMs": 340, "logoPulseEase": "Back.easeOut" },
-    "silent": { "text": "🔈 Turn off silent mode for sound", "y": 566, "fontSize": 12, "color": "#8a8f9e" },
+    "leave": {
+      "delayMs": 1200,
+      "fadeMs": 400,
+      "logoPulseScale": 1.08,
+      "logoPulseUpMs": 110,
+      "logoPulseUpEase": "Quad.easeOut",
+      "logoPulseMs": 340,
+      "logoPulseEase": "Back.easeOut"
+    },
+    "silent": {
+      "text": "🔈 Turn off silent mode for sound",
+      "y": 566,
+      "fontSize": 12,
+      "color": "#8a8f9e"
+    },
     "fullscreen": {
       "y": 602,
       "fontSize": 13,
@@ -457,47 +1065,199 @@
     "strokeW": 2,
     "accentW": 4,
     "accentInset": 8,
-    "highlight": { "color": "0xffffff", "alpha": 0.14, "inset": 6 },
+    "highlight": {
+      "color": "0xffffff",
+      "alpha": 0.14,
+      "inset": 6
+    },
     "pressScale": 0.94,
     "pressMs": 60,
     "variants": {
-      "primary": { "fill": "0x3fd0c9", "fillAlpha": 0.92, "pressFill": "0x7fe6e0", "stroke": "0xa8f2ed", "strokeAlpha": 1, "accent": null, "textColor": "#0b0d14" },
-      "normal":  { "fill": "0x111726", "fillAlpha": 0.66, "pressFill": "0x24304a", "stroke": "0x3fd0c9", "strokeAlpha": 0.5, "accent": "0x3fd0c9", "textColor": "#f1efe8" },
-      "locked":  { "fill": "0x0d1019", "fillAlpha": 0.55, "pressFill": "0x1c2130", "stroke": "0x5a5f73", "strokeAlpha": 0.5, "accent": "0xe0a040", "accentAlpha": 0.55, "textColor": "#8a8fa3" },
-      "secondary": { "fill": "0x111726", "fillAlpha": 0.5, "pressFill": "0x24304a", "stroke": "0x8a8fa3", "strokeAlpha": 0.45, "accent": null, "textColor": "#c9cbd6" },
-      "disabled": { "fill": "0x0d1019", "fillAlpha": 0.7, "pressFill": "0x0d1019", "stroke": "0x3a3d4a", "strokeAlpha": 0.8, "accent": null, "textColor": "#80859a" },
-      "teaser": { "fill": "0x0d1019", "fillAlpha": 0.7, "pressFill": "0x0d1019", "stroke": "0x3fd0c9", "strokeAlpha": 0.3, "accent": null, "textColor": "#d8dae3" },
-      "current": { "fill": "0x14303a", "fillAlpha": 0.85, "pressFill": "0x24304a", "stroke": "0x3fd0c9", "strokeAlpha": 1, "accent": "0x3fd0c9", "textColor": "#3fd0c9" }
+      "primary": {
+        "fill": "0x3fd0c9",
+        "fillAlpha": 0.92,
+        "pressFill": "0x7fe6e0",
+        "stroke": "0xa8f2ed",
+        "strokeAlpha": 1,
+        "accent": null,
+        "textColor": "#0b0d14"
+      },
+      "normal": {
+        "fill": "0x111726",
+        "fillAlpha": 0.66,
+        "pressFill": "0x24304a",
+        "stroke": "0x3fd0c9",
+        "strokeAlpha": 0.5,
+        "accent": "0x3fd0c9",
+        "textColor": "#f1efe8"
+      },
+      "locked": {
+        "fill": "0x0d1019",
+        "fillAlpha": 0.55,
+        "pressFill": "0x1c2130",
+        "stroke": "0x5a5f73",
+        "strokeAlpha": 0.5,
+        "accent": "0xe0a040",
+        "accentAlpha": 0.55,
+        "textColor": "#8a8fa3"
+      },
+      "secondary": {
+        "fill": "0x111726",
+        "fillAlpha": 0.5,
+        "pressFill": "0x24304a",
+        "stroke": "0x8a8fa3",
+        "strokeAlpha": 0.45,
+        "accent": null,
+        "textColor": "#c9cbd6"
+      },
+      "disabled": {
+        "fill": "0x0d1019",
+        "fillAlpha": 0.7,
+        "pressFill": "0x0d1019",
+        "stroke": "0x3a3d4a",
+        "strokeAlpha": 0.8,
+        "accent": null,
+        "textColor": "#80859a"
+      },
+      "teaser": {
+        "fill": "0x0d1019",
+        "fillAlpha": 0.7,
+        "pressFill": "0x0d1019",
+        "stroke": "0x3fd0c9",
+        "strokeAlpha": 0.3,
+        "accent": null,
+        "textColor": "#d8dae3"
+      },
+      "current": {
+        "fill": "0x14303a",
+        "fillAlpha": 0.85,
+        "pressFill": "0x24304a",
+        "stroke": "0x3fd0c9",
+        "strokeAlpha": 1,
+        "accent": "0x3fd0c9",
+        "textColor": "#3fd0c9"
+      }
     }
   },
   "keyArt": {
     "uiDepth": 30,
     "backdrop": {
-      "dim": { "color": "0x0b0d14", "alpha": 0.5 },
-      "drift": { "zoom": 1.06, "x": -6, "y": -4, "ms": 14000 },
-      "gradient": { "y": 150, "color": "0x0b0d14", "alpha": 0.9 },
+      "dim": {
+        "color": "0x0b0d14",
+        "alpha": 0.5
+      },
+      "drift": {
+        "zoom": 1.06,
+        "x": -6,
+        "y": -4,
+        "ms": 14000
+      },
+      "gradient": {
+        "y": 150,
+        "color": "0x0b0d14",
+        "alpha": 0.9
+      },
       "depth": 0
     },
     "rain": {
-      "near": { "count": 40, "speed": 520, "wind": -30, "landY": [560, 660], "alpha": [0.1, 0.3], "length": 8, "color": "0xc2dcf0", "depth": 15 }
+      "near": {
+        "count": 40,
+        "speed": 520,
+        "wind": -30,
+        "landY": [
+          560,
+          660
+        ],
+        "alpha": [
+          0.1,
+          0.3
+        ],
+        "length": 8,
+        "color": "0xc2dcf0",
+        "depth": 15
+      }
     },
-    "motes": { "count": 12, "color": "0x3fd0c9", "size": 2, "area": { "x": 20, "y": 140, "w": 320, "h": 460 }, "speedY": [4, 14], "driftX": 5, "lifeMs": 5000, "alpha": 0.8, "frequency": 420, "depth": 16 }
+    "motes": {
+      "count": 12,
+      "color": "0x3fd0c9",
+      "size": 2,
+      "area": {
+        "x": 20,
+        "y": 140,
+        "w": 320,
+        "h": 460
+      },
+      "speedY": [
+        4,
+        14
+      ],
+      "driftX": 5,
+      "lifeMs": 5000,
+      "alpha": 0.8,
+      "frequency": 420,
+      "depth": 16
+    }
   },
   "menu": {
-    "title": { "text": "UNREMEMBERED", "y": 110, "fontSize": 30, "color": "#3fd0c9" },
+    "title": {
+      "text": "UNREMEMBERED",
+      "y": 110,
+      "fontSize": 30,
+      "color": "#3fd0c9"
+    },
     "firstY": 246,
     "spacing": 72,
-    "button": { "w": 280, "h": 58, "fontSize": 18 },
-    "logo": { "widthPct": 0.8, "topPct": 0.045, "depth": 20 },
+    "button": {
+      "w": 280,
+      "h": 58,
+      "fontSize": 18
+    },
+    "logo": {
+      "widthPct": 0.8,
+      "topPct": 0.045,
+      "depth": 20
+    },
     "buttonDepth": 30,
-    "enter": { "staggerMs": 70, "ms": 320, "offsetX": 40, "delayMs": 120 },
-    "pulse": { "color": "0x3fd0c9", "pad": 6, "alpha": [0.08, 0.4], "ms": 1100 },
+    "enter": {
+      "staggerMs": 70,
+      "ms": 320,
+      "offsetX": 40,
+      "delayMs": 120
+    },
+    "pulse": {
+      "color": "0x3fd0c9",
+      "pad": 6,
+      "alpha": [
+        0.08,
+        0.4
+      ],
+      "ms": 1100
+    },
     "items": [
-      { "id": "new", "label": "New Game" },
-      { "id": "chapter2", "label": "Chapter 2 🔒", "locked": true },
-      { "id": "arena", "label": "Arena 🔒", "locked": true },
-      { "id": "settings", "label": "Settings" },
-      { "id": "credits", "label": "Credits", "locked": true, "inert": true }
+      {
+        "id": "new",
+        "label": "New Game"
+      },
+      {
+        "id": "chapter2",
+        "label": "Chapter 2 🔒",
+        "locked": true
+      },
+      {
+        "id": "arena",
+        "label": "Arena 🔒",
+        "locked": true
+      },
+      {
+        "id": "settings",
+        "label": "Settings"
+      },
+      {
+        "id": "credits",
+        "label": "Credits",
+        "locked": true,
+        "inert": true
+      }
     ],
     "credits": {
       "badgeTexture": "ui_badge_postjam",
@@ -513,24 +1273,73 @@
     },
     "difficulty": {
       "depth": 100,
-      "dim": { "color": "0x04050b", "alpha": 0.8 },
-      "box": { "y": 352, "w": 320, "h": 400, "fill": "0x111726", "fillAlpha": 0.94, "stroke": "0x3fd0c9", "strokeAlpha": 0.6, "radius": 10 },
-      "title": { "text": "How do you like your fights?", "y": 206, "fontSize": 18, "color": "#f1efe8", "wrap": 280 },
-      "button": { "w": 280, "h": 56, "fontSize": 17 },
+      "dim": {
+        "color": "0x04050b",
+        "alpha": 0.8
+      },
+      "box": {
+        "y": 352,
+        "w": 320,
+        "h": 400,
+        "fill": "0x111726",
+        "fillAlpha": 0.94,
+        "stroke": "0x3fd0c9",
+        "strokeAlpha": 0.6,
+        "radius": 10
+      },
+      "title": {
+        "text": "How do you like your fights?",
+        "y": 206,
+        "fontSize": 18,
+        "color": "#f1efe8",
+        "wrap": 280
+      },
+      "button": {
+        "w": 280,
+        "h": 56,
+        "fontSize": 17
+      },
       "firstY": 268,
       "spacing": 68,
-      "hint": { "text": "You can change this any time in Settings.", "y": 470, "fontSize": 12, "color": "#8a8fa3", "wrap": 280 },
-      "back": { "text": "Back", "y": 520, "w": 200, "h": 56, "fontSize": 16 }
+      "hint": {
+        "text": "You can change this any time in Settings.",
+        "y": 470,
+        "fontSize": 12,
+        "color": "#8a8fa3",
+        "wrap": 280
+      },
+      "back": {
+        "text": "Back",
+        "y": 520,
+        "w": 200,
+        "h": 56,
+        "fontSize": 16
+      }
     },
     "lockedText": "Coming soon",
     "lockedColor": "#e0a040"
   },
   "settings": {
-    "title": { "text": "Settings", "y": 92, "fontSize": 26, "color": "#f1efe8" },
+    "title": {
+      "text": "Settings",
+      "y": 92,
+      "fontSize": 26,
+      "color": "#f1efe8"
+    },
     "firstY": 166,
     "spacing": 66,
-    "button": { "w": 300, "h": 58, "fontSize": 17 },
-    "volumeSteps": [1, 0.75, 0.5, 0.25, 0],
+    "button": {
+      "w": 300,
+      "h": 58,
+      "fontSize": 17
+    },
+    "volumeSteps": [
+      1,
+      0.75,
+      0.5,
+      0.25,
+      0
+    ],
     "labels": {
       "musicVolume": "Music: {v}",
       "sfxVolume": "Sound FX: {v}",
@@ -549,16 +1358,41 @@
     "backY": 546
   },
   "end": {
-    "title": { "y": 80, "fontSize": 28, "color": "#3fd0c9" },
+    "title": {
+      "y": 80,
+      "fontSize": 28,
+      "color": "#3fd0c9"
+    },
     "firstY": 150,
     "lineH": 26,
-    "panel": { "y": 322, "w": 312, "h": 404, "fill": "0x111726", "fillAlpha": 0.72, "stroke": "0x3fd0c9", "strokeAlpha": 0.35, "radius": 10 },
+    "panel": {
+      "y": 322,
+      "w": 312,
+      "h": 404,
+      "fill": "0x111726",
+      "fillAlpha": 0.72,
+      "stroke": "0x3fd0c9",
+      "strokeAlpha": 0.35,
+      "radius": 10
+    },
     "roleFontSize": 12,
     "roleColor": "#8a8fa3",
     "nameFontSize": 16,
     "nameColor": "#f1efe8",
-    "hidden": { "y": 322, "fontSize": 20, "color": "#f1efe8", "wrap": 250 },
-    "music": { "y": 478, "lineH": 16, "fontSize": 11, "color": "#8a8fa3", "wrap": 280, "format": "Music: {title} — {author} ({license})" },
+    "hidden": {
+      "y": 322,
+      "fontSize": 20,
+      "color": "#f1efe8",
+      "wrap": 250
+    },
+    "music": {
+      "y": 478,
+      "lineH": 16,
+      "fontSize": 11,
+      "color": "#8a8fa3",
+      "wrap": 280,
+      "format": "Music: {title} — {author} ({license})"
+    },
     "hint": {
       "text": "Tap to return to the menu",
       "y": 566,
@@ -570,41 +1404,132 @@
     }
   },
   "pause": {
-    "dim": { "color": "0x04050b", "alpha": 0.72 },
-    "title": { "text": "Paused", "y": 260, "fontSize": 26, "color": "#f1efe8" },
-    "tap": { "text": "Tap to continue", "y": 320, "fontSize": 18, "color": "#3fd0c9", "pulseAlpha": 0.35, "pulseMs": 700 },
+    "dim": {
+      "color": "0x04050b",
+      "alpha": 0.72
+    },
+    "title": {
+      "text": "Paused",
+      "y": 260,
+      "fontSize": 26,
+      "color": "#f1efe8"
+    },
+    "tap": {
+      "text": "Tap to continue",
+      "y": 320,
+      "fontSize": 18,
+      "color": "#3fd0c9",
+      "pulseAlpha": 0.35,
+      "pulseMs": 700
+    },
     "inputDelayMs": 250,
     "menu": {
-      "panel": { "y": 330, "w": 312, "h": 328, "fill": "0x111726", "fillAlpha": 0.94, "stroke": "0x3fd0c9", "strokeAlpha": 0.6, "radius": 10 },
+      "panel": {
+        "y": 330,
+        "w": 312,
+        "h": 328,
+        "fill": "0x111726",
+        "fillAlpha": 0.94,
+        "stroke": "0x3fd0c9",
+        "strokeAlpha": 0.6,
+        "radius": 10
+      },
       "titleY": 210,
-      "button": { "w": 264, "h": 60, "fontSize": 18 },
+      "button": {
+        "w": 264,
+        "h": 60,
+        "fontSize": 18
+      },
       "firstY": 284,
       "spacing": 76,
       "items": [
-        { "id": "resume", "label": "Resume", "variant": "primary" },
-        { "id": "settings", "label": "Settings", "variant": "normal" },
-        { "id": "quit", "label": "Quit to Menu", "variant": "secondary" }
+        {
+          "id": "resume",
+          "label": "Resume",
+          "variant": "primary"
+        },
+        {
+          "id": "settings",
+          "label": "Settings",
+          "variant": "normal"
+        },
+        {
+          "id": "quit",
+          "label": "Quit to Menu",
+          "variant": "secondary"
+        }
       ],
       "confirm": {
         "title": "Quit to Menu?",
         "text": "Your progress in this chapter will be lost.",
         "textY": 268,
-        "textStyle": { "fontSize": 14, "color": "#b8bccb", "wrap": 260 },
-        "yes": { "label": "Quit", "variant": "secondary", "y": 336 },
-        "no": { "label": "Keep playing", "variant": "primary", "y": 412 }
+        "textStyle": {
+          "fontSize": 14,
+          "color": "#b8bccb",
+          "wrap": 260
+        },
+        "yes": {
+          "label": "Quit",
+          "variant": "secondary",
+          "y": 336
+        },
+        "no": {
+          "label": "Keep playing",
+          "variant": "primary",
+          "y": 412
+        }
       },
-      "quitScenes": ["Battle", "Dialogue", "Cutscene", "Reward", "Settings"]
+      "quitScenes": [
+        "Battle",
+        "Dialogue",
+        "Cutscene",
+        "Reward",
+        "Settings"
+      ]
     }
   },
-  "pauseButton": { "x": 44, "y": 44, "hit": 56, "radius": 20, "fill": "0x111726", "fillAlpha": 0.7, "stroke": "0x3fd0c9", "strokeAlpha": 0.6, "strokeW": 2, "barColor": "0xf1efe8", "barW": 4, "barH": 14, "barGap": 5, "depth": 3000 },
+  "pauseButton": {
+    "x": 44,
+    "y": 44,
+    "hit": 56,
+    "radius": 20,
+    "fill": "0x111726",
+    "fillAlpha": 0.7,
+    "stroke": "0x3fd0c9",
+    "strokeAlpha": 0.6,
+    "strokeW": 2,
+    "barColor": "0xf1efe8",
+    "barW": 4,
+    "barH": 14,
+    "barGap": 5,
+    "depth": 3000
+  },
   "damageNumbers": {
     "types": {
-      "normal": { "color": "#f1efe8", "fontSize": 16 },
-      "crit": { "color": "#f0c060", "fontSize": 20 },
-      "hurt": { "color": "#ff8a80", "fontSize": 16 },
-      "heal": { "color": "#8ee6a8", "fontSize": 17 },
-      "echo": { "color": "#3fd0c9", "fontSize": 13 },
-      "guarded": { "color": "#8a8fa3", "fontSize": 14 }
+      "normal": {
+        "color": "#f1efe8",
+        "fontSize": 16
+      },
+      "crit": {
+        "color": "#f0c060",
+        "fontSize": 20
+      },
+      "hurt": {
+        "color": "#ff8a80",
+        "fontSize": 16
+      },
+      "heal": {
+        "color": "#8ee6a8",
+        "fontSize": 17
+      },
+      "echo": {
+        "color": "#3fd0c9",
+        "fontSize": 13
+      },
+      "guarded": {
+        "color": "#8a8fa3",
+        "fontSize": 14
+      }
     },
     "popScale": 1.5,
     "popMs": 130,
@@ -632,29 +1557,122 @@
       "maxMs": 5000
     },
     "hints": {
-      "strike": { "text": "Tap Strike to attack" },
-      "echo": { "text": "PERFECT parries charge Echo" },
-      "techniques": { "text": "Techniques spend your Echo" },
-      "chain": { "text": "Chain PERFECTs for bonus damage", "always": true },
-      "break": { "text": "Empty its golden line to BREAK it", "always": true },
-      "status": { "text": "Statuses fade. Anchor clears them", "always": true },
-      "dodge": { "text": "Swipe to dodge: safer, but no Echo", "always": true },
-      "recollection": { "text": "Recollection is ready. Make him relive it.", "always": true },
-      "blast_unlocked": { "text": "Blast unlocked", "always": true }
+      "strike": {
+        "text": "Tap Strike to attack"
+      },
+      "echo": {
+        "text": "PERFECT parries charge Echo"
+      },
+      "techniques": {
+        "text": "Techniques spend your Echo"
+      },
+      "chain": {
+        "text": "Chain PERFECTs for bonus damage",
+        "always": true
+      },
+      "break": {
+        "text": "Empty its golden line to BREAK it",
+        "always": true
+      },
+      "status": {
+        "text": "Statuses fade. Anchor clears them",
+        "always": true
+      },
+      "dodge": {
+        "text": "Swipe to dodge: safer, but no Echo",
+        "always": true
+      },
+      "recollection": {
+        "text": "Recollection is ready. Make him relive it.",
+        "always": true
+      },
+      "blast_unlocked": {
+        "text": "Blast unlocked",
+        "always": true
+      }
     }
   },
-  "activeHero": { "color": "0x3fd0c9", "size": 7, "gapY": 6, "bobPx": 3, "bobMs": 380, "depth": 905, "nameColor": "#3fd0c9" },
-  "targetMarker": { "color": "0xfff066", "size": 7, "gapY": 20, "bobPx": 3, "bobMs": 320, "depth": 905 },
-  "victory": { "band": { "h": 56, "color": "0x0b0d14", "alpha": 0.8, "lineColor": "0x3fd0c9" }, "popScale": 1.6, "popMs": 360 },
+  "activeHero": {
+    "color": "0x3fd0c9",
+    "size": 7,
+    "gapY": 6,
+    "bobPx": 3,
+    "bobMs": 380,
+    "depth": 905,
+    "nameColor": "#3fd0c9"
+  },
+  "targetMarker": {
+    "color": "0xfff066",
+    "size": 7,
+    "gapY": 20,
+    "bobPx": 3,
+    "bobMs": 320,
+    "depth": 905
+  },
+  "victory": {
+    "band": {
+      "h": 56,
+      "color": "0x0b0d14",
+      "alpha": 0.8,
+      "lineColor": "0x3fd0c9"
+    },
+    "popScale": 1.6,
+    "popMs": 360
+  },
   "cutIn": {
     "_about": "The Recollection cut-in (systems/CutIn.js): a band across the screen with Rhea's portrait and one line per beat (dialogue.json recollection_cutin). Tap = next beat.",
     "depth": 1500,
-    "dim": { "color": "0x000000", "alpha": 0.55, "fadeMs": 200 },
-    "vignette": { "color": "0x000000", "alpha": 0.8, "inner": 0.35, "bands": 5 },
-    "band": { "y": 200, "h": 120, "fill": "0x0b0d14", "alpha": 0.94, "edgeW": 2, "edgeTop": "0x3fd0c9", "edgeBottom": "0xf0c060", "slideMs": 220, "outMs": 200, "sfx": "ultimate" },
-    "portrait": { "w": 360, "h": 120, "x": 0, "swapMs": 160, "fallback": { "scale": 1.15, "srcX": 148, "srcY": 16, "x": 92 } },
-    "name": { "x": 344, "y": 214, "fontSize": 13, "color": "#3fd0c9" },
-    "text": { "x": 344, "y": 306, "wrap": 170, "fontSize": 16, "color": "#f1efe8", "stroke": "#0b0d14", "strokeThickness": 3, "charsPerSec": 40 },
+    "dim": {
+      "color": "0x000000",
+      "alpha": 0.55,
+      "fadeMs": 200
+    },
+    "vignette": {
+      "color": "0x000000",
+      "alpha": 0.8,
+      "inner": 0.35,
+      "bands": 5
+    },
+    "band": {
+      "y": 200,
+      "h": 120,
+      "fill": "0x0b0d14",
+      "alpha": 0.94,
+      "edgeW": 2,
+      "edgeTop": "0x3fd0c9",
+      "edgeBottom": "0xf0c060",
+      "slideMs": 220,
+      "outMs": 200,
+      "sfx": "ultimate"
+    },
+    "portrait": {
+      "w": 360,
+      "h": 120,
+      "x": 0,
+      "swapMs": 160,
+      "fallback": {
+        "scale": 1.15,
+        "srcX": 148,
+        "srcY": 16,
+        "x": 92
+      }
+    },
+    "name": {
+      "x": 344,
+      "y": 214,
+      "fontSize": 13,
+      "color": "#3fd0c9"
+    },
+    "text": {
+      "x": 344,
+      "y": 306,
+      "wrap": 170,
+      "fontSize": 16,
+      "color": "#f1efe8",
+      "stroke": "#0b0d14",
+      "strokeThickness": 3,
+      "charsPerSec": 40
+    },
     "holdMs": 2200,
     "inputDelayMs": 250
   }

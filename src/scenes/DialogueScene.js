@@ -81,8 +81,9 @@ export default class DialogueScene extends Phaser.Scene {
       const v = viewRect();
       this.add.rectangle(v.x, v.y, v.w, v.h, Number(cfg.overlayDim.color), cfg.overlayDim.alpha).setOrigin(0);
     } else {
-      const track = dialogueTrack(this.dialogueId);
-      if (track !== undefined && !this.preview) playMusic(track);
+      const entry = dialogueTrack(this.dialogueId);
+      const track = entry && typeof entry === 'object' ? entry.track : entry;
+      if (entry !== undefined && !this.preview) playMusic(track, entry && typeof entry === 'object' ? { crossfadeMs: entry.crossfadeMs } : undefined);
       this.buildBackground();
     }
 
