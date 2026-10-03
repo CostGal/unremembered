@@ -174,6 +174,7 @@ await withBrowser(async ({ chrome, server }) => {
     await page.waitFor(`!!(window.__battle && window.__battle.menu)`, { timeout: 40000 });
     await waitMenu(page);
     await page.ev(`(() => { const B = window.__battle; B.tutorialSlow = false; B.enemies[0].hp = 1; B.updateLabel(B.enemies[0]); })()`);
+    await sleep(400); // the menu ignores a tap in its first moments
     await page.tap(...slots.strike); // Rhea's Strike (one enemy: automatic target)
     log(await waitDialogue(page, 'quill_rise', 25000), 'real loop: Rhea\'s Strike takes stage 1 to 0 -> quill_rise');
     await tapThrough(page);
@@ -184,6 +185,7 @@ await withBrowser(async ({ chrome, server }) => {
     const pct = clerk.stages[1].recollectionAtHpPct;
     const just = Math.floor((clerk.hp * pct) / 100) + 4;
     await page.ev(`(() => { const B = window.__battle; B.heroes.forEach((h) => { h.hp = h.maxHp; }); B.enemies[0].hp = ${just}; B.updateLabel(B.enemies[0]); })()`);
+    await sleep(400); // the menu ignores a tap in its first moments
     await page.tap(...slots.strike);
     log(await waitDialogue(page, 'keepsake_burn', 25000), 'real loop: a Strike below the threshold plays keepsake_burn');
     await tapThrough(page);
@@ -194,11 +196,13 @@ await withBrowser(async ({ chrome, server }) => {
       if (await hasDialogue(page)) await page.tap(180, 560);
       else if (await page.ev(`!!(window.__battle.menu && window.__battle.menu.pending) && window.__battle.canUltimate(window.__battle.activeHero || {})`)) {
         await page.shot(join(out, 'quill_recollection_menu.png'));
+        await sleep(400); // the menu ignores a tap in its first moments
         await page.tap(...slots.ultimate);
         cast = true;
       } else if (await page.ev(`!!(window.__battle.menu && window.__battle.menu.pending)`)) {
         // Dov's turn in between: just Strike
         await page.ev(`window.__battle.heroes.forEach((h) => { if (h.hp > 0) h.hp = h.maxHp; })`);
+        await sleep(400); // the menu ignores a tap in its first moments
         await page.tap(...slots.strike);
       }
       await sleep(250);
@@ -222,6 +226,7 @@ await withBrowser(async ({ chrome, server }) => {
     await waitMenu(page);
     // The real loop to stage 2 (Rhea's Strike kills stage 1), then both heroes fall during Dov's turn.
     await page.ev(`(() => { const B = window.__battle; B.tutorialSlow = false; B.enemies[0].hp = 1; B.updateLabel(B.enemies[0]); })()`);
+    await sleep(400); // the menu ignores a tap in its first moments
     await page.tap(...slots.strike);
     await waitDialogue(page, 'quill_rise', 25000);
     await tapThrough(page);
