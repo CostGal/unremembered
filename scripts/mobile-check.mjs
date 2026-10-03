@@ -115,7 +115,7 @@ async function runDevice(browser, url, name, d) {
   }
 
   // Battle: tap targets, app switch, landscape.
-  await page.goto(`${url}?battle=b1_forgotten`);
+  await page.goto(`${url}?battle=b1_forgotten&pauses=0`);
   await page.waitForFunction(() => window.__battle?.menu?.items?.length, null, { timeout: 20000 });
   await sleep(400);
   checkTargets(name, 'Battle commands', await targets(page, 'Battle'));

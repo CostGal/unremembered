@@ -42,7 +42,10 @@ Chapter (19 steps, `?step=N`): 0 origin · 1 wake · 2 letter · 3 meet_dov · 4
 | boss_clerk (never casting it) | 0 % | 0 % | 0 % |
 Recollection all-three-miss chance: non-gamer 3 % (Story 1 %, Unforgettable 11 %), average 0.3 %, good 0 %. Chapter total: non-gamer ≈ 19.4 min, average ≈ 14.9, good ≈ 12.5.
 
-## Checks on the final head
+## Checks on the final head (jam version = main 7ec924d, zip v4)
+Final lockdown gate: validate 0/0 · build ok · judge-unit pass · dialogue QA 125 lines 0 issues · sim 100 % every battle (chapter 20.5 / 15.9 / 13.4 min non-gamer / average / good, tutorial pauses included) · playtest --story real 415 s and fake 360 s, 0 retries · mobile-check 39/39. Follow-ups merged after the first gate: dialogue editor, music option A + trims, lockdown music/cutscene changes, duel-final (guided Blast tutorial, Nala jump + meow, Break and red-ring pauses), Recollection 2 (tears line, auto-cast after the keepsake, one track from the keepsake to the kill, 20-tap finale, Nala hiss cut-in, single-source music loop).
+
+### Earlier gate
 Head `982f96a`: `npm run validate` 0/0 · `npm run build` ok · `npm run playtest -- --story` real 347 s / 0 retries and fake 347 s / 0 retries · `npm run mobile-check` 39/39 · sim as above. Follow-ups after this gate (Recollection auto-cast, 20-tap finale, dialogue editor, music consistency) are logged in `BATCH_PROGRESS.md`.
 
 ## Still a placeholder / missing
