@@ -1,4 +1,5 @@
 import ui from '../data/ui.json';
+import { JAM } from './Jam.js';
 
 // Full screen on phones that allow it (Android Chrome and most Android
 // browsers: the Fullscreen API, which must be called inside a tap). iOS
@@ -22,6 +23,7 @@ export function isStandalone() {
 }
 
 export function canFullscreen() {
+  if (JAM) return false; // the host page owns full screen (iframe)
   const el = document.documentElement;
   return !isIOS() && !!((document.fullscreenEnabled && el.requestFullscreen) || (document.webkitFullscreenEnabled && el.webkitRequestFullscreen));
 }
@@ -32,6 +34,7 @@ export function isFullscreen() {
 
 // Must run inside a user gesture. Failures (in-app WebViews) are silent.
 export function requestFullscreen() {
+  if (JAM) return;
   const el = document.documentElement;
   try {
     const p = el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' }) : el.webkitRequestFullscreen && el.webkitRequestFullscreen();
@@ -59,6 +62,7 @@ export function wantsFullscreen(settings) {
 // What the Title shows at the bottom: a toggle where full screen works, a
 // one-line tip where it can't, nothing once the game runs from the home screen.
 export function titleLine(settings) {
+  if (JAM) return null; // no "Fullscreen" toggle, no iOS / in-app tips
   if (isStandalone() || isFullscreen()) return null;
   if (canFullscreen()) return { toggle: true, text: settings?.fullscreen !== false ? cfg.on : cfg.off };
   if (isInAppBrowser()) return { toggle: false, text: cfg.inApp };

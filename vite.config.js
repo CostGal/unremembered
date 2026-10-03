@@ -21,5 +21,11 @@ const appVersion = JSON.parse(readFileSync('package.json', 'utf8')).version;
 
 export default defineConfig({
   base: './',
-  define: { __MUSIC_FILES__: JSON.stringify(musicFiles), __SFX_FILES__: JSON.stringify(sfxFiles), __APP_VERSION__: JSON.stringify(appVersion) },
+  define: {
+    __MUSIC_FILES__: JSON.stringify(musicFiles),
+    __SFX_FILES__: JSON.stringify(sfxFiles),
+    __APP_VERSION__: JSON.stringify(appVersion),
+    // The separate jam build (vite.jam.config.js) turns this on; see src/systems/Jam.js.
+    __JAM__: false,
+  },
 });

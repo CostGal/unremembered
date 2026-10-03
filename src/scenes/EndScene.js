@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import credits from '../data/credits.json';
+import { JAM } from '../systems/Jam.js';
 import ui from '../data/ui.json';
 import { playSceneMusic } from '../systems/Audio.js';
 import { addText } from '../systems/Button.js';
@@ -45,7 +46,7 @@ export default class EndScene extends Phaser.Scene {
     };
     let y = innerTop + (sc.firstGap ?? 10);
     if (credits.revealed) {
-      for (const line of credits.lines) {
+      for (const line of JAM ? [] : credits.lines) {
         put(y, line.role, { fontSize: cfg.roleFontSize, color: cfg.roleColor });
         put(y + cfg.lineH * 0.7, line.name, { fontSize: cfg.nameFontSize, color: cfg.nameColor });
         y += cfg.lineH * 1.8;
