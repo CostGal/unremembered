@@ -143,7 +143,7 @@ Notation: `Speaker [portrait]: text`. `>` = narration (no speaker). `✉` = lett
 - `duel_refuse` (after Rhea's 1st landed hit):
   - Dov [dov_worried]: I'm not fighting you, Rhea.
   - Rhea [rhea_serious]: Then this will be quick.
-- `duel_wake` (after Rhea's 3rd landed hit, or round 3, whichever first; Dov starts attacking):
+- `duel_wake` (after Rhea's 2nd landed hit, or round 3, whichever first; Dov starts attacking):
   - Dov [dov_fierce]: Fine. Wake up, then!
   - > He raises his fists. He's holding back, but not by much.
 - `duel_nala` (Dov at or below 50% HP; the battle ends):
