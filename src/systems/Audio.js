@@ -19,6 +19,8 @@ let musicEngine = null;
 let current = null; // {key, stop(fadeSec), track?} — a decoded file or a procedural track
 const musicState = { intensity: 0, warm: false };
 const FILES = new Set(typeof __MUSIC_FILES__ !== 'undefined' ? __MUSIC_FILES__ : []);
+const SFX_FILES = new Set(typeof __SFX_FILES__ !== 'undefined' ? __SFX_FILES__ : []);
+const sfxDecoded = new Map(); // name -> AudioBuffer (decoded, ready to play at once)
 const buffers = new Map(); // key -> Promise<AudioBuffer | null>
 const bytes = new Map(); // key -> Promise<ArrayBuffer | null> (prefetched, not yet decoded)
 let noiseBuffer = null;
@@ -41,6 +43,7 @@ export function unlockAudio() {
     musicBus.connect(master);
     sfxBus.connect(master);
     applyVolumes();
+    warmSfx();
     document.addEventListener('visibilitychange', onVisibility);
     // Whenever the context (re)starts running, make sure the wanted music is
     // actually playing: the first gesture can resolve resume() a beat late.
@@ -131,10 +134,50 @@ export function vibrate(ms) {
 
 // ---------- SFX ----------
 
+// A file public/assets/audio/sfx/<name>.mp3 (listed at build time, __SFX_FILES__)
+// wins over the procedural recipe audio.json sfx[name]; with neither it is silent.
+// A file that is not decoded yet plays the recipe (if any) this once, so a
+// sound never arrives late.
 export function playSfx(name) {
+  if (!ctx || ctx.state !== 'running') return;
   const layers = audioData.sfx[name];
-  if (!ctx || !layers || ctx.state !== 'running') return;
-  playLayers(layers, sfxBus);
+  if (SFX_FILES.has(name)) {
+    const buffer = sfxDecoded.get(name);
+    if (buffer) {
+      playBuffer(buffer);
+      return;
+    }
+    const pending = loadSfx(name);
+    if (layers) playLayers(layers, sfxBus);
+    else pending.then((b) => b && ctx && ctx.state === 'running' && playBuffer(b));
+    return;
+  }
+  if (layers) playLayers(layers, sfxBus);
+}
+
+function playBuffer(buffer) {
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(sfxBus);
+  source.start();
+}
+
+// Decodes (once) the file of an SFX; resolves null when it cannot be had.
+function loadSfx(name) {
+  return loadBuffer(`sfx/${name}`, audioData.sfxFiles).then((buffer) => {
+    if (buffer) sfxDecoded.set(name, buffer);
+    return buffer;
+  });
+}
+
+// Right after unlock: decode every SFX file (their bytes are prefetched in the background).
+function warmSfx() {
+  for (const name of SFX_FILES) loadSfx(name);
+}
+
+// Downloads the SFX files in the background (after the music), decoded after unlock.
+export async function prefetchSfx() {
+  for (const name of SFX_FILES) await fetchBytes(`sfx/${name}`, audioData.sfxFiles);
 }
 
 // One-shot envelope layers (the audio.json sfx format) into `dest`.
@@ -144,7 +187,14 @@ function playLayers(layers, dest) {
     const start = now + (layer.delayMs || 0) / 1000;
     const end = start + layer.ms / 1000;
     const env = ctx.createGain();
-    env.gain.setValueAtTime(layer.gain, start);
+    if (layer.attackMs) {
+      // A swell: up to the gain over attackMs, then the usual decay.
+      const peak = Math.min(end - 0.001, start + layer.attackMs / 1000);
+      env.gain.setValueAtTime(0.0001, start);
+      env.gain.linearRampToValueAtTime(layer.gain, peak);
+    } else {
+      env.gain.setValueAtTime(layer.gain, start);
+    }
     env.gain.exponentialRampToValueAtTime(0.0001, end);
     env.connect(dest);
 
@@ -153,7 +203,7 @@ function playLayers(layers, dest) {
       source = ctx.createBufferSource();
       source.buffer = getNoise();
       const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
+      filter.type = layer.filter || 'lowpass';
       filter.frequency.value = layer.filterHz;
       source.connect(filter);
       filter.connect(env);
@@ -441,9 +491,10 @@ export function musicStatus() {
   };
 }
 
-function loadBuffer(key) {
+function loadBuffer(key, source = audioData.music) {
   if (!buffers.has(key)) {
-    const promise = fetchBytes(key)
+    if (!ctx) return Promise.resolve(null);
+    const promise = fetchBytes(key, source)
       .then((data) => (data ? decode(data) : null))
       .catch(() => null);
     buffers.set(key, promise);
@@ -451,9 +502,10 @@ function loadBuffer(key) {
   return buffers.get(key);
 }
 
-function fetchBytes(key) {
+// key may carry a folder prefix ("sfx/hit") that only keys the caches; source = {dir, ext}.
+function fetchBytes(key, source = audioData.music) {
   if (!bytes.has(key)) {
-    const url = `${audioData.music.dir}${key}${audioData.music.ext}`;
+    const url = `${source.dir}${key.replace(/^sfx\//, '')}${source.ext}`;
     const promise = fetch(url)
       .then((res) => (res.ok && !/text\/html/.test(res.headers.get('content-type') || '') ? res.arrayBuffer() : null))
       .catch(() => null);

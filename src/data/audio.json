@@ -7,6 +7,7 @@
     "ambience": { "Title": null, "Menu": null, "Cutscene": null, "Dialogue": null, "End": null },
     "prefetch": ["title", "cutscene", "battle", "boss", "ending"]
   },
+  "sfxFiles": { "dir": "assets/audio/sfx/", "ext": ".mp3" },
   "pause": { "musicDuck": 0.35 },
   "master": { "threshold": -6, "knee": 8, "ratio": 10, "attack": 0.004, "release": 0.18 },
   "blip": { "minGapMs": 35, "attackMs": 2 },
@@ -107,6 +108,42 @@
       { "type": "osc", "wave": "sine", "from": 55, "to": 190, "ms": 1300, "gain": 0.3 },
       { "type": "osc", "wave": "sawtooth", "from": 90, "to": 380, "ms": 1300, "gain": 0.07 },
       { "type": "noise", "ms": 1100, "gain": 0.14, "filterHz": 520, "delayMs": 150 }
+    ],
+    "sfx_laugh": [
+      {"type": "osc", "wave": "sawtooth", "from": 560, "to": 330, "ms": 80, "gain": 0.1},
+      {"type": "osc", "wave": "sawtooth", "from": 500, "to": 290, "ms": 80, "gain": 0.1, "delayMs": 120},
+      {"type": "osc", "wave": "sawtooth", "from": 440, "to": 250, "ms": 80, "gain": 0.1, "delayMs": 240}
+    ],
+    "sfx_scream_crowd": [
+      {"type": "noise", "ms": 1500, "gain": 0.28, "filterHz": 1400},
+      {"type": "osc", "wave": "sine", "from": 520, "to": 48, "ms": 1700, "gain": 0.22},
+      {"type": "osc", "wave": "triangle", "from": 1040, "to": 96, "ms": 1500, "gain": 0.06, "delayMs": 60}
+    ],
+    "sfx_crowd_cheer": [
+      {"type": "noise", "ms": 1200, "gain": 0.2, "filterHz": 2200, "attackMs": 600},
+      {"type": "osc", "wave": "triangle", "from": 520, "to": 660, "ms": 700, "gain": 0.07},
+      {"type": "osc", "wave": "triangle", "from": 660, "to": 880, "ms": 700, "gain": 0.06, "delayMs": 250}
+    ],
+    "sfx_meow": [
+      {"type": "osc", "wave": "sine", "from": 700, "to": 950, "ms": 180, "gain": 0.25}
+    ],
+    "sfx_hiss": [
+      {"type": "noise", "ms": 300, "gain": 0.2, "filterHz": 3000, "filter": "highpass"}
+    ],
+    "sfx_heartbeat": [
+      {"type": "osc", "wave": "sine", "from": 60, "to": 50, "ms": 90, "gain": 0.5},
+      {"type": "osc", "wave": "sine", "from": 60, "to": 50, "ms": 90, "gain": 0.5, "delayMs": 320}
+    ],
+    "sfx_door_creak": [
+      {"type": "osc", "wave": "sawtooth", "from": 180, "to": 240, "ms": 700, "gain": 0.05}
+    ],
+    "sfx_paper": [
+      {"type": "noise", "ms": 190, "gain": 0.22, "filterHz": 2600},
+      {"type": "noise", "ms": 140, "gain": 0.14, "filterHz": 3400, "delayMs": 150}
+    ],
+    "sfx_red_surge": [
+      {"type": "osc", "wave": "sine", "from": 110, "to": 440, "ms": 900, "gain": 0.25},
+      {"type": "noise", "ms": 900, "gain": 0.15, "filterHz": 1800, "attackMs": 500}
     ]
   }
 }

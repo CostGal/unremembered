@@ -148,7 +148,25 @@ export default class CutsceneScene extends Phaser.Scene {
     this.playShot(shot);
   }
 
-  playShot(shot) {
+  // Art that may not be delivered yet (data/cutscene_*.json):
+  //   bgFallback / bg2Fallback  the key drawn when bg / bg2 is not real art (file missing,
+  //                             or only a placeholder); null = no picture (black, layers + fx still play)
+  //   whenArt                   fields merged over the shot when bg IS real art
+  //                             (the delivered illustration replaces the split / cutouts / tint)
+  // The shot's ambience follows the fallback key either way (ambienceBg).
+  resolveShot(shot) {
+    if (shot.bg === undefined || shot.bg === null) return shot;
+    const real = (key) => !!key && this.textures.exists(key) && !this.textures.get(key).customData.placeholder;
+    const ambienceBg = shot.ambienceBg ?? shot.bgFallback ?? shot.bg;
+    if (real(shot.bg)) return { ...shot, ...shot.whenArt, ambienceBg };
+    const out = { ...shot, ambienceBg };
+    if (shot.bgFallback !== undefined) out.bg = shot.bgFallback;
+    if (shot.bg2Fallback !== undefined && !real(shot.bg2)) out.bg2 = shot.bg2Fallback;
+    return out;
+  }
+
+  playShot(rawShot) {
+    const shot = this.resolveShot(rawShot);
     if (this.shotTimer) this.shotTimer.remove();
     this.tweens.killTweensOf(this.shotLayer.list);
     this.shotLayer.removeAll(true);
@@ -199,11 +217,15 @@ export default class CutsceneScene extends Phaser.Scene {
     const fx = shot.fx || [];
     if (fx.some((f) => cfg.silentFx.includes(f))) return null;
     if (fx.includes('rain')) return cfg.rainAmbience;
-    return cfg.ambienceByBg[shot.bg] ?? null;
+    return cfg.ambienceByBg[shot.ambienceBg ?? shot.bg] ?? null;
   }
 
+  // Real art, or an intentional placeholder (assets.json "placeholder": a tinted
+  // panel with a label). The plain grey placeholder of an unregistered file is not art.
   hasArt(key) {
-    return !!key && this.textures.exists(key) && !this.textures.get(key).customData.placeholder;
+    if (!key || !this.textures.exists(key)) return false;
+    const data = this.textures.get(key).customData;
+    return !data.placeholder || !!data.intentional;
   }
 
   // Fills a w×h cell centred at (x, y) with the image (cover, never contain),
@@ -222,7 +244,8 @@ export default class CutsceneScene extends Phaser.Scene {
       // Centring the focus point needs (focus and 1 - focus) × the image to reach the cell edges.
       cover = Math.max(cover, w / 2 / (Math.min(focus[0], 1 - focus[0]) * img.width), h / 2 / (Math.min(focus[1], 1 - focus[1]) * img.height));
     }
-    const scale = (img.width <= cfg.pixelArtMaxW ? Math.ceil(cover) : cover) * (view?.zoom || 1);
+    const pixelArt = img.width <= cfg.pixelArtMaxW && !this.textures.get(key).customData.intentional;
+    const scale = (pixelArt ? Math.ceil(cover) : cover) * (view?.zoom || 1);
     img.setScale(scale);
     if (focus) img.setPosition(x + (0.5 - focus[0]) * img.displayWidth, y + (0.5 - focus[1]) * img.displayHeight);
     // Cover guard: whatever the focus asked for, the image never leaves a gap.

@@ -6,7 +6,7 @@ import ui from '../data/ui.json';
 import voices from '../data/voices.json';
 import { playAmbience, playBlip, playSceneMusic, playSfx } from '../systems/Audio.js';
 import * as Fx from '../systems/Fx.js';
-import { whenReady } from '../systems/Assets.js';
+import { manifestDef, whenReady } from '../systems/Assets.js';
 import { mirrorEdges, rect as viewRect } from '../systems/View.js';
 
 const cfg = ui.dialogue;
@@ -74,6 +74,10 @@ export default class DialogueScene extends Phaser.Scene {
 
   buildBackground() {
     if (!this.bgKey || this.bgKey === 'black' || !this.textures.exists(this.bgKey)) return;
+    if (manifestDef('backgrounds', this.bgKey)?.cover) {
+      this.buildCoverBackground();
+      return;
+    }
     const bg = this.add.image(180, cfg.bg.size / 2, this.bgKey).setDisplaySize(cfg.bg.size, cfg.bg.size);
     // Wider screens: the picture's edges continue (mirrored) into the margins.
     mirrorEdges(this, bg);
@@ -87,6 +91,28 @@ export default class DialogueScene extends Phaser.Scene {
     if (env.ambience) playAmbience(env.ambience);
     // Fade the picture into the ink below it.
     this.add.rectangle(v.x, cfg.bg.size - cfg.bg.fadeH, v.w, cfg.bg.fadeH, Number(ui.dialogue.box.fill), cfg.bg.fadeAlpha).setOrigin(0);
+  }
+
+  // An illustrated background (assets.json "cover": true, e.g. a 9:16 painting):
+  // cover-fit into the area above the text box (x across the whole view, y 0 to
+  // cfg.bg.coverH), centred and cropped. No reflection and no fade: the ink
+  // starts where the picture ends. Rain, vignette and ambience still come from
+  // environments.json when an entry exists for the key.
+  buildCoverBackground() {
+    const v = viewRect();
+    const h = cfg.bg.coverH;
+    const bg = this.add.image(180, h / 2, this.bgKey);
+    const scale = Math.max(v.w / bg.width, h / bg.height);
+    bg.setScale(scale);
+    // The crop is in texture pixels around the image centre, which sits at the area's centre.
+    const cropW = Math.min(bg.width, v.w / scale);
+    const cropH = Math.min(bg.height, h / scale);
+    bg.setCrop((bg.width - cropW) / 2, (bg.height - cropH) / 2, cropW, cropH);
+    this.add.rectangle(v.x, h, v.w, v.h - h, Number(cfg.bg.coverInk)).setOrigin(0);
+    const env = environments[this.bgKey] || {};
+    if (env.rain) Fx.rain(this, env.rain, v, { fill: true });
+    if (env.vignette) Fx.vignette(this, { ...env.vignette, depth: 0 }, { x: v.x, y: 0, w: v.w, h });
+    if (env.ambience) playAmbience(env.ambience);
   }
 
   // Under the picture, down to the text box: the picture mirrored (a wet
@@ -281,7 +307,7 @@ export default class DialogueScene extends Phaser.Scene {
     if (slot.key !== key) {
       slot.image.setTexture(this.textures.exists(key) ? key : '__MISSING');
       const p = cfg.portrait;
-      const def = this.registry.get('manifest')?.portraits?.[key];
+      const def = manifestDef('portraits', key);
       // Display height comes from data: the entry's own displayHeight, else the shared one.
       slot.image.setScale((def?.displayHeight || p.height) / slot.image.height);
       // Portraits are drawn facing right; the right-hand side faces left.

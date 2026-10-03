@@ -5,7 +5,7 @@ import animSpecs from '../data/animSpecs.json';
 import characters from '../data/characters.json';
 import enemies from '../data/enemies.json';
 import { finishSection, sectionEntries } from '../systems/Assets.js';
-import { prefetchMusic } from '../systems/Audio.js';
+import { prefetchMusic, prefetchSfx } from '../systems/Audio.js';
 import { devParam } from '../systems/DevParams.js';
 import { applyFakeSheets } from '../systems/FakeSheets.js';
 import { aliasAnimationSets, buildAnimations, fetchAnimationSets, queueSheets } from '../systems/SpriteAnims.js';
@@ -63,7 +63,7 @@ export default class LoaderScene extends Phaser.Scene {
     if (!next) {
       if (!this.prefetched) {
         this.prefetched = true;
-        prefetchMusic();
+        prefetchMusic().then(() => prefetchSfx()).catch(() => {});
       }
       return;
     }
@@ -106,7 +106,7 @@ export default class LoaderScene extends Phaser.Scene {
         queueSheets(this.load, this.registry.get('animationSets'));
       } else {
         for (const [key, def] of Object.entries(sectionEntries(section))) {
-          if (!this.textures.exists(key)) this.load.image(key, `assets/${def.file}`);
+          if (def.file && !this.textures.exists(key)) this.load.image(key, `assets/${def.file}`);
         }
       }
       const finish = () => {

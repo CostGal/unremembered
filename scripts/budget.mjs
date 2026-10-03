@@ -65,7 +65,7 @@ for (const [dir, size] of Object.entries(byDir).sort((a, b) => b[1] - a[1])) con
 // estimated at the average size of what that section already has.
 const manifest = JSON.parse(readFileSync(join(root, 'src/data/assets.json'), 'utf8'));
 for (const section of ['portraits', 'backgrounds', 'sprites', 'ui']) {
-  const entries = Object.values(manifest[section] || {});
+  const entries = Object.values(manifest[section] || {}).filter((e) => e.file); // aliases have no file
   const have = entries.map((e) => files.find((f) => f.path === `assets/${e.file}`)).filter(Boolean);
   const missing = entries.length - have.length;
   if (!missing) continue;

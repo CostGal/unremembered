@@ -9,6 +9,7 @@ m = json.load(open('src/data/assets.json', encoding='utf8'))
 missing, mismatched, refs = [], [], set()
 for section in ('sprites', 'portraits', 'backgrounds', 'ui', 'cutscene'):
     for key, d in m[section].items():
+        if 'file' not in d: continue  # alias: no file of its own
         p = os.path.join(root, d['file']); refs.add(os.path.normpath(p))
         if not os.path.exists(p):
             missing.append((section, key, d['file'], 'optional' if d.get('optional') else 'PLACEHOLDER')); continue

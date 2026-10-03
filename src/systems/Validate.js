@@ -15,6 +15,7 @@ const STEP_TYPES = ['cutscene', 'dialogue', 'battle', 'reward', 'end'];
 const SHOT_FX = ['crystal_particles', 'rain', 'flash', 'lights_out', 'dissolve_layer', 'embers', 'eyes_glow'];
 const SHOT_MOVES = ['none', 'pan_left', 'pan_right', 'zoom_in', 'zoom_out'];
 const SPLITS = ['none', 'vertical', 'horizontal'];
+const PLACEHOLDER_SHAPES = ['figure', 'room', 'street', 'band', 'none'];
 const BATTLE_EVENTS = ['keepsake_burn'];
 // Play (latin + greek subsets) covers ASCII, Latin-1, Greek, the dashes/quotes/
 // ellipsis and a few symbols. Anything else on screen renders in a system font.
@@ -90,6 +91,43 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     });
   }
 
+  // sfx on a dialogue line or a cutscene shot: a string naming an audio.json sfx recipe or a
+  // file public/assets/audio/sfx/<name>.mp3 (data.sfxFileKeys, Node only), or null (silence).
+  const sfxKeys = new Set([...Object.keys(data.audio?.sfx || {}), ...(data.sfxFileKeys || [])]);
+  const checkSfx = (at, sfx) => {
+    if (sfx === undefined || sfx === null) return;
+    if (typeof sfx !== 'string') err(`${at}: sfx must be a string or null`);
+    else if (data.audio && !sfxKeys.has(sfx)) err(`${at}: sfx "${sfx}" is not in audio.json sfx and has no file in public/assets/audio/sfx/`);
+  };
+  if (data.audio?.sfxFiles && !(typeof data.audio.sfxFiles.dir === 'string' && typeof data.audio.sfxFiles.ext === 'string')) err('audio.json sfxFiles: dir and ext are required');
+
+  // Asset manifest entries: alias / fallback name another key of the same section;
+  // placeholder is {tint, label, shape}; cover is a boolean.
+  for (const [section, entries] of Object.entries(assets)) {
+    if (section === 'loading') continue;
+    for (const [key, def] of Object.entries(entries)) {
+      const at = `assets.${section}.${key}`;
+      if (def.alias !== undefined) {
+        if (!entries[def.alias] || def.alias === key) err(`${at}: alias "${def.alias}" is not another key of ${section}`);
+        else if (entries[def.alias].alias) err(`${at}: alias "${def.alias}" is itself an alias`);
+        continue;
+      }
+      if (typeof def.file !== 'string') err(`${at}: file is required (or an alias)`);
+      if (def.fallback !== undefined && (!entries[def.fallback] || def.fallback === key)) err(`${at}: fallback "${def.fallback}" is not another key of ${section}`);
+      if (def.cover !== undefined && typeof def.cover !== 'boolean') err(`${at}: cover must be true or false`);
+      const ph = def.placeholder;
+      if (ph !== undefined) {
+        if (!ph || typeof ph !== 'object') err(`${at}: placeholder must be {tint, label, shape}`);
+        else {
+          if (ph.tint !== undefined && !/^0x[0-9a-fA-F]{6}$/.test(ph.tint)) err(`${at}: placeholder.tint must be a hex string like "0x1a2238"`);
+          if (ph.label !== undefined && typeof ph.label !== 'string') err(`${at}: placeholder.label must be a string`);
+          if (ph.shape !== undefined && !PLACEHOLDER_SHAPES.includes(ph.shape)) err(`${at}: placeholder.shape must be one of ${PLACEHOLDER_SHAPES.join(', ')}`);
+          if (ph.labelY !== undefined && !(ph.labelY > 0 && ph.labelY <= 1)) err(`${at}: placeholder.labelY must be in (0, 1]`);
+        }
+      }
+    }
+  }
+
   // Dialogue
   const speakers = new Set([
     ...Object.values(characters).map((c) => c.name),
@@ -110,6 +148,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       if (line.speaker && !speakers.has(line.speaker)) err(`${at}: unknown speaker "${line.speaker}"`);
       if (line.portrait && !assets.portraits?.[line.portrait]) err(`${at}: portrait "${line.portrait}" is not in assets.json portraits`);
       if (line.style && !styles[line.style]) err(`${at}: unknown style "${line.style}"`);
+      checkSfx(at, line.sfx);
     });
   }
 
@@ -357,8 +396,19 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   for (const [id, cs] of Object.entries(cutscenes)) {
     (cs.shots || []).forEach((shot, i) => {
       const at = `cutscene_${id}.shots[${i}]`;
-      if (!shot.text) warn(`${at}: no text`);
-      for (const key of [shot.bg, shot.bg2]) if (key && !anyAsset[key]) err(`${at}: image "${key}" is not in assets.json`);
+      if (!shot.text && shot.text !== '') warn(`${at}: no text`); // "" = a deliberate silent hold
+      for (const key of [shot.bg, shot.bg2, shot.bgFallback, shot.bg2Fallback]) if (key && !anyAsset[key]) err(`${at}: image "${key}" is not in assets.json`);
+      checkSfx(at, shot.sfx);
+      if (shot.whenArt !== undefined) {
+        if (!shot.whenArt || typeof shot.whenArt !== 'object' || Array.isArray(shot.whenArt)) err(`${at}: whenArt must be an object of shot fields`);
+        else {
+          if (!shot.bg) err(`${at}: whenArt needs a bg`);
+          for (const key of [shot.whenArt.bg, shot.whenArt.bg2]) if (key && !anyAsset[key]) err(`${at}.whenArt: image "${key}" is not in assets.json`);
+          for (const layer of shot.whenArt.layers || []) if (!anyAsset[layer.img]) err(`${at}.whenArt: layer "${layer.img}" is not in assets.json`);
+          for (const fx of shot.whenArt.fx || []) if (!SHOT_FX.includes(fx)) err(`${at}.whenArt: unknown fx "${fx}"`);
+          if (shot.whenArt.split && !SPLITS.includes(shot.whenArt.split)) err(`${at}.whenArt: unknown split "${shot.whenArt.split}"`);
+        }
+      }
       for (const layer of shot.layers || []) if (!anyAsset[layer.img]) err(`${at}: layer "${layer.img}" is not in assets.json`);
       for (const fx of shot.fx || []) if (!SHOT_FX.includes(fx)) err(`${at}: unknown fx "${fx}"`);
       if (shot.move && !SHOT_MOVES.includes(shot.move)) err(`${at}: unknown move "${shot.move}"`);

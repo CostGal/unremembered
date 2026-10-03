@@ -30,6 +30,9 @@ for (const file of readdirSync(spritesDir).filter((f) => f.endsWith('_animations
   data.animationSets[file.slice(0, -'_animations.json'.length)] = readJson(join(spritesDir, file));
 }
 
+const sfxDir = join(root, 'public/assets/audio/sfx');
+data.sfxFileKeys = existsSync(sfxDir) ? readdirSync(sfxDir).filter((f) => f.endsWith('.mp3')).map((f) => f.slice(0, -4)) : [];
+
 const { errors, warnings } = validateData(data, { sheetExists: (sheet) => existsSync(join(spritesDir, sheet)) });
 for (const w of warnings) console.warn(`! ${w}`);
 for (const e of errors) console.error(`✗ ${e}`);

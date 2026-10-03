@@ -9,7 +9,14 @@ const musicFiles = existsSync(musicDir)
   ? readdirSync(musicDir).filter((f) => f.endsWith('.mp3')).map((f) => f.slice(0, -4))
   : [];
 
+// Same for SFX: public/assets/audio/sfx/<name>.mp3 overrides the procedural
+// recipe of that name in data/audio.json (no file = the recipe, or silence).
+const sfxDir = 'public/assets/audio/sfx';
+const sfxFiles = existsSync(sfxDir)
+  ? readdirSync(sfxDir).filter((f) => f.endsWith('.mp3')).map((f) => f.slice(0, -4))
+  : [];
+
 export default defineConfig({
   base: './',
-  define: { __MUSIC_FILES__: JSON.stringify(musicFiles) },
+  define: { __MUSIC_FILES__: JSON.stringify(musicFiles), __SFX_FILES__: JSON.stringify(sfxFiles) },
 });
