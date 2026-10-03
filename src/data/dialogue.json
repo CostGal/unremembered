@@ -654,6 +654,34 @@
       "portrait": "rhea_determined"
     }
   ],
+  "quill_feint": [
+    {
+      "speaker": "Quill",
+      "style": "normal",
+      "text": "Did you flinch? Oh, you flinched.",
+      "portrait": "clerk_smug"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "He's baiting you. Watch the ring, not him.",
+      "portrait": "dov_fierce"
+    }
+  ],
+  "quill_parry": [
+    {
+      "speaker": "Quill",
+      "style": "normal",
+      "text": "Couriers swing. Magistrates answer.",
+      "portrait": "clerk_cold"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Then I answer back.",
+      "portrait": "rhea_determined"
+    }
+  ],
   "archive_warn": [
     {
       "speaker": "Dov",

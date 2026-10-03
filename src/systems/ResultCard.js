@@ -103,8 +103,10 @@ export default class ResultCard {
     };
     this.rows = Object.keys(r.labels).map((key, i) => {
       const y = r.firstY + i * r.spacing;
-      const label = this.text(r.x, y, r.labels[key], r.fontSize, r.color).setOrigin(0, 0.5);
-      const value = this.text(r.valueX, y, String(values[key]), r.fontSize, r.valueColor).setOrigin(0, 0.5);
+      // Turns shows the battle's par (grade.json card.rows.turnsPar): "Turns 9 (par 7)" as one line.
+      const withPar = key === 'turns' && r.turnsPar;
+      const label = this.text(r.x, y, withPar ? r.turnsPar.replace('{n}', values.turns).replace('{par}', this.result.par) : r.labels[key], r.fontSize, r.color).setOrigin(0, 0.5);
+      const value = this.text(r.valueX, y, withPar ? '' : String(values[key]), r.fontSize, r.valueColor).setOrigin(0, 0.5);
       this.items.push(label, value);
       return [label, value];
     });

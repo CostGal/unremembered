@@ -508,6 +508,9 @@ await withBrowser(async ({ chrome, server }) => {
       return n;
     };
     const start = await B(page, `({ echo: B.heroes[0].echo, max: B.heroes[0].echoMax, level: B.level, party: B.heroes.map((h) => h.type) })`);
+    const dovAttacks = JSON.parse(readFileSync(join(root, 'src/data/enemies.json'), 'utf8')).dov_rival.attacks;
+    log(!dovAttacks.some((a) => a.feint || (a.hits || []).some((h) => h.feint)), 'Duel: Dov never feints (no feint on any of his attacks)', dovAttacks.map((a) => a.id).join());
+    log(!(await B(page, `B.menu.items.some((i) => i.slot === 'ultimate')`)), 'Duel: no Recollection slot in the command menu');
     log(start.party.length === 1 && start.max === 2 && start.level === 1 && start.echo === 1, 'Duel: Rhea alone, Echo cap 2 at Recall 1, one turn Echo on her first turn', JSON.stringify(start));
 
     // Technique menu is visible and clickable, its Blast slot blank.
@@ -667,7 +670,7 @@ await withBrowser(async ({ chrome, server }) => {
     await sleep(500);
     await page.shot(join(out, 'pause_a2_echo.png'));
     const t2 = await pauseTexts();
-    log(t2.some((t) => /^Echo\./.test(t.text)), 'Pauses: tap advances to step 2 (Echo)', JSON.stringify(t2.map((t) => t.text)));
+    log(t2.some((t) => /^Echo: \+1 every turn, \+1 per Strike, \+2 per PERFECT parry\.$/.test(t.text) && t.lines <= 2), 'Pauses: tap advances to step 2 (Echo: +1 every turn, +1 per Strike, +2 per PERFECT parry; at most 2 lines)', JSON.stringify(t2.map((t) => t.text)));
     await continueTap();
     await waitStep(2);
     await sleep(500);
@@ -813,7 +816,7 @@ await withBrowser(async ({ chrome, server }) => {
       await sleep(400);
     }
     const lv = await tp();
-    log(lv?.id === 'leveling' && lv.steps === 2, 'Pauses: the leveling pause shows on the Recall card', JSON.stringify(lv));
+    log(lv?.id === 'leveling' && lv.steps === 3, 'Pauses: the leveling pause shows on the Recall card (3 steps)', JSON.stringify(lv));
     await sleep(500);
     await page.shot(join(out, 'pause_d_leveling.png'));
     const lt = await pauseTexts();
@@ -824,6 +827,12 @@ await withBrowser(async ({ chrome, server }) => {
     await page.shot(join(out, 'pause_d_leveling2.png'));
     const lt2 = await pauseTexts();
     log(lt2.some((t) => /Recall grows/.test(t.text) && t.lines <= 2), 'Pauses: leveling step 2 text fits in 2 lines', JSON.stringify(lt2.map((t) => [t.text, t.lines])));
+    await continueTap();
+    await waitStep(2);
+    await sleep(400);
+    await page.shot(join(out, 'pause_d_leveling3.png'));
+    const lt3 = await pauseTexts();
+    log(lt3.some((t) => /^Recall also widens your Echo\. The dark pips are memories still missing\.$/.test(t.text)), 'Pauses: leveling step 3 text (Echo widens with Recall)', JSON.stringify(lt3.map((t) => [t.text, t.lines])));
     await continueTap();
     await page.waitFor(`!window.__battle.tutorialPause`, { timeout: 5000 });
     await sleep(500);
@@ -1219,17 +1228,11 @@ await withBrowser(async ({ chrome, server }) => {
     log(await B(page, `B.menu.items.some((i) => i.slot === 'target')`), 'Help: a short tap on Strike acts (the target cards open)');
     log(page.errors.length === 0, 'Help: no page errors', page.errors.slice(0, 2).join(' | '));
 
-    // Recollection teaser (boss): a card on the disabled button, no action.
+    // Recollection (boss): no slot in the command menu (the Keepsake casts it; Try again re-casts it).
     const bp = await battle(chrome, server, 'boss_clerk');
     await waitMenuThroughDialogue(bp);
-    await bp.move(...slots.ultimate);
-    await bp.down(...slots.ultimate);
-    await sleep(hcfg.holdMs + 250);
-    const t4 = await cardTexts(bp);
-    log(t4.includes('Recollection') && t4.includes('Burn the page. Only this ends him.'), 'Help: the Recollection teaser has its card', JSON.stringify(t4));
-    await bp.up(...slots.ultimate);
-    await sleep(300);
-    log(await B(bp, `!!B.menu.pending && !B.menu.helpCard`), 'Help: releasing the teaser closes the card, menu unchanged');
+    const bossSlots = await B(bp, `B.menu.items.map((i) => i.slot).join()`);
+    log(bossSlots === 'strike,technique', 'Menu: the boss fight has Strike and Technique only, no Recollection slot', bossSlots);
 
     // Recall card: b1 from Recall 1 -> Recall 2 (Rhea remembers Return to Sender): the learn pauses.
     const rc = await battle(chrome, server, 'b1_forgotten', { extra: '&level=1&pauses=on' });

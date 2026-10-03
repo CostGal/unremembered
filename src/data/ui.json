@@ -128,6 +128,8 @@
       "offsetY": 14,
       "max": 10,
       "label": "Echo",
+      "lossText": "-{n} Echo",
+      "lossColor": "#ff6a5a",
       "labelX": 16,
       "labelFontSize": 12,
       "labelColor": "#7fc4bf",
@@ -389,6 +391,8 @@
       "fontSize": 14,
       "text": "Choose a target"
     },
+    "_ultimateInMenu": "false: no Recollection slot in the command menu (chapter 1: the Keepsake casts it, Try again re-casts it). techniqueSlots names the technique list's slot positions (Dov has three techniques), not the main menu.",
+    "ultimateInMenu": false,
     "techniqueSlots": [
       "strike",
       "technique",
@@ -639,6 +643,14 @@
     "inputDelayMs": 900
   },
   "downed": {
+    "text": "DOWNED",
+    "color": "#ff6a5a",
+    "canRevive": "{hero}'s Anchor can revive",
+    "cantRevive": "Anchor can't revive yet",
+    "noteColor": "#e0a040",
+    "noteFontSize": 13,
+    "noteOffsetY": 22,
+    "noteExtraMs": 500,
     "heroAlpha": 0.35,
     "fadeMs": 200,
     "enemyFadeMs": 500
@@ -1627,7 +1639,7 @@
         "text": "Techniques spend your Echo"
       },
       "chain": {
-        "text": "Chain PERFECTs for bonus damage",
+        "text": "Chain PERFECTs: +10 % damage per step",
         "always": true
       },
       "break": {
@@ -1640,10 +1652,6 @@
       },
       "dodge": {
         "text": "Swipe to dodge: safer, but no Echo",
-        "always": true
-      },
-      "recollection": {
-        "text": "Recollection is ready. Make him relive it.",
         "always": true
       },
       "blast_unlocked": {

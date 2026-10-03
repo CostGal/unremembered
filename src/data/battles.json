@@ -32,7 +32,7 @@
     "platform": "platform_street",
     "env": "street_rain",
     "enemies": ["blank", "blank"],
-    "pauses": { "battleStart": "break_intro" },
+    "pauses": { "battleStart": "break_intro", "menuFirst": { "dov": "learn_anchor" } },
     "redRings": true,
     "disabledAttacks": { "blank": ["lunge"] },
     "statuses": false,

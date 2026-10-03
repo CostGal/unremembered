@@ -165,6 +165,10 @@ export default class RecallCard {
     for (const hero of this.heroes) {
       for (const id of up.upgraded?.[hero.type] || []) {
         lines.push({ text: fill(t.upgrade, { tech: techniques[id]?.name || id, detail: this.upgradeDetail(id, up.level) }), learn: true, pauseKey: `${id}_${up.level}` });
+        // Anchor's revive switches on: its own line (levels.json upgradeDetail.canRevive).
+        if (!techniqueAt(id, up.level - 1, techniques).canRevive && techniqueAt(id, up.level, techniques).canRevive) {
+          lines.push({ text: fill(levels.upgradeDetail.canRevive, { tech: techniques[id]?.name || id }), learn: true });
+        }
       }
     }
     return lines;
@@ -178,7 +182,7 @@ export default class RecallCard {
     const d = levels.upgradeDetail;
     const parts = [];
     for (const [key, str] of Object.entries(d)) {
-      if (key === 'hitsSame') continue;
+      if (key === 'hitsSame' || key === 'canRevive') continue;
       if (JSON.stringify(before[key]) === JSON.stringify(now[key])) continue;
       const v = now[key];
       const vars = key === 'hits' ? { a: v[0], b: v[1] } : key === 'critChance' ? { pct: Math.round(v * 100) } : { n: v };

@@ -34,10 +34,17 @@ const HOOKS = `(() => {
 const B = (page, expr) => page.ev(`(() => { const B = window.__battle; return ${expr}; })()`);
 const dialogueId = (page) => page.ev(`(window.__game.scene.getScene('Dialogue') || {}).dialogueId || null`);
 const hasDialogue = async (page) => (await page.scenes()).includes('Dialogue');
+// The two hook dialogues (quill_feint, quill_parry) can come up by chance (a 30 % feint, a 10 % parry) in any
+// flow below that is not about them: they are tapped away while waiting for the dialogue the flow wants.
+const HOOK_DIALOGUES = ['quill_feint', 'quill_parry'];
 async function waitDialogue(page, id, timeout = 20000) {
   const end = Date.now() + timeout;
   while (Date.now() < end) {
-    if ((await hasDialogue(page)) && (await dialogueId(page)) === id) return true;
+    if (await hasDialogue(page)) {
+      const cur = await dialogueId(page);
+      if (cur === id) return true;
+      if (HOOK_DIALOGUES.includes(cur)) await page.tap(180, 560);
+    }
     await sleep(60);
   }
   return false;
@@ -50,12 +57,22 @@ async function tapThrough(page) {
 }
 const waitFlag = (page, expr, timeout = 20000) => page.waitFor(expr, { timeout }).then(() => true, () => false);
 const trace = (page) => page.ev(`Object.assign({}, window.__animTrace || {})`);
-const waitMenu = (page, timeout = 40000) => page.waitFor(`!!(window.__battle.menu && window.__battle.menu.pending)`, { timeout });
+// The first menu is up once Quill's opening attack has landed (a feint adds the quill_feint dialogue: tapped through).
+async function waitMenu(page, timeout = 40000) {
+  const end = Date.now() + timeout;
+  while (Date.now() < end) {
+    if (await hasDialogue(page)) {
+      if (HOOK_DIALOGUES.includes(await dialogueId(page))) await page.tap(180, 560);
+    } else if (await page.ev(`!!(window.__battle && window.__battle.menu && window.__battle.menu.pending)`)) return;
+    await sleep(120);
+  }
+  throw new Error('waitMenu timed out');
+}
 
 await withBrowser(async ({ chrome, server }) => {
   // ============ Page A: every beat, called directly ============
   {
-    const page = await open(chrome, `${server.url}?battle=boss_clerk&level=4`, { init: [HOOKS] });
+    const page = await open(chrome, `${server.url}?battle=boss_clerk&level=4&pauses=0`, { init: [HOOKS] });
     await page.waitFor(`!!(window.__battle && window.__battle.menu)`, { timeout: 40000 });
     await waitMenu(page);
     const order = await page.ev(`window.__order.slice()`);
@@ -171,7 +188,7 @@ await withBrowser(async ({ chrome, server }) => {
 
   // ============ Page B: the real loop (taps) ============
   {
-    const page = await open(chrome, `${server.url}?battle=boss_clerk&level=4`, { settings: { difficulty: 'story', storyMode: true, difficultyChosen: true }, init: [HOOKS] });
+    const page = await open(chrome, `${server.url}?battle=boss_clerk&level=4&pauses=0`, { settings: { difficulty: 'story', storyMode: true, difficultyChosen: true }, init: [HOOKS] });
     await page.waitFor(`!!(window.__battle && window.__battle.menu)`, { timeout: 40000 });
     await waitMenu(page);
     await page.ev(`(() => { const B = window.__battle; B.tutorialSlow = false; B.enemies[0].hp = 1; B.updateLabel(B.enemies[0]); })()`);
@@ -216,7 +233,7 @@ await withBrowser(async ({ chrome, server }) => {
 
   // ============ Page C: lose in stage 2 -> Retry starts again in stage 1 ============
   {
-    const page = await open(chrome, `${server.url}?battle=boss_clerk&level=4`, { init: [HOOKS] });
+    const page = await open(chrome, `${server.url}?battle=boss_clerk&level=4&pauses=0`, { init: [HOOKS] });
     await page.waitFor(`!!(window.__battle && window.__battle.menu)`, { timeout: 40000 });
     await waitMenu(page);
     // The real loop to stage 2 (Rhea's Strike kills stage 1), then both heroes fall during Dov's turn.
@@ -242,6 +259,83 @@ await withBrowser(async ({ chrome, server }) => {
     const half = Math.round((clerk.hp * clerk.stages[0].hpPct) / 100);
     log(snap.phase === 0 && snap.hp === half && snap.max === half && !snap.aura && !snap.rising && !snap.over && snap.heroes.every(Boolean), 'Retry after a LOSE in stage 2: back in stage 1 at its own bar, no aura, party up again (Quill has already acted once)', JSON.stringify(snap));
     log(page.errors.length === 0, 'page C: no console errors', page.errors.slice(0, 2).join(' | '));
+  }
+
+  // ============ Page H: the two first-time hooks (onFirstFeint, defend.onFirstDefend) ============
+  {
+    // Default pause mode (not ?pauses=0): the feint / enemy_parry pauses are the thing under test.
+    const page = await open(chrome, `${server.url}?battle=boss_clerk&level=4`, { init: [HOOKS] });
+    await page.waitFor(`!!(window.__battle && window.__battle.menu)`, { timeout: 40000 });
+    await waitMenu(page);
+    const stampDef = clerk.stages[0].attacks.find((a) => a.id === 'stamp');
+    const defend = clerk.defend;
+    log(stampDef.onFirstFeint?.dialogue === 'quill_feint' && stampDef.onFirstFeint?.pause === 'feint' && defend.onFirstDefend?.dialogue === 'quill_parry' && defend.onFirstDefend?.pause === 'enemy_parry', 'data: stage-1 Stamp has onFirstFeint {quill_feint, feint}; defend has onFirstDefend {quill_parry, enemy_parry}');
+    // Reset what the natural opening may have fired, then record dialogue / pause / riposte order.
+    await page.ev(`(() => {
+      const B = window.__battle; B.hideCommandMenu(); B.tutorialSlow = false; B.heroes.forEach((h) => { h.hp = h.maxHp; });
+      B.firedEvents.delete('hook:quill_feint'); B.firedEvents.delete('hook:quill_parry');
+      B.registry.set('tutorialSeen', (B.registry.get('tutorialSeen') || []).filter((id) => id !== 'feint' && id !== 'enemy_parry'));
+      window.__seq = [];
+      const dlg = B.playDialogueOverlay.bind(B); B.playDialogueOverlay = (id) => { window.__seq.push('dialogue:' + id); return dlg(id); };
+      const rp = B.runPause.bind(B); B.runPause = (id, ...a) => { if (id) window.__seq.push('pause:' + id); return rp(id, ...a); };
+      const re = B.reparry.bind(B); B.reparry = (...a) => { window.__seq.push('reparry'); return re(...a); };
+      const eh = B.enemyHit.bind(B); B.enemyHit = async (en, t, hit, ...a) => { const r = await eh(en, t, hit, ...a); window.__seq.push('ring:' + (hit.reparry ? 'reparry' : hit.feint ? 'feint' : 'plain')); return r; };
+    })()`);
+    const seq = () => page.ev(`window.__seq.join(' > ')`);
+    const tapPause = async (id, steps) => {
+      let ok = await waitFlag(page, `!!(window.__battle.tutorialPause && window.__battle.tutorialPause.id === ${JSON.stringify(id)})`, 8000);
+      const info = ok ? await B(page, 'JSON.stringify({ steps: B.tutorialPause.steps })') : null;
+      ok = ok && JSON.parse(info).steps === steps;
+      for (let i = 0; i < steps && ok; i++) {
+        await sleep(500);
+        await page.tap(180, 600);
+      }
+      await waitFlag(page, `!window.__battle.tutorialPause`, 4000);
+      return ok;
+    };
+
+    // 1. A Stamp that really feints (feintChance forced to 1): after the ring, the dialogue, then the pause.
+    stampDef.onFirstFeint && await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; const a = e.def.stages[0].attacks.find((x) => x.id === 'stamp'); a.feintChance = 1; B.pickAttack = () => a; window.__done = null; B.enemyTurn(e).then(() => { window.__done = true; }); })()`);
+    log(await waitDialogue(page, 'quill_feint', 25000), 'feint: Quill\'s first real feint plays the quill_feint dialogue');
+    const ringBefore = await seq();
+    log(/ring:feint/.test(ringBefore) && !/pause:feint/.test(ringBefore), 'feint: the dialogue comes right after the feinting ring resolved, before the pause', ringBefore);
+    const lines = await page.ev(`(window.__game.scene.getScene('Dialogue') || {}).lines ? window.__game.scene.getScene('Dialogue').lines.map((l) => l.speaker + ': ' + l.text) : null`);
+    log(!lines || (lines[0] === 'Quill: Did you flinch? Oh, you flinched.' && lines[1] === "Dov: He's baiting you. Watch the ring, not him."), 'feint: dialogue lines (Quill, then Dov)', JSON.stringify(lines));
+    await page.shot(join(out, 'hook_feint_dialogue.png'));
+    await tapThrough(page);
+    log(await tapPause('feint', 2), 'feint: then the 2-step "feint" tutorial pause (before his next action)');
+    log(await waitFlag(page, `window.__done === true`, 8000), 'feint: Quill\'s turn ends after the pause');
+    // Once per battle: a second feinting Stamp says nothing.
+    await page.ev(`(() => { const B = window.__battle; window.__seq.length = 0; window.__done = null; B.enemyTurn(B.enemies[0]).then(() => { window.__done = true; }); })()`);
+    const again = await waitFlag(page, `window.__done === true`, 25000);
+    log(again && !(await hasDialogue(page)) && !/dialogue:quill_feint|pause:feint/.test(await seq()), 'feint: a second feint plays neither dialogue nor pause (once per battle)', await seq());
+    log(await B(page, `B.firedEvents.has('hook:quill_feint')`), 'feint: recorded as a fired event (a Try again rewind remembers it)');
+
+    // 2. His first PARRY of a Strike: dialogue, then the pause, then the riposte ring.
+    await page.ev(`(() => { const B = window.__battle; B.heroes.forEach((h) => { h.hp = h.maxHp; }); B.enemies[0].hp = B.enemies[0].maxHp; B.enemies[0].broken = false; B.enemies[0].charge = null; B.rollDefend = () => true; window.__seq.length = 0; window.__done = null; B.playerStrike(B.heroes[0], B.enemies[0]).then(() => { window.__done = true; }); })()`);
+    log(await waitDialogue(page, 'quill_parry', 25000), 'parry: his first PARRY of a Strike plays the quill_parry dialogue');
+    const s1 = await seq();
+    log(!/reparry|pause:enemy_parry/.test(s1), 'parry: before the riposte ring and the pause', s1);
+    const pl = await page.ev(`(window.__game.scene.getScene('Dialogue') || {}).lines ? window.__game.scene.getScene('Dialogue').lines.map((l) => l.speaker + ': ' + l.text) : null`);
+    log(!pl || (pl[0] === 'Quill: Couriers swing. Magistrates answer.' && pl[1] === 'Rhea: Then I answer back.'), 'parry: dialogue lines (Quill, then Rhea)', JSON.stringify(pl));
+    await tapThrough(page);
+    log(await tapPause('enemy_parry', 2), 'parry: then the 2-step "enemy_parry" tutorial pause');
+    log(await waitFlag(page, `window.__seq.includes('reparry')`, 8000), 'parry: the riposte ring comes back after the pause', await seq());
+    await page.shot(join(out, 'hook_parry_riposte.png'));
+    log(await waitFlag(page, `window.__done === true`, 15000), 'parry: the Strike resolves');
+    // A second parry: nothing more.
+    await page.ev(`(() => { const B = window.__battle; B.heroes.forEach((h) => { h.hp = h.maxHp; }); B.enemies[0].hp = B.enemies[0].maxHp; window.__seq.length = 0; window.__done = null; B.playerStrike(B.heroes[0], B.enemies[0]).then(() => { window.__done = true; }); })()`);
+    const done2 = await waitFlag(page, `window.__done === true`, 25000);
+    log(done2 && !/dialogue:quill_parry|pause:enemy_parry/.test(await seq()), 'parry: a second parry plays neither dialogue nor pause (once per battle)', await seq());
+
+    // 3. A dodge of Blast / Tremor queues the same hook, played when the action is over (not mid-volley).
+    await page.ev(`(() => { const B = window.__battle; B.firedEvents.delete('hook:quill_parry'); B.registry.set('tutorialSeen', []); B.pendingDefendHook = null; B.popDefend(B.enemies[0], 'dodge'); })()`);
+    log(await B(page, `B.pendingDefendHook === B.enemies[0]`), 'dodge: popDefend queues the hook for the next safe point (the end of the hero\'s action)');
+    await page.ev(`(() => { const B = window.__battle; window.__seq.length = 0; window.__done = null; B.flushDefendHook().then(() => { window.__done = true; }); })()`);
+    log(await waitDialogue(page, 'quill_parry', 8000), 'dodge: flushing plays the same quill_parry dialogue');
+    await tapThrough(page);
+    log(await tapPause('enemy_parry', 2), 'dodge: and the enemy_parry pause (text covers Blast and Tremor)');
+    log(page.errors.length === 0, 'page H: no console errors', page.errors.slice(0, 2).join(' | '));
   }
 });
 console.log(failed ? `\n${failed} check(s) FAILED` : '\nquill lab: all passed');

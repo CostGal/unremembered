@@ -87,5 +87,5 @@
     "forceAttack": "unwriting"
   },
   "noEscape": { "text": "NO ESCAPE", "color": "#d8505a" },
-  "card": { "text": "Memory: {grade}", "x": 314, "y": 76, "fontSize": 14 }
+  "card": { "text": "Recollection: {grade}", "x": 314, "y": 76, "fontSize": 14 }
 }

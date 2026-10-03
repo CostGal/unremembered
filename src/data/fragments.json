@@ -2,7 +2,7 @@
   "count": 3,
   "screen": {
     "title": {
-      "text": "A memory returns…",
+      "text": "A memento returns…",
       "y": 70,
       "fontSize": 24,
       "color": "#f0c060"
@@ -54,7 +54,7 @@
     "inputDelayMs": 300,
     "sfx": "echo",
     "title": {
-      "text": "A memory, left behind",
+      "text": "A memento, left behind",
       "x": 180,
       "y": 176,
       "fontSize": 16,
@@ -147,7 +147,7 @@
     }
   },
   "pickupBanner": {
-    "text": "A memory returns: {name}",
+    "text": "A memento returns: {name}",
     "ms": 1600,
     "fadeMs": 250,
     "x": 180,

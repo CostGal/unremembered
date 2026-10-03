@@ -24,10 +24,10 @@
     "stats": "{hero}  +{hp} HP  +{strike} {strikeName}",
     "remembers": "{hero} remembers {tech}",
     "upgrade": "{tech} grows: {detail}",
-    "hud": "Lv{n}"
+    "hud": "Recall {n}"
   },
   "upgradeDetail": { "cost": "{n} Echo", "hits": "{a}–{b} bolts", "hitsSame": "{a} bolts", "critChance": "{pct}% crit", "amount": "heals {n}",
-    "target": "hits everyone" },
+    "target": "hits everyone", "canRevive": "{tech} now revives" },
   "hud": { "fontSize": 10, "color": "#f0c060", "gap": 3, "dy": 1 },
   "card": {
     "x": 30,

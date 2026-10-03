@@ -22,7 +22,7 @@ import * as Fx from '../systems/Fx.js';
 import { clampX, mirrorEdges, rect as viewRect } from '../systems/View.js';
 import { difficultyDef } from '../systems/Difficulty.js';
 import CommandMenu from '../systems/CommandMenu.js';
-import { helpCard } from '../systems/MoveHelp.js';
+import { helpCard, learnSteps } from '../systems/MoveHelp.js';
 import { createBackdrop, createPlatform } from '../systems/BattleBackdrop.js';
 import CutIn from '../systems/CutIn.js';
 import { gradeOf, runBeats } from '../systems/RecollectionBeats.js';
@@ -119,6 +119,7 @@ export default class BattleScene extends Phaser.Scene {
     this.tutorialPause = null;
     this.pauseOnFirstMenu = this.battleDef.pauses?.battleStart || null;
     this.pendingEvents = [];
+    this.pendingDefendHook = null;
     // Generic battle events (battles.json `events`, see systems/BattleEvents.js):
     // flags set by {setFlag}, which events already fired, and the counters their
     // `when` reads. playerHits counts landed player actions (playerAction/actionLanded).
@@ -769,7 +770,6 @@ export default class BattleScene extends Phaser.Scene {
     Fx.popText(this, x, y, r.text, r.textColor, qte.text);
     playSfx(r.sfx);
     this.startReadyAura(rhea);
-    if (!this.autoCasting) this.hints.show('recollection');
   }
 
   // A pulsing gold glow behind Rhea while Recollection is ready.
@@ -842,15 +842,28 @@ export default class BattleScene extends Phaser.Scene {
     this.updateLabel(entity);
   }
 
+  // A hero goes down: "DOWNED" over them and, under it, whether Anchor can bring them back (ui.json downed):
+  // a living hero who knows a heal that can't revive yet, or one that can. No healer in the party, no line.
+  popDowned(hero) {
+    const d = ui.downed;
+    Fx.popText(this, hero.container.x, hero.container.y, d.text, d.color, qte.text);
+    const healer = this.heroes.find((h) => h !== hero && h.hp > 0 && h.techniques.some((id) => this.techOf(h, id)?.type === 'heal'));
+    if (!healer) return;
+    const heal = this.techOf(healer, healer.techniques.find((id) => this.techOf(healer, id)?.type === 'heal'));
+    const note = (heal.canRevive ? d.canRevive : d.cantRevive).replace('{hero}', healer.name);
+    Fx.popText(this, hero.container.x, hero.container.y, note, d.noteColor, { ...qte.text, fontSize: d.noteFontSize, offsetY: qte.text.offsetY + d.noteOffsetY, ms: qte.text.ms + d.noteExtraMs });
+  }
+
   // Downed: the death sheet plays once and holds its last frame. Without one,
   // the entity freezes and dims. An enemy whose stage ends (enemies.json stages
   // `onZero`) is only down for now: it keeps its label, holds the death pose and
   // rises in the next stage (riseStage, from afterTurn).
-  markDown(entity) {
+  markDown(entity, silent = false) {
     const rising = this.stageEnding(entity);
     if (entity.isHero) {
       entity.statuses = {};
       this.refreshHud();
+      if (!silent) this.popDowned(entity);
       // A downed hero drops her guard: no counter stance survives a KO.
       if (this.stance?.hero === entity) this.endStance(false);
     } else {
@@ -1112,11 +1125,16 @@ export default class BattleScene extends Phaser.Scene {
           help: this.helpFor('technique', hero),
         },
       ];
-      // Only battles with `recollection` get the ultimate slot; elsewhere it stays empty.
-      const ultimate = this.ultimateItem(hero, name(labels.recollection));
+      // The ultimate slot exists only when ui.commands.ultimateInMenu is on (it is off in chapter 1: the
+      // Recollection is cast by the Keepsake and by Try again) and the battle has the ultimate.
+      const ultimate = ui.commands.ultimateInMenu ? this.ultimateItem(hero, name(labels.recollection)) : null;
       if (ultimate) main.push(ultimate);
-      // The banner may have been busy when the Echo filled: it gets another chance here.
-      if (ultimate?.value === 'ultimate') this.hints.show('recollection');
+      // Dev/QA (?recollection=1, forceRecollectionReady): the first menu where Rhea can cast, she casts.
+      if (this.castWhenReady && this.canUltimate(hero)) {
+        this.castWhenReady = false;
+        const target = await this.pickEnemy();
+        if (target) return { kind: 'ultimate', techId: 'recollection', target };
+      }
       const picking = this.menu.show(main);
       // The first menu of a tutorial battle opens with its battleStart pause: the buttons are
       // already drawn (the spotlight needs them) but the dim swallows every tap.
@@ -1129,6 +1147,7 @@ export default class BattleScene extends Phaser.Scene {
       // (the guided "Tap Technique" pause after the duel's Blast unlock).
       const flagPause = this.menuFlagPause();
       if (flagPause) await this.runPause(flagPause);
+      await this.menuFirstPause(hero);
       const pick = await picking;
 
       if (pick === 'strike') {
@@ -1170,6 +1189,21 @@ export default class BattleScene extends Phaser.Scene {
       return id;
     }
     return null;
+  }
+
+  // battles.json pauses.menuFirst {heroId: "learn_<tech>"}: that hero's first command menu of the run explains a
+  // move they know from Recall 1 (Dov's Anchor: no Recall card ever introduces it). The text is the move's
+  // techniques.json help.steps; the id is the one the Recall card would use, so a card that already
+  // showed it (or this pause earlier in the run) counts as seen.
+  async menuFirstPause(hero) {
+    const id = this.battleDef.pauses?.menuFirst?.[hero.type];
+    this.menuPausesDone ||= new Set();
+    if (!id || this.menuPausesDone.has(id) || this.battleOver) return;
+    this.menuPausesDone.add(id);
+    const steps = learnSteps(id.slice(tutorialData.recallLearn.idPrefix.length), hero.level ?? this.level, false);
+    if (!steps) return;
+    const def = { always: true, steps: steps.map((text) => ({ text, targets: ['cmd.technique'] })) };
+    await TutorialPause.show(this, id, {}, {}, def);
   }
 
   // battles.json pauses.techniqueMenu: explains the technique list when it opens with a technique the
@@ -1434,6 +1468,7 @@ export default class BattleScene extends Phaser.Scene {
       restoreDepth();
       this.playerAction = false;
     }
+    await this.flushDefendHook();
     if (this.actionLanded) this.counters.playerHits += 1;
     this.tickStatuses(hero);
   }
@@ -1536,6 +1571,7 @@ export default class BattleScene extends Phaser.Scene {
     // A melee attack walks up to its target first (before the first ring) and
     // walks home after the last hit, whatever ended the attack.
     const melee = !!attack.melee;
+    let feintHook = null;
     try {
       if (melee) await this.meleeApproach(enemy, target);
       // battles.json pauses.enemyAttack {"1": id, "2": id}: a tutorial pause before the ring of the
@@ -1572,6 +1608,8 @@ export default class BattleScene extends Phaser.Scene {
         if (hit.feint && feintChance !== undefined && !(Math.random() < feintChance)) delete hit.feint;
         const result = await this.enemyHit(enemy, target, hit, sheet, k);
         if (result === 'CANCEL') break;
+        // The ring just resolved with a real feint (the roll above kept it): the hook plays after the attack.
+        if (hit.feint && attack.onFirstFeint) feintHook = attack.onFirstFeint;
       }
       if (sheet) await sheet.finish();
     } finally {
@@ -1579,6 +1617,8 @@ export default class BattleScene extends Phaser.Scene {
       restoreDepth();
     }
     this.tapHint.setVisible(false);
+    // enemies.json onFirstFeint {dialogue, pause}: the first feint of the battle is explained, once.
+    if (feintHook && enemy.hp > 0) await this.playEnemyHook(enemy, feintHook);
 
     // A released charge heals part of what its guard absorbed, and the first
     // release of the battle can queue a story beat (e.g. Rhea's insight).
@@ -2235,7 +2275,6 @@ export default class BattleScene extends Phaser.Scene {
     const tech = techniques.recollection;
     const r = qte.recollection;
     const beats = recollection.mode !== 'rings';
-    this.hints.done('recollection');
     // Music: the Recollection track from the cut-in to the end of the attack (placement.overlay.recollection).
     if (musicPlan.overlay.recollection) playMusic(musicPlan.overlay.recollection.track);
     if (beats) {
@@ -2435,7 +2474,7 @@ export default class BattleScene extends Phaser.Scene {
       const h = this.heroes[i];
       if (!h) return;
       Object.assign(h, { hp: s.hp, maxHp: s.maxHp, echoMax: s.echoMax, echo: s.echo, statuses: JSON.parse(JSON.stringify(s.statuses)) });
-      if (h.hp <= 0) this.markDown(h);
+      if (h.hp <= 0) this.markDown(h, true);
     });
     snap.enemies.forEach((s, i) => {
       const e = this.enemies[i];
@@ -2500,6 +2539,7 @@ export default class BattleScene extends Phaser.Scene {
     if (!rhea) return;
     rhea.echoMax = Math.max(rhea.echoMax, battleEvents.keepsake_burn.echoMax || 0);
     rhea.echo = rhea.echoMax;
+    this.castWhenReady = true;
     this.refreshHud();
   }
 
@@ -2788,6 +2828,10 @@ export default class BattleScene extends Phaser.Scene {
       playSfx('echo');
       const pip = this.hud.pipPosition(this.heroes.indexOf(hero), hero.echo - 1);
       Fx.damageNumber(this, pip.x, pip.y + ui.damageNumbers.echoOffsetY, `+${gained}`, null, 'echo');
+    } else if (gained < 0) {
+      // A drain (Siphon on a missed parry): a red "-2 Echo" over the hero, so the loss is not silent.
+      const e = ui.hud.echo;
+      Fx.popText(this, hero.container.x, hero.container.y, e.lossText.replace('{n}', -gained), e.lossColor, qte.text);
     }
   }
 
@@ -3163,6 +3207,8 @@ export default class BattleScene extends Phaser.Scene {
     // A parried Strike deals nothing; the enemy answers at once, while the hero is still at the melee spot.
     if (parry) {
       await parry;
+      // defend.onFirstDefend: the first block is explained before the riposte ring comes back.
+      await this.flushDefendHook();
       if (hero.hp > 0 && target.hp > 0) await this.reparry(target, hero);
     }
 
@@ -3194,11 +3240,33 @@ export default class BattleScene extends Phaser.Scene {
     return this.rollDefendAs(enemy, 'dodge', techId);
   }
 
+  // A story beat plus a tutorial pause the first time something happens in a battle: enemies.json
+  // onFirstFeint (an attack that really feints) and defend.onFirstDefend (the enemy parries or dodges a
+  // hero's move). hook = {dialogue, pause}, both optional; once per battle (it is a fired event, so a
+  // Try again rewind remembers it), the pause once per run on top of that.
+  async playEnemyHook(enemy, hook) {
+    if (!hook) return;
+    const key = `hook:${hook.dialogue || hook.pause}`;
+    if (this.firedEvents.has(key) || this.battleOver) return;
+    this.firedEvents.add(key);
+    if (hook.dialogue && dialogues[hook.dialogue]) await this.playDialogueOverlay(hook.dialogue);
+    if (hook.pause) await this.runPause(hook.pause, { enemy });
+  }
+
+  // popDefend queues defend.onFirstDefend; it plays at the next safe point (before the riposte ring of a
+  // parried Strike, or when the hero's action is over, so a dodged volley is not interrupted).
+  async flushDefendHook() {
+    const enemy = this.pendingDefendHook;
+    this.pendingDefendHook = null;
+    if (enemy && enemy.hp > 0 && !this.battleOver) await this.playEnemyHook(enemy, enemy.def.defend.onFirstDefend);
+  }
+
   // The defender's reaction sheet (clerk_parry / clerk_dodge) and the text over it.
   // Without the sheet it sidesteps away from the hero for a moment. Returns the reaction's promise.
   popDefend(enemy, kind) {
     const d = battleEvents.defend;
     const name = kind === 'parry' ? 'parry' : 'dodge';
+    if (enemy.def.defend?.onFirstDefend) this.pendingDefendHook = enemy;
     Fx.popText(this, enemy.container.x, enemy.container.y, d[`${name}Text`], d.color, qte.text);
     if (hasSheet(enemy.anims, name)) return this.playReaction(enemy, name);
     trace(`fallback:${name}:${enemy.type}`);

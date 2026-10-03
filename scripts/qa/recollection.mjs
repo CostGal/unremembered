@@ -50,21 +50,34 @@ const waitFlag = (page, expr, timeout = 20000) => page.waitFor(expr, { timeout, 
 const hasDialogue = async (page) => (await page.scenes()).includes('Dialogue');
 const menuWith = (value) => `!!(window.__battle && window.__battle.menu && window.__battle.menu.pending && (window.__battle.menu.items || []).some((i) => i.value === ${JSON.stringify(value)}))`;
 
-// The real loop up to Rhea's Recollection: jump to the moment, let Quill's opening attack land
-// (no input), Strike with Dov if his menu comes first, then cast.
-async function reachCast(page) {
-  await page.waitFor(`!!(window.__battle && window.__battle.menu && window.__battle.forceRecollectionReady)`, { timeout: 40000 });
-  await page.ev(`window.__battle.forceRecollectionReady(); window.__battle.tutorialSlow = false;`);
-  const end = Date.now() + 60000;
+// Quill opens the fight: the first menu is up once his attack has landed (and, when it was a feint, the
+// quill_feint dialogue has been tapped through).
+async function menuPending(page, timeout = 40000) {
+  await page.waitFor(`!!(window.__battle && window.__battle.menu)`, { timeout });
+  const end = Date.now() + timeout;
   while (Date.now() < end) {
     if (await hasDialogue(page)) await page.tap(180, 560);
-    else if (await page.ev(menuWith('ultimate'))) {
+    else if (await page.ev(`!!(window.__battle.menu && window.__battle.menu.pending)`)) return;
+    await sleep(150);
+  }
+  throw new Error('menuPending timed out');
+}
+
+// The real loop up to Rhea's Recollection: jump to the moment, let Quill's opening attack land
+// (no input), Strike with Dov if his menu comes first. There is no Recollection slot in the menu any more:
+// the dev jump (?recollection=1 / forceRecollectionReady) makes Rhea cast at her first menu.
+async function reachCast(page) {
+  await page.waitFor(`!!(window.__battle && window.__battle.menu && window.__battle.forceRecollectionReady)`, { timeout: 40000 });
+  await page.ev(`(() => { const B = window.__battle; window.__cast = false; const f = B.playRecollection.bind(B); B.playRecollection = (...a) => { window.__cast = true; return f(...a); }; B.forceRecollectionReady(); B.tutorialSlow = false; })()`);
+  const end = Date.now() + 60000;
+  while (Date.now() < end) {
+    if (await page.ev(`window.__cast === true`)) return true;
+    if (await hasDialogue(page)) await page.tap(180, 560);
+    else if (await page.ev(`!!(window.__battle.menu && window.__battle.menu.pending)`)) {
       await page.ev(`window.__battle.heroes.forEach((h) => { h.hp = h.maxHp; }); window.__battle.refreshHud();`);
+      const ultimateSlot = await page.ev(menuWith('ultimate'));
+      if (ultimateSlot) return false; // the old slot is back: that is a regression
       await sleep(400); // the menu ignores a tap in its first moments
-      await page.tap(...slots.ultimate);
-      if (await waitFlag(page, `!window.__battle.menu.pending`, 1500)) return true;
-    } else if (await page.ev(`!!(window.__battle.menu && window.__battle.menu.pending)`)) {
-      await sleep(400);
       await page.tap(...slots.strike);
     }
     await sleep(120);
@@ -78,13 +91,13 @@ async function shotBeat(page, name) {
 }
 
 await withBrowser(async ({ chrome, server }) => {
-  const url = `${server.url}?battle=boss_clerk&level=4&echo=10`;
+  const url = `${server.url}?battle=boss_clerk&level=4&echo=10&pauses=0`;
   const threshold = Math.floor((clerk.hp * clerk.stages[1].recollectionAtHpPct) / 100);
 
   // ============ A: cut-in tapped through, PERFECT x3 ============
   {
     const page = await open(chrome, url, { init: [HOOKS, INIT.audioLog] });
-    log(await reachCast(page), 'A: Recollection offered to Rhea and cast (real loop, forceRecollectionReady)');
+    log(await reachCast(page), 'A: Rhea casts the Recollection (real loop, forceRecollectionReady: no menu slot for it)');
     const cut = rc.cutIn;
     log(await waitFlag(page, `!!(window.__battle.cutInState && window.__battle.cutInState.beat === 0)`, 8000), 'A: cut-in beat 1 shows');
     await sleep(1300); // typing done
@@ -227,9 +240,8 @@ await withBrowser(async ({ chrome, server }) => {
 
   // ============ D: the real Keepsake -> auto-cast (Rhea down) -> Victory ============
   {
-    const page = await open(chrome, `${server.url}?battle=boss_clerk&level=4`, { init: [HOOKS, INIT.audioLog] });
-    await page.waitFor(`!!(window.__battle && window.__battle.menu)`, { timeout: 40000 });
-    await page.waitFor(`!!(window.__battle.menu && window.__battle.menu.pending)`, { timeout: 40000 });
+    const page = await open(chrome, `${server.url}?battle=boss_clerk&level=4&pauses=0`, { init: [HOOKS, INIT.audioLog] });
+    await menuPending(page);
     const ac = rc.autoCast;
     log(!!ac && ac.delayMs <= 600 + 1 && ac.reviveHp >= 1, 'D: recollection.json autoCast {delayMs, reviveHp} exists', JSON.stringify(ac));
     // Stage 2 just above the threshold, one hit crosses it; Rhea is down at that moment.
@@ -287,8 +299,8 @@ await withBrowser(async ({ chrome, server }) => {
 
   // ============ E: the threshold is crossed DURING Quill's turn (a counter) ============
   {
-    const page = await open(chrome, `${server.url}?battle=boss_clerk&level=4`, { init: [HOOKS] });
-    await page.waitFor(`!!(window.__battle && window.__battle.menu && window.__battle.menu.pending)`, { timeout: 40000 });
+    const page = await open(chrome, `${server.url}?battle=boss_clerk&level=4&pauses=0`, { init: [HOOKS] });
+    await menuPending(page);
     await page.ev(`(() => {
       const B = window.__battle; B.hideCommandMenu(); B.tutorialSlow = false; B.recollectionForce = 'PERFECT';
       const e = B.enemies[0]; e.phase = 1; e.maxHp = ${clerk.hp}; e.hp = ${threshold + 3}; B.updateLabel(e); B.heroes.forEach((h) => { h.hp = h.maxHp; });

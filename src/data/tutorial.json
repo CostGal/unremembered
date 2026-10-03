@@ -30,7 +30,7 @@
     "battle_start": {
       "steps": [
         { "text": "This is your HP. Reach zero and the memory fades.", "targets": ["hud.hp"] },
-        { "text": "Echo. Strikes and PERFECT parries fill it.", "targets": ["hud.echo"] },
+        { "text": "Echo: +1 every turn, +1 per Strike, +2 per PERFECT parry.", "targets": ["hud.echo"] },
         { "text": "Strike: free, always available.", "targets": ["cmd.strike"], "indicator": "tap" },
         { "text": "Techniques spend Echo. Yours is still locked.", "targets": ["cmd.technique"] }
       ]
@@ -81,14 +81,30 @@
     "leveling": {
       "steps": [
         { "text": "Memories return after every fight.", "targets": ["recall.bar"] },
-        { "text": "Recall grows: more HP, harder Strikes, and new techniques remembered.", "targets": ["recall.bar"] }
+        { "text": "Recall grows: more HP, harder Strikes, and new techniques remembered.", "targets": ["recall.bar"] },
+        { "text": "Recall also widens your Echo. The dark pips are memories still missing.", "targets": ["recall.bar"] }
       ]
     },
     "crush": {
-      "text": "A heavy blow: only a PERFECT dodge avoids it fully. Swipe early!",
-      "targets": ["tapzone"],
-      "indicator": "swipe",
-      "always": true
+      "always": true,
+      "steps": [
+        { "text": "A heavy blow: it can't be parried. Swipe when the ring closes.", "targets": ["tapzone"], "indicator": "swipe" },
+        { "text": "A PERFECT dodge takes nothing. Late takes half. A tap takes it all.", "targets": ["tapzone"] }
+      ]
+    },
+    "feint": {
+      "always": true,
+      "steps": [
+        { "text": "Strong enemies sometimes feint: the ring stops, then rushes.", "targets": ["enemy", "tapzone"] },
+        { "text": "Wait for it to close. Tap on the close, not the stop.", "targets": ["tapzone"], "indicator": "tap" }
+      ]
+    },
+    "enemy_parry": {
+      "always": true,
+      "steps": [
+        { "text": "Strong enemies parry too. When he blocks your Strike, a ring comes back at you.", "targets": ["enemy"] },
+        { "text": "Parry it like any other. Blast and Tremor he can only dodge.", "targets": ["enemy", "tapzone"], "indicator": "tap" }
+      ]
     },
     "nala_save": {
       "mode": "guided",

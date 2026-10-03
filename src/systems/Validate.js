@@ -175,7 +175,20 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
           if (!battle.nala) err(`battles.${id}.pauses.nalaWatch: the battle has no Nala`);
           if (tutorial?.pauses?.[p.nalaWatch]?.mode !== 'guided') err(`battles.${id}.pauses.nalaWatch: "${p.nalaWatch}" must be a guided pause`);
         }
-        for (const key of Object.keys(p)) if (!['battleStart', 'enemyAttack', 'menuAfterFlag', 'techniqueMenu', 'nalaWatch'].includes(key)) err(`battles.${id}.pauses: unknown key "${key}"`);
+        // menuFirst {heroId: "learn_<tech>"}: the hero's first command menu explains a move they know at Recall 1
+        // (techniques.json help.steps); it is not a tutorial.json pause.
+        if (p.menuFirst !== undefined) {
+          const prefix = tutorial?.recallLearn?.idPrefix || 'learn_';
+          for (const [hero, pid] of Object.entries(p.menuFirst || {})) {
+            const tech = typeof pid === 'string' && pid.startsWith(prefix) ? pid.slice(prefix.length) : null;
+            const party = battle.party || data.ui?.battleLayout?.defaultParty || [];
+            if (!characters[hero]) err(`battles.${id}.pauses.menuFirst: no character "${hero}"`);
+            else if (!party.includes(hero)) err(`battles.${id}.pauses.menuFirst: "${hero}" is not in the party`);
+            if (!tech || !characters[hero]?.techniques?.includes(tech)) err(`battles.${id}.pauses.menuFirst.${hero}: "${pid}" must be ${prefix}<one of the hero's techniques>`);
+            else if (!Array.isArray(techniques[tech]?.help?.steps) || !techniques[tech].help.steps.length) err(`battles.${id}.pauses.menuFirst.${hero}: techniques.${tech}.help.steps is missing`);
+          }
+        }
+        for (const key of Object.keys(p)) if (!['battleStart', 'enemyAttack', 'menuAfterFlag', 'techniqueMenu', 'nalaWatch', 'menuFirst'].includes(key)) err(`battles.${id}.pauses: unknown key "${key}"`);
       }
     }
     for (const [where, pid] of pauseIds) {
@@ -536,6 +549,20 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
         }
       }
     }
+    // Hooks {dialogue?, pause?}: a story beat and a tutorial.json pause the first time something happens in a
+    // battle (onFirstFeint on an attack that feints, defend.onFirstDefend on an enemy that parries or dodges).
+    const hookOk = (at, hook) => {
+      if (typeof hook !== 'object' || hook === null || (!hook.dialogue && !hook.pause)) return err(`${at}: must be {dialogue, pause} with at least one of them`);
+      if (hook.dialogue !== undefined && !dialogue[hook.dialogue]) err(`${at}.dialogue: no dialogue "${hook.dialogue}" in dialogue.json`);
+      if (hook.pause !== undefined && !tutorial?.pauses?.[hook.pause]) err(`${at}.pause: "${hook.pause}" is not in tutorial.json pauses`);
+    };
+    for (const a of lists.flatMap(([, attacks]) => attacks || [])) {
+      if (a.onFirstFeint !== undefined) {
+        hookOk(`enemies.${id}.${a.id}.onFirstFeint`, a.onFirstFeint);
+        if (!(a.hits || [a]).some((h) => h.feint)) err(`enemies.${id}.${a.id}.onFirstFeint: the attack has no feint`);
+      }
+    }
+    if (e.defend?.onFirstDefend !== undefined) hookOk(`enemies.${id}.defend.onFirstDefend`, e.defend.onFirstDefend);
     for (const a of lists.flatMap(([, attacks]) => attacks || [])) {
       // firstUsePause: a tutorial.json pause shown before the first ring of this move (once per run).
       if (a.firstUsePause !== undefined && !tutorial?.pauses?.[a.firstUsePause]) err(`enemies.${id}.${a.id}: firstUsePause "${a.firstUsePause}" is not in tutorial.json pauses`);

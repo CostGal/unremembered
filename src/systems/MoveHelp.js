@@ -18,7 +18,7 @@ function levelDetail(tech) {
   const d = levels.upgradeDetail;
   const parts = [];
   for (const [key, str] of Object.entries(d)) {
-    if (key === 'hitsSame' || key === 'target' || tech[key] === undefined) continue;
+    if (key === 'hitsSame' || key === 'target' || key === 'canRevive' || tech[key] === undefined) continue;
     if (key === 'amount' || (key === 'critChance' && !tech[key])) continue;
     const v = tech[key];
     const vars = key === 'hits' ? { a: v[0], b: v[1] } : key === 'critChance' ? { pct: Math.round(v * 100) } : { n: v };
