@@ -31,7 +31,8 @@ import * as TutorialPause from '../systems/TutorialPause.js';
 import { addPauseButton, pauseScene } from '../systems/PauseButton.js';
 import * as Qte from '../systems/Qte.js';
 import { devInt } from '../systems/DevParams.js';
-import { effectMax, effectTotal, ownedFragments } from '../systems/Fragments.js';
+import { dropsFor, effectMax, effectTotal, ownedFragments } from '../systems/Fragments.js';
+import DropCard from '../systems/DropCard.js';
 import { battleXp, echoMaxFor, growth, learned, levelFor, techniqueAt, xpForLevel } from '../systems/Recall.js';
 import RecallCard from '../systems/RecallCard.js';
 import { animKey, hasSheet, playLoop, playOnce, playReverseOnce, SheetDriver, trace } from '../systems/SpriteAnims.js';
@@ -1778,6 +1779,9 @@ export default class BattleScene extends Phaser.Scene {
     if (k.echoMax) rhea.echoMax = Math.max(rhea.echoMax, k.echoMax);
     this.gainEcho(rhea, rhea.echoMax, true);
     Fx.screenFlash(this, k.flash, qte.flashDepth);
+    // The Page joins the collection (fragments.json the_page; no effect of its own).
+    const kept = this.registry.get('fragments') || [];
+    if (k.memory && !kept.includes(k.memory)) this.registry.set('fragments', [...kept, k.memory]);
   }
 
   playDialogueOverlay(id) {
@@ -2075,7 +2079,7 @@ export default class BattleScene extends Phaser.Scene {
     // A PERFECT dodge leaves the chain as it is (cfg.chain 0).
     if (cfg.chain !== 0) this.updateChain(result);
     // The hero who parried earns the Echo (their own reserve).
-    this.gainEcho(hero, cfg.echo + (result === 'PERFECT' ? effectTotal(this.fragments, 'perfectEchoBonus') : 0));
+    this.gainEcho(hero, cfg.echo + (result === 'PERFECT' && !dodged ? effectTotal(this.fragments, 'perfectEchoBonus') : 0));
     if (result === 'PERFECT') this.stats.perfects += 1;
     // e.g. Siphon: a missed parry also drains the hero's Echo.
     if (result === 'MISS' && hit.onMiss?.echo) this.gainEcho(hero, hit.onMiss.echo);
@@ -2117,7 +2121,7 @@ export default class BattleScene extends Phaser.Scene {
       await this.endStance(!dodged && result !== 'MISS' && hero.hp > 0, enemy, result);
       return;
     }
-    if (result === 'PERFECT' && cfg.counterDmg) await this.playCounter(hero, enemy, cfg.counterDmg);
+    if (result === 'PERFECT' && cfg.counterDmg) await this.playCounter(hero, enemy, cfg.counterDmg + effectTotal(this.fragments, 'counterBonus'));
   }
 
   // ---------- Perfect chain ----------
@@ -2363,11 +2367,12 @@ export default class BattleScene extends Phaser.Scene {
     const target = chosen && candidates.includes(chosen) ? chosen : candidates.sort((a, b) => (a.hp > 0) - (b.hp > 0) || a.hp / a.maxHp - b.hp / b.maxHp)[0];
     if (!target) return;
 
+    const amount = tech.amount + effectTotal(this.fragments, 'anchorBonus');
     await this.playMove(hero, tech.anims || ['cast'], () => {
       // The number shown is what was really restored (for a revive, the revive HP).
       const before = Math.max(0, target.hp);
-      if (target.hp <= 0) this.revive(target, Math.min(target.maxHp, tech.amount));
-      else target.hp = Math.min(target.maxHp, target.hp + tech.amount);
+      if (target.hp <= 0) this.revive(target, Math.min(target.maxHp, amount));
+      else target.hp = Math.min(target.maxHp, target.hp + amount);
       const healed = target.hp - before;
       Fx.damageNumber(this, target.container.x, target.container.y - 80, `${ui.heal.textPrefix}${healed}`, null, 'heal');
       // Anchor also clears the target's statuses (techniques.json clearStatuses, on unless a level turns it off).
@@ -2858,12 +2863,23 @@ export default class BattleScene extends Phaser.Scene {
         card
           .show()
           .then(() => card.hide())
+          .then(() => this.showDrops())
           .then(() => this.showRecall())
           .then(() => this.continueChapter());
         return;
       }
       this.menu.show([{ slot: 'retry', label: cfg.retryText, value: 'retry' }]).then(() => this.retry());
     });
+  }
+
+  // Memories dropped by the enemy types that fell in this battle (fragments.json
+  // `drops`): a drop card each, kept for the run. Not after an interrupted end.
+  async showDrops() {
+    const ids = dropsFor(this.enemies.filter((e) => e.hp <= 0).map((e) => e.type), ownedFragments(this.registry));
+    for (const id of ids) {
+      this.registry.set('fragments', [...(this.registry.get('fragments') || []), id]);
+      await new DropCard(this, id).show();
+    }
   }
 
   // Recall (levels.json): the fallen enemies' Memories go to the party, and

@@ -8,11 +8,16 @@ import { glassPanel, keyArtBackdrop } from '../systems/Backdrop.js';
 
 const cfg = fragments.screen;
 
-// "A memory returns…": three random fragments, tap one to keep it for the
-// rest of the run (registry 'fragments'). Chapter step: {"type": "reward"}.
+// "A memory returns…": the step's pool (fragments.json `pools[step id]`), tap
+// one to keep it for the rest of the run (registry 'fragments').
+// Chapter step: {"type": "reward", "id": "reward_rest"}.
 export default class RewardScene extends Phaser.Scene {
   constructor() {
     super('Reward');
+  }
+
+  init(data) {
+    this.stepId = data?.id || null;
   }
 
   create() {
@@ -23,7 +28,7 @@ export default class RewardScene extends Phaser.Scene {
   build() {
     this.picked = false;
     const owned = this.registry.get('fragments') || [];
-    const choices = drawChoices(owned);
+    const choices = drawChoices(owned, this.stepId);
     if (!choices.length) {
       this.next();
       return;

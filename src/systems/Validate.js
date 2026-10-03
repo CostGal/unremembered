@@ -524,13 +524,33 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   const refuse = battleEvents.refuse;
   if (refuse && !(typeof refuse.text === 'string' && refuse.text && refuse.ms > 0 && refuse.color)) err('battleEvents.refuse: text, ms and color are required');
 
-  const FRAGMENT_EFFECTS = ['startEcho', 'nalaExtraUses', 'perfectWindowMs', 'dovMaxHp', 'perfectEchoBonus', 'blastCritChance'];
+  const FRAGMENT_EFFECTS = ['startEcho', 'nalaExtraUses', 'perfectWindowMs', 'dovMaxHp', 'perfectEchoBonus', 'blastCritChance', 'anchorBonus', 'counterBonus'];
   for (const [id, f] of Object.entries(data.fragments?.pool || {})) {
     for (const key of Object.keys(f.effects || {})) {
       if (!FRAGMENT_EFFECTS.includes(key)) err(`fragments.${id}: unknown effect "${key}"`);
     }
     if (!f.name || !f.short || !f.text) err(`fragments.${id}: name, short and text are required`);
+    if (!['reward', 'scene', 'drop', 'story'].includes(f.source)) err(`fragments.${id}: source must be reward, scene, drop or story`);
   }
+  const memories = data.fragments || {};
+  const known = (id) => !!memories.pool?.[id];
+  for (const [step, ids] of Object.entries(memories.pools || {})) {
+    if (!chapter1.some((s) => s.type === 'reward' && s.id === step)) warn(`fragments.pools.${step}: no reward step with that id in chapter1`);
+    for (const id of ids) if (!known(id)) err(`fragments.pools.${step}: unknown memory "${id}"`);
+  }
+  for (const [scene, s] of Object.entries(memories.scenes || {})) {
+    if (scene.startsWith('_')) continue;
+    if (!dialogue[scene]) err(`fragments.scenes.${scene}: no dialogue "${scene}" in dialogue.json`);
+    if (!known(s.id)) err(`fragments.scenes.${scene}: unknown memory "${s.id}"`);
+    if (!(Array.isArray(s.at) && s.at.length === 2 && s.at.every((v) => v >= 0 && v <= 1))) err(`fragments.scenes.${scene}.at: [x, y] between 0 and 1`);
+    if (!(Array.isArray(s.lines) && s.lines.length === 2 && s.lines[0] <= s.lines[1])) err(`fragments.scenes.${scene}.lines: [first, last]`);
+  }
+  for (const [type, d] of Object.entries(memories.drops || {})) {
+    if (!enemies[type]) err(`fragments.drops.${type}: no enemy "${type}" in enemies.json`);
+    if (!known(d.id)) err(`fragments.drops.${type}: unknown memory "${d.id}"`);
+    if (!(d.chance >= 0 && d.chance <= 1)) err(`fragments.drops.${type}.chance: 0 to 1`);
+  }
+  if (battleEvents.keepsake_burn?.memory && !known(battleEvents.keepsake_burn.memory)) err(`battleEvents.keepsake_burn.memory: unknown memory "${battleEvents.keepsake_burn.memory}"`);
   for (const [id, a] of Object.entries(allies)) {
     if (!assets.sprites?.[a.body]) err(`allies.${id}: body sprite "${a.body}" is not in assets.json sprites`);
   }

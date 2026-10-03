@@ -42,6 +42,7 @@ const D = {
   ui: read('src/data/ui.json'),
   sim: read('src/data/sim.json'),
   tutorial: read('src/data/tutorial.json'),
+  fragments: read('src/data/fragments.json'),
 };
 const animSets = {};
 for (const id of Object.keys({ ...D.characters, ...D.enemies })) {
@@ -154,10 +155,18 @@ function simulateBattle(battleId, profileName, mode, rnd) {
   // Recall: the level a playthrough reaches by this battle (levels.json).
   const stepIndex = D.chapter.findIndex((step) => step.type === 'battle' && step.id === battleId);
   const level = levelFor(chapterXpBefore(D.chapter, stepIndex < 0 ? 0 : stepIndex, D.battles, D.enemies), D.levels);
+  // Memories (fragments.json) owned by now: the reward picks (sim.json memoryPicks) and the
+  // drops of the enemy types killed in earlier battles (once each). Scene pickups can't be obtained.
+  const owned = [];
+  for (const step of D.chapter.slice(0, stepIndex < 0 ? 0 : stepIndex)) {
+    const gets = step.type === 'reward' ? [D.sim.memoryPicks?.[step.id]] : step.type === 'battle' && !D.battles[step.id].events?.some((e) => e.then === 'endBattle') ? D.battles[step.id].enemies.map((t) => D.fragments.drops[t]?.id) : [];
+    for (const id of gets) if (id && D.fragments.pool[id] && !owned.includes(id)) owned.push(id);
+  }
+  const mem = (key) => owned.reduce((n, id) => n + (D.fragments.pool[id].effects[key] || 0), 0);
   const heroes = (battle.party ?? D.ui.battleLayout.defaultParty).map((id) => {
     const def = D.characters[id];
     const g = growth(id, level, D.levels);
-    const hp = def.hp + g.hp;
+    const hp = def.hp + g.hp + (id === 'dov' ? mem('dovMaxHp') : 0);
     return { id, def, hp, max: hp, strike: [def.strike[0] + g.strike, def.strike[1] + g.strike], techniques: learned(id, level, def.techniques, D.levels), redacted: null, echo: 0, echoMax: echoMaxFor(id, level, D.levels) ?? def.echoMax ?? echoMax };
   });
   // enemies.json `stages`: the first stage opens at hpPct % of the HP (the bar shows that stage's own max).
@@ -279,14 +288,14 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       else if (res === 'MISS') st.chain = 0;
     }
     st.maxChain = Math.max(st.maxChain, st.chain);
-    gain(hero, cfg.echo);
+    gain(hero, cfg.echo + (res === 'PERFECT' && !dodged ? mem('perfectEchoBonus') : 0));
     const dmg = Math.round(rp.dmg * cfg.damageMult * dmgTakenMult);
     st.damageTaken += Math.min(dmg, hero.hp);
     hero.hp = Math.max(0, hero.hp - dmg);
     if (res === 'PERFECT' && !dodged && enemy.hp > 0) {
       const was = st.playerAction;
       st.playerAction = false;
-      hitEnemy(enemy, cfg.counterDmg, 'counter');
+      hitEnemy(enemy, cfg.counterDmg + mem('counterBonus'), 'counter');
       st.playerAction = was;
     }
   };
@@ -412,7 +421,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       if ((revive || hurt.length) && can('anchor')) {
         hero.echo -= tk('anchor').cost;
         const t = revive || hurt.sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
-        t.hp = Math.min(t.max, (t.hp > 0 ? t.hp : 0) + tk('anchor').amount);
+        t.hp = Math.min(t.max, (t.hp > 0 ? t.hp : 0) + tk('anchor').amount + mem('anchorBonus'));
         if (tk('anchor').clearStatuses !== false) t.redacted = null;
         st.ms += T.castMs;
         return;
@@ -571,7 +580,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
         else if (res === 'MISS') st.chain = 0;
       }
       st.maxChain = Math.max(st.maxChain, st.chain);
-      gain(target, cfg.echo);
+      gain(target, cfg.echo + (res === 'PERFECT' && !dodged ? mem('perfectEchoBonus') : 0));
       if (res === 'MISS' && hit.onMiss?.echo) gain(target, hit.onMiss.echo);
       const dmg = Math.round(hit.dmg * cfg.damageMult * dmgTakenMult * (st.brace ? st.brace.damageMult : 1));
       const dealt = Math.min(dmg, target.hp);
@@ -595,7 +604,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
           st.ms += T.counterMs;
         }
       } else if (res === 'PERFECT' && !dodged && enemy.hp > 0) {
-        hitEnemy(enemy, qte.results.PERFECT.counterDmg, 'counter');
+        hitEnemy(enemy, qte.results.PERFECT.counterDmg + mem('counterBonus'), 'counter');
       }
     }
     st.brace = null;

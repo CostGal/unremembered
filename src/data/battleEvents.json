@@ -1,5 +1,5 @@
 {
-  "keepsake_burn": { "dialogue": "keepsake_burn", "echoMax": 10, "flash": { "color": "0x3fd0c9", "alpha": 0.45, "ms": 500 } },
+  "keepsake_burn": { "dialogue": "keepsake_burn", "echoMax": 10, "memory": "the_page", "flash": { "color": "0x3fd0c9", "alpha": 0.45, "ms": 500 } },
   "archive_insight": { "dialogue": "archive_insight" },
   "archive_warn": { "dialogue": "archive_warn" },
   "archive_threat": { "dialogue": "archive_threat" },

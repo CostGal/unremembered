@@ -20,7 +20,7 @@ export default class ChapterRunner {
   static start(scene, steps) {
     const runner = new ChapterRunner(steps);
     scene.registry.set('runner', runner);
-    // Fragments picked between battles last for one run.
+    // Memories (fragments.json) won between battles last for one run.
     scene.registry.set('fragments', []);
     // Tutorial pauses show once per run (TutorialPause.js).
     resetPauses(scene.registry);
@@ -58,7 +58,7 @@ export default class ChapterRunner {
       }
 
       if (step.type === 'battle') scene.scene.start(key, { battleId: step.id });
-      else if (step.type === 'reward') scene.scene.start(key);
+      else if (step.type === 'reward') scene.scene.start(key, { id: step.id });
       else scene.scene.start(key, { id: step.id, bg: step.bg });
       return;
     }

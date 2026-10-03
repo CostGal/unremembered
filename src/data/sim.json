@@ -8,6 +8,7 @@
     "good": { "PERFECT": 0.55, "GOOD": 0.35, "MISS": 0.1 }
   },
   "thinkMs": { "non-gamer": 3500, "average": 2200, "good": 1400 },
+  "memoryPicks": { "reward_rest": "half_loaf" },
   "policy": {
     "recollection": true,
     "anchorBelow": 0.4,
