@@ -53,6 +53,8 @@ export default class BattleStateMachine {
       // A parry counter can finish the last enemy during its own turn.
       if (this.hooks.allEnemiesDown()) return this.finish('WIN');
     }
+    // The enemy phase is over: effects that last "the whole enemy round" (Brace) end here.
+    if (this.hooks.enemyPhaseEnd) await this.hooks.enemyPhaseEnd();
     return null;
   }
 

@@ -721,6 +721,19 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       if (!/^#[0-9a-fA-F]{6}$/.test(a.color || '')) err('techniques.blast.aim.color must be a #rrggbb colour');
     }
   }
+  // Brace (whole-round guard counter): the damage multiplier, and what every hit that lands gives back.
+  {
+    const b = techniques.brace;
+    if (b) {
+      if (!(typeof b.damageMult === 'number' && b.damageMult > 0 && b.damageMult < 1)) err('techniques.brace.damageMult must be a number in (0, 1)');
+      if (b.holdsRound !== undefined && typeof b.holdsRound !== 'boolean') err('techniques.brace.holdsRound must be true or false');
+      for (const k of ['echoPerHit', 'poisePerHit']) {
+        if (b[k] !== undefined && !(Number.isInteger(b[k]) && b[k] >= 0)) err(`techniques.brace.${k} must be a whole number >= 0`);
+      }
+      for (const k of ['castText', 'blockText']) if (typeof b[k] !== 'string' || !b[k]) err(`techniques.brace.${k} must be a non-empty string`);
+      if (b.echoPerHit > 0 && (typeof b.counterText !== 'string' || !b.counterText)) err('techniques.brace.counterText must be a non-empty string (echoPerHit > 0)');
+    }
+  }
   if (techniques.recollection?.kill !== undefined && typeof techniques.recollection.kill !== 'boolean') err('techniques.recollection.kill must be true or false');
   validateRecollection(data, dialogue, enemies, ui, err);
   const keepsake = battleEvents.keepsake_burn?.dialogue;

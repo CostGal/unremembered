@@ -68,8 +68,12 @@
     "type": "brace",
     "anims": ["brace", "cast"],
     "damageMult": 0.5,
+    "holdsRound": true,
+    "echoPerHit": 1,
+    "poisePerHit": 1,
     "castText": "Brace!",
     "blockText": "Braced",
+    "counterText": "+1 Echo",
     "color": "#e0a040"
   },
   "recollection": {

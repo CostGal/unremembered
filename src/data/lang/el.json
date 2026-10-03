@@ -262,7 +262,8 @@
       "castText": "Σε φρουρά"
     },
     "brace": {
-      "blockText": "Μπλοκ"
+      "blockText": "Μπλοκ",
+      "counterText": "+1 Echo"
     },
     "tremor": {
       "castText": "Σεισμός!"

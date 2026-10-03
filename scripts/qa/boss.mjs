@@ -33,5 +33,38 @@ try {
   await run('archive_wait', 1, 0.9999, 'zzz');
   console.log('charging?', await page.eval(`!!window.__battle.enemies[0].charge`));
   await run('archive_release', 1, 0.9999, 'windup:');
-  console.log('errors:', page.errors.length, page.errors.slice(0, 3));
+  // Brace (guard counter, fresh page): Dov braces; two enemy hits in the round are both halved, Dov earns +1 Echo
+  // per hit, the attacker loses 1 poise per hit, the brace pose holds until the enemy phase ends, then it is cleared
+  // (a third hit after that is full damage with no Echo). Hits go through applyParryResult directly: an unanswered
+  // ring is a MISS, and the lab's forced-random enemy turns above can stall on the charge sheet under load.
+  const bp = await chrome.newPage();
+  await bp.goto(`${server.url}?battle=boss_clerk`);
+  await bp.waitFor(`!!(window.__battle && window.__battle.menu)`, { timeout: 60000 });
+  await sleep(1500);
+  const poll = async (expr, ms = 20000) => { for (let t = 0; t < ms; t += 250) { if (await bp.eval(expr)) return true; await sleep(250); } return false; };
+  const info = `(() => { const b = window.__battle; const dov = b.heroes.find((h) => h.type === 'dov'); const rhea = b.heroes.find((h) => h.type === 'rhea'); const e = b.enemies[0]; return { b, dov, rhea, e, pose: () => dov.body.anims.currentAnim && dov.body.anims.currentAnim.key }; })()`;
+  await bp.eval(`(async () => { const { b, dov } = ${info}; await b.runTechnique(dov, 'brace'); dov.echo = 1; b.enemies[0].poise = b.enemies[0].maxPoise; })()`);
+  const cast = await bp.eval(`(() => { const { b, pose } = ${info}; return { brace: !!b.brace, mult: b.brace && b.brace.damageMult, pose: pose() }; })()`);
+  const hitFn = (who) => `(async () => { const { b, dov, rhea, e } = ${info}; const t = ${who}; const hp = t.hp; await b.applyParryResult('MISS', e, t, { dmg: 10 }, 'tap'); return hp - t.hp; })()`;
+  const lostRhea = await bp.eval(hitFn('rhea'));
+  const lostDov = await bp.eval(hitFn('dov'));
+  const during = await bp.eval(`(() => { const { b, dov, e } = ${info}; return { echo: dov.echo, poise: e.maxPoise - e.poise, brace: !!b.brace }; })()`);
+  const held = await poll(`${info}.pose() === 'dov_brace'`);
+  await bp.eval(`(async () => { await ${info}.b.endBrace(); })()`);
+  const cleared = await poll(`!${info}.b.brace && ${info}.pose() !== 'dov_brace'`);
+  const after = await bp.eval(`(async () => { const { b, dov, rhea, e } = ${info}; const hp = rhea.hp; const echo = dov.echo; await b.applyParryResult('MISS', e, rhea, { dmg: 10 }, 'tap'); return { lost: hp - rhea.hp, echoGain: dov.echo - echo }; })()`);
+  const hasSheet = /dov_brace$/.test(cast.pose || '');
+  console.log('brace lab', JSON.stringify({ cast, lostRhea, lostDov, during, held, cleared, after }));
+  const checks = [
+    ['Brace cast: x0.5 and the pose loop', cast.brace && cast.mult === 0.5 && hasSheet],
+    ['both hits of the round halved', lostRhea === 5 && lostDov === 5],
+    ['Dov +2 Echo (one per hit)', during.echo === 3],
+    ['attacker poise -2', during.poise === 2],
+    ['Brace and the pose hold through the hits', during.brace && held],
+    ['cleared at the end of the round', cleared],
+    ['next hit is full damage, no Echo', after.lost === 10 && after.echoGain === 0],
+  ];
+  for (const [name, ok] of checks) console.log(ok ? 'PASS' : 'FAIL', name);
+  if (checks.some(([, ok]) => !ok)) process.exitCode = 1;
+  console.log('errors:', page.errors.length + bp.errors.length, [...page.errors, ...bp.errors].slice(0, 3));
 } finally { await chrome.close(); await server.close(); }

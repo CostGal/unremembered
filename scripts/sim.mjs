@@ -219,6 +219,20 @@ function simulateBattle(battleId, profileName, mode, rnd) {
     const mult = 1 + (Math.min(st.chain, qte.chain.maxSteps) * qte.chain.stepPct) / 100;
     return mult === 1 ? dmg : Math.floor(dmg * mult + rnd());
   };
+  // Poise damage (BattleScene.hitPoise): at 0 the enemy is BROKEN, which is the one thing that cancels a charge.
+  const hitPoise = (enemy, amount) => {
+    if (!enemy.def.poise || enemy.hp <= 0 || enemy.broken) return;
+    enemy.poise = Math.max(0, enemy.poise - amount);
+    if (enemy.poise <= D.brk.line.epsilon) {
+      enemy.poise = 0;
+      enemy.broken = true;
+      st.breaks += 1;
+      if (enemy.charge) {
+        st.archiveInterrupts += 1;
+        enemy.charge = null;
+      }
+    }
+  };
   // poiseSource: a break.json weight key (strike/counter/ability/multiHit/ultimate); poise damage =
   // final damage x weight (x critWeight on a crit), as in BattleScene.applyHit. A broken enemy takes more damage.
   const hitEnemy = (enemy, rawDmg, poiseSource = null, crit = false) => {
@@ -264,19 +278,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
         if (enemy.def.poise && !enemy.broken) enemy.poise = enemy.def.poise;
       }
     }
-    if (poiseSource && enemy.def.poise && enemy.hp > 0 && !enemy.broken) {
-      enemy.poise = Math.max(0, enemy.poise - dmg * D.brk.weights[poiseSource] * (crit ? D.brk.weights.critWeight : 1));
-      if (enemy.poise <= D.brk.line.epsilon) {
-        enemy.poise = 0;
-        enemy.broken = true;
-        st.breaks += 1;
-        // A BREAK is the one thing that cancels a charge.
-        if (enemy.charge) {
-          st.archiveInterrupts += 1;
-          enemy.charge = null;
-        }
-      }
-    }
+    if (poiseSource) hitPoise(enemy, dmg * D.brk.weights[poiseSource] * (crit ? D.brk.weights.critWeight : 1));
   };
   // Battle grade (grade.json) from this run's stats.
   const gradeOf = () => {
@@ -515,11 +517,12 @@ function simulateBattle(battleId, profileName, mode, rnd) {
         st.ms += T.castMs;
         return;
       }
-      // Brace on the turn the charge is about to release.
+      // Brace (holds the whole enemy round) when the charge is about to release or Rhea is below braceBelow of her HP.
       const charging = enemies.some((e) => e.charge && e.charge.turnsLeft <= 1);
-      if (D.sim.policy.braceOnArchive && charging && can('brace')) {
+      const rheaLow = rhea && rhea.hp > 0 && rhea.hp / rhea.max < D.sim.policy.braceBelow;
+      if (D.sim.policy.braceOnArchive && !st.brace && (charging || rheaLow) && can('brace')) {
         hero.echo -= tk('brace').cost;
-        st.brace = tk('brace');
+        st.brace = { ...tk('brace'), hero };
         st.ms += T.castMs;
         return;
       }
@@ -683,6 +686,11 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       gain(target, cfg.echo + (res === 'PERFECT' && !dodged ? mem('perfectEchoBonus') : 0));
       if (res === 'MISS' && hit.onMiss?.echo) gain(target, hit.onMiss.echo);
       const dmg = Math.round(hit.dmg * cfg.damageMult * dmgTakenMult * (st.brace ? st.brace.damageMult : 1));
+      // Brace: every hit that lands gives its caster Echo and the attacker poise damage.
+      if (dmg > 0 && st.brace) {
+        if (st.brace.echoPerHit && st.brace.hero.hp > 0) gain(st.brace.hero, st.brace.echoPerHit);
+        if (st.brace.poisePerHit) hitPoise(enemy, st.brace.poisePerHit);
+      }
       const dealt = Math.min(dmg, target.hp);
       st.damageTaken += dealt;
       target.hp = Math.max(0, target.hp - dmg);
@@ -707,7 +715,6 @@ function simulateBattle(battleId, profileName, mode, rnd) {
         hitEnemy(enemy, qte.results.PERFECT.counterDmg + mem('counterBonus'), 'counter');
       }
     }
-    st.brace = null;
     // A released charge heals part of what its guard absorbed; the first
     // release queues Rhea's insight dialogue (time only).
     if (enemy.hp > 0 && attack.healMitigatedPct && mitigated > 0) enemy.hp = Math.min(enemy.max, enemy.hp + Math.round(mitigated * attack.healMitigatedPct));
@@ -742,6 +749,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       if (!living(heroes).length) return { ...st, win: false, ms: st.ms + T.loseMs };
       if (!living(enemies).length) return { ...st, win: true, ms: st.ms + T.victoryMs, grade: gradeOf() };
     }
+    st.brace = null; // Brace lasts the whole enemy round
     return null;
   };
   const order = battle.initiative === 'enemy' ? [enemyPhase, heroPhase] : [heroPhase, enemyPhase];

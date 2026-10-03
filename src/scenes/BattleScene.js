@@ -101,6 +101,7 @@ export default class BattleScene extends Phaser.Scene {
     this.tutorialPrompt = null;
     this.stance = null;
     this.brace = null;
+    this.braceHero = null;
     this.activeHero = null;
     this.nala = null;
     this.ultReady = false;
@@ -233,6 +234,7 @@ export default class BattleScene extends Phaser.Scene {
       allEnemiesDown: () => this.enemies.every((e) => e.hp <= 0 && !e.rising),
       allHeroesDown: () => this.heroes.every((h) => h.hp <= 0),
       roundStart: () => this.roundStart(),
+      enemyPhaseEnd: () => this.endBrace(),
       // A rewind re-enters the Recollection right after the intro (cut-in and minigame again).
       resume: this.initData.rewind ? () => this.resumeRecollection() : null,
       playerTurn: (hero) => this.playerTurn(hero),
@@ -1048,6 +1050,8 @@ export default class BattleScene extends Phaser.Scene {
 
   // The loop an entity returns to: idle, or its charge loop while charging.
   restAnim(entity) {
+    // A braced hero returns to the brace pose, not to idle.
+    if (entity.isHero && this.brace && this.braceHero === entity && hasSheet(entity.anims, 'brace')) return 'brace';
     const chargeAnim = entity.charge?.attack.chargeAnim;
     return entity.charge?.loop && hasSheet(entity.anims, chargeAnim) ? chargeAnim : 'idle';
   }
@@ -1560,7 +1564,6 @@ export default class BattleScene extends Phaser.Scene {
       restoreDepth();
     }
     this.tapHint.setVisible(false);
-    this.brace = null;
 
     // A released charge heals part of what its guard absorbed, and the first
     // release of the battle can queue a story beat (e.g. Rhea's insight).
@@ -2628,7 +2631,7 @@ export default class BattleScene extends Phaser.Scene {
     if (result === 'MISS' && hit.onMiss?.echo) this.gainEcho(hero, hit.onMiss.echo);
 
     const storyMult = this.difficulty.damageMult;
-    const braceMult = this.brace ? this.brace.damageMult : 1;
+    const braceMult = this.brace ? this.brace.damageMult : 1; // Brace holds for the whole enemy round
     const dmg = Math.round(baseDmg * cfg.damageMult * storyMult * braceMult);
     // Reactions (ART_BRIEF): PERFECT -> parry (the counter), GOOD -> dodge,
     // MISS -> hurt, each only if the character has that sheet.
@@ -2644,7 +2647,10 @@ export default class BattleScene extends Phaser.Scene {
     if (dodge && hero.hp > 0) this.playReaction(hero, 'dodge');
     // A successful dodge without a dodge sheet: a small sidestep away from the enemy and back.
     const sidestep = dodged && result !== 'MISS' && !dodge && hero.hp > 0 ? this.dodgeSidestep(hero) : null;
-    if (dmg > 0 && this.brace) Fx.popText(this, x, y + qte.text.riseY, this.brace.blockText, this.brace.color, qte.text);
+    if (dmg > 0 && this.brace) {
+      Fx.popText(this, x, y + qte.text.riseY, this.brace.blockText, this.brace.color, qte.text);
+      this.braceCounter(hero, enemy);
+    }
     if (cfg.knockback && hero.hp > 0) Fx.knockback(this, hero.container, hero.facing === 'right' ? -cfg.knockback : cfg.knockback);
     // e.g. Redact: a missed parry also leaves a memory status.
     if (result === 'MISS' && hit.onMiss?.status && Math.random() < (hit.onMiss.chance ?? 1)) this.applyStatus(hero, hit.onMiss.status);
@@ -2737,7 +2743,7 @@ export default class BattleScene extends Phaser.Scene {
       return;
     }
     await playOnce(hero.body, hero.type, 'parry', hero.anims.parry, { onImpact: (i) => i === 0 && counter() });
-    if (hero.hp > 0) hero.body.play(animKey(hero.type, 'idle'));
+    if (hero.hp > 0) playLoop(hero.body, hero.type, this.restAnim(hero));
   }
 
   // Echo is per hero. Gains show as a small teal "+N" over the pip they fill.
@@ -2981,14 +2987,48 @@ export default class BattleScene extends Phaser.Scene {
     });
   }
 
-  // Brace: the whole party takes reduced damage from the next enemy attack.
+  // Brace: the whole party takes reduced damage for the whole enemy round (until the enemy phase ends),
+  // and every hit that lands on it gives Dov Echo and the attacker poise damage (braceCounter).
+  // The caster holds the brace sheet's loop (brace_in -> loop) until endBrace.
   async playBrace(hero, tech) {
-    await this.playMove(hero, tech.anims || ['cast'], () => {
+    const cast = () => {
       this.brace = tech;
+      this.braceHero = hero;
       for (const h of this.heroes.filter((x) => x.hp > 0)) {
         Fx.popText(this, h.container.x, h.container.y, tech.castText, tech.color, qte.text);
       }
-    });
+    };
+    if (!tech.holdsRound || !hasSheet(hero.anims, 'brace')) {
+      // No sheet to hold (or a one-attack Brace): the cast move, then the round-long bonus without a pose.
+      await this.playMove(hero, tech.anims || ['cast'], cast);
+      return;
+    }
+    if (hasSheet(hero.anims, 'brace_in')) await playOnce(hero.body, hero.type, 'brace_in', hero.anims.brace_in);
+    if (hero.hp > 0) playLoop(hero.body, hero.type, 'brace');
+    cast();
+  }
+
+  // A hit landed on the braced party (damage > 0): Dov takes it and gives back pressure.
+  braceCounter(hero, enemy) {
+    const b = this.brace;
+    const dov = this.braceHero;
+    if (b.echoPerHit && dov && dov.hp > 0) {
+      this.gainEcho(dov, b.echoPerHit);
+      Fx.popText(this, dov.container.x, dov.container.y + (dov === hero ? qte.text.riseY * 2 : 0), b.counterText, b.color, qte.text);
+    }
+    if (b.poisePerHit && enemy) this.hitPoise(enemy, b.poisePerHit);
+  }
+
+  // The enemy phase is over: the Brace ends and its holder stands up (brace_out, then idle).
+  async endBrace() {
+    const hero = this.braceHero;
+    this.brace = null;
+    this.braceHero = null;
+    if (!hero || hero.hp <= 0) return;
+    const key = animKey(hero.type, 'brace');
+    if (hero.body.anims?.currentAnim?.key !== key) return;
+    if (hasSheet(hero.anims, 'brace_out')) await playOnce(hero.body, hero.type, 'brace_out', hero.anims.brace_out);
+    if (hero.hp > 0 && !this.brace) playLoop(hero.body, hero.type, 'idle');
   }
 
   // A support move's body language: the first of `names` the character has a
