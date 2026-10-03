@@ -1,177 +1,818 @@
 {
   "wake": [
-    { "speaker": "Rhea", "style": "normal", "text": "Ow... my head.", "portrait": null, "sfx": "sfx_heartbeat" },
-    { "speaker": null, "style": "narration", "text": "A ceiling she doesn't know. A door hanging open. Rain.", "portrait": null, "sfx": "sfx_door_creak" }
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Ow... my head.",
+      "portrait": null,
+      "sfx": "sfx_heartbeat"
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "A ceiling she doesn't know. A door hanging open. Rain.",
+      "portrait": null,
+      "sfx": "sfx_door_creak"
+    }
   ],
   "letter": [
-    { "speaker": null, "style": "narration", "text": "A letter in her hand.", "portrait": null },
-    { "speaker": null, "style": "narration", "text": "The handwriting is hers. She doesn't remember writing it.", "portrait": null },
-    { "speaker": null, "style": "narration", "text": "She doesn't remember anything.", "portrait": null },
-    { "speaker": null, "style": "letter", "text": "If you're reading this, he got me. He took everything.", "portrait": null, "sfx": "sfx_paper" },
-    { "speaker": null, "style": "letter", "text": "Trust Dov. You won't remember why. — R.", "portrait": null, "sfx": "sfx_paper" },
-    { "speaker": "Rhea", "style": "normal", "text": "Who is Dov? ...Who am I?", "portrait": "rhea_confused" }
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "A letter in her hand.",
+      "portrait": null
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "The handwriting is hers. She doesn't remember writing it.",
+      "portrait": null
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "She doesn't remember anything.",
+      "portrait": null
+    },
+    {
+      "speaker": null,
+      "style": "letter",
+      "text": "If you're reading this, he got me. He took everything.",
+      "portrait": null,
+      "sfx": "sfx_paper"
+    },
+    {
+      "speaker": null,
+      "style": "letter",
+      "text": "Trust Dov. You won't remember why. — R.",
+      "portrait": null,
+      "sfx": "sfx_paper"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Who is Dov? ...Who am I?",
+      "portrait": "rhea_confused"
+    }
   ],
   "meet_dov": [
-    { "speaker": null, "style": "narration", "text": "She steps through the open door, into the street.", "portrait": null },
-    { "speaker": null, "style": "narration", "text": "Night. Rain drowning everything.", "portrait": null },
-    { "speaker": "Dov", "style": "normal", "text": "Rhea! I've been looking for you all day. Are you hurt?", "portrait": "dov_worried" },
-    { "speaker": "Rhea", "style": "normal", "text": "Stay where you are.", "portrait": "rhea_serious" },
-    { "speaker": "Dov", "style": "normal", "text": "It's me. Dov.", "portrait": "dov_neutral" },
-    { "speaker": "Rhea", "style": "normal", "text": "Anyone can read a letter and say a name.", "portrait": "rhea_angry" },
-    { "speaker": "Dov", "style": "normal", "text": "Rhea, please. What did he do to you?", "portrait": "dov_sad" },
-    { "speaker": "Rhea", "style": "normal", "text": "Last chance. Back off.", "portrait": "rhea_angry" },
-    { "speaker": null, "style": "narration", "text": "She draws her baton. Her hands know how, even if she doesn't.", "portrait": null }
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "She steps through the open door, into the street.",
+      "portrait": null
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "Night. Rain drowning everything.",
+      "portrait": null
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Rhea! I've been looking for you all day. Are you hurt?",
+      "portrait": "dov_worried"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Stay where you are.",
+      "portrait": "rhea_serious"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "It's me. Dov.",
+      "portrait": "dov_neutral"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Anyone can read a letter and say a name.",
+      "portrait": "rhea_angry"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Rhea, please. What did he do to you?",
+      "portrait": "dov_sad"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Last chance. Back off.",
+      "portrait": "rhea_angry"
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "She draws her baton. Her hands know how, even if she doesn't.",
+      "portrait": null
+    }
   ],
   "duel_refuse": [
-    { "speaker": "Dov", "style": "normal", "text": "I'm not fighting you, Rhea.", "portrait": "dov_worried" },
-    { "speaker": "Rhea", "style": "normal", "text": "Then this will be quick.", "portrait": "rhea_serious" }
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "I'm not fighting you, Rhea.",
+      "portrait": "dov_worried"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Then this will be quick.",
+      "portrait": "rhea_serious"
+    }
   ],
   "duel_wake": [
-    { "speaker": "Dov", "style": "normal", "text": "Fine. Wake up, then!", "portrait": "dov_fierce" },
-    { "speaker": null, "style": "narration", "text": "He raises his fists. He's holding back, but not by much.", "portrait": null }
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Fine. Wake up, then!",
+      "portrait": "dov_fierce"
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "He raises his fists. He's holding back, but not by much.",
+      "portrait": null
+    }
   ],
   "duel_parry": [
-    { "speaker": "Dov", "style": "normal", "text": "What else could I expect? First parry, and it's perfect.", "portrait": "dov_warm" },
-    { "speaker": "Rhea", "style": "normal", "text": "Hey. Turns out I'm pretty good at this.", "portrait": "rhea_determined" }
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "What else could I expect? First parry, and it's perfect.",
+      "portrait": "dov_warm"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Hey. Turns out I'm pretty good at this.",
+      "portrait": "rhea_determined"
+    }
   ],
   "duel_blast_unlock": [
-    { "speaker": null, "style": "narration", "text": "Something flickers behind her eyes. Not a memory. The edge of one.", "portrait": null },
-    { "speaker": "Rhea", "style": "normal", "text": "Oh. Okay.", "portrait": "rhea_confused" },
-    { "speaker": "Rhea", "style": "normal", "text": "Now I can do this.", "portrait": "rhea_determined" }
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "Something flickers behind her eyes. Not a memory. The edge of one.",
+      "portrait": null
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Oh. Okay.",
+      "portrait": "rhea_confused"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Now I can do this.",
+      "portrait": "rhea_determined"
+    }
   ],
   "duel_nala": [
-    { "speaker": "Nala", "style": "narration", "text": "Nala leaps out of the rain and lands between them, fur on end.", "portrait": null, "sfx": "sfx_hiss" },
-    { "speaker": "Rhea", "style": "normal", "text": "...Nala?", "portrait": "rhea_confused" }
+    {
+      "speaker": "Nala",
+      "style": "narration",
+      "text": "Nala leaps out of the rain and lands between them, fur on end.",
+      "portrait": null,
+      "sfx": "sfx_hiss"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "...Nala?",
+      "portrait": "rhea_confused"
+    }
   ],
   "after_duel": [
-    { "speaker": "Dov", "style": "normal", "text": "Nala! Easy, girl. Easy.", "portrait": "dov_pet_nala" },
-    { "speaker": "Nala", "style": "narration", "text": "Nala meows at Rhea, once, like a question.", "portrait": "nala_meow", "sfx": "sfx_meow" },
-    { "speaker": "Rhea", "style": "normal", "text": "I know her. I don't know my own name, but I know hers.", "portrait": "rhea_confused" },
-    { "speaker": "Dov", "style": "normal", "text": "You remember the cat... and not me?", "portrait": "dov_worried" },
-    { "speaker": "Dov", "style": "normal", "text": "No idea why you remember her. But she's never wrong about people.", "portrait": "dov_neutral" },
-    { "speaker": "Rhea", "style": "normal", "text": "...Then I'll trust her. For now.", "portrait": "rhea_serious" },
-    { "speaker": "Nala", "style": "narration", "text": "Nala's fur stands on end. She hisses at the dark.", "portrait": "nala_hiss", "sfx": "sfx_hiss" },
-    { "speaker": null, "style": "narration", "text": "Grey raincoats in the fog. Smooth faces. No eyes.", "portrait": null },
-    { "speaker": "Dov", "style": "normal", "text": "Forgotten. Quill's strays.", "portrait": "dov_fierce" },
-    { "speaker": "Rhea", "style": "normal", "text": "Who's Quill?", "portrait": "rhea_confused" },
-    { "speaker": "Dov", "style": "normal", "text": "Later. Stay close!", "portrait": "dov_fierce" }
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Nala! Easy, girl. Easy.",
+      "portrait": "dov_pet_nala"
+    },
+    {
+      "speaker": "Nala",
+      "style": "narration",
+      "text": "Nala meows at Rhea, once, like a question.",
+      "portrait": "nala_meow",
+      "sfx": "sfx_meow"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "I know her. I don't know my own name, but I know hers.",
+      "portrait": "rhea_confused"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "You remember the cat... and not me?",
+      "portrait": "dov_worried"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "No idea why you remember her. But she's never wrong about people.",
+      "portrait": "dov_neutral"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "...Then I'll trust her. For now.",
+      "portrait": "rhea_serious"
+    },
+    {
+      "speaker": "Nala",
+      "style": "narration",
+      "text": "Nala's fur stands on end. She hisses at the dark.",
+      "portrait": "nala_hiss",
+      "sfx": "sfx_hiss"
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "Grey raincoats in the fog. Smooth faces. No eyes.",
+      "portrait": null
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Forgotten. Quill's strays.",
+      "portrait": "dov_fierce"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Who's Quill?",
+      "portrait": "rhea_confused"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Later. Stay close!",
+      "portrait": "dov_fierce"
+    }
   ],
   "after_b1": [
-    { "speaker": "Rhea", "style": "normal", "text": "Talk. Who am I?", "portrait": "rhea_serious", "bg": "rest_panel_1" },
-    { "speaker": "Dov", "style": "normal", "text": "Rhea. My sister. My parents took you in when you were small.", "portrait": "dov_neutral" },
-    { "speaker": "Dov", "style": "normal", "text": "Quill is the magistrate of our ward. Years ago, he had our mother unwritten.", "portrait": "dov_sad" },
-    { "speaker": "Dov", "style": "normal", "text": "Dad died fighting his men. Mom became Forgotten.", "portrait": "dov_sad" },
-    { "speaker": "Rhea", "style": "normal", "text": "Like the ones we just fought?", "portrait": "rhea_serious", "bg": "rest_panel_2" },
-    { "speaker": "Dov", "style": "normal", "text": "Nobody can hold on to them, not even for a minute. Most of them break.", "portrait": "dov_sad" },
-    { "speaker": "Dov", "style": "normal", "text": "One day Mom walked out of the city. We don't know where she is.", "portrait": "dov_sad" },
-    { "speaker": "Rhea", "style": "normal", "text": "And me?", "portrait": "rhea_pained" },
-    { "speaker": "Dov", "style": "normal", "text": "You became a courier. Carried Quill's letters, smiled at his clerks.", "portrait": "dov_neutral" },
-    { "speaker": "Dov", "style": "normal", "text": "You wanted to get close enough to kill him. Then the King.", "portrait": "dov_fierce" },
-    { "speaker": "Dov", "style": "normal", "text": "You trained at the Memorist School. You got strong. Too strong.", "portrait": "dov_neutral" },
-    { "speaker": "Dov", "style": "normal", "text": "The King signed a warrant to unwrite you. Quill cast it. It backfired.", "portrait": "dov_worried" },
-    { "speaker": "Dov", "style": "normal", "text": "People started forgetting him. So he hit you with everything he had.", "portrait": "dov_worried" },
-    { "speaker": "Rhea", "style": "normal", "text": "And instead of the world forgetting me... I forgot the world.", "portrait": "rhea_pained", "bg": "rest_panel_3" },
-    { "speaker": "Dov", "style": "normal", "text": "I already lost Mom and Dad. I'm not losing you twice.", "portrait": "dov_sad" },
-    { "speaker": null, "style": "narration", "text": "Rhea doesn't remember how to hold her brother. She does it anyway.", "portrait": null },
-    { "speaker": "Dov", "style": "normal", "text": "Memorists write down everything they take. It's all in his Ledger.", "portrait": "dov_neutral" },
-    { "speaker": "Rhea", "style": "normal", "text": "Then we pay the magistrate a visit.", "portrait": "rhea_determined" }
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Talk. Who am I?",
+      "portrait": "rhea_serious",
+      "bg": "rest_panel_1"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Rhea. My sister. My parents took you in when you were small.",
+      "portrait": "dov_neutral"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Quill is the magistrate of our ward. Years ago, he had our mother unwritten.",
+      "portrait": "dov_sad"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Dad died fighting his men. Mom became Forgotten.",
+      "portrait": "dov_sad"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Like the ones we just fought?",
+      "portrait": "rhea_serious",
+      "bg": "rest_panel_2"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Nobody can hold on to them, not even for a minute. Most of them break.",
+      "portrait": "dov_sad"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "One day Mom walked out of the city. We don't know where she is.",
+      "portrait": "dov_sad"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "And me?",
+      "portrait": "rhea_pained"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "You became a courier. Carried Quill's letters, smiled at his clerks.",
+      "portrait": "dov_neutral"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "You wanted to get close enough to kill him. Then the King.",
+      "portrait": "dov_fierce"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "You trained at the Memorist School. You got strong. Too strong.",
+      "portrait": "dov_neutral"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "The King signed a warrant to unwrite you. Quill cast it. It backfired.",
+      "portrait": "dov_worried"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "People started forgetting him. So he hit you with everything he had.",
+      "portrait": "dov_worried"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "And instead of the world forgetting me... I forgot the world.",
+      "portrait": "rhea_pained",
+      "bg": "rest_panel_3"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "I already lost Mom and Dad. I'm not losing you twice.",
+      "portrait": "dov_sad"
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "Rhea doesn't remember how to hold her brother. She does it anyway.",
+      "portrait": null
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Memorists write down everything they take. It's all in his Ledger.",
+      "portrait": "dov_neutral"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Then we pay the magistrate a visit.",
+      "portrait": "rhea_determined"
+    }
   ],
   "after_b1_go": [
-    {"speaker": "Rhea", "style": "normal", "text": "Will you finally tell me what's going on?", "portrait": "rhea_serious"},
-    {"speaker": "Dov", "style": "normal", "text": "Not here. Let's go somewhere quieter.", "portrait": "dov_worried"},
-    {"speaker": null, "style": "narration", "text": "Nala is already walking. They follow.", "portrait": null, "transition": "close"}
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Will you finally tell me what's going on?",
+      "portrait": "rhea_serious"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Not here. Let's go somewhere quieter.",
+      "portrait": "dov_worried"
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "Nala is already walking. They follow.",
+      "portrait": null,
+      "transition": "close"
+    }
   ],
   "after_rest": [
-    {"speaker": "Rhea", "style": "normal", "text": "The Ledger. If my page is in it, I want it back.", "portrait": "rhea_determined"},
-    {"speaker": "Dov", "style": "normal", "text": "Quill keeps it in the Records Office. Past the old gate.", "portrait": "dov_neutral"},
-    {"speaker": "Rhea", "style": "normal", "text": "Then we go now.", "portrait": "rhea_serious", "transition": "close"}
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "The Ledger. If my page is in it, I want it back.",
+      "portrait": "rhea_determined"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Quill keeps it in the Records Office. Past the old gate.",
+      "portrait": "dov_neutral"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Then we go now.",
+      "portrait": "rhea_serious",
+      "transition": "close"
+    }
   ],
   "approach_b2": [
-    {"speaker": "Dov", "style": "normal", "text": "We're getting there. It's close.", "portrait": "dov_neutral"},
-    {"speaker": "Nala", "style": "narration", "text": "Nala stops dead. Her fur rises.", "portrait": null, "sfx": "sfx_hiss"},
-    {"speaker": "Dov", "style": "normal", "text": "Hollows. Stay behind me.", "portrait": "dov_fierce"}
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "We're getting there. It's close.",
+      "portrait": "dov_neutral"
+    },
+    {
+      "speaker": "Nala",
+      "style": "narration",
+      "text": "Nala stops dead. Her fur rises.",
+      "portrait": "nala_hiss",
+      "sfx": "sfx_hiss"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Hollows. Stay behind me.",
+      "portrait": "dov_fierce"
+    }
   ],
   "after_b2": [
-    {"speaker": "Rhea", "style": "normal", "text": "They don't stop coming.", "portrait": "rhea_pained"},
-    {"speaker": "Dov", "style": "normal", "text": "Because he knows we're coming. Move.", "portrait": "dov_fierce", "transition": "close"}
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "They don't stop coming.",
+      "portrait": "rhea_pained"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Because he knows we're coming. Move.",
+      "portrait": "dov_fierce",
+      "transition": "close"
+    }
   ],
   "b2_start": [
-    { "speaker": null, "style": "narration", "text": "Behind the Forgotten, grey dust gathers into something with claws.", "portrait": null },
-    { "speaker": "Dov", "style": "normal", "text": "A Hollow. Watch Nala. She feels them before they strike.", "portrait": "dov_fierce" }
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "Behind the Forgotten, grey dust gathers into something with claws.",
+      "portrait": null
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "A Hollow. Watch Nala. She feels them before they strike.",
+      "portrait": "dov_fierce"
+    }
   ],
   "b2_immune": [
-    { "speaker": "Rhea", "style": "normal", "text": "It went right through!", "portrait": "rhea_confused" },
-    { "speaker": "Dov", "style": "normal", "text": "Hollows are made of Echo. Steel won't touch them. Only Echo will.", "portrait": "dov_fierce" },
-    { "speaker": "Rhea", "style": "normal", "text": "Then I burn something.", "portrait": "rhea_determined" },
-    { "speaker": "Dov", "style": "normal", "text": "You don't have much left to burn. Make it count.", "portrait": "dov_worried" }
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "It went right through!",
+      "portrait": "rhea_confused"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Hollows are made of Echo. Steel won't touch them. Only Echo will.",
+      "portrait": "dov_fierce"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Then I burn something.",
+      "portrait": "rhea_determined"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "You don't have much left to burn. Make it count.",
+      "portrait": "dov_worried"
+    }
   ],
   "before_gate": [
-    { "speaker": null, "style": "narration", "text": "The Records Office. Two shapes of dust guard the door. One is twice the size of the other.", "portrait": null },
-    { "speaker": "Dov", "style": "normal", "text": "Quill's watchdogs. The big one drinks Echo, and heals on it.", "portrait": "dov_fierce" },
-    { "speaker": "Rhea", "style": "normal", "text": "Then we don't let it drink.", "portrait": "rhea_determined" }
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "The Records Office. Two shapes of dust guard the door. One is twice the size of the other.",
+      "portrait": null
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Quill's watchdogs. The big one drinks Echo, and heals on it.",
+      "portrait": "dov_fierce"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Then we don't let it drink.",
+      "portrait": "rhea_determined"
+    }
   ],
   "records_office": [
-    { "speaker": null, "style": "narration", "text": "Shelves to the ceiling. On a lectern, open: the Ledger.", "portrait": null },
-    { "speaker": null, "style": "narration", "text": "Rhea finds her own name. The ink has burned through the page.", "portrait": null },
-    { "speaker": "Rhea", "style": "normal", "text": "There's something here. Something of mine.", "portrait": "rhea_serious" },
-    { "speaker": null, "style": "narration", "text": "She touches the page, and remembers.", "portrait": null },
-    { "speaker": null, "style": "narration", "text": "A boy with bandaged fists, giving her half his bread.", "portrait": null },
-    { "speaker": null, "style": "narration", "text": "A tall man at the door, laughing at the rain.", "portrait": null },
-    { "speaker": null, "style": "narration", "text": "A woman at the table. Her face won't come.", "portrait": null },
-    { "speaker": "Rhea", "style": "normal", "text": "Dov. I remember you.", "portrait": "rhea_sad" },
-    { "speaker": "Dov", "style": "normal", "text": "Welcome back.", "portrait": "dov_warm" },
-    { "speaker": "Quill", "style": "normal", "text": "How touching. And how kind of you to come to me.", "portrait": "clerk_smug" },
-    { "speaker": "Rhea", "style": "normal", "text": "Quill.", "portrait": "rhea_angry" },
-    { "speaker": "Quill", "style": "normal", "text": "Magistrate Quill. People keep forgetting the title. Thanks to you.", "portrait": "clerk_cold" },
-    { "speaker": "Quill", "style": "normal", "text": "His Majesty doesn't trouble himself with couriers. That's what I'm for.", "portrait": "clerk_cold" },
-    { "speaker": "Quill", "style": "normal", "text": "Finish her page, he said, and they will remember me again.", "portrait": "clerk_desperate" },
-    { "speaker": "Dov", "style": "normal", "text": "You took our mother. You don't get her too.", "portrait": "dov_fierce" },
-    { "speaker": "Quill", "style": "normal", "text": "I left her empty. Who fears an empty courier?", "portrait": "clerk_smug" },
-    { "speaker": "Quill", "style": "normal", "text": "Last time she had a whole life to burn. Now she has one page. This will be easy.", "portrait": "clerk_furious" }
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "Shelves to the ceiling. On a lectern, open: the Ledger.",
+      "portrait": null
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "Rhea finds her own name. The ink has burned through the page.",
+      "portrait": null
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "There's something here. Something of mine.",
+      "portrait": "rhea_serious"
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "She touches the page, and remembers.",
+      "portrait": null
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "A boy with bandaged fists, giving her half his bread.",
+      "portrait": null
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "A tall man at the door, laughing at the rain.",
+      "portrait": null
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "A woman at the table. Her face won't come.",
+      "portrait": null
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Dov. I remember you.",
+      "portrait": "rhea_sad"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Welcome back.",
+      "portrait": "dov_warm"
+    },
+    {
+      "speaker": "Quill",
+      "style": "normal",
+      "text": "How touching. And how kind of you to come to me.",
+      "portrait": "clerk_smug"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Quill.",
+      "portrait": "rhea_angry"
+    },
+    {
+      "speaker": "Quill",
+      "style": "normal",
+      "text": "Magistrate Quill. People keep forgetting the title. Thanks to you.",
+      "portrait": "clerk_cold"
+    },
+    {
+      "speaker": "Quill",
+      "style": "normal",
+      "text": "His Majesty doesn't trouble himself with couriers. That's what I'm for.",
+      "portrait": "clerk_cold"
+    },
+    {
+      "speaker": "Quill",
+      "style": "normal",
+      "text": "Finish her page, he said, and they will remember me again.",
+      "portrait": "clerk_desperate"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "You took our mother. You don't get her too.",
+      "portrait": "dov_fierce"
+    },
+    {
+      "speaker": "Quill",
+      "style": "normal",
+      "text": "I left her empty. Who fears an empty courier?",
+      "portrait": "clerk_smug"
+    },
+    {
+      "speaker": "Quill",
+      "style": "normal",
+      "text": "Last time she had a whole life to burn. Now she has one page. This will be easy.",
+      "portrait": "clerk_furious"
+    }
   ],
   "archive_insight": [
-    { "speaker": "Rhea", "style": "normal", "text": "He pulled back inside that book... and we couldn't touch him.", "portrait": "rhea_pained" },
-    { "speaker": "Dov", "style": "normal", "text": "Every blow we landed came back as his.", "portrait": "dov_worried" },
-    { "speaker": "Rhea", "style": "normal", "text": "Then we don't let him sit in there. Hit him until he staggers. Hard and fast.", "portrait": "rhea_determined" }
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "He pulled back inside that book... and we couldn't touch him.",
+      "portrait": "rhea_pained"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Every blow we landed came back as his.",
+      "portrait": "dov_worried"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Then we don't let him sit in there. Hit him until he staggers. Hard and fast.",
+      "portrait": "rhea_determined"
+    }
   ],
   "archive_warn": [
-    { "speaker": "Dov", "style": "normal", "text": "He's pulling back into the Ledger. Break him before it closes!", "portrait": "dov_fierce" },
-    { "speaker": "Rhea", "style": "normal", "text": "Then we hit hard. Now.", "portrait": "rhea_determined" }
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "He's pulling back into the Ledger. Break him before it closes!",
+      "portrait": "dov_fierce"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Then we hit hard. Now.",
+      "portrait": "rhea_determined"
+    }
   ],
   "archive_threat": [
-    { "speaker": "Quill", "style": "normal", "text": "This time you won't get away.", "portrait": "clerk_furious" },
-    { "speaker": "Dov", "style": "normal", "text": "Faster than before. Rhea, he's charging it faster!", "portrait": "dov_worried" }
+    {
+      "speaker": "Quill",
+      "style": "normal",
+      "text": "This time you won't get away.",
+      "portrait": "clerk_furious"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Faster than before. Rhea, he's charging it faster!",
+      "portrait": "dov_worried"
+    }
   ],
   "quill_rise": [
-    { "speaker": null, "style": "narration", "text": "Quill crumples. Then the Ledger flips open on its own.", "portrait": null, "sfx": "sfx_laugh" },
-    { "speaker": "Quill", "style": "normal", "text": "You don't close a Ledger. It closes you.", "portrait": "clerk_furious" },
-    { "speaker": null, "style": "narration", "text": "He rises. His wounds are ink, and the ink is flowing back.", "portrait": null }
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "Quill crumples. Then the Ledger flips open on its own.",
+      "portrait": null,
+      "sfx": "sfx_laugh"
+    },
+    {
+      "speaker": "Quill",
+      "style": "normal",
+      "text": "You don't close a Ledger. It closes you.",
+      "portrait": "clerk_furious"
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "He rises. His wounds are ink, and the ink is flowing back.",
+      "portrait": null
+    }
   ],
   "recollection_cutin": [
-    { "speaker": "Rhea", "style": "normal", "text": "Look at it, Quill. Look at what you took.", "portrait": "rhea_cutin_power" },
-    { "speaker": "Rhea", "style": "normal", "text": "…Goodbye.", "portrait": "rhea_cutin_tears" }
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Look at it, Quill. Look at what you took.",
+      "portrait": "rhea_cutin_power"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "…Goodbye.",
+      "portrait": "rhea_cutin_tears"
+    }
   ],
   "keepsake_burn": [
-    { "speaker": "Rhea", "style": "normal", "text": "He's right. I can't beat him like this.", "portrait": "rhea_pained" },
-    { "speaker": null, "style": "narration", "text": "A Keepsake: a memory held back for the end. Rhea has one. The page.", "portrait": null },
-    { "speaker": "Dov", "style": "normal", "text": "Rhea, don't. You just got us back.", "portrait": "dov_worried" },
-    { "speaker": "Rhea", "style": "normal", "text": "Goodbye, Dov. Goodbye, Dad.", "portrait": "rhea_sad" },
-    { "speaker": "Rhea", "style": "normal", "text": "I'm forgetting you again. But I'll remember you... again.", "portrait": "rhea_sad" },
-    { "speaker": "▯▯▯", "style": "normal", "text": "Rhea—", "portrait": null },
-    { "speaker": null, "style": "narration", "text": "She burns it. Her Echo floods back, brighter than it has ever been.", "portrait": null },
-    { "speaker": null, "style": "narration", "text": "Recollection: she can drag Quill into the memory as it burns.", "portrait": null },
-    { "speaker": null, "style": "narration", "text": "The night he came for their mother.", "portrait": null }
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "He's right. I can't beat him like this.",
+      "portrait": "rhea_pained"
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "A Keepsake: a memory held back for the end. Rhea has one. The page.",
+      "portrait": null
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "Rhea, don't. You just got us back.",
+      "portrait": "dov_worried"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Goodbye, Dov. Goodbye, Dad.",
+      "portrait": "rhea_sad"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "I'm forgetting you again. But I'll remember you... again.",
+      "portrait": "rhea_sad"
+    },
+    {
+      "speaker": "▯▯▯",
+      "style": "normal",
+      "text": "Rhea—",
+      "portrait": null
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "She burns it. Her Echo floods back, brighter than it has ever been.",
+      "portrait": null
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "Recollection: she can drag Quill into the memory as it burns.",
+      "portrait": null
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "The night he came for their mother.",
+      "portrait": null
+    }
   ],
   "ending": [
-    { "speaker": "Quill", "style": "normal", "text": "No... They were going to remember me...", "portrait": "clerk_desperate" },
-    { "speaker": null, "style": "narration", "text": "His face blurs. Even as she looks at him, Rhea can't hold on to it.", "portrait": null },
-    { "speaker": null, "style": "narration", "text": "The Ledger lies open. Her page is ash.", "portrait": null },
-    { "speaker": "Rhea", "style": "normal", "text": "You. You fought beside me.", "portrait": "rhea_confused" },
-    { "speaker": "Dov", "style": "normal", "text": "I did.", "portrait": "dov_sad" },
-    { "speaker": "Rhea", "style": "normal", "text": "Your name is Dov. I know that much. I don't know why it hurts.", "portrait": "rhea_confused" },
-    { "speaker": "Dov", "style": "normal", "text": "That's all right. I'll remember for both of us.", "portrait": "dov_warm" },
-    { "speaker": null, "style": "narration", "text": "Nala presses against Rhea's leg. That, she still remembers.", "portrait": null },
-    { "speaker": null, "style": "narration", "text": "Somewhere above the city, a silhouette watches from the broken tower.", "portrait": null, "silhouette": "aurelian_exile" },
-    { "speaker": null, "style": "narration", "text": "Chapter 2: The Gallery — locked.", "portrait": null }
+    {
+      "speaker": "Quill",
+      "style": "normal",
+      "text": "No... They were going to remember me...",
+      "portrait": "clerk_desperate"
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "His face blurs. Even as she looks at him, Rhea can't hold on to it.",
+      "portrait": null
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "The Ledger lies open. Her page is ash.",
+      "portrait": null
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "You. You fought beside me.",
+      "portrait": "rhea_confused"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "I did.",
+      "portrait": "dov_sad"
+    },
+    {
+      "speaker": "Rhea",
+      "style": "normal",
+      "text": "Your name is Dov. I know that much. I don't know why it hurts.",
+      "portrait": "rhea_confused"
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "That's all right. I'll remember for both of us.",
+      "portrait": "dov_warm"
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "Nala presses against Rhea's leg. That, she still remembers.",
+      "portrait": null
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "Somewhere above the city, a silhouette watches from the broken tower.",
+      "portrait": null,
+      "silhouette": "aurelian_exile"
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "Chapter 2: The Gallery — locked.",
+      "portrait": null
+    }
   ]
 }
