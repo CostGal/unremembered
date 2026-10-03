@@ -184,14 +184,6 @@
       "faces": "right",
       "scale": 1
     },
-    "nala_alert": {
-      "file": "portraits/nala_alert.png",
-      "w": 264,
-      "h": 310,
-      "displayHeight": 225,
-      "faces": "right",
-      "scale": 1
-    },
     "nala_hissing": {
       "file": "portraits/nala_hissing.png",
       "w": 264,
@@ -207,9 +199,6 @@
       "displayHeight": 225,
       "faces": "right",
       "scale": 1
-    },
-    "nala_hiss": {
-      "alias": "nala_hissing"
     },
     "nala_meow": {
       "file": "portraits/nala_meow.png",
@@ -240,6 +229,14 @@
       "h": 240,
       "faces": "right",
       "scale": 1
+    },
+    "nala_alert_portrait": {
+      "file": "portraits/nala_alert.png",
+      "w": 264,
+      "h": 310,
+      "displayHeight": 225,
+      "faces": "right",
+      "scale": 1
     }
   },
   "backgrounds": {
@@ -254,7 +251,10 @@
       "h": 1280,
       "filter": "linear",
       "displayScale": 0.5,
-      "fit": {"scale": 0.56, "roadY": 0.64},
+      "fit": {
+        "scale": 0.56,
+        "roadY": 0.64
+      },
       "desaturate": 0.6,
       "ambient": {
         "fog": {
@@ -351,7 +351,10 @@
       "h": 1280,
       "filter": "linear",
       "displayScale": 0.5,
-      "fit": {"scale": 0.56, "roadY": 0.62},
+      "fit": {
+        "scale": 0.56,
+        "roadY": 0.62
+      },
       "desaturate": 0.6,
       "ambient": {
         "fog": {
@@ -413,7 +416,10 @@
       "h": 1280,
       "filter": "linear",
       "displayScale": 0.5,
-      "fit": {"scale": 0.56, "roadY": 0.62},
+      "fit": {
+        "scale": 0.56,
+        "roadY": 0.62
+      },
       "desaturate": 0.6,
       "ambient": {
         "fog": {
@@ -475,7 +481,10 @@
       "h": 1280,
       "filter": "linear",
       "displayScale": 0.5,
-      "fit": {"scale": 0.56, "roadY": 0.6},
+      "fit": {
+        "scale": 0.56,
+        "roadY": 0.6
+      },
       "desaturate": 0.6,
       "ambient": {
         "fog": {

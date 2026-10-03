@@ -230,7 +230,7 @@
       "speaker": "Nala",
       "style": "narration",
       "text": "Nala's fur stands on end. She hisses at the dark.",
-      "portrait": "nala_hiss",
+      "portrait": "nala_hissing",
       "sfx": "sfx_hiss"
     },
     {
@@ -424,7 +424,7 @@
       "speaker": "Nala",
       "style": "narration",
       "text": "Nala stops dead. Her fur rises.",
-      "portrait": "nala_hiss",
+      "portrait": "nala_hissing",
       "sfx": "sfx_hiss"
     },
     {
