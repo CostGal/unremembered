@@ -400,7 +400,11 @@ export default class BattleScene extends Phaser.Scene {
     this.nalaStopWatching();
     ring.cancel();
 
-    Fx.popText(this, nala.container.x, nala.container.y, def.hissText, def.hissColor, qte.text);
+    // The hiss cut-in (allies.json nala.hissCutIn, ~700 ms, not awaited: the cancel and the battle go on
+    // under it, and nothing in it takes input). Without one, the plain text pop. The duel's jump-in does
+    // not come through here (it stays sprite only).
+    if (def.hissCutIn) new CutIn(this).flash(def.hissCutIn);
+    else Fx.popText(this, nala.container.x, nala.container.y, def.hissText, def.hissColor, qte.text);
     Fx.popText(this, enemy.container.x, enemy.container.y, def.cancelText, def.hissColor, qte.text);
     if (hasSheet(nala.anims, 'hiss')) {
       // holdFrame: the pose is held for hissHoldMs; impactFrames: the shake lands.
@@ -599,7 +603,7 @@ export default class BattleScene extends Phaser.Scene {
     Fx.popText(this, x, y, r.text, r.textColor, qte.text);
     playSfx(r.sfx);
     this.startReadyAura(rhea);
-    this.hints.show('recollection');
+    if (!this.autoCasting) this.hints.show('recollection');
   }
 
   // A pulsing gold glow behind Rhea while Recollection is ready.
@@ -1360,6 +1364,8 @@ export default class BattleScene extends Phaser.Scene {
       const sheet = this.enemyAttackSheet(enemy, attack, hits.length);
       for (let k = 0; k < hits.length; k++) {
         if (target.hp <= 0 || enemy.hp <= 0) break;
+        // A parry counter just pushed Quill under the Keepsake threshold: no more rings, the cast is next.
+        if (this.pendingEvents.includes('keepsake_burn') && this.autoCastTarget()) break;
         const hit = {
           ...hits[k],
           telegraphMs: hits[k].telegraphMs * telegraphMult,
@@ -1852,15 +1858,25 @@ export default class BattleScene extends Phaser.Scene {
     return this.flags.has(name);
   }
 
-  // Keepsake: the battle pauses for a conversation, then Rhea's Echo fills
-  // and the Recollection button pulses on her next turn.
+  // Keepsake: the battle pauses for a conversation, Rhea's Echo fills (MEMORY READY) and, right after
+  // it, whoever's turn it is, she casts the Recollection on Quill (autoCastRecollection). The command
+  // stays in the menu only for the Try again rewind and the dev URLs.
   async keepsakeBurn() {
     if (this.enemies.every((e) => e.hp <= 0)) return;
-    // Music: the Keepsake track takes over under the conversation (the Dialogue scene cuts it after its silence line).
+    // Music: the Recollection track starts with the conversation (audio.json placement.overlay.keepsake_burn,
+    // a loop: no duck, no silence) and plays on through the cast and the kill.
     const burn = musicPlan.overlay.keepsake_burn;
-    if (burn) playOneShot(burn.track, { duck: burn.duck, resume: burn.resume });
+    if (burn?.loop) playMusic(burn.track);
+    else if (burn) playOneShot(burn.track, { duck: burn.duck, resume: burn.resume });
     await this.playDialogueOverlay(battleEvents.keepsake_burn.dialogue);
     const rhea = this.heroes.find((h) => h.def.canUltimate) || this.heroes[0];
+    const auto = this.autoCastTarget();
+    // The cast happens even if she fell: she gets back up (recollection.json autoCast.reviveHp).
+    if (auto && rhea.hp <= 0) {
+      this.revive(rhea, recollection.autoCast.reviveHp);
+      this.refreshHud();
+    }
+    this.autoCasting = !!auto; // the ready banner would only flash for a moment
     const k = battleEvents.keepsake_burn;
     // The burnt Keepsake unlocks the last pips: Recollection is reachable only from here.
     if (k.echoMax) rhea.echoMax = Math.max(rhea.echoMax, k.echoMax);
@@ -1869,6 +1885,36 @@ export default class BattleScene extends Phaser.Scene {
     // The Page joins the collection (fragments.json the_page; no effect of its own).
     const kept = this.registry.get('fragments') || [];
     if (k.memory && !kept.includes(k.memory)) this.registry.set('fragments', [...kept, k.memory]);
+    if (auto) await this.autoCastRecollection(rhea);
+  }
+
+  // The enemy the keepsake's Recollection goes to (recollection.json autoCast), or null when it doesn't
+  // fire (no autoCast block, dev/QA `noAutoCast`, a battle without the ultimate, nobody left).
+  autoCastTarget() {
+    if (!recollection.autoCast || this.noAutoCast || !this.battleDef.recollection) return null;
+    return this.enemies.find((e) => e.hp > 0) || null;
+  }
+
+  // Right after the Keepsake: the MEMORY READY flash (played when her Echo filled) for autoCast.delayMs,
+  // then the Recollection as Rhea's own action, whoever's turn it was. The rest of the round (a
+  // multi-hit attack's remaining rings, the other hero's turn) does not happen before it.
+  async autoCastRecollection(rhea) {
+    const target = this.autoCastTarget();
+    try {
+      if (!target) return;
+      this.tapHint.setVisible(false);
+      await this.wait(recollection.autoCast.delayMs);
+      this.spendEcho(rhea, techniques.recollection.cost);
+      const restoreDepth = this.bringInFront(rhea, target);
+      this.playerAction = false; // the ultimate is not a counted hit
+      try {
+        await this.playRecollection(rhea, target);
+      } finally {
+        restoreDepth();
+      }
+    } finally {
+      this.autoCasting = false;
+    }
   }
 
   playDialogueOverlay(id) {
@@ -2028,6 +2074,7 @@ export default class BattleScene extends Phaser.Scene {
         cfg: recollection,
         windowMult: this.difficulty.windowMult,
         swipe: qte.dodge.swipe,
+        target,
         force: this.recollectionForce ?? null, // dev/QA only
         onResult: (result) => this.beatHit(target, result),
       });

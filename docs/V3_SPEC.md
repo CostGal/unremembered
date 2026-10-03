@@ -219,7 +219,7 @@ Notation as in STORY.md: `Speaker [portrait]: text`, `>` = narration, `{sfx}` = 
 
 ### recollection_cutin (inside the cut-in band)
 - Rhea [rhea_cutin_power]: Look at it, Quill. Look at what you took.
-- Rhea [rhea_cutin_tears]: ...Goodbye.
+- Rhea [rhea_cutin_tears]: Goodbye, Dov. Goodbye, Nala. Goodbye, Dad.
 
 Tutorial banner and pause texts: write them short (≤ 2 lines on a phone).
 

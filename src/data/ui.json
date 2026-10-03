@@ -1674,6 +1674,21 @@
       "charsPerSec": 40
     },
     "holdMs": 2200,
-    "inputDelayMs": 250
+    "inputDelayMs": 250,
+    "flash": {
+      "_about": "CutIn.flash({portrait, text, ms, sfx}): a short one-portrait cut-in (Nala's hiss, allies.json nala.hissCutIn). Dark overlay, portrait pops in the centre (scale startScale -> scale * punch -> scale), the line under it, then it fades out. Nothing in it takes input.",
+      "ms": 700,
+      "inMs": 140,
+      "settleMs": 120,
+      "outMs": 180,
+      "dim": { "color": "0x000000", "alpha": 0.6 },
+      "x": 180,
+      "y": 165,
+      "portraitH": 310,
+      "scale": 0.6,
+      "startScale": 0.4,
+      "punch": 1.18,
+      "text": { "gapY": 16, "fontSize": 20, "color": "#e8883a", "stroke": "#0b0d14", "strokeThickness": 4 }
+    }
   }
 }

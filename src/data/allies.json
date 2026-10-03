@@ -11,6 +11,7 @@
     },
     "promptText": "Nala senses a Hollow! Tap her!",
     "hissText": "Nala hisses!",
+    "hissCutIn": { "portrait": "nala_hissing", "text": "Nala hisses!", "ms": 700, "sfx": "sfx_hiss" },
     "cancelText": "Cancelled",
     "hissColor": "#e8883a",
     "shake": 3,

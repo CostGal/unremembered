@@ -138,7 +138,7 @@ export function adaptBot(page) {
 // The Recollection minigame (recollection.json beats), played through the dev hook window.__battle:
 // each beat is answered once with the wanted result ('PERFECT' | 'GOOD' | 'MISS' = no input).
 // hold: press, release at the centre (+150 ms for a GOOD); swipe: the arrow's way, at once (GOOD:
-// after 500 ms); taps: 6 quick taps (GOOD: spread so less than perfectSpareMs is left).
+// after 500 ms); taps: 20 quick taps (GOOD: spread so less than perfectSpareMs is left).
 const BEAT_AT = [180, 560];
 const STEP = { up: [0, -20], down: [0, 20], left: [-20, 0], right: [20, 0] };
 export async function playBeats(page, { results = ['PERFECT', 'PERFECT', 'PERFECT'], timeout = 40000, onBeat = null } = {}) {
@@ -169,8 +169,8 @@ export async function playBeats(page, { results = ['PERFECT', 'PERFECT', 'PERFEC
       for (let i = 1; i <= 4; i++) await page.move(x + dx * i, y + dy * i);
       await page.up(x + dx * 4, y + dy * 4);
     } else if (beat.kind === 'taps') {
-      // GOOD: the last tap lands 120 ms before the window closes (under perfectSpareMs to spare).
-      const span = want === 'GOOD' ? beat.windowMs - 120 : 0;
+      // GOOD: the last tap lands 800 ms before the window closes (under perfectSpareMs to spare).
+      const span = want === 'GOOD' ? beat.windowMs - 800 : 0;
       const t0 = Date.now();
       for (let i = 0; i < beat.taps; i++) {
         if (span) await sleep(Math.max(0, t0 + (span * i) / (beat.taps - 1) - Date.now()));

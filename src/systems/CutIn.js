@@ -61,7 +61,7 @@ export default class CutIn {
       name.setText(line.speaker || '');
       this.showPortrait(line.portrait);
       scene.cutInState = { beat: i, portrait: line.portrait || null, text: line.text };
-      await this.typeLine(text, line.text, startedAt);
+      await this.typeLine(text, line.text, startedAt, line.holdMs ?? c.holdMs);
     }
 
     scene.cutInState = null;
@@ -71,12 +71,67 @@ export default class CutIn {
     this.objects = [];
   }
 
+  // A short flash cut-in (ui.json cutIn.flash) for a one-line moment such as Nala's hiss: the scene darkens
+  // under a vignette, `portrait` pops in at the centre with a scale punch, `text` appears under it, `sfx`
+  // plays, then everything fades out. Resolves after `ms` (default cutIn.flash.ms). Nothing in it takes
+  // input, so it never holds a tap back; the caller may also just not await it.
+  flash({ portrait, text = '', ms, sfx = null } = {}) {
+    const scene = this.scene;
+    const c = this.cfg;
+    const f = c.flash;
+    const total = ms ?? f.ms;
+    const v = viewRect();
+    const objects = [];
+    const keep = (o) => {
+      objects.push(o);
+      return o;
+    };
+    const dim = keep(scene.add.rectangle(v.x, v.y, v.w, v.h, Number(f.dim.color), 1).setOrigin(0).setDepth(c.depth).setAlpha(0));
+    const vig = keep(Fx.vignette(scene, { ...c.vignette, depth: c.depth }, { x: v.x, y: v.y, w: v.w, h: v.h }).setAlpha(0));
+    const targets = [dim, vig];
+    scene.tweens.add({ targets: dim, alpha: f.dim.alpha, duration: f.inMs });
+    scene.tweens.add({ targets: vig, alpha: c.vignette.alpha, duration: f.inMs });
+    if (portrait && scene.textures.exists(portrait)) {
+      const img = keep(scene.add.image(f.x, f.y, portrait).setDepth(c.depth + 1).setScale(f.scale * f.startScale).setAlpha(0));
+      targets.push(img);
+      scene.tweens.add({ targets: img, alpha: 1, duration: f.inMs });
+      // The punch: past the resting size, then back.
+      scene.tweens.add({
+        targets: img,
+        scale: f.scale * f.punch,
+        duration: f.inMs,
+        ease: 'Cubic.easeOut',
+        onComplete: () => scene.tweens.add({ targets: img, scale: f.scale, duration: f.settleMs, ease: 'Sine.easeInOut' }),
+      });
+    }
+    if (text) {
+      const t = f.text;
+      const label = keep(
+        scene.add
+          .text(f.x, f.y + (portrait ? (f.portraitH * f.scale) / 2 : 0) + t.gapY, text, { fontFamily: ui.font, fontSize: `${t.fontSize}px`, color: t.color, stroke: t.stroke, strokeThickness: t.strokeThickness })
+          .setOrigin(0.5)
+          .setDepth(c.depth + 2)
+          .setAlpha(0),
+      );
+      targets.push(label);
+      scene.tweens.add({ targets: label, alpha: 1, duration: f.inMs, delay: f.inMs / 2 });
+    }
+    if (sfx) playSfx(sfx);
+    scene.tweens.add({ targets, alpha: 0, delay: Math.max(0, total - f.outMs), duration: f.outMs });
+    return new Promise((resolve) => {
+      scene.time.delayedCall(total, () => {
+        objects.forEach((o) => o.destroy());
+        resolve();
+      });
+    });
+  }
+
   // Types the line at charsPerSec; a tap completes it, a tap after that (or holdMs
-  // from the line's start) moves on. Taps in the first inputDelayMs of the cut-in
+  // from the line's start; a line may set its own holdMs) moves on. Taps in the first inputDelayMs of the cut-in
   // are ignored (the tap that cast the Recollection). The clock is real time from
   // frame to frame (a slow frame doesn't slow the text; a pause, e.g. an app
   // switch, adds at most MAX_STEP_MS).
-  typeLine(label, full, startedAt) {
+  typeLine(label, full, startedAt, holdMs = this.cfg.holdMs) {
     const scene = this.scene;
     const c = this.cfg;
     return new Promise((resolve) => {
@@ -103,7 +158,7 @@ export default class CutIn {
           shown = n;
           label.setText(full.slice(0, shown));
         }
-        if (elapsed >= c.holdMs) finish();
+        if (elapsed >= holdMs) finish();
       };
       const onTap = () => {
         if (performance.now() - startedAt < c.inputDelayMs) return;

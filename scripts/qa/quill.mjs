@@ -130,7 +130,8 @@ await withBrowser(async ({ chrome, server }) => {
     await tapThrough(page);
     await page.waitFor(`window.__done === true`, { timeout: 8000 });
 
-    // keepsake: Recollection unlock at <= recollectionAtHpPct of stage 2
+    // keepsake: Recollection unlock at <= recollectionAtHpPct of stage 2 (QA: no auto-cast here, the floor test follows; page B plays the auto-cast)
+    await page.ev(`window.__battle.noAutoCast = true`);
     const pct = clerk.stages[1].recollectionAtHpPct;
     const above = Math.floor((clerk.hp * pct) / 100) + 1;
     await page.ev(`(() => { const B = window.__battle; B.dropCharge(B.enemies[0]); const e = B.enemies[0]; e.hp = ${above} + 3; B.updateLabel(e); B.chain = 0; B.applyHit(e, 2); })()`);
@@ -189,25 +190,19 @@ await withBrowser(async ({ chrome, server }) => {
     await page.tap(...slots.strike);
     log(await waitDialogue(page, 'keepsake_burn', 25000), 'real loop: a Strike below the threshold plays keepsake_burn');
     await tapThrough(page);
-    // Quill acts first next round (tap nothing: MISS), possibly a charge start dialogue
-    const end = Date.now() + 90000;
+    // Auto-cast: Dov's Strike was the turn that crossed the threshold; right after the dialogue Rhea casts the
+    // Recollection by herself (no menu pick, Dov's turn is over, Quill never gets his turn).
+    let menuOffered = false;
     let cast = false;
+    const end = Date.now() + 60000;
     while (Date.now() < end && !cast) {
       if (await hasDialogue(page)) await page.tap(180, 560);
-      else if (await page.ev(`!!(window.__battle.menu && window.__battle.menu.pending) && window.__battle.canUltimate(window.__battle.activeHero || {})`)) {
-        await page.shot(join(out, 'quill_recollection_menu.png'));
-        await sleep(400); // the menu ignores a tap in its first moments
-        await page.tap(...slots.ultimate);
-        cast = true;
-      } else if (await page.ev(`!!(window.__battle.menu && window.__battle.menu.pending)`)) {
-        // Dov's turn in between: just Strike
-        await page.ev(`window.__battle.heroes.forEach((h) => { if (h.hp > 0) h.hp = h.maxHp; })`);
-        await sleep(400); // the menu ignores a tap in its first moments
-        await page.tap(...slots.strike);
-      }
-      await sleep(250);
+      else if (await page.ev(`!!(window.__battle.menu && window.__battle.menu.pending) && window.__battle.canUltimate(window.__battle.activeHero || {})`)) menuOffered = true;
+      cast = await page.ev(`!!window.__battle.cutInState || !!window.__battle.recollectionBeat`);
+      await sleep(150);
     }
-    log(cast, 'real loop: Recollection offered to Rhea and cast');
+    log(cast && !menuOffered, 'real loop: right after the keepsake dialogue Rhea casts the Recollection by herself (no menu offered)');
+    await page.shot(join(out, 'quill_recollection_autocast.png'));
     // The cut-in moves on by itself; the minigame is played with real pointer input (hold, swipe, taps).
     const played = await playBeats(page, { results: ['PERFECT', 'GOOD', 'PERFECT'] });
     log(played === 3, 'real loop: the three Recollection beats were answered (hold / swipe / taps)');

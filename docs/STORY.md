@@ -239,7 +239,11 @@ Notation: `Speaker [portrait]: text`. `>` = narration (no speaker). `✉` = lett
 - > She burns it. Her Echo floods back, brighter than it has ever been.
 - > Recollection: she can drag Quill into the memory as it burns. The night he came for their mother.
 
-Tutorial banner when Recollection unlocks: **"Recollection is ready. Make him relive it."**
+The Recollection casts itself the moment this scene ends, whoever's turn it is (no menu pick). The cut-in band (`recollection_cutin`, two beats, the second holds 3.2 s):
+- Rhea [rhea_cutin_power]: Look at it, Quill. Look at what you took.
+- Rhea [rhea_cutin_tears]: Goodbye, Dov. Goodbye, Nala. Goodbye, Dad.
+
+(The tutorial banner `Recollection is ready. Make him relive it.` is only used on the dev / Try again paths where the command is in the menu.)
 
 ### ending (records_office)
 - Quill [clerk_desperate]: No... They were going to remember me...

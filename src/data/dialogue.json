@@ -692,8 +692,9 @@
     {
       "speaker": "Rhea",
       "style": "normal",
-      "text": "…Goodbye.",
-      "portrait": "rhea_cutin_tears"
+      "text": "Goodbye, Dov. Goodbye, Nala. Goodbye, Dad.",
+      "portrait": "rhea_cutin_tears",
+      "holdMs": 3200
     }
   ],
   "keepsake_burn": [

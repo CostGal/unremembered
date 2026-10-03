@@ -257,8 +257,9 @@ export function hitstop(scene, durationMs) {
   });
 }
 
-// A one-shot burst of square sparks. cfg = {color, speed: [min, max], lifeMs, size}
-export function sparks(scene, x, y, count, cfg, depth) {
+// A spark emitter that stays alive and bursts on demand: burst(count, x, y) explodes `count` square
+// sparks at (x, y). One object for any number of bursts (the 20-tap finale). cfg as in sparks().
+export function sparkEmitter(scene, cfg, depth) {
   const key = `fx_spark_${cfg.size}`;
   if (!scene.textures.exists(key)) {
     const texture = scene.textures.createCanvas(key, cfg.size, cfg.size);
@@ -268,7 +269,7 @@ export function sparks(scene, x, y, count, cfg, depth) {
     texture.refresh();
   }
 
-  const emitter = scene.add.particles(x, y, key, {
+  const emitter = scene.add.particles(0, 0, key, {
     emitting: false,
     speed: { min: cfg.speed[0], max: cfg.speed[1] },
     angle: { min: 0, max: 360 },
@@ -277,7 +278,14 @@ export function sparks(scene, x, y, count, cfg, depth) {
     tint: Number(cfg.color),
   });
   emitter.setDepth(depth);
-  emitter.explode(count);
+  emitter.burst = (count, x, y) => emitter.explode(count, x, y);
+  return emitter;
+}
+
+// A one-shot burst of square sparks. cfg = {color, speed: [min, max], lifeMs, size}
+export function sparks(scene, x, y, count, cfg, depth) {
+  const emitter = sparkEmitter(scene, cfg, depth);
+  emitter.burst(count, x, y);
   scene.time.delayedCall(cfg.lifeMs + 50, () => emitter.destroy());
 }
 

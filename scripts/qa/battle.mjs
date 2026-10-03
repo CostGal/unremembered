@@ -259,12 +259,12 @@ await withBrowser(async ({ chrome, server }) => {
     const page = await battle(chrome, server, 'boss_clerk');
     await waitMenu(page);
     // Story: the Recollection unlocks in stage 2 once HP is <= recollectionAtHpPct (quill.mjs checks the whole rise).
-    await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; e.phase = 1; e.maxHp = ${clerkDef.hp}; e.hp = Math.ceil(e.maxHp * 0.42); B.updateLabel(e); })()`);
-    await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; B.applyHit(e, Math.ceil(e.maxHp * 0.04)); })()`);
+    await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; e.phase = 1; e.maxHp = ${clerkDef.hp}; e.hp = Math.floor(e.maxHp * ${clerkDef.stages[1].recollectionAtHpPct} / 100) + 3; B.updateLabel(e); })()`);
+    await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; B.chain = 0; B.applyHit(e, 6); })()`);
     const queued = await B(page, 'B.pendingEvents.includes("keepsake_burn")');
     log(queued, `Keepsake: crossing ${clerkDef.stages[1].recollectionAtHpPct}% of stage 2 queues the event`, `pending ${await B(page, 'B.pendingEvents.join()')}`);
     // The expression must not evaluate to the promise: page.ev awaits one, and this one only settles after the taps below.
-    await page.ev(`window.__battle.hideCommandMenu(); window.__ke = window.__battle.afterTurn().then(() => { window.__keDone = true; }); null`);
+    await page.ev(`window.__battle.hideCommandMenu(); window.__battle.noAutoCast = true; window.__ke = window.__battle.afterTurn().then(() => { window.__keDone = true; }); null`);
     await sleep(800);
     const act = await page.scenes();
     const did = await page.ev(`(window.__game.scene.getScene('Dialogue') || {}).dialogueId`);
@@ -280,7 +280,7 @@ await withBrowser(async ({ chrome, server }) => {
     await sleep(800);
     log(await B(page, 'B.heroes[0].echo === B.heroes[0].echoMax'), "Keepsake: afterwards Rhea's Echo is full", `echo ${await B(page, 'B.heroes[0].echo')}`);
     log(!(await page.ev(`window.__game.scene.isPaused('Battle')`)), 'Keepsake: the battle resumes');
-    log(await B(page, 'B.canUltimate(B.heroes[0])'), 'Keepsake: Recollection becomes available to Rhea');
+    log(await B(page, 'B.canUltimate(B.heroes[0])'), 'Keepsake: Recollection becomes available to Rhea (QA sets noAutoCast: the cast itself is recollection.mjs D / E and quill.mjs page B)');
     await page.shot(join(out, 'keepsake_after.png'));
     log(page.errors.length === 0, 'no console errors during Keepsake', page.errors.slice(0, 2).join(' | '));
   }
@@ -292,19 +292,29 @@ await withBrowser(async ({ chrome, server }) => {
     await waitMenu(page);
     await page.ev(`window.__battle.hideCommandMenu(); window.__battle.tutorialSlow = false;`);
     // Hollow telegraph: Nala watching, tap her -> cancel
-    await page.ev(`(() => { const B = window.__battle; B.heroes.forEach(h => { h.hp = h.maxHp; }); window.__results.length = 0; window.__done = null; window.__stub([0, 0.0]); B.enemyTurn(B.enemies[0]).then(() => { window.__done = true; }); })()`);
+    await page.ev(`(() => { const B = window.__battle; B.heroes.forEach(h => { h.hp = h.maxHp; }); window.__results.length = 0; window.__done = null; window.__stub([0, 0.0]); { const o = B.enemyHit.bind(B); B.enemyHit = (en, t, hit, sh, k) => o(en, t, { ...hit, telegraphMs: hit.telegraphMs * 3 }, sh, k); } B.enemyTurn(B.enemies[0]).then(() => { window.__done = true; }); })()`);
     await page.waitFor(`window.__battle.nala && window.__battle.nala.ring`, { timeout: 5000 });
-    const nx = await page.ev(`({ x: window.__battle.nala.container.x, y: window.__battle.nala.container.y })`);
+    const nx = await page.ev(`(() => { const b = window.__battle.nala.image.getBounds(); return { x: b.centerX, y: b.centerY }; })()`);
     await sleep(500);
     const watchInfo = await page.ev(`(() => { const n = window.__battle.nala; return { texture: n.image.texture.key, placeholder: !!n.anims?.idle?.placeholder, anim: n.image.anims.currentAnim?.key, flip: n.container.scaleX < 0, bob: window.__battle.tweens.getTweensOf(n.container).length, trace: Object.keys(window.__animTrace || {}).filter((k) => k.includes('nala')) }; })()`);
     log(!watchInfo.placeholder && watchInfo.anim === 'nala_alert' && watchInfo.trace.includes('play:nala_alert_in') && watchInfo.bob === 0, 'Nala: drawn from the sheet; watching plays alert_in -> alert loop, code bob off', JSON.stringify(watchInfo));
     log(watchInfo.flip, 'Nala: sheet faces left, container flipped so she looks at the enemies');
     await page.shot(join(out, 'nala_glow.png'));
+    await page.ev(`window.__hs = []; window.__hissAt = window.__battle.time.now; window.__hsOn = true; (function f() { const B = window.__battle; const img = B.children.list.find((o) => o.type === 'Image' && o.texture && o.texture.key === 'nala_hissing' && o.depth >= 1500 && o.active); const txt = B.children.list.find((o) => o.type === 'Text' && o.text === 'Nala hisses!' && o.depth >= 1500 && o.active); window.__hs.push({ t: Math.round(B.time.now - window.__hissAt), img: !!img, scale: img ? img.scale : 0, txt: !!txt }); if (window.__hsOn) requestAnimationFrame(f); })()`);
     await page.tap(nx.x, nx.y);
+    await page.waitFor(`window.__battle.children.list.some((o) => o.type === 'Image' && o.texture && o.texture.key === 'nala_hissing' && o.depth >= 1500 && o.active && o.scale >= 0.55)`, { timeout: 4000 }).catch(() => {});
+    await page.shot(join(out, 'nala_hiss_cutin.png'));
     await page.waitFor(`window.__done === true`, { timeout: 6000 });
     const res = await page.ev(`({ results: window.__results.length, used: window.__battle.nala.used, hp: window.__battle.heroes.map(h => h.hp), max: window.__battle.heroes.map(h => h.maxHp) })`);
     log(res.used && res.results === 0 && res.hp.every((h, i) => h === res.max[i]), 'Nala: tapping her during a Hollow telegraph cancels the attack (no damage, no judgement)', JSON.stringify(res));
     await sleep(1000);
+    const hs = await page.ev(`(window.__hsOn = false, window.__hs)`);
+    const seen = hs.filter((x) => x.img && x.txt);
+    const last = hs.filter((x) => x.img || x.txt).at(-1);
+    const upTo = Math.max(...seen.map((x) => x.scale));
+    log(seen.length > 0 && upTo <= 0.6 * 1.18 + 0.01, 'Nala: the hiss cut-in shows the nala_hissing portrait (settles at 0.6 scale after a punch) and "Nala hisses!" over a dark overlay', `${seen.length} frames, max scale ${upTo.toFixed(2)}`);
+    const gone = await page.waitFor(`!window.__battle.children.list.some((o) => o.type === 'Image' && o.texture && o.texture.key === 'nala_hissing' && o.depth >= 1500 && o.active)`, { timeout: 8000 }).then(() => true, () => false);
+    log(gone, 'Nala: the hiss cut-in is gone again (700 ms of game time, nothing in it takes input)', `last seen at ${last ? last.t : "?"} ms (raw clock; the headless page runs slow)`);
     const hissInfo = await page.ev(`({ anim: window.__battle.nala.image.anims.currentAnim?.key, trace: Object.keys(window.__animTrace || {}).filter((k) => k.includes('nala')) })`);
     log(['play:nala_hiss', 'hold:nala_hiss', 'impact:nala_hiss'].every((k) => hissInfo.trace.includes(k)) && hissInfo.anim === 'nala_idle', 'Nala: hiss plays once with its hold + impact frames, then back to idle', JSON.stringify(hissInfo));
     // second Hollow attack: Nala is spent -> no glow

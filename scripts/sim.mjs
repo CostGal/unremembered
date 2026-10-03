@@ -310,6 +310,54 @@ function simulateBattle(battleId, profileName, mode, rnd) {
     }
   };
 
+  // The Recollection as Rhea's own action: the cut-in, the beats (per-beat success chances), the finisher /
+  // the failed memory and its Try again, then the kill. Called from her turn (dev / rewind paths) and
+  // right after the Keepsake (recollection.json autoCast).
+  const castRecollection = (hero, target) => {
+    st.playerAction = false; // the ultimate is not a counted hit
+    hero.echo -= tech.recollection.cost;
+    st.recollections += 1;
+    const r = tech.recollection;
+    const beats = D.recollection.mode !== 'rings';
+    if (beats) {
+      // "Burn the memory": per-beat success chances (sim.json recollection); the difficulty's windowMult
+      // divides a beat's miss chance. 3 MISS = the memory slips: Unwriting, LOSE, Try again from the
+      // cast (timing.memoryFailMs), then the same cast again. Any success kills (below).
+      const chances = D.sim.recollection[profileName];
+      const perfectShare = D.sim.recollection.perfectShare[profileName];
+      while (true) {
+        st.memoryCasts += 1;
+        st.ms += T.cutInMs + T.beatsMs;
+        const hits = chances.map((p) => rnd() >= Math.min(1, (1 - p) / storyMult));
+        if (hits.some(Boolean)) {
+          const perfect = hits.map((h) => h && rnd() < perfectShare);
+          st.memoryGrade = perfect.every(Boolean) ? 'FLAWLESS' : hits.every(Boolean) ? 'CLEAN' : 'ROUGH';
+          st.ms += T.finisherMs;
+          break;
+        }
+        st.memoryFails += 1;
+        st.ms += T.memoryFailMs;
+        if (st.memoryFails > 50) break;
+      }
+    } else {
+      for (let i = 0; i < r.taps && target.hp > 0; i++) {
+        const res = roll(qteOdds(profile, storyMult), rnd);
+        hitEnemy(target, r.dmg[res.toLowerCase()], 'ultimate');
+      }
+    }
+    // techniques.json recollection.kill: the memory ends it, whatever the rings did.
+    if (r.kill && target.hp > 0) {
+      target.hp = 0;
+      target.charge = null;
+      const stages = target.def.stages;
+      if (stages && target.phase < stages.length - 1 && stages[target.phase].onZero) {
+        target.rising = true;
+        target.exposed = null;
+      }
+    }
+    st.ms += T.recollectionFadeMs * 2 + (beats ? 0 : r.taps * (qte.recollection.ringMs + r.intervalMs));
+  };
+
   const afterTurn = () => {
     // A stage end: the enemy that fell rises into the next stage (death sheet both ways, the dialogue, a beat).
     for (const e of enemies) {
@@ -336,6 +384,15 @@ function simulateBattle(battleId, profileName, mode, rnd) {
         if (rhea) {
           rhea.echoMax = Math.max(rhea.echoMax, D.battleEvents.keepsake_burn.echoMax || rhea.echoMax);
           gain(rhea, rhea.echoMax, true);
+        }
+        // recollection.json autoCast: the Recollection fires right here, as Rhea's action, whoever's turn it
+        // was (a downed Rhea gets back up first). Dev / Try again keep the menu command (her turn, above).
+        const auto = D.recollection.autoCast;
+        if (auto && CASTS_RECOLLECTION && battle.recollection && rhea && !st.interrupted) {
+          if (rhea.hp <= 0) rhea.hp = auto.reviveHp;
+          st.ms += auto.delayMs;
+          const target = living(enemies)[0];
+          if (target && rhea.echo >= tech.recollection.cost) castRecollection(rhea, target);
         }
       } else if (D.battleEvents[ev]?.dialogue && living(enemies).length) {
         // Reading time of a short event: archive_insight keeps its calibrated insightMs; the Archive
@@ -397,48 +454,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
 
     // Recollection when full.
     if (CASTS_RECOLLECTION && battle.recollection && hero.def.canUltimate && hero.echo >= tech.recollection.cost) {
-      st.playerAction = false; // the ultimate is not a counted hit
-      hero.echo -= tech.recollection.cost;
-      st.recollections += 1;
-      const r = tech.recollection;
-      const beats = D.recollection.mode !== 'rings';
-      if (beats) {
-        // "Burn the memory": per-beat success chances (sim.json recollection); the difficulty's windowMult
-        // divides a beat's miss chance. 3 MISS = the memory slips: Unwriting, LOSE, Try again from the
-        // cast (timing.memoryFailMs), then the same cast again. Any success kills (below).
-        const chances = D.sim.recollection[profileName];
-        const perfectShare = D.sim.recollection.perfectShare[profileName];
-        while (true) {
-          st.memoryCasts += 1;
-          st.ms += T.cutInMs + T.beatsMs;
-          const hits = chances.map((p) => rnd() >= Math.min(1, (1 - p) / storyMult));
-          if (hits.some(Boolean)) {
-            const perfect = hits.map((h) => h && rnd() < perfectShare);
-            st.memoryGrade = perfect.every(Boolean) ? 'FLAWLESS' : hits.every(Boolean) ? 'CLEAN' : 'ROUGH';
-            st.ms += T.finisherMs;
-            break;
-          }
-          st.memoryFails += 1;
-          st.ms += T.memoryFailMs;
-          if (st.memoryFails > 50) break;
-        }
-      } else {
-        for (let i = 0; i < r.taps && target.hp > 0; i++) {
-          const res = roll(qteOdds(profile, storyMult), rnd);
-          hitEnemy(target, r.dmg[res.toLowerCase()], 'ultimate');
-        }
-      }
-      // techniques.json recollection.kill: the memory ends it, whatever the rings did.
-      if (r.kill && target.hp > 0) {
-        target.hp = 0;
-        target.charge = null;
-        const stages = target.def.stages;
-        if (stages && target.phase < stages.length - 1 && stages[target.phase].onZero) {
-          target.rising = true;
-          target.exposed = null;
-        }
-      }
-      st.ms += T.recollectionFadeMs * 2 + (beats ? 0 : r.taps * (qte.recollection.ringMs + r.intervalMs));
+      castRecollection(hero, target);
       return;
     }
     // Techniques as they are at this Recall level (techniques.json `levels`).

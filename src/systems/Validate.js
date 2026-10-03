@@ -577,6 +577,13 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   if (battleEvents.keepsake_burn?.memory && !known(battleEvents.keepsake_burn.memory)) err(`battleEvents.keepsake_burn.memory: unknown memory "${battleEvents.keepsake_burn.memory}"`);
   for (const [id, a] of Object.entries(allies)) {
     if (!assets.sprites?.[a.body]) err(`allies.${id}: body sprite "${a.body}" is not in assets.json sprites`);
+    const h = a.hissCutIn;
+    if (h) {
+      if (!assets.portraits?.[h.portrait]) err(`allies.${id}.hissCutIn: portrait "${h.portrait}" is not in assets.json portraits`);
+      if (typeof h.text !== 'string' || !(h.ms > 0)) err(`allies.${id}.hissCutIn: needs text and ms`);
+      const f = ui.cutIn?.flash;
+      if (!f || ![f.ms, f.inMs, f.outMs, f.scale, f.startScale, f.punch].every((v) => typeof v === 'number' && v > 0) || h.ms < f.inMs + f.outMs) err(`ui.cutIn.flash: ms/inMs/outMs/scale/startScale/punch are required (and hissCutIn.ms must cover inMs + outMs)`);
+    }
   }
   if (Object.values(enemies).some((e) => e.stages)) {
     const sg = battleEvents.stage;
@@ -845,8 +852,22 @@ function validateRecollection(data, dialogue, enemies, ui, err) {
   const t = b.taps;
   if (t) {
     if (!(Number.isInteger(t.taps) && t.taps >= 1) || !pos(t.tapWindowMs) || !(t.perfectSpareMs >= 0 && t.perfectSpareMs < t.tapWindowMs) || !pos(t.waitMs)) err(`${at}: beats.taps needs taps (>= 1), tapWindowMs, perfectSpareMs in [0, tapWindowMs) and waitMs`);
-    if (!t.meter || ![t.meter.pip, t.meter.timeBarH].every(pos)) err(`${at}: beats.taps.meter needs pip and timeBarH`);
+    if (!t.meter || ![t.meter.x, t.meter.y, t.meter.w, t.meter.h, t.meter.timeBarH].every(pos)) err(`${at}: beats.taps.meter needs x, y, w, h and timeBarH`);
+    const tc = t.counter;
+    if (!tc || !str(tc.text) || !tc.text.includes('{i}') || !tc.text.includes('{n}') || ![tc.x, tc.y, tc.fontSize, tc.popScale, tc.popMs].every(pos)) err(`${at}: beats.taps.counter needs text with {i} and {n}, x, y, fontSize, popScale, popMs`);
+    const fx = t.fx;
+    if (!fx || !pos(fx.tapSparks?.count) || !pos(fx.tapSparks?.size) || !nonNeg(fx.tapShake) || !nonNeg(fx.tapShakeMs) || !nonNeg(fx.tapFlashMs) || !str(fx.crack?.color)) err(`${at}: beats.taps.fx needs tapSparks {count, size, ...}, tapShake, tapShakeMs, tapFlashMs and crack.color`);
+    else {
+      const sfx = data.audio?.sfx;
+      for (const name of [fx.tapSfx, fx.milestoneSfx]) if (name && sfx && !(name in sfx)) err(`${at}: beats.taps.fx sfx "${name}" is not in audio.json sfx`);
+      for (const [n, m] of Object.entries(fx.milestones || {})) {
+        if (!(Number(n) >= 1 && Number(n) <= t.taps)) err(`${at}: beats.taps.fx.milestones.${n}: must be a tap count in 1-${t.taps}`);
+        if (!pos(m.pitch)) err(`${at}: beats.taps.fx.milestones.${n}.pitch must be a number > 0`);
+      }
+    }
   }
+  const ac = rc.autoCast;
+  if (ac !== undefined && (!nonNeg(ac.delayMs) || !(Number.isInteger(ac.reviveHp) && ac.reviveHp >= 1))) err(`${at}: autoCast needs delayMs (>= 0) and reviveHp (integer >= 1)`);
   for (const r of ['PERFECT', 'GOOD', 'MISS']) if (!rc.results?.[r] || !str(rc.results[r].text) || !str(rc.results[r].color) || !str(rc.results[r].sfx)) err(`${at}: results.${r} needs text, color and sfx`);
   for (const g of ['FLAWLESS', 'CLEAN', 'ROUGH']) if (!rc.grades?.[g] || !str(rc.grades[g].title) || typeof rc.grades[g].sub !== 'string' || !str(rc.grades[g].color)) err(`${at}: grades.${g} needs title, sub and color`);
   const f = rc.fail;

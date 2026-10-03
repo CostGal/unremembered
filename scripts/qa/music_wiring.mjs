@@ -2,10 +2,10 @@
 // play/stop sequence the game REQUESTS (window.__audio.log, see Audio.js audioLog) for each scene:
 //   A  ?step=0            the cutscene: a track per shot range, silence on the cs_hush_2 shot, the shot sfx
 //   B  ?step=16           records_office: the track, quill_intro one-shot on Quill's first line, then the boss
-//   C  ?battle=boss_clerk&level=4   boss, stage change (stop, quill_rise, boss_enraged), keepsake, silence,
-//                         recollection, victory
+//   C  ?battle=boss_clerk&level=4   boss, stage change (stop, quill_rise, boss_enraged), keepsake (the recollection
+//                         track from the cutscene start through the auto-cast), victory
 //   D  ?battle=b1_forgotten         LOSE: gameover; Retry: the battle track again; a level-up: memory_return
-//   E  ?step=3 / ?step=8  meet_dov, the reward rest scene (rest_sad + memory_return ducking it)
+//   E  ?step=3 / ?step=9  meet_dov, the reward rest scene (rest_sad + memory_return ducking it)
 //   F  engine: aliases, one-shot ducking and resume, silence, next-step prefetch + eviction
 //   node scripts/qa/music_wiring.mjs [--out dir]
 import { readFileSync } from 'node:fs';
@@ -195,38 +195,30 @@ await withBrowser(async ({ chrome, server }) => {
     log(f.startsWith('stop, oneshot quill_rise(no resume), play boss_enraged'), `stage change sequence: stop, quill_rise stinger, boss_enraged (${tl.length === 2 ? tl[1].t - tl[0].t : '?'} ms after the stinger)`, f);
     const st = await A(page, 'A.musicStatus()');
     log(st.id === 'boss' && st.key === 'boss_enraged', 'boss_enraged is the boss file (alias) playing', JSON.stringify({ key: st.key, id: st.id }));
-    // keepsake
+    // keepsake: the recollection track starts with the cutscene and plays on through the auto-cast to the kill
+    await page.ev(`window.__battle.recollectionForce = 'PERFECT'`); // the cast runs by itself: forced beats (no input)
+    m0 = await mark();
     await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; B.chain = 0; B.applyHit(e, Math.ceil(e.maxHp * 0.7)); window.__done = null; B.afterTurn().then(() => { window.__done = true; }); })()`);
-    m0 = await mark() - 0;
     const ok = await waitDialogue('keepsake_burn');
     log(ok, 'the keepsake_burn dialogue plays after the HP threshold');
-    s = music((await LOG(page)).slice(-6));
-    const ks = s.filter((e) => e.ev === 'oneshot' && e.key === 'keepsake');
-    log(ks.length === 1 && ks[0].resume === false && ks[0].duck === pl.overlay.keepsake_burn.duck, `keepsake one-shot over the overlay (duck ${pl.overlay.keepsake_burn.duck}, no resume)`, fmt(s));
-    // tap to the end of the silence line
-    const silenceLine = pl.keepsakeSilenceAfterLine;
-    let silenceAt = null;
+    s = await since(m0);
+    log(s.length === 1 && s[0].ev === 'play' && s[0].key === pl.overlay.keepsake_burn.track && pl.overlay.keepsake_burn.loop === true, `the "${pl.overlay.keepsake_burn.track}" track starts with the keepsake cutscene (a loop: no one-shot, no duck)`, fmt(s));
+    // the file decodes first: the track is "current" a moment after the request
+    for (let i = 0; i < 80 && (await A(page, 'A.musicStatus()')).key !== 'recollection'; i++) await sleep(100);
+    const stk = await A(page, 'A.musicStatus()');
+    log(stk.key === 'recollection' && stk.oneShot === null && stk.duck === 1, 'it plays at full level under the dialogue', JSON.stringify({ key: stk.key, oneShot: stk.oneShot, duck: stk.duck }));
     for (let i = 0; i < 80 && (await active(page, 'Dialogue')); i++) {
-      const idx = await page.ev(`${sc(page, 'Dialogue')}.index`);
-      const before = (await LOG(page)).length;
       await page.ev(`${sc(page, 'Dialogue')}.onTap()`);
       await sleep(60);
-      const e = (await LOG(page)).slice(before).find((x) => x.ev === 'silence');
-      if (e) silenceAt = { line: idx, ms: e.ms };
     }
-    log(silenceAt && silenceAt.line === silenceLine && silenceAt.ms === pl.keepsakeSilenceMs, `silence (${pl.keepsakeSilenceMs} ms) after dialogue line ${silenceLine} ("${dialogue.keepsake_burn[silenceLine].text}")`, JSON.stringify(silenceAt));
-    await page.waitFor(`window.__done === true`, { timeout: 20000 });
-    let stt = await A(page, 'A.musicStatus()');
-    log(stt.key === null && stt.oneShot === null, 'after the Keepsake dialogue: silence (no music, no one-shot)', JSON.stringify({ key: stt.key, oneShot: stt.oneShot }));
-    // recollection from the cast
-    m0 = await mark();
-    await page.ev(`(() => { const B = window.__battle; window.__rc = null; const rhea = B.heroes[0]; B.playRecollection(rhea, B.enemies[0]).then(() => { window.__rc = true; }); })()`);
-    await sleep(400);
     s = await since(m0);
-    log(s.length === 1 && s[0].ev === 'play' && s[0].key === 'recollection', 'Recollection cast: "recollection" plays', fmt(s));
-    await page.waitFor(`window.__rc === true`, { timeout: 30000 });
+    log(fmt(s) === 'play recollection', 'no silence line, no change through the whole dialogue', fmt(s));
+    // the Recollection casts itself right after: cut-in, forced beats, finisher, kill
+    await page.waitFor(`window.__done === true`, { timeout: 60000 });
     s = await since(m0);
-    log(fmt(s) === 'play recollection', 'nothing else plays through the end of the attack (the kill goes on to Victory)', fmt(s));
+    log(fmt(s) === 'play recollection', 'nothing else plays through the auto-cast and the kill (the same track is not restarted, the stage track does not come back)', fmt(s));
+    const rcs = (await LOG(page)).filter((e) => e.ev === 'play' && e.key === 'recollection');
+    log(rcs.length === 2 && rcs[1].same === true, 'the cast asks for "recollection" again: a no-op while it plays (same track, not restarted)', JSON.stringify(rcs.map((e) => e.same)));
     // victory
     m0 = await mark();
     await page.ev(`window.__battle.onBattleEnd('WIN')`);
@@ -272,7 +264,7 @@ await withBrowser(async ({ chrome, server }) => {
     await page.waitFor(`(window.__audio.log || []).some((e) => e.ev === 'play')`, { timeout: 60000 });
     let s = music(await LOG(page));
     log(s[0]?.ev === 'play' && s[0].key === 'meet_dov', 'meet_dov dialogue plays "meet_dov"', fmt(s));
-    const p2 = await open(chrome, `${server.url}?step=8`, { init: [INIT.audioLog] });
+    const p2 = await open(chrome, `${server.url}?step=9`, { init: [INIT.audioLog] });
     await waitScene(p2, 'Reward');
     await p2.waitFor(`(window.__audio.log || []).some((e) => e.ev === 'oneshot')`, { timeout: 60000 });
     s = music(await LOG(p2));

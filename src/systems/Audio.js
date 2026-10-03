@@ -140,12 +140,14 @@ export function vibrate(ms) {
 // A file that is not decoded yet plays the recipe (if any) this once, so a
 // sound never arrives late.
 // `name` may be a list of names (a shot or line with several cues): all play at once.
-export function playSfx(name) {
+// opts.pitch (default 1) multiplies the frequency of a procedural recipe's oscillator layers.
+export function playSfx(name, opts = {}) {
+  const pitch = opts.pitch ?? 1;
   if (Array.isArray(name)) {
-    name.forEach(playSfx);
+    name.forEach((n) => playSfx(n));
     return;
   }
-  audioLog({ ev: 'sfx', name });
+  audioLog(opts.pitch === undefined ? { ev: 'sfx', name } : { ev: 'sfx', name, pitch });
   if (!ctx || ctx.state !== 'running') return;
   const layers = audioData.sfx[name];
   const gain = audioData.sfxGain?.[name] ?? 1;
@@ -156,11 +158,11 @@ export function playSfx(name) {
       return;
     }
     const pending = loadSfx(name);
-    if (layers && layers.length) playLayers(layers, sfxBus);
+    if (layers && layers.length) playLayers(layers, sfxBus, pitch);
     else pending.then((b) => b && ctx && ctx.state === 'running' && playBuffer(b, gain, name));
     return;
   }
-  if (layers) playLayers(layers, sfxBus);
+  if (layers) playLayers(layers, sfxBus, pitch);
 }
 
 // File SFX that are playing: {name, source, gain} (stopAllSfx fades them out).
@@ -218,7 +220,7 @@ export async function prefetchSfx() {
 }
 
 // One-shot envelope layers (the audio.json sfx format) into `dest`.
-function playLayers(layers, dest) {
+function playLayers(layers, dest, pitch = 1) {
   const now = ctx.currentTime;
   for (const layer of layers) {
     const start = now + (layer.delayMs || 0) / 1000;
@@ -247,8 +249,8 @@ function playLayers(layers, dest) {
     } else {
       source = ctx.createOscillator();
       source.type = layer.wave;
-      source.frequency.setValueAtTime(layer.from, start);
-      source.frequency.exponentialRampToValueAtTime(layer.to, end);
+      source.frequency.setValueAtTime(layer.from * pitch, start);
+      source.frequency.exponentialRampToValueAtTime(layer.to * pitch, end);
       source.connect(env);
     }
     source.start(start);
@@ -436,6 +438,11 @@ let oneShot = null; // {key, id, resume, stop(fadeSec)} — a jingle / stinger /
 let quietUntil = 0; // performance.now() before which no new music starts (musicSilence)
 let pendingPlay = null; // timer of a playMusic held back by musicSilence
 let duckLevel = 1; // the gain a resume one-shot holds the music at (a track still loading starts at it)
+// One looping file track at a time: every live music source (playing or fading out) is in this set, a new
+// track stops whatever else is still sounding, and a request for the track that is playing, or that is
+// already decoding, does nothing (no second source, no restart).
+const musicSources = new Set();
+let pendingStart = null; // {id}: the file track whose decode a start is waiting for
 
 // Dev / QA only: window.__audio (scripts/qa/lib.mjs) collects every music request,
 // so a headless run can assert the play/stop sequence. Nothing happens in the game.
@@ -498,6 +505,9 @@ function applyMusic(key) {
     current.setDuck(1, mcfg.oneShot.duckMs / 1000);
     return;
   }
+  // The same file is already on its way (decoding): nothing to start twice.
+  if (key && pendingStart && pendingStart.id === id) return;
+  pendingStart = null;
   if (current) {
     current.stop(fade);
     current = null;
@@ -607,9 +617,50 @@ function startProcedural(key, id, fade) {
   if (duckLevel !== 1) rec.setDuck(duckLevel, 0.05);
 }
 
+// Where a looping file track repeats: music.loopPoints[key] = [startSec, endSec] when set, else the
+// decoded buffer without its silent ends (encoder delay at the start, padding / silence at the end):
+// the first and the last sample above LOOP_FLOOR within LOOP_SCAN_SEC of either end.
+const LOOP_FLOOR = 0.001; // -60 dB
+const LOOP_SCAN_SEC = 0.2;
+const loopCache = new WeakMap();
+function loopRange(key, buffer) {
+  const set = mcfg.loopPoints?.[key];
+  if (set) return set;
+  if (loopCache.has(buffer)) return loopCache.get(buffer);
+  const rate = buffer.sampleRate;
+  const scan = Math.min(buffer.length, Math.floor(LOOP_SCAN_SEC * rate));
+  const channels = Array.from({ length: buffer.numberOfChannels }, (_, c) => buffer.getChannelData(c));
+  let first = 0;
+  search: for (let i = 0; i < scan; i++) {
+    for (const d of channels) {
+      if (Math.abs(d[i]) > LOOP_FLOOR) {
+        first = i;
+        break search;
+      }
+    }
+  }
+  let last = buffer.length;
+  search: for (let i = buffer.length - 1; i >= buffer.length - scan; i--) {
+    for (const d of channels) {
+      if (Math.abs(d[i]) > LOOP_FLOOR) {
+        last = i + 1;
+        break search;
+      }
+    }
+  }
+  const range = last > first ? [first / rate, last / rate] : [0, buffer.duration];
+  loopCache.set(buffer, range);
+  return range;
+}
+
 function startFile(key, id, fade) {
+  const ticket = { id };
+  pendingStart = ticket;
   loadBuffer(id).then((buffer) => {
-    if (wantedMusic !== key || (current && current.id === id && !current.ended)) return;
+    // Only the latest request starts (a newer playMusic, a stop or a silence replaced this one meanwhile).
+    if (pendingStart !== ticket || wantedMusic !== key) return;
+    pendingStart = null;
+    if (current && current.id === id && !current.ended) return;
     // Listed but unreadable (bad file): use the generated track instead.
     if (!buffer) {
       startProcedural(key, id, fade);
@@ -617,10 +668,10 @@ function startFile(key, id, fade) {
     }
     const source = ctx.createBufferSource();
     source.buffer = buffer;
-    // A loop is the whole file, or music.loopPoints[key] = [startSec, endSec] (an encoder gap trimmed off).
+    // A looping track is one source on a seamless loop (loopRange); a one-shot (music.loop[key] false) plays once.
     source.loop = isLoop(key);
     if (source.loop) {
-      const [from, to] = mcfg.loopPoints?.[key] || [0, buffer.duration];
+      const [from, to] = loopRange(key, buffer);
       source.loopStart = from;
       source.loopEnd = to;
     }
@@ -632,11 +683,11 @@ function startFile(key, id, fade) {
     source.connect(gain);
     gain.connect(duckNode);
     duckNode.connect(musicBus);
-    source.start(now);
     const rec = {
       key,
       id,
       ended: false,
+      stopping: false,
       source,
       startedAt: now,
       duckValue: () => duckNode.gain.value,
@@ -647,7 +698,9 @@ function startFile(key, id, fade) {
         duckNode.gain.linearRampToValueAtTime(level, t + sec);
       },
       stop: (f) => {
+        rec.stopping = true;
         const t = ctx.currentTime;
+        gain.gain.cancelScheduledValues(t);
         gain.gain.setValueAtTime(gain.gain.value, t);
         gain.gain.linearRampToValueAtTime(0, t + f);
         try {
@@ -657,9 +710,25 @@ function startFile(key, id, fade) {
         }
       },
     };
+    // A second sounding track must never happen: stop whatever is still up (it is faded, not left running).
+    for (const other of musicSources) {
+      if (other.stopping) continue;
+      console.warn(`music: "${key}" starts while "${other.key}" is still playing; stopping it`);
+      other.stop(fade);
+    }
+    musicSources.add(rec);
     source.onended = () => {
       rec.ended = true;
+      musicSources.delete(rec);
+      try {
+        source.disconnect();
+        gain.disconnect();
+        duckNode.disconnect();
+      } catch (err) {
+        // already disconnected
+      }
     };
+    source.start(now);
     current = rec;
     if (duckLevel !== 1) rec.setDuck(duckLevel, 0.05);
   });
@@ -690,6 +759,7 @@ export function musicStatus() {
     key: current ? current.key : null,
     id: current ? current.id : null,
     oneShot: oneShot ? oneShot.key : null,
+    sources: musicSources.size, // file tracks sounding (a fading-out one counts until it has ended)
     duck: current ? current.duckValue() : null,
     procedural: !!track,
     intensity: musicState.intensity,

@@ -1,4 +1,6 @@
 import ui from '../data/ui.json';
+import { playSfx } from './Audio.js';
+import * as Fx from './Fx.js';
 import { swipeDirection } from './Qte.js';
 
 // "Burn the memory" (recollection.json): the Recollection minigame, three beats
@@ -7,14 +9,18 @@ import { swipeDirection } from './Qte.js';
 //           (judged on |held - holdMs*centrePct|: perfectMs / goodMs).
 //   swipe — an arrow points one of 4 ways; swipe that way (qte.json dodge.swipe
 //           decides what a swipe is): PERFECT within perfectMs, GOOD within swipeMs.
-//   taps  — `taps` taps within tapWindowMs of the first one: PERFECT with
-//           perfectSpareMs to spare, GOOD in time.
+//   taps  — `taps` (20) taps within tapWindowMs (5 s) of the first one: PERFECT with
+//           perfectSpareMs to spare, GOOD in time. A big "n / 20" counter pops on every
+//           tap, a gold meter fills, and the target takes the finale FX (makeTapFx: a
+//           spark burst at the touch, a 1 px shake, a white flash + a growing red crack
+//           tint, a bigger burst + pitch-rising sfx at the milestone taps).
 // Every window is multiplied by windowMult (the difficulty). Each beat resolves
 // 'PERFECT' | 'GOOD' | 'MISS'; an app switch (scene pause) restarts the beat on
 // resume. scene.recollectionBeat describes the live beat (the playtest bot and
 // QA read it): {kind, index, startAt, ...}.
 //
-// runBeats(scene, {cfg, windowMult, swipe, onResult, force}) -> [result x3]
+// runBeats(scene, {cfg, windowMult, swipe, target, onResult, force}) -> [result x3]
+//   target: the enemy the taps FX land on (omit = no FX).
 //   onResult(result, index): the scene's feedback (pop text, hit on the target).
 //   force: dev/QA only — a result (or a list) every beat takes after forceMs.
 
@@ -27,8 +33,10 @@ export function gradeOf(results) {
   return null;
 }
 
-export async function runBeats(scene, { cfg, windowMult = 1, swipe, onResult = () => {}, force = null }) {
+export async function runBeats(scene, { cfg, windowMult = 1, swipe, target = null, onResult = () => {}, force = null }) {
   const results = [];
+  const tapFx = target && cfg.order.includes('taps') ? makeTapFx(scene, cfg, target) : null;
+  scene.recollectionTapFx = tapFx; // QA reads / wraps it
   const prompt = scene.add
     .text(cfg.prompt.x, cfg.prompt.y, '', { fontFamily: ui.font, fontSize: `${cfg.prompt.fontSize}px`, color: cfg.prompt.color, stroke: cfg.prompt.stroke, strokeThickness: cfg.prompt.strokeThickness, align: 'center' })
     .setOrigin(0.5)
@@ -50,7 +58,7 @@ export async function runBeats(scene, { cfg, windowMult = 1, swipe, onResult = (
     const forced = Array.isArray(force) ? force[i] : force;
     let result;
     do {
-      result = await BEATS[kind](scene, cfg, def, windowMult, { index: i, swipe, forced });
+      result = await BEATS[kind](scene, cfg, def, windowMult, { index: i, swipe, forced, tapFx });
       if (result === 'INTERRUPTED') await resumed(scene);
     } while (result === 'INTERRUPTED' && scene.sys.isActive());
     scene.recollectionBeat = null;
@@ -63,6 +71,8 @@ export async function runBeats(scene, { cfg, windowMult = 1, swipe, onResult = (
   pulse.stop();
   prompt.destroy();
   counter.destroy();
+  tapFx?.destroy();
+  scene.recollectionTapFx = null;
   while (results.length < cfg.order.length) results.push('MISS');
   return results;
 }
@@ -109,6 +119,60 @@ function beat(scene, state, run) {
     }
     run({ add, on, finish, start, live: scene.recollectionBeat });
   });
+}
+
+// The finale's FX on the target (beats.taps.fx). Objects: one pooled spark emitter (created here,
+// destroyed with the run); everything else is a tint, a camera shake or a short-lived flash.
+//   tap({count, total, x, y})  spark burst at the touch + 1 px shake + white flash + crack tint
+//   milestone(count)            bigger burst at the target + shake + flash + tap_milestone sfx (pitch by milestone)
+//   reset() / end(result)       the crack tint goes back (a restarted or failed beat)
+function makeTapFx(scene, cfg, target) {
+  const fx = cfg.beats.taps.fx;
+  const images = [target.body, ...Object.values(target.parts || {}).map((p) => p.img)];
+  const originals = new Map(images.map((img) => [img, img.baseTint]));
+  const emitter = Fx.sparkEmitter(scene, fx.tapSparks, cfg.depth);
+  const crack = Number(fx.crack.color);
+  const channel = (c, shift) => (c >> shift) & 0xff;
+  const mix = (base, pct) => {
+    const b = base ?? 0xffffff;
+    const part = (shift) => Math.round((channel(b, shift) * (channel(0xffffff, shift) * (1 - pct) + channel(crack, shift) * pct)) / 255);
+    return (part(16) << 16) | (part(8) << 8) | part(0);
+  };
+  const restore = () => {
+    for (const [img, base] of originals) {
+      if (!img.active) continue;
+      if (base === undefined) {
+        delete img.baseTint;
+        img.clearTint();
+      } else Fx.setBaseTint([img], base);
+    }
+  };
+  return {
+    tap({ count, total, x, y }) {
+      if (!target.container.active) return;
+      const pct = count / total;
+      for (const img of images) if (img.active) Fx.setBaseTint([img], mix(originals.get(img), pct));
+      Fx.flash(scene, images.filter((img) => img.active), fx.tapFlashMs);
+      emitter.burst(fx.tapSparks.count, x, y);
+      if (fx.tapShake) Fx.shake(scene, fx.tapShake, fx.tapShakeMs);
+      if (fx.tapSfx) playSfx(fx.tapSfx, { pitch: 1 + 0.5 * pct });
+    },
+    milestone(count) {
+      const m = fx.milestones?.[count];
+      if (!m) return;
+      Fx.screenFlash(scene, m.flash, cfg.depth - 1);
+      emitter.burst(m.sparks, target.container.x, target.container.y);
+      Fx.shake(scene, m.shake, m.shakeMs);
+      playSfx(fx.milestoneSfx, { pitch: m.pitch });
+    },
+    reset: restore,
+    end(result) {
+      if (result === 'MISS' || result === 'INTERRUPTED') restore();
+    },
+    destroy() {
+      emitter.destroy();
+    },
+  };
 }
 
 function judge(offMs, perfectMs, goodMs) {
@@ -202,30 +266,42 @@ const BEATS = {
     });
   },
 
-  taps(scene, cfg, def, mult, { index, forced }) {
+  taps(scene, cfg, def, mult, { index, forced, tapFx }) {
     const windowMs = def.tapWindowMs * mult;
-    return beat(scene, { kind: 'taps', index, forced, taps: def.taps, windowMs, count: 0 }, ({ add, on, finish, start, live }) => {
+    return beat(scene, { kind: 'taps', index, forced, taps: def.taps, windowMs, count: 0 }, ({ add, on, finish: end, start, live }) => {
       const m = def.meter;
+      const c = def.counter;
       const col = cfg.colors;
-      const width = def.taps * m.pip + (def.taps - 1) * m.gap;
-      const pips = [];
-      for (let i = 0; i < def.taps; i++) {
-        const x = m.x - width / 2 + m.pip / 2 + i * (m.pip + m.gap);
-        pips.push(add(scene.add.rectangle(x, m.y, m.pip, m.pip, color(col.ink), m.inkAlpha).setStrokeStyle(m.stroke, color(col.gold)).setDepth(cfg.depth)));
-      }
-      const bar = add(scene.add.rectangle(m.x - width / 2, m.timeBarY, width, m.timeBarH, color(col.gold)).setOrigin(0, 0.5).setDepth(cfg.depth));
+      const label = (n) => c.text.replace('{i}', n).replace('{n}', def.taps);
+      tapFx?.reset();
+      const finish = (result) => {
+        tapFx?.end(result);
+        end(result);
+      };
+      const big = add(
+        scene.add
+          .text(c.x, c.y, label(0), { fontFamily: ui.font, fontSize: `${c.fontSize}px`, color: c.color, stroke: c.stroke, strokeThickness: c.strokeThickness })
+          .setOrigin(0.5)
+          .setDepth(cfg.depth + 1),
+      );
+      add(scene.add.rectangle(m.x, m.y, m.w, m.h, color(col.ink), m.inkAlpha).setStrokeStyle(m.stroke, color(col.gold)).setDepth(cfg.depth));
+      const inner = m.w - m.stroke * 2;
+      const fill = add(scene.add.rectangle(m.x - inner / 2, m.y, inner, m.h - m.stroke * 2, color(col.gold)).setOrigin(0, 0.5).setDepth(cfg.depth + 0.1).setScale(0, 1));
+      const bar = add(scene.add.rectangle(m.x - m.w / 2, m.timeBarY, m.w, m.timeBarH, color(col.gold)).setOrigin(0, 0.5).setDepth(cfg.depth));
       let firstAt = null;
       let count = 0;
       on(scene.input, 'pointerdown', (pointer) => {
         const t = stamp(pointer.downTime);
         if (firstAt === null) firstAt = t;
-        const pip = pips[count];
+        if (count >= def.taps) return;
         count += 1;
         live.count = count;
-        if (pip) {
-          pip.setFillStyle(color(col.gold), 1);
-          scene.tweens.add({ targets: pip, scale: { from: m.popScale, to: 1 }, duration: m.popMs });
-        }
+        big.setText(label(count));
+        scene.tweens.killTweensOf(big);
+        scene.tweens.add({ targets: big, scale: { from: c.popScale, to: 1 }, duration: c.popMs, ease: 'Back.easeOut' });
+        fill.setScale(count / def.taps, 1);
+        tapFx?.tap({ count, total: def.taps, x: pointer.worldX, y: pointer.worldY });
+        tapFx?.milestone(count);
         if (count < def.taps) return;
         const elapsed = t - firstAt;
         finish(elapsed > windowMs ? 'MISS' : windowMs - elapsed >= def.perfectSpareMs ? 'PERFECT' : 'GOOD');

@@ -69,7 +69,7 @@
       "warm": true,
       "ending": true,
       "keepsake": false,
-      "recollection": false,
+      "recollection": true,
       "quill_intro": false,
       "quill_rise": false,
       "victory": false,
@@ -140,9 +140,6 @@
           "resume": false
         }
       },
-      "keepsakeDialogue": "keepsake_burn",
-      "keepsakeSilenceAfterLine": 4,
-      "keepsakeSilenceMs": 1500,
       "step": {
         "reward_rest": {
           "oneShot": "memory_return",
@@ -168,16 +165,15 @@
       },
       "overlay": {
         "keepsake_burn": {
-          "track": "keepsake",
-          "duck": 0.25,
-          "resume": false
+          "track": "recollection",
+          "loop": true,
+          "note": "the recollection track starts with the keepsake cutscene (no duck, no silence line) and keeps playing through the Recollection to the kill; overlay.recollection is a no-op while it plays"
         },
         "recollection": {
-          "afterLine": "I'm forgetting you again…",
-          "silenceMs": 1500,
           "track": "recollection",
           "from": "cutin",
-          "until": "recollectionEnd"
+          "until": "recollectionEnd",
+          "note": "playMusic of the track that is already playing does not restart it; this starts it only on the dev / Try again paths"
         }
       },
       "events": {
@@ -633,6 +629,11 @@
         "ms": 90,
         "gain": 0.12
       }
+    ],
+    "tap_milestone": [
+      { "type": "osc", "wave": "triangle", "from": 440, "to": 660, "ms": 160, "gain": 0.22 },
+      { "type": "osc", "wave": "square", "from": 880, "to": 1320, "ms": 140, "gain": 0.07, "delayMs": 30 },
+      { "type": "noise", "filter": "highpass", "filterHz": 3000, "ms": 90, "gain": 0.1 }
     ],
     "victory": [
       {
