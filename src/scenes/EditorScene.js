@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
-import { englishData } from '../systems/Lang.js';
+import { englishData, applyLanguage } from '../systems/Lang.js';
+import { applyFont, loadFont } from '../systems/Fonts.js';
+import elOverlay from '../data/lang/el.json';
+import elMeta from '../data/lang/el.meta.json';
 import chapter from '../data/chapter1.json';
 import assets from '../data/assets.json';
 import audioData from '../data/audio.json';
@@ -11,6 +14,11 @@ import * as E from '../systems/Editor.js';
 // editable in a plain-DOM sidebar / form (desktop: mouse + keyboard) and a download of the edited
 // dialogue.json / cutscene_origin.json. The preview is the game's own DialogueScene (data.preview:
 // one line, static) or CutsceneScene (data.preview: one shot, silent), restarted on every edit.
+// Every line / shot has an English field (the source JSON) and a Greek field (the el.json overlay)
+// side by side; the preview language (EN / EL above the canvas) re-renders the entry through the real
+// scene in that language (settings lang -> applyLanguage + the language's font). A Greek line whose
+// English changed since it was written is marked "EN changed" (hashes in src/data/lang/el.meta.json,
+// written on download), one with no Greek "no EL"; the sidebar filter shows only those.
 // Nothing is written to the repo; unsaved edits are kept as a draft in this browser's localStorage.
 // This module is fetched by PreloadScene only when ?editor is in the URL.
 //
@@ -28,6 +36,9 @@ const clone = (v) => JSON.parse(JSON.stringify(v));
 // The editor edits the English source files, whatever language the game is set to.
 const dialogueSource = englishData('dialogue');
 const cutsceneSource = englishData('cutscene_origin');
+const langSource = { overlay: elOverlay, meta: elMeta, tutorial: englishData('tutorial') };
+const PANEL_W = 480;
+const FILTERS = [['all', 'All entries'], ['todo', 'Needs Greek (no EL + EN changed)'], ['missing', 'Only no EL'], ['stale', 'Only EN changed']];
 const sfxNames = Object.keys(audioData.sfx);
 const portraitKeys = Object.keys(assets.portraits);
 const backgroundKeys = Object.keys(assets.backgrounds);
@@ -38,7 +49,7 @@ const styleKeys = Object.keys(ui.dialogue.styles);
 const CSS = `
 #ed-side,#ed-panel{position:fixed;top:0;bottom:0;z-index:5;box-sizing:border-box;background:#10131d;color:#f1efe8;font:13px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;display:flex;flex-direction:column;user-select:text;-webkit-user-select:text;touch-action:auto}
 #ed-side{left:0;width:300px;border-right:1px solid #2a3042}
-#ed-panel{right:0;width:360px;border-left:1px solid #2a3042}
+#ed-panel{right:0;width:480px;border-left:1px solid #2a3042}
 #ed-side *,#ed-panel *{box-sizing:border-box;user-select:text;-webkit-user-select:text}
 .ed-top{padding:8px 10px;border-bottom:1px solid #2a3042;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .ed-top h1{font-size:14px;margin:0;flex:1 1 100%;color:#3fd0c9;font-weight:600}
@@ -62,7 +73,7 @@ const CSS = `
 .ed-row{display:block;width:100%;text-align:left;padding:4px 10px 4px 14px;background:none;border:0;border-bottom:1px solid #1a1f2e;color:#cfd3e0;font:inherit;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ed-row:hover{background:#1b2030}
 .ed-row.sel{background:#1d4a49;color:#fff}
-.ed-row.mod::after{content:' \\25CF';color:#e0a040}
+.ed-row.mod::after{content:' \\270E';color:#3fd0c9}
 .ed-row .n{color:#8b93ab;display:inline-block;min-width:26px}
 .ed-row .who{color:#e0a040}
 .ed-field{margin-bottom:10px}
@@ -77,6 +88,25 @@ const CSS = `
 .ed-title{font-size:15px;font-weight:600;margin:0 0 8px}
 .ed-badge{display:inline-block;background:#3a2c10;color:#e0a040;border-radius:3px;padding:0 6px;font-size:11px;margin-left:6px}
 .ed-toast{color:#3fd0c9;font-size:12px;flex:1 1 100%;min-height:16px}
+.ed-btn.on{background:#1d4a49;border-color:#3fd0c9}
+#ed-bar{position:fixed;top:0;left:300px;right:480px;height:36px;z-index:5;box-sizing:border-box;background:#10131d;border-bottom:1px solid #2a3042;color:#8b93ab;font:12px system-ui,sans-serif;display:flex;gap:6px;align-items:center;padding:0 10px}
+#ed-bar *{box-sizing:border-box}
+#ed-bar .ed-note{margin-left:8px;color:#e0a040}
+.ed-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:baseline}
+.ed-dot.miss{background:#e8553a}
+.ed-dot.stale{background:#e8883a}
+.ed-cnt{font-weight:400;margin-left:6px}
+.ed-cnt.miss{color:#e8553a}
+.ed-cnt.stale{color:#e8883a}
+.ed-pair{display:flex;gap:8px}
+.ed-pair>div{flex:1 1 0;min-width:0}
+.ed-pair .ed-ta{min-height:130px}
+.ed-pair .ed-lh{display:flex;align-items:center;gap:4px;margin-bottom:3px;min-height:20px;color:#8b93ab;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+.ed-el{font-family:Play,system-ui,sans-serif}
+.ed-lbadge{display:none;border-radius:3px;padding:0 6px;font-size:11px;text-transform:none;letter-spacing:0}
+.ed-lbadge.miss{display:inline-block;background:#3a1610;color:#ff7a5f}
+.ed-lbadge.stale{display:inline-block;background:#3a2410;color:#e8883a}
+.ed-filter{flex:1 1 100%}
 .ed-banner{background:#2a2410;border:1px solid #6b5a1c;color:#e8d08a;padding:6px 8px;border-radius:4px;margin-bottom:10px;font-size:12px}
 .ed-banner button{margin-left:6px}
 `;
@@ -98,8 +128,10 @@ const short = (text, n = 70) => (text.length > n ? `${text.slice(0, n - 1)}…` 
 class EditorUi {
   constructor(game) {
     this.game = game;
-    this.source = { dialogue: dialogueSource, cutscene: cutsceneSource };
-    this.model = E.createModel(dialogueSource, cutsceneSource);
+    this.source = { dialogue: dialogueSource, cutscene: cutsceneSource, lang: langSource };
+    this.model = E.createModel(dialogueSource, cutsceneSource, langSource);
+    this.previewLang = 'en';
+    this.downloads = {};
     this.restored = 0;
     this.restoreDraft();
     this.sel = null;
@@ -142,8 +174,8 @@ class EditorUi {
   }
 
   discardAll() {
-    if (!window.confirm('Discard every edit made in this editor (both files)?')) return;
-    this.model = E.createModel(this.source.dialogue, this.source.cutscene);
+    if (!window.confirm('Discard every edit made in this editor (all files, both languages)?')) return;
+    this.model = E.createModel(this.source.dialogue, this.source.cutscene, this.source.lang);
     this.restored = 0;
     try {
       localStorage.removeItem(DRAFT_KEY);
@@ -174,10 +206,12 @@ class EditorUi {
     for (const id of Object.keys(this.model.dialogue)) {
       if (!seen.has(id)) out.push({ key: id, kind: 'dialogue', id, title: id, extra: true });
     }
+    if (this.model.tut.length) out.push({ key: 'tut', kind: 'tut', title: 'Tutorial · Greek only' });
     return out;
   }
 
   selectionsOf(group) {
+    if (group.kind === 'tut') return this.model.tut.map((_, index) => ({ kind: 'tut', index }));
     const list = group.kind === 'shot' ? this.model.cutscene.shots : this.model.dialogue[group.id];
     return list.map((_, index) => (group.kind === 'shot' ? { kind: 'shot', index } : { kind: 'dialogue', id: group.id, index }));
   }
@@ -191,7 +225,7 @@ class EditorUi {
   }
 
   keyOf(sel) {
-    return sel.kind === 'shot' ? `s:${sel.index}` : `d:${sel.id}:${sel.index}`;
+    return sel.kind === 'shot' ? `s:${sel.index}` : sel.kind === 'tut' ? `t:${sel.index}` : `d:${sel.id}:${sel.index}`;
   }
 
   same(a, b) {
@@ -204,7 +238,7 @@ class EditorUi {
     document.head.append(h('style', { text: CSS }));
     // The game canvas lives in the middle column; Phaser re-fits it to that box.
     const gameEl = document.getElementById('game');
-    Object.assign(gameEl.style, { position: 'absolute', left: '300px', right: '360px', top: '0', bottom: '0', width: 'auto', height: 'auto' });
+    Object.assign(gameEl.style, { position: 'absolute', left: '300px', right: `${PANEL_W}px`, top: '36px', bottom: '0', width: 'auto', height: 'auto' });
 
     this.search = h('input', { class: 'ed-in', type: 'search', placeholder: 'Search text, speaker, id…  (Esc clears)', oninput: () => this.renderList() });
     this.search.addEventListener('keydown', (e) => {
@@ -213,13 +247,23 @@ class EditorUi {
         this.renderList();
       }
     });
+    this.filter = h('select', { class: 'ed-sel', title: 'Filter the list by Greek status', onchange: () => this.renderList() });
+    for (const [value, label] of FILTERS) this.filter.append(h('option', { value, text: label }));
+    this.status = h('div', { class: 'ed-hint', style: 'flex:1 1 100%' });
     this.list = h('div', { class: 'ed-scroll' });
     this.list.addEventListener('keydown', (e) => this.listKey(e));
-    this.side = h('div', { id: 'ed-side' }, h('div', { class: 'ed-top' }, h('h1', { text: 'Dialogue editor (dev)' })), h('div', { class: 'ed-search' }, this.search), this.list);
+    this.side = h('div', { id: 'ed-side' }, h('div', { class: 'ed-top' }, h('h1', { text: 'Dialogue editor (dev)' }), this.filter, this.status), h('div', { class: 'ed-search' }, this.search), this.list);
     this.panelScroll = h('div', { class: 'ed-scroll' });
     this.count = h('span', { class: 'ed-hint' });
     this.toastEl = h('div', { class: 'ed-toast' });
     const btn = (label, fn, cls = '') => h('button', { class: `ed-btn ${cls}`, type: 'button', text: label, onclick: fn });
+    const files = () => ({
+      'dialogue.json': E.serializeDialogue(this.model.dialogue),
+      'cutscene_origin.json': E.serializeCutscene(this.model.cutscene),
+      'el.json': E.serializeEl(this.model, elOverlay),
+      'el.meta.json': E.serializeMeta(this.model),
+    });
+    this.files = files;
     this.panel = h(
       'div',
       { id: 'ed-panel' },
@@ -228,17 +272,22 @@ class EditorUi {
         'div',
         { class: 'ed-foot' },
         this.toastEl,
-        btn('Download dialogue.json', () => this.download('dialogue.json', E.serializeDialogue(this.model.dialogue)), 'primary'),
-        btn('Download cutscene_origin.json', () => this.download('cutscene_origin.json', E.serializeCutscene(this.model.cutscene)), 'primary'),
-        btn('Copy dialogue.json', () => this.copy('dialogue.json', E.serializeDialogue(this.model.dialogue))),
-        btn('Copy cutscene_origin.json', () => this.copy('cutscene_origin.json', E.serializeCutscene(this.model.cutscene))),
+        btn('Download all', () => this.downloadAll(files()), 'primary'),
+        ...['dialogue.json', 'cutscene_origin.json', 'el.json', 'el.meta.json'].map((name) => btn(`Download ${name}`, () => this.download(name, files()[name]), 'primary small')),
+        h('span', { class: 'ed-hint', text: 'Copy:' }),
+        ...['dialogue.json', 'cutscene_origin.json', 'el.json', 'el.meta.json'].map((name) => btn(`Copy ${name}`, () => this.copy(name, files()[name]), 'small')),
         btn('Discard all edits', () => this.discardAll(), 'danger'),
         this.count,
       ),
     );
-    document.body.append(this.side, this.panel);
+    this.note = h('span', { class: 'ed-note' });
+    this.langBtns = { en: btn('EN', () => this.setPreviewLang('en'), 'small on'), el: btn('EL', () => this.setPreviewLang('el'), 'small') };
+    this.langBtns.en.id = 'ed-lang-en';
+    this.langBtns.el.id = 'ed-lang-el';
+    this.bar = h('div', { id: 'ed-bar' }, 'Preview language', this.langBtns.en, this.langBtns.el, this.note);
+    document.body.append(this.side, this.panel, this.bar);
     // The page blocks text selection / the context menu / drag for the phone: not in the editor.
-    for (const el of [this.side, this.panel]) for (const type of ['selectstart', 'contextmenu', 'dragstart']) el.addEventListener(type, (e) => e.stopPropagation());
+    for (const el of [this.side, this.panel, this.bar]) for (const type of ['selectstart', 'contextmenu', 'dragstart']) el.addEventListener(type, (e) => e.stopPropagation());
     window.addEventListener('keydown', (e) => this.globalKey(e));
     this.renderList();
     this.game.scale.refresh();
@@ -253,13 +302,28 @@ class EditorUi {
   updateCount() {
     const n = E.editCount(this.model, this.source);
     this.count.textContent = n ? `${n} edited ${n === 1 ? 'entry' : 'entries'}` : 'no edits';
+    const c = this.langCounts();
+    this.status.textContent = `Greek: ${c.missing} no EL · ${c.stale} EN changed · ${c.ok} ok`;
+  }
+
+  langCounts(sels = E.allSelections(this.model)) {
+    const c = { ok: 0, missing: 0, stale: 0, na: 0 };
+    for (const sel of sels) c[E.langState(this.model, sel)] += 1;
+    return c;
   }
 
   // ---------- Sidebar ----------
 
-  matches(entry, group, q) {
+  matches(sel, group, q) {
+    const state = E.langState(this.model, sel);
+    const f = this.filter.value;
+    if (f === 'todo' && state !== 'missing' && state !== 'stale') return false;
+    if (f === 'missing' && state !== 'missing') return false;
+    if (f === 'stale' && state !== 'stale') return false;
     if (!q) return true;
-    return group.title.toLowerCase().includes(q) || JSON.stringify(entry).toLowerCase().includes(q);
+    const entry = E.entryOf(this.model, sel);
+    const el = E.langOf(this.model, sel)?.el || '';
+    return group.title.toLowerCase().includes(q) || JSON.stringify(entry).toLowerCase().includes(q) || el.toLowerCase().includes(q);
   }
 
   renderList() {
@@ -268,14 +332,15 @@ class EditorUi {
     const frag = document.createDocumentFragment();
     for (const group of this.groups()) {
       const sels = this.selectionsOf(group);
-      const shown = sels.filter((s) => this.matches(E.entryOf(this.model, s), group, q));
+      const shown = sels.filter((s) => this.matches(s, group, q));
       if (!shown.length) continue;
       const details = h('details', { class: 'ed-group' });
       const open = q || this.openGroups.has(group.key) || (this.sel && shown.some((s) => this.same(s, this.sel)));
       if (open) details.open = true;
       details.addEventListener('toggle', () => (details.open ? this.openGroups.add(group.key) : this.openGroups.delete(group.key)));
-      const meta = group.kind === 'shot' ? `${sels.length} shots` : `${sels.length} lines${this.chapterBg[group.id] ? ` · ${this.chapterBg[group.id]}` : group.extra ? ' · battle / overlay' : ''}`;
-      details.append(h('summary', {}, group.title, h('span', { class: 'ed-meta', text: meta })));
+      const meta = group.kind === 'tut' ? `${sels.length} texts` : group.kind === 'shot' ? `${sels.length} shots` : `${sels.length} lines${this.chapterBg[group.id] ? ` · ${this.chapterBg[group.id]}` : group.extra ? ' · battle / overlay' : ''}`;
+      const gc = this.langCounts(sels);
+      details.append(h('summary', {}, group.title, h('span', { class: 'ed-meta', text: meta }), gc.missing ? h('span', { class: 'ed-cnt miss', text: `● ${gc.missing}`, title: `${gc.missing} with no Greek` }) : null, gc.stale ? h('span', { class: 'ed-cnt stale', text: `● ${gc.stale}`, title: `${gc.stale} with the English changed` }) : null));
       for (const s of shown) {
         const row = this.makeRow(s);
         this.rows.set(this.keyOf(s), row);
@@ -290,8 +355,11 @@ class EditorUi {
   rowLabel(sel) {
     const entry = E.entryOf(this.model, sel);
     const n = h('span', { class: 'n', text: `${sel.index + 1}` });
-    if (sel.kind === 'shot') return [n, short(entry.text || '(no text)')];
-    return [n, entry.speaker ? h('span', { class: 'who', text: `${entry.speaker}: ` }) : null, short(entry.text || '')];
+    const state = E.langState(this.model, sel);
+    const dot = state === 'missing' ? h('span', { class: 'ed-dot miss', title: 'no Greek' }) : state === 'stale' ? h('span', { class: 'ed-dot stale', title: 'English changed since the Greek was written' }) : null;
+    if (sel.kind === 'tut') return [n, dot, h('span', { class: 'who', text: `${this.model.tut[sel.index].label}: ` }), short(entry.text)];
+    if (sel.kind === 'shot') return [n, dot, short(entry.text || '(no text)')];
+    return [n, dot, entry.speaker ? h('span', { class: 'who', text: `${entry.speaker}: ` }) : null, short(entry.text || '')];
   }
 
   makeRow(sel) {
@@ -312,6 +380,18 @@ class EditorUi {
     row.replaceChildren(...this.rowLabel(sel).flat().filter(Boolean));
     this.styleRow(row, sel);
     this.updateCount();
+    this.refreshGroupCounts(sel);
+  }
+
+  // The group header's "no EL / EN changed" counts follow an edit without re-rendering the list.
+  refreshGroupCounts(sel) {
+    const group = this.groups().find((g) => (sel.kind === 'shot' ? g.kind === 'shot' : sel.kind === 'tut' ? g.kind === 'tut' : g.id === sel.id));
+    const summary = this.rows.get(this.keyOf(sel))?.closest('details')?.querySelector('summary');
+    if (!group || !summary) return;
+    summary.querySelectorAll('.ed-cnt').forEach((n) => n.remove());
+    const gc = this.langCounts(this.selectionsOf(group));
+    if (gc.missing) summary.append(h('span', { class: 'ed-cnt miss', text: `● ${gc.missing}`, title: `${gc.missing} with no Greek` }));
+    if (gc.stale) summary.append(h('span', { class: 'ed-cnt stale', text: `● ${gc.stale}`, title: `${gc.stale} with the English changed` }));
   }
 
   listKey(e) {
@@ -353,7 +433,8 @@ class EditorUi {
     if (!row) {
       // The row is hidden by the search or its group is closed: show it.
       this.search.value = '';
-      this.openGroups.add(sel.kind === 'shot' ? 'cut:origin' : sel.id);
+      this.filter.value = 'all';
+      this.openGroups.add(sel.kind === 'shot' ? 'cut:origin' : sel.kind === 'tut' ? 'tut' : sel.id);
       this.renderList();
       row = this.rows.get(this.keyOf(sel));
     }
@@ -393,8 +474,9 @@ class EditorUi {
     const at = flat.findIndex((s) => this.same(s, sel));
     const modified = E.isModified(this.model, sel);
     const nav = (label, dir) => h('button', { class: 'ed-btn small', type: 'button', text: label, disabled: !flat[at + dir], onclick: () => this.step(dir, false) });
-    const total = (sel.kind === 'shot' ? this.model.cutscene.shots : this.model.dialogue[sel.id]).length;
-    const title = sel.kind === 'shot' ? `Cutscene origin · shot ${sel.index + 1} / ${total}` : `${sel.id} · line ${sel.index + 1} / ${total}`;
+    const tut = sel.kind === 'tut';
+    const total = tut ? this.model.tut.length : (sel.kind === 'shot' ? this.model.cutscene.shots : this.model.dialogue[sel.id]).length;
+    const title = tut ? `Tutorial · ${this.model.tut[sel.index].label}` : sel.kind === 'shot' ? `Cutscene origin · shot ${sel.index + 1} / ${total}` : `${sel.id} · line ${sel.index + 1} / ${total}`;
     const kids = [];
     if (this.restored) {
       kids.push(
@@ -404,13 +486,13 @@ class EditorUi {
     kids.push(
       h('div', { class: 'ed-row2', style: 'margin-bottom:8px' }, nav('◀ Prev', -1), nav('Next ▶', 1), h('button', { class: 'ed-btn small', type: 'button', text: 'Replay ↻', title: 'Alt+R', onclick: () => this.preview() })),
       h('div', { class: 'ed-title' }, title, modified ? h('span', { class: 'ed-badge', text: E.origsOf(this.model, sel)[sel.index] === null ? 'new' : 'edited' }) : null),
-      sel.kind === 'shot' ? this.shotForm(entry) : this.lineForm(entry),
+      tut ? this.tutForm() : sel.kind === 'shot' ? this.shotForm(entry) : this.lineForm(entry),
       h(
         'div',
         { class: 'ed-row2', style: 'margin-top:14px' },
         h('button', { class: 'ed-btn small', type: 'button', text: 'Revert this entry', disabled: !modified || E.origsOf(this.model, sel)[sel.index] === null, onclick: () => this.revertEntry() }),
-        h('button', { class: 'ed-btn small', type: 'button', text: 'Duplicate below', onclick: () => this.duplicate() }),
-        h('button', { class: 'ed-btn small danger', type: 'button', text: 'Delete', disabled: total <= 1, onclick: () => this.deleteEntry() }),
+        h('button', { class: 'ed-btn small', type: 'button', text: 'Duplicate below', disabled: tut, onclick: () => this.duplicate() }),
+        h('button', { class: 'ed-btn small danger', type: 'button', text: 'Delete', disabled: tut || total <= 1, onclick: () => this.deleteEntry() }),
       ),
     );
     this.panelScroll.replaceChildren(...kids);
@@ -422,7 +504,77 @@ class EditorUi {
     clearTimeout(this.timers.draft);
     this.timers.draft = setTimeout(() => this.saveDraft(), 300);
     this.updateEditedBadge();
+    this.updateLangBadges();
     if (live) this.schedulePreview();
+  }
+
+  // The Greek box: stamps it with the English it answers; the preview follows only in EL.
+  commitLang(value) {
+    E.setLang(this.model, this.sel, value);
+    this.refreshRow(this.sel);
+    clearTimeout(this.timers.draft);
+    this.timers.draft = setTimeout(() => this.saveDraft(), 300);
+    this.updateEditedBadge();
+    this.updateLangBadges();
+    if (this.previewLang === 'el') this.schedulePreview();
+  }
+
+  // English | Greek side by side (the first textarea is the English one) with the status badges.
+  textPair(rows = 6) {
+    const sel = this.sel;
+    const tutorial = sel.kind === 'tut';
+    const entry = E.entryOf(this.model, sel);
+    const en = h('textarea', { class: 'ed-ta', id: 'ed-en', rows: String(rows), readonly: tutorial });
+    en.value = entry.text || '';
+    if (!tutorial) en.addEventListener('input', () => this.commit('text', en.value));
+    const el = h('textarea', { class: 'ed-ta ed-el', id: 'ed-el', rows: String(rows), lang: 'el', spellcheck: 'false', placeholder: 'Greek translation…' });
+    el.value = E.langOf(this.model, sel)?.el || '';
+    el.addEventListener('input', () => this.commitLang(el.value));
+    this.badges = {
+      en: h('span', { class: 'ed-lbadge', id: 'ed-badge-en' }),
+      el: h('span', { class: 'ed-lbadge', id: 'ed-badge-el' }),
+      fresh: h('button', { class: 'ed-btn small', id: 'ed-fresh', type: 'button', text: 'Greek is still right', title: 'Stamp the Greek with the current English', style: 'display:none', onclick: () => this.markFresh() }),
+    };
+    const pair = h(
+      'div',
+      { class: 'ed-pair' },
+      h('div', {}, h('div', { class: 'ed-lh' }, tutorial ? 'English (tutorial.json, read only)' : 'English', this.badges.en), en),
+      h('div', {}, h('div', { class: 'ed-lh' }, 'Greek · el.json', this.badges.el), el, h('div', { style: 'margin-top:4px' }, this.badges.fresh)),
+    );
+    this.updateLangBadges();
+    return pair;
+  }
+
+  updateLangBadges() {
+    if (!this.badges || !this.sel) return;
+    const state = E.langState(this.model, this.sel);
+    this.badges.en.className = `ed-lbadge${state === 'stale' ? ' stale' : ''}`;
+    this.badges.en.textContent = state === 'stale' ? 'EN changed' : '';
+    this.badges.el.className = `ed-lbadge${state === 'missing' ? ' miss' : ''}`;
+    this.badges.el.textContent = state === 'missing' ? 'no EL' : '';
+    this.badges.fresh.style.display = state === 'stale' ? '' : 'none';
+  }
+
+  markFresh() {
+    E.markFresh(this.model, this.sel);
+    this.refreshRow(this.sel);
+    this.saveDraft();
+    this.updateEditedBadge();
+    this.updateLangBadges();
+  }
+
+  tutForm() {
+    return h(
+      'div',
+      {},
+      this.field('Text', this.textPair(), 'The tutorial pauses need a battle, so there is no preview here. Edit the English in src/data/tutorial.json by hand; this form writes the Greek (el.json tutorial.pauses).'),
+    );
+  }
+
+  setPreviewLang(lang) {
+    this.previewLang = lang;
+    for (const [id, b] of Object.entries(this.langBtns)) b.classList.toggle('on', id === lang);
+    this.preview();
   }
 
   // The title badge and the revert button follow the entry's state without rebuilding the form.
@@ -500,10 +652,6 @@ class EditorUi {
       (v) => this.commit('style', v),
     );
 
-    const text = h('textarea', { class: 'ed-ta', rows: '5' });
-    text.value = line.text || '';
-    text.addEventListener('input', () => this.commit('text', text.value));
-
     const bgSel = this.select_(
       [{ value: SENTINEL.none, label: '(unchanged)' }, ...coverKeys.map((k) => ({ value: k, label: k })), ...(line.bg && !coverKeys.includes(line.bg) ? [{ value: line.bg, label: `${line.bg} (not a cover background)` }] : [])],
       line.bg || SENTINEL.none,
@@ -540,7 +688,7 @@ class EditorUi {
       this.field('Speaker', h('div', {}, speakerSel, custom)),
       this.field('Portrait', portraitSel, 'Shown on the speaker’s side (Rhea left, the others right); none clears that side.'),
       this.field('Style', styleSel, ui.dialogue.noPortraits.includes(sel.id) ? 'This dialogue hides portraits (ui.json dialogue.noPortraits).' : null),
-      this.field('Text', text),
+      this.field('Text', this.textPair()),
       this.field('Background change on this line', bgSel, 'Cover backgrounds only; crossfades in-game, shown already applied here.'),
       this.field('Sound on this line', h('div', { class: 'ed-row2' }, sfxSel, play)),
       this.field('Transition after the last line', transitionSel, sel.index === lines.length - 1 ? null : 'Only the last line of a dialogue uses it.', line.transition && sel.index !== lines.length - 1 ? 'Ignored: this is not the last line.' : null),
@@ -561,10 +709,6 @@ class EditorUi {
       this.select_(bgOpts(shot[field]), shot[field] || SENTINEL.none, (v) => this.commit(field, v === SENTINEL.none ? (field === 'bg' ? null : undefined) : v), {
         bad: !!shot[field] && !bgKeys.includes(shot[field]),
       });
-
-    const text = h('textarea', { class: 'ed-ta', rows: '4' });
-    text.value = shot.text || '';
-    text.addEventListener('input', () => this.commit('text', text.value));
 
     const splitSel = this.select_(
       SPLITS.map((k) => ({ value: k, label: k })),
@@ -641,7 +785,7 @@ class EditorUi {
     return h(
       'div',
       {},
-      this.field('Text', text),
+      this.field('Text', this.textPair(5)),
       this.field('Background', bg('bg'), shot.bgFallback ? `Shown when this art is missing: ${shot.bgFallback}` : null),
       this.field('Second background (split)', bg('bg2'), shot.bg2Fallback ? `Shown when this art is missing: ${shot.bg2Fallback}` : null),
       h('div', { class: 'ed-row2' }, h('div', { class: 'ed-field', style: 'flex:1' }, h('label', { text: 'Split' }), splitSel), h('div', { class: 'ed-field', style: 'flex:1' }, h('label', { text: 'Move' }), moveSel)),
@@ -655,34 +799,58 @@ class EditorUi {
 
   // ---------- Preview (the real scenes) ----------
 
-  preview() {
+  // The preview runs in the preview language: the settings lang is switched (applyLanguage: the UI
+  // strings; applyFont: the language's font, loaded before the scene is built, as in the game) and the
+  // editor's own Greek replaces each line's / shot's text, so unsaved Greek is shown too.
+  async preview() {
     const sel = this.sel;
     if (!sel) return;
+    const seq = (this.previewSeq = (this.previewSeq || 0) + 1);
+    const lang = this.previewLang;
+    const settings = { ...(this.game.registry.get('settings') || {}), lang };
+    applyLanguage(settings);
+    await loadFont(applyFont(settings));
+    if (seq !== this.previewSeq || !this.sel) return;
     const mgr = this.game.scene;
     mgr.stop('Dialogue');
     mgr.stop('Cutscene');
-    const entry = E.entryOf(this.model, sel);
-    this.previewSeq = (this.previewSeq || 0) + 1;
+    this.note.textContent = sel.kind === 'tut' ? 'No preview for tutorial pauses (they need a battle).' : '';
+    const withLang = (list, recs) => clone(list).map((e, i) => (lang === 'el' && recs[i]?.el ? { ...e, text: recs[i].el } : e));
+    if (sel.kind === 'tut') return;
     if (sel.kind === 'shot') {
-      mgr.start('Cutscene', { id: 'origin', preview: true, shots: clone(this.model.cutscene.shots), shot: sel.index + 1 });
+      mgr.start('Cutscene', { id: 'origin', preview: true, shots: withLang(this.model.cutscene.shots, this.model.lang.shots), shot: sel.index + 1 });
     } else {
       const bg = this.previewBg || this.chapterBg[sel.id] || 'black';
-      mgr.start('Dialogue', { id: sel.id, bg, preview: { index: sel.index, lines: clone(this.model.dialogue[sel.id]) } });
+      mgr.start('Dialogue', { id: sel.id, bg, preview: { index: sel.index, lines: withLang(this.model.dialogue[sel.id], this.model.lang.dialogue[sel.id]) } });
     }
-    return entry;
   }
 
   // ---------- Output ----------
 
+  downloadAll(files) {
+    // Browsers may ask once before saving several files; one click per file is the fallback.
+    Object.entries(files).forEach(([name, text], i) => {
+      this.downloads[name] = text;
+      this.lastDownload = { name, text };
+      setTimeout(() => this.save(name, text), i * 300);
+    });
+    this.toast('Downloaded 4 files: dialogue.json + cutscene_origin.json → src/data/, el.json + el.meta.json → src/data/lang/.');
+  }
+
   download(name, text) {
+    this.downloads[name] = text;
     this.lastDownload = { name, text };
+    this.save(name, text);
+    this.toast(`Downloaded ${name}. Put it in ${name.startsWith('el') ? 'src/data/lang/' : 'src/data/'} to use it.`);
+  }
+
+  save(name, text) {
     const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
     const a = h('a', { href: url, download: name, style: 'display:none' });
     document.body.append(a);
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
-    this.toast(`Downloaded ${name}. Put it in src/data/ to use it.`);
   }
 
   async copy(name, text) {
