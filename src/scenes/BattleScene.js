@@ -952,6 +952,10 @@ export default class BattleScene extends Phaser.Scene {
         this.pauseOnFirstMenu = null;
         await this.runPause(id);
       }
+      // battles.json pauses.menuAfterFlag {flag: id}: the first command menu after a battle event set the flag
+      // (the guided "Tap Technique" pause after the duel's Blast unlock).
+      const flagPause = this.menuFlagPause();
+      if (flagPause) await this.runPause(flagPause);
       const pick = await picking;
 
       if (pick === 'strike') {
@@ -966,7 +970,9 @@ export default class BattleScene extends Phaser.Scene {
         continue;
       }
 
-      const techId = await this.menu.show(this.techniqueItems(hero));
+      const listing = this.menu.show(this.techniqueItems(hero));
+      await this.techniqueMenuPause(hero);
+      const techId = await listing;
       if (!techId) continue;
       const tech = this.techOf(hero, techId);
       // Anchor: pick who gets it (Back returns to the technique list).
@@ -979,6 +985,32 @@ export default class BattleScene extends Phaser.Scene {
       const target = await this.pickEnemy(techId);
       if (target) return { kind: 'technique', techId, target };
     }
+  }
+
+  // The next battles.json pauses.menuAfterFlag pause that is due: its flag is set and it has not run in
+  // this battle yet (a pause already seen this run is skipped by TutorialPause itself).
+  menuFlagPause() {
+    this.menuPausesDone ||= new Set();
+    for (const [flag, id] of Object.entries(this.battleDef.pauses?.menuAfterFlag || {})) {
+      if (!this.hasFlag(flag) || this.menuPausesDone.has(id)) continue;
+      this.menuPausesDone.add(id);
+      return id;
+    }
+    return null;
+  }
+
+  // battles.json pauses.techniqueMenu: explains the technique list when it opens with a technique the
+  // player can actually use. `cmd.<techId>` spotlights that technique's slot; with less Echo than it
+  // costs the second step adds its textIfShort.
+  async techniqueMenuPause(hero) {
+    const id = this.battleDef.pauses?.techniqueMenu;
+    if (!id || this.battleOver) return;
+    const usable = (this.menu.items || []).filter((i) => i.slot !== 'back' && !i.locked && !i.covered);
+    if (!usable.length) return;
+    const targets = {};
+    for (const item of usable) targets[`cmd.${item.value}`] = this.tutorialTargets[`cmd.${item.slot}`];
+    const short = hero.echo < Math.min(...usable.map((i) => this.techOf(hero, i.value).cost));
+    await this.runPause(id, { targets, flags: { short } });
   }
 
   // Row 2 of the main menu: Recollection. Ready (Rhea at full Echo): the
@@ -1125,6 +1157,11 @@ export default class BattleScene extends Phaser.Scene {
       const e = this.enemies.find((x) => x.hp > 0) || this.enemies[0];
       return e ? this.entityRect(e) : null;
     };
+    // The golden poise line of the first enemy that has one (enemy.poise) or of enemy n (enemy.poise.<n>).
+    t['enemy.poise'] = () => this.enemies.find((e) => e.hp > 0 && e.poiseBar)?.poiseBar.rect();
+    this.battleDef.enemies.forEach((_, i) => {
+      t[`enemy.poise.${i}`] = () => this.enemies[i]?.poiseBar?.rect();
+    });
     t.hero = () => {
       const h = this.activeHero || this.heroes.find((x) => x.hp > 0) || this.heroes[0];
       return h ? this.entityRect(h) : null;
@@ -1144,7 +1181,8 @@ export default class BattleScene extends Phaser.Scene {
     const targets = {};
     if (extra.enemy) targets.enemy = () => this.entityRect(extra.enemy);
     if (extra.hero) targets.hero = () => this.entityRect(extra.hero);
-    return TutorialPause.show(this, id, targets);
+    Object.assign(targets, extra.targets);
+    return TutorialPause.show(this, id, targets, extra.flags);
   }
 
   // ---------- Turn flow ----------
@@ -1469,6 +1507,9 @@ export default class BattleScene extends Phaser.Scene {
     let attackDone;
     const red = qte.unparryable;
     const lesson = hit.unparryable && !dodgeLesson.learned && dodgeLesson.runs < red.lesson.attempts;
+    // The first red ring of the run: a spotlight pause before the ring exists (tutorial.json red_ring).
+    // The slow-mo lesson below still runs; its own text prompt would repeat the pause, so it stays off.
+    const redPaused = hit.unparryable && (await this.runPause('red_ring', { enemy, hero: target }));
     this.tapHint.setText(hit.unparryable ? red.hint : qte.hint.text);
     // The second gesture (ui.json tutorial.hints.dodge) is taught on the first white ring after the
     // slow-mo tap lesson, in whichever battle that is; it shows once and waits if another banner is up.
@@ -1476,7 +1517,7 @@ export default class BattleScene extends Phaser.Scene {
     while (true) {
       const slow = (this.tutorialSlow && !hit.firstSlow) || lesson ? qte.tutorial.timeScale : 1;
       this.setTimeScale(slow);
-      if (this.tutorialSlow || lesson) this.showTutorialPrompt(true, lesson ? red.lesson.text : qte.tutorial.prompt.text);
+      if ((this.tutorialSlow || lesson) && !(lesson && redPaused)) this.showTutorialPrompt(true, lesson ? red.lesson.text : qte.tutorial.prompt.text);
 
       const windows = hit.firstSlow ? Qte.scaledWindows(this.parryWindows(), hit.firstSlow) : this.parryWindows();
       const x = target.container.x;

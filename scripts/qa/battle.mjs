@@ -34,7 +34,10 @@ const HOOKS = `(() => {
   };
 })()`;
 
+// Tutorial pauses are off (?pauses=0) unless `extra` sets ?pauses: the lab drives rings and menus directly.
+// The pause flows pass extra: '&pauses=on' (normal behaviour: each pause once per run).
 async function battle(chrome, server, id, { settings = null, extra = '' } = {}) {
+  if (!/pauses=/.test(extra)) extra += '&pauses=0';
   const page = await open(chrome, `${server.url}?battle=${id}${extra}`, { settings, init: [HOOKS] });
   await page.waitFor(`!!(window.__battle && window.__battle.menu)`, { timeout: 40000 });
   await page.ev(`window.__hook()`);
@@ -51,6 +54,7 @@ async function waitMenuThroughDialogue(page, timeout = 40000) {
   }
   throw new Error('waitMenuThroughDialogue: timeout');
 }
+const pauseTexts2 = (page) => page.ev(`window.__battle.children.list.filter((o) => o.type === 'Text' && o.depth > 6000 && o.visible).map((o) => o.text)`);
 const B = (page, expr) => page.ev(`(() => { const B = window.__battle; return ${expr}; })()`);
 
 // Runs one enemy hit and taps at `offsets` (ms relative to impact) with real clicks.
@@ -421,19 +425,51 @@ await withBrowser(async ({ chrome, server }) => {
     const echoAfter = await B(page, 'B.heroes[0].echo');
     log((await B(page, 'B.enemies[0].hp')) < hp0 && echoAfter === 0, 'Duel: Blast deals damage, spends 2 Echo and gives none back (techniques never give Echo)', `enemy hp ${hp0} -> ${await B(page, 'B.enemies[0].hp')}, echo ${echoAfter}`);
 
-    // Push Dov under 50 %: duel_nala = Nala jumps in (created on the spot), the dialogue, then the interrupted end.
+    // Push Dov under 50 %: duel_nala = Nala jumps in (created on the spot), then the dialogue, then the interrupted end.
+    // A per-frame log across the jump proves the order: no Dialogue scene and no portrait object until she LANDS.
+    await page.ev(`(() => {
+      window.__nf = [];
+      const PORTRAITS = ['nala_meow', 'nala_hissing', 'nala_hiss', 'nala_calm', 'nala_affectionate'];
+      (function f() {
+        const B = window.__battle; const G = window.__game;
+        const d = G.scene.getScene('Dialogue');
+        const dActive = G.scene.isActive('Dialogue') || G.scene.isPaused('Dialogue');
+        const slotsOn = dActive && d && d.portraits ? Object.values(d.portraits).filter((s) => s.image && s.image.active && s.image.visible).map((s) => s.side + ':' + s.key) : [];
+        const strays = B.children.list.filter((o) => o.visible && o.texture && PORTRAITS.includes(o.texture.key)).length;
+        const n = B.nala;
+        window.__nf.push({ t: Math.round(performance.now()), nala: n ? { x: Math.round(n.container.x), y: Math.round(n.container.y), vis: n.container.visible, busy: n.busy, anim: n.image.anims && n.image.anims.currentAnim ? n.image.anims.currentAnim.key : null, fw: n.image.frame.width } : null, dlg: dActive, dlgChildren: dActive && d ? d.children.list.length : 0, portraits: slotsOn, strays, line: dActive && d && d.lines && d.index >= 0 ? d.lines[d.index].text.slice(0, 24) : null });
+        if (!window.__nfStop) requestAnimationFrame(f);
+      })();
+    })()`);
     await page.ev(`window.__battle.enemies[0].hp = Math.floor(window.__battle.enemies[0].maxHp * 0.49)`);
     await page.waitFor(`window.__battle.firedEvents.has('duel_nala') || !!window.__battle.nala`, { timeout: 60000 });
     const nalaSeen = await page.ev(`(() => { const B = window.__battle; const n = B.nala; return n ? { x: Math.round(n.container.x), vis: n.container.visible, hero: Math.round(B.heroes[0].container.x), foe: Math.round(B.enemies[0].container.x) } : null; })()`);
     log(!!nalaSeen, 'Duel: Nala is created on demand for the jump-in', JSON.stringify(nalaSeen));
+    await sleep(250);
+    await page.shot(join(out, 'duel_nala_air.png'));
     await page.waitFor(`window.__battle.nala && !window.__battle.nala.busy`, { timeout: 5000 });
-    await sleep(500);
+    await page.waitFor(`window.__game.scene.getScenes(true).some((s) => s.scene.key === 'Dialogue')`, { timeout: 8000 });
+    await sleep(900);
     const landed = await B(page, `({ x: Math.round(B.nala.container.x), hero: Math.round(B.heroes[0].container.x), foe: Math.round(B.enemies[0].container.x), dialogue: !!B.scene.get('Dialogue') })`);
     log(landed.x > landed.hero && landed.x < landed.foe, 'Duel: Nala lands between Rhea and Dov', JSON.stringify(landed));
-    await page.waitFor(`window.__game.scene.getScenes(true).some((s) => s.scene.key === 'Dialogue')`, { timeout: 8000 });
-    const dl = await page.ev(`(() => { const d = window.__game.scene.getScene('Dialogue'); return { line: d.lines && d.lines[0] && { speaker: d.lines[0].speaker, portrait: d.lines[0].portrait, style: d.lines[0].style } }; })()`);
-    log(dl.line?.speaker === 'Nala' && dl.line?.portrait === 'nala_hiss' && dl.line?.style === 'narration', 'Duel: duel_nala opens with the Nala narration line (nala_hiss portrait)', JSON.stringify(dl));
+    const dl = await page.ev(`(() => { const d = window.__game.scene.getScene('Dialogue'); return { line: d.lines && d.lines[0] && { speaker: d.lines[0].speaker, portrait: d.lines[0].portrait, style: d.lines[0].style, sfx: d.lines[0].sfx, text: d.lines[0].text }, slots: Object.values(d.portraits).filter((s) => s.image.visible).map((s) => s.side + ':' + s.key) }; })()`);
+    log(dl.line?.speaker === 'Nala' && dl.line?.portrait === 'nala_meow' && dl.line?.style === 'narration' && dl.line?.sfx === 'sfx_meow' && /sharp meow/.test(dl.line?.text), 'Duel: duel_nala opens with the Nala narration line (nala_meow portrait, sfx_meow)', JSON.stringify(dl));
+    log(dl.slots.length === 1 && dl.slots[0] === 'right:nala_meow', 'Duel: the first line shows only Nala\'s portrait, on the RIGHT', JSON.stringify(dl.slots));
     await page.shot(join(out, 'duel_nala_jump.png'));
+    const nf = await page.ev(`(window.__nfStop = true, window.__nf)`);
+    const jumpStart = nf.findIndex((f) => f.nala && f.nala.busy);
+    const firstPortrait = nf.findIndex((f) => f.portraits.length > 0);
+    const firstDialogue = nf.findIndex((f) => f.dlg);
+    const landing = nf.findIndex((f, i) => i > jumpStart && f.nala && !f.nala.busy);
+    const duringJump = nf.slice(jumpStart, landing);
+    const noEarly = duringJump.length > 10 && duringJump.every((f) => !f.dlg && f.portraits.length === 0 && f.strays === 0 && !f.line && f.nala.fw < 100); // the 64px sheet frame, never the 264x310 portrait art
+    log(jumpStart >= 0 && landing > jumpStart && noEarly, `Duel: during the jump (${duringJump.length} frames) there is no Dialogue scene, no portrait and no line`, JSON.stringify({ jumpStart, landing, firstDialogue, firstPortrait, early: duringJump.filter((f) => f.dlg || f.portraits.length || f.strays).slice(0, 2) }));
+    log(firstPortrait > landing - 1 && firstDialogue >= landing && nf[firstPortrait].portraits.join() === 'right:nala_meow' && /Nala leaps/.test(nf[firstPortrait].line || ''), 'Duel: the portrait (right, nala_meow) first exists on/after the landing frame, together with the first line', JSON.stringify({ landing, firstDialogue, firstPortrait, frame: nf[firstPortrait] }));
+    // 8 sample frames across the jump and the landing for the report.
+    const pick = Array.from({ length: 8 }, (_, i) => Math.round(jumpStart + ((Math.max(firstPortrait, landing) + 2 - jumpStart) * i) / 7));
+    console.log('  nala frames (idx t nala{x,y,busy,anim} dlg portraits strays line):');
+    for (const i of pick) { const f = nf[i]; if (f) console.log(`   #${i} t=${f.t - nf[jumpStart].t}ms nala=${JSON.stringify(f.nala)} dlg=${f.dlg} portraits=[${f.portraits}] strays=${f.strays} line=${JSON.stringify(f.line)}`); }
+    log(landed.x > 0 && ['nala_idle', 'nala_alert_out'].includes(await page.ev(`window.__battle.nala.image.anims.currentAnim?.key`)), 'Duel: on landing she plays alert_out -> idle (no hiss sheet)', await page.ev(`window.__battle.nala.image.anims.currentAnim?.key`));
     await tapDialogue();
     await page.waitFor(`window.__battle.battleOver === true`, { timeout: 8000 });
     await sleep(1500);
@@ -445,7 +481,7 @@ await withBrowser(async ({ chrome, server }) => {
 
   // ============ F-duel-pauses: tutorial pauses (spotlight + text, tap to continue) ============
   if (want('duel')) {
-    const page = await battle(chrome, server, 'b0_duel');
+    const page = await battle(chrome, server, 'b0_duel', { extra: '&pauses=on' });
     await waitMenu(page);
     await page.ev(`(() => { const B = window.__battle; window.__tele = []; const o = B.enemyHit.bind(B); B.enemyHit = (en, t, hit, sh, k) => { window.__tele.push({ rings: B.qteRings?.size || 0, pause: B.tutorialPause?.id ?? null }); return o(en, t, hit, sh, k); }; })()`);
     const tp = () => B(page, `B.tutorialPause ? { id: B.tutorialPause.id, step: B.tutorialPause.step, steps: B.tutorialPause.steps } : null`);
@@ -464,9 +500,13 @@ await withBrowser(async ({ chrome, server }) => {
     const depths = await B(page, `({ dim: Math.max(...B.children.list.filter((o) => o.type === 'Rectangle' && o.depth === 6000).map((o) => o.depth)), others: Math.max(...B.children.list.filter((o) => o.depth < 6000 && o.visible !== false).map((o) => o.depth)), hud: B.hud.rows.length })`);
     log(depths.dim === 6000 && depths.others < 6000, 'Pauses: the dim is above the HUD and every other object', JSON.stringify(depths));
     // A tap within 300 ms of the step appearing is ignored (accidental skips).
-    await page.tap(180, 320);
-    const early = await page.ev(`({ gap: window.__taps[window.__taps.length - 1] - window.__battle.tutorialPause.shownAt, step: window.__battle.tutorialPause.step })`);
-    log(early.gap >= 300 || early.step === 0, 'Pauses: a tap within 300 ms of the step appearing does not skip it', JSON.stringify(early));
+    // (Only when the poll found the pause young enough: a slow poll would turn a legitimate tap into a failure.)
+    const age = await page.ev(`performance.now() - window.__battle.tutorialPause.shownAt`);
+    if (age < 200) {
+      await page.tap(180, 320);
+      const early = await page.ev(`({ step: window.__battle.tutorialPause.step })`);
+      log(early.step === 0, 'Pauses: a tap within 300 ms of the step appearing does not skip it', JSON.stringify({ ageMs: Math.round(age), ...early }));
+    } else log(true, 'Pauses: early-tap check skipped (the poll found the pause late)', `${Math.round(age)} ms old`);
     await sleep(500);
     const t1 = await pauseTexts();
     log(t1.some((t) => /This is your HP/.test(t.text)) && t1.every((t) => t.lines <= 2 || /\d\/\d|Tap to continue/.test(t.text)), 'Pauses: step 1 text (HP) is up, at most 2 lines', JSON.stringify(t1));
@@ -523,6 +563,57 @@ await withBrowser(async ({ chrome, server }) => {
     await page.waitFor(`window.__results.length > 0`, { timeout: 5000 });
     const res1 = await page.ev(`window.__results[0]`);
     log(res1.result !== 'MISS' && res1.input === 'tap', 'Pauses: the real tap at impact is judged normally after the pause', JSON.stringify(res1));
+
+    // (e) Guided Technique -> Blast: Rhea's first menu after duel_blast_unlock. Only a tap on Technique gets through.
+    let sawGuided = false;
+    for (let i = 0; i < 200 && !sawGuided; i++) {
+      if (await page.ev(`!!(window.__battle.tutorialPause && window.__battle.tutorialPause.id === 'technique_guided')`)) sawGuided = true;
+      else {
+        if ((await page.scenes()).includes('Dialogue')) await page.tap(180, 560);
+        await sleep(300);
+      }
+    }
+    log(sawGuided, 'Pauses: after the first parry + its dialogues, Rhea\'s next menu opens the guided technique_guided pause');
+    await sleep(500);
+    await page.shot(join(out, 'pause_e1_guided.png'));
+    const gt = await pauseTexts();
+    const gInfo = await B(page, `({ pause: B.tutorialPause, hits: B.counters.playerHits, pending: !!B.menu.pending, flag: B.hasFlag('blastUnlocked'), echo: B.heroes[0].echo })`);
+    log(gt.some((t) => t.text === 'Tap Technique.') && !gt.some((t) => /Tap to continue/.test(t.text)) && gInfo.flag && gInfo.pause.guided && Math.abs(gInfo.pause.hole.x - slots.technique[0]) < 4 && Math.abs(gInfo.pause.hole.y - slots.technique[1]) < 4, 'Pauses: guided text "Tap Technique." (no "Tap to continue"), spotlight on the Technique button', JSON.stringify({ texts: gt.map((t) => t.text), hole: gInfo.pause.hole }));
+    // Taps outside the spotlight (the scene, the Strike button, the empty slot) are swallowed.
+    await page.tap(180, 320);
+    await sleep(150);
+    await page.tap(...slots.strike);
+    await sleep(900);
+    const swallowed = await B(page, `({ id: B.tutorialPause?.id ?? null, hits: B.counters.playerHits, pending: !!B.menu.pending, items: B.menu.items.map((i) => i.slot + ':' + i.value) })`);
+    log(swallowed.id === 'technique_guided' && swallowed.hits === gInfo.hits && swallowed.pending && swallowed.items.join().includes('strike:strike'), 'Pauses: guided: taps outside the spotlight (scene, Strike button) are swallowed; the pause stays up and nothing was struck', JSON.stringify(swallowed));
+    // Rhea has 1 Echo now: the explain step must say she needs one more Strike.
+    await page.ev(`(() => { const h = window.__battle.heroes[0]; h.echo = 1; window.__battle.refreshHud(); })()`);
+    await page.tap(...slots.technique); // inside the spotlight: the pause ends and the tap opens the Technique list
+    await waitPause('blast_explain', 8000);
+    const listItems = await B(page, `B.menu.items.map((i) => i.slot + ':' + i.label)`);
+    log(listItems.includes('strike:Blast'), 'Pauses: the tap inside the spotlight passed through: the technique list is open (Blast), blast_explain pause up', JSON.stringify(listItems));
+    await sleep(500);
+    await page.shot(join(out, 'pause_e2_blast.png'));
+    const b1t = await pauseTexts();
+    log((await tp())?.steps === 2 && b1t.some((t) => /^Blast: your first Technique\. 2 Echo, 2 bolts of pure memory\.$/.test(t.text)) && b1t.every((t) => t.lines <= 3 || /\d\/\d|Tap to continue/.test(t.text)), 'Pauses: blast_explain step 1 text', JSON.stringify(b1t.map((t) => [t.text, t.lines])));
+    await continueTap();
+    await waitStep(1);
+    await sleep(500);
+    await page.shot(join(out, 'pause_e3_echo.png'));
+    const b2t = await pauseTexts();
+    log(b2t.some((t) => /^Techniques spend the Echo your Strikes and PERFECT parries earn\. When Echo runs out, Strike\. \(Strike once more to afford it\.\)$/.test(t.text)), 'Pauses: blast_explain step 2 text (with the "Strike once more" line when Echo < 2)', JSON.stringify(b2t.map((t) => t.text)));
+    await continueTap();
+    await page.waitFor(`!window.__battle.tutorialPause`, { timeout: 5000 });
+    await sleep(300);
+    const afterExplain = await B(page, `({ pending: !!B.menu.pending, items: B.menu.items.map((i) => i.slot), hits: B.counters.playerHits })`);
+    log(afterExplain.pending && afterExplain.items.includes('back') && afterExplain.hits === gInfo.hits, 'Pauses: after the explanation the technique list stays open (Blast or Back, picked normally)', JSON.stringify(afterExplain));
+    await page.tap(...slots.back);
+    await sleep(500);
+    await page.tap(...slots.technique); // opening the list again: each pause shows once
+    await sleep(700);
+    log(!(await tp()), 'Pauses: reopening the technique list does not repeat blast_explain');
+    await page.tap(...slots.back);
+    await sleep(500);
 
     // Second real attack: the dodge pause, before its ring; the old dodge banner is not shown on top.
     let sawDodge = false;
@@ -581,7 +672,7 @@ await withBrowser(async ({ chrome, server }) => {
     await page.waitFor(`!window.__battle.tutorialPause`, { timeout: 5000 });
     await sleep(500);
     const card = await B(page, `({ over: B.battleOver, scenes: window.__game.scene.getScenes(true).map((s) => s.scene.key), seen: B.registry.get('tutorialSeen') })`);
-    log(card.scenes.includes('Battle') && card.seen.join() === 'battle_start,parry,dodge,leveling', 'Pauses: each pause fired exactly once, in order', JSON.stringify(card));
+    log(card.scenes.includes('Battle') && card.seen.join() === 'battle_start,parry,technique_guided,blast_explain,dodge,leveling', 'Pauses: each pause fired exactly once, in order', JSON.stringify(card));
     await page.tap(180, 560); // the Recall card's own continue tap still works after the pause
     await waitScene(page, 'Title', 10000).catch(() => {});
     log((await page.scenes()).includes('Title') && !page.errors.length, 'Pauses: the Recall card continues after the pause (no page errors)', JSON.stringify({ errors: page.errors, scenes: await page.scenes() }));
@@ -595,6 +686,75 @@ await withBrowser(async ({ chrome, server }) => {
     await sleep(900);
     const offHit = await B(off, `({ pending: !!B.menu.pending, hp: B.enemies[0].hp, max: B.enemies[0].maxHp })`);
     log(offState.pause === null && offState.seen.length === 0 && offState.banner && (!offHit.pending || offHit.hp < offHit.max), '?pauses=0: no pause, the Strike button works at once, the old banner is back', JSON.stringify({ offState, offHit }));
+  }
+
+  // ============ F-pauses2: break_intro (b1, Rhea's first menu) and red_ring (before the first red ring of the run) ============
+  if (want('duel') || want('pauses')) {
+    const page = await battle(chrome, server, 'b1_forgotten', { extra: '&pauses=on' });
+    await waitMenu(page);
+    const tp = () => B(page, `B.tutorialPause ? { id: B.tutorialPause.id, step: B.tutorialPause.step, steps: B.tutorialPause.steps } : null`);
+    const pauseTexts = () => B(page, `B.children.list.filter((o) => o.type === 'Text' && o.depth > 6000 && o.visible).map((o) => o.text)`);
+    await page.waitFor(`window.__battle.tutorialPause && window.__battle.tutorialPause.id === 'break_intro'`, { timeout: 8000 });
+    log((await tp()).steps === 2, 'break_intro: pauses Rhea\'s first menu in b1_forgotten (not a tutorial battle: always), 2 steps', JSON.stringify(await tp()));
+    await sleep(500);
+    await page.shot(join(out, 'pause_f1_break.png'));
+    const bt1 = await pauseTexts();
+    const poiseRect = await B(page, `(() => { const r = B.tutorialTargets['enemy.poise'](); return r && { x: Math.round(r.x), y: Math.round(r.y), w: r.w, h: r.h }; })()`);
+    log(bt1.includes('The golden line is its footing. Every hit chips it.') && !!poiseRect && poiseRect.y > 100 && poiseRect.y < 300, 'break_intro: step 1 text; the spotlight is the first enemy\'s golden poise line', JSON.stringify({ bt1, poiseRect }));
+    await sleep(0);
+    await page.tap(180, 320);
+    await page.waitFor(`window.__battle.tutorialPause && window.__battle.tutorialPause.step === 1`, { timeout: 5000 });
+    await sleep(500);
+    await page.shot(join(out, 'pause_f2_break.png'));
+    const bt2 = await pauseTexts();
+    log(bt2.includes('Empty it and the enemy BREAKS: it loses its next turn and takes extra damage.'), 'break_intro: step 2 text (poise line + Strike button)', JSON.stringify(bt2));
+    await page.tap(180, 320);
+    await page.waitFor(`!window.__battle.tutorialPause`, { timeout: 5000 });
+    await page.tap(...slots.strike);
+    await sleep(500);
+    await B(page, `B.menu.choose(B.enemies[0])`); // two Forgotten: the target menu
+    await page.waitFor(`window.__battle.counters.playerHits > 0`, { timeout: 15000 });
+    await sleep(600);
+    log(!(await B(page, `B.hints.isShowing('break')`)) && (await B(page, `B.registry.get('tutorialSeen')`)).includes('break_intro'), 'break_intro: the old "break" banner is suppressed once the pause has shown (skipHints)');
+    await page.close?.();
+
+    // red_ring: before the first unparryable ring of the run (b2: b1 never throws one).
+    const p2 = await battle(chrome, server, 'b2_first_hollow', { extra: '&pauses=on' });
+    await waitMenuThroughDialogue(p2, 60000);
+    const noBreak = await B(p2, `({ pause: B.tutorialPause?.id ?? null, seen: B.registry.get('tutorialSeen') || [] })`);
+    log(noBreak.pause === null && !noBreak.seen.includes('break_intro'), 'break_intro: not shown in b2 (only b1 sets it)', JSON.stringify(noBreak));
+    await p2.ev(`(() => { const B = window.__battle; B.hideCommandMenu(); B.tapHint.setVisible(true); window.__results = []; const h = B.heroes[0]; h.hp = h.maxHp;
+      const o = B.applyParryResult.bind(B); B.applyParryResult = (r, e, hero, hit, input) => { window.__results.push({ result: r, input }); return o(r, e, hero, hit, input); };
+      const hit = { telegraphMs: 800, dmg: 8, unparryable: true };
+      window.__done = null; B.enemyHit(B.enemies[0], h, hit, null, 0).then((r) => { window.__done = r; }); })()`);
+    await p2.waitFor(`window.__battle.tutorialPause && window.__battle.tutorialPause.id === 'red_ring'`, { timeout: 8000 });
+    const pre = await B(p2, `({ rings: B.qteRings?.size || 0, st: B.tutorialPause.steps })`);
+    log(pre.rings === 0 && pre.st === 2, 'red_ring: the pause comes before the first red ring exists (no ring yet), 2 steps', JSON.stringify(pre));
+    await sleep(500);
+    await p2.shot(join(out, 'pause_g1_red.png'));
+    const rt1 = await pauseTexts2(p2);
+    log(rt1.includes("A RED ring can't be parried. Swipe anywhere to dodge it."), 'red_ring: step 1 text (swipe indicator over the attacker + tap zone)', JSON.stringify(rt1));
+    await p2.tap(180, 320);
+    await p2.waitFor(`window.__battle.tutorialPause && window.__battle.tutorialPause.step === 1`, { timeout: 5000 });
+    await sleep(500);
+    await p2.shot(join(out, 'pause_g2_red.png'));
+    const rt2 = await pauseTexts2(p2);
+    log(rt2.includes('A PERFECT dodge takes nothing. Late takes half. A tap takes it all.'), 'red_ring: step 2 text', JSON.stringify(rt2));
+    await p2.tap(180, 320);
+    await p2.waitFor(`!window.__battle.tutorialPause && window.__battle.qteRings && window.__battle.qteRings.size > 0`, { timeout: 8000 });
+    const after = await B(p2, `({ scale: B.timeScale, prompt: !!(B.tutorialPrompt && B.tutorialPrompt.visible), hint: B.tapHint.text, hintVisible: B.tapHint.visible, results: window.__results.length })`);
+    log(after.scale === 0.35 && !after.prompt && after.hintVisible && /Swipe to dodge/.test(after.hint) && after.results === 0, 'red_ring: the ring starts after the pause (slow-mo lesson still runs), its own "Red ring: SWIPE" prompt is suppressed, "Swipe to dodge!" hint stays; the dismiss tap is not judged', JSON.stringify(after));
+    const at = await p2.ev(`[...window.__battle.qteRings][0].impactAt`);
+    await sleep(Math.max(0, at - (await p2.ev(`performance.now()`)) - 6));
+    await p2.swipe(180, 610, -80);
+    await p2.waitFor(`window.__done !== null`, { timeout: 8000 });
+    log((await p2.ev(`window.__results[0].input`)) === 'swipe', 'red_ring: a swipe answers the red ring after the pause');
+    // a second red ring: no pause.
+    await p2.ev(`(() => { const B = window.__battle; window.__done = null; B.enemyHit(B.enemies[0], B.heroes[0], { telegraphMs: 800, dmg: 8, unparryable: true }, null, 0).then((r) => { window.__done = r; }); })()`);
+    await p2.waitFor(`window.__battle.qteRings && window.__battle.qteRings.size > 0`, { timeout: 5000 });
+    log(!(await B(p2, `B.tutorialPause`)), 'red_ring: shown once per run (a second red ring starts at once)');
+    await p2.waitFor(`window.__done !== null`, { timeout: 8000 });
+    log(!p2.errors.length && !page.errors.length, 'break_intro / red_ring: no page errors', JSON.stringify([...page.errors, ...p2.errors]));
   }
 
   // ============ F-down: Anchor revive, both down → lose → Retry snapshot ============

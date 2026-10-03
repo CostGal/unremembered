@@ -177,9 +177,9 @@
     {
       "speaker": "Nala",
       "style": "narration",
-      "text": "Nala leaps out of the rain and lands between them, fur on end.",
-      "portrait": null,
-      "sfx": "sfx_hiss"
+      "text": "Nala leaps out of the rain and lands between them. One sharp meow, like an order.",
+      "portrait": "nala_meow",
+      "sfx": "sfx_meow"
     },
     {
       "speaker": "Rhea",

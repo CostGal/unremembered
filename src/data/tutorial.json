@@ -21,7 +21,8 @@
     "tapIndicator": { "color": "0xf1efe8", "r0": 12, "r1": 34, "ms": 800, "width": 3 },
     "swipeIndicator": { "color": "0xf1efe8", "dotR": 11, "travel": 120, "ms": 1100, "pauseMs": 350, "trail": 6, "trailMs": 28 }
   },
-  "targets": ["hud.hp", "hud.echo", "cmd.strike", "cmd.technique", "cmd.recollection", "cmd.ultimate", "cmd.back", "enemy", "hero", "nala", "tapzone", "recall.bar"],
+  "targets": ["hud.hp", "hud.echo", "cmd.strike", "cmd.technique", "cmd.recollection", "cmd.ultimate", "cmd.back", "enemy", "enemy.poise", "hero", "nala", "tapzone", "recall.bar"],
+  "_targetsAbout": "cmd.<techniqueId> spotlights the slot that technique stands in while the technique list is open; enemy.poise.<n> is enemy n's poise line.",
   "targetsWithHero": ["hud.hp", "hud.echo"],
   "recallCard": "leveling",
   "pauses": {
@@ -43,6 +44,37 @@
       "targets": ["tapzone"],
       "indicator": "swipe",
       "skipHints": ["dodge"]
+    },
+    "technique_guided": {
+      "mode": "guided",
+      "text": "Tap Technique.",
+      "targets": ["cmd.technique"],
+      "indicator": "tap"
+    },
+    "blast_explain": {
+      "steps": [
+        { "text": "Blast: your first Technique. 2 Echo, 2 bolts of pure memory.", "targets": ["cmd.blast"] },
+        {
+          "text": "Techniques spend the Echo your Strikes and PERFECT parries earn. When Echo runs out, Strike.",
+          "textIfShort": "Techniques spend the Echo your Strikes and PERFECT parries earn. When Echo runs out, Strike. (Strike once more to afford it.)",
+          "targets": ["cmd.blast", "hud.echo.rhea"]
+        }
+      ]
+    },
+    "break_intro": {
+      "always": true,
+      "skipHints": ["break"],
+      "steps": [
+        { "text": "The golden line is its footing. Every hit chips it.", "targets": ["enemy.poise"] },
+        { "text": "Empty it and the enemy BREAKS: it loses its next turn and takes extra damage.", "targets": ["enemy.poise", "cmd.strike"] }
+      ]
+    },
+    "red_ring": {
+      "always": true,
+      "steps": [
+        { "text": "A RED ring can't be parried. Swipe anywhere to dodge it.", "targets": ["enemy", "tapzone"], "indicator": "swipe" },
+        { "text": "A PERFECT dodge takes nothing. Late takes half. A tap takes it all.", "targets": ["tapzone"] }
+      ]
     },
     "leveling": {
       "steps": [

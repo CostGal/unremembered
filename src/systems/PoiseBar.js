@@ -27,6 +27,12 @@ export default class PoiseBar {
     this.shards = [];
   }
 
+  // The line's box (a tutorial pause spotlights it).
+  rect() {
+    const l = brk.line;
+    return { x: this.left, y: this.y - l.h / 2, w: l.w, h: l.h, pad: 8 };
+  }
+
   get objects() {
     return [this.bg, this.fill, this.stun];
   }

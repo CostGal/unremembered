@@ -1,3 +1,4 @@
+import Phaser from 'phaser';
 import tutorial from '../data/tutorial.json';
 import ui from '../data/ui.json';
 import { devParam } from './DevParams.js';
@@ -17,7 +18,12 @@ import { rect as viewRect } from './View.js';
 // Targets are names; the scene resolves them through scene.tutorialTargets
 // (name -> {x, y, w, h, pad?} or a function returning one; Hud, CommandMenu,
 // BattleScene and RecallCard register theirs). The third argument adds or
-// overrides entries for this call. hud.hp / hud.echo take an optional hero
+// overrides entries for this call. The fourth is a flags object: a step with
+// `textIfShort` shows that text instead when flags.short is set.
+//
+// mode "guided" (one step): the dim + spotlight on the target, and a tap OUTSIDE
+// the spotlight is swallowed while a tap INSIDE it passes through to the real
+// button underneath; that tap ends the pause (no "tap to continue" line). hud.hp / hud.echo take an optional hero
 // suffix (hud.hp.dov); without it, Rhea's (else the first) row.
 
 const cfg = tutorial.style;
@@ -52,18 +58,21 @@ export function stepsOf(def) {
 }
 
 // Resolves true when the player has been through the pause, false at once when it doesn't apply.
-export function show(scene, id, targets = {}) {
+export function show(scene, id, targets = {}, flags = {}) {
   if (!wouldShow(scene, id)) return Promise.resolve(false);
   const def = tutorial.pauses[id];
   scene.registry.set(REGISTRY_KEY, [...(scene.registry.get(REGISTRY_KEY) || []), id]);
   for (const hint of def.skipHints || []) scene.hints?.skip(hint);
-  return new Promise((resolve) => new Pause(scene, id, def, targets, resolve).start());
+  return new Promise((resolve) => new Pause(scene, id, def, targets, resolve, flags).start());
 }
 
 class Pause {
-  constructor(scene, id, def, targets, resolve) {
+  constructor(scene, id, def, targets, resolve, flags = {}) {
     this.scene = scene;
     this.id = id;
+    this.guided = def.mode === 'guided';
+    this.flags = flags;
+    this.cuts = [];
     this.steps = stepsOf(def);
     this.extra = targets;
     this.resolve = resolve;
@@ -83,19 +92,30 @@ class Pause {
     scene.tweens.timeScale = 0;
     scene.anims.globalTimeScale = 0;
     scene.time.timeScale = 0;
-    scene.tutorialPause = { id: this.id, step: 0, steps: this.steps.length };
+    scene.tutorialPause = { id: this.id, step: 0, steps: this.steps.length, guided: this.guided, hole: null };
 
     const v = viewRect();
     // The dim covers everything; its hit area swallows every tap (the spotlight is not clickable).
     this.dim = scene.add.rectangle(v.x, 0, v.w, v.h, Number(cfg.dimColor), 1).setOrigin(0).setDepth(cfg.depth).setAlpha(0);
-    this.dim.setInteractive();
+    if (this.guided) {
+      // Guided: the dim is hit everywhere except inside the spotlight (once the step has been up for
+      // minDismissMs), so a tap on the spotlit button reaches that button.
+      this.dim.setInteractive({
+        hitArea: new Phaser.Geom.Rectangle(0, 0, v.w, v.h),
+        hitAreaCallback: (area, x, y) => Phaser.Geom.Rectangle.Contains(area, x, y) && !this.inHole(x + v.x, y),
+      });
+      this.onPointer = (pointer) => {
+        if (!this.done && this.inHole(pointer.worldX, pointer.worldY)) this.finish();
+      };
+      scene.input.on('pointerdown', this.onPointer);
+    } else this.dim.setInteractive();
     this.dim.on('pointerdown', (pointer, x, y, event) => {
       event?.stopPropagation();
-      this.pressed = performance.now() - this.shownAt >= cfg.minDismissMs;
+      this.pressed = !this.guided && performance.now() - this.shownAt >= cfg.minDismissMs;
     });
     this.dim.on('pointerup', (pointer, x, y, event) => {
       event?.stopPropagation();
-      if (!this.pressed) return;
+      if (!this.pressed) return; // a guided pause never continues on a swallowed tap
       this.pressed = false;
       this.next();
     });
@@ -134,6 +154,12 @@ class Pause {
     this.build();
   }
 
+  // A point inside a spotlight of a guided pause that is ready for the tap.
+  inHole(x, y) {
+    if (performance.now() - this.shownAt < cfg.minDismissMs) return false;
+    return this.cuts.some((c) => x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h);
+  }
+
   clearStep() {
     for (const o of this.stepObjects) o.destroy();
     this.stepObjects = [];
@@ -156,6 +182,14 @@ class Pause {
     this.fade = { from: this.shownAt };
 
     const cuts = this.resolveTargets(step.targets || []);
+    this.cuts = cuts;
+    // A guided pause whose button is not on screen could never be answered: skip it rather than soft-lock.
+    if (this.guided && !cuts.length) {
+      this.finish();
+      return;
+    }
+    // Dev/bot read: where a guided pause lets a tap through.
+    if (this.guided && cuts[0]) scene.tutorialPause.hole = { x: Math.round(cuts[0].x + cuts[0].w / 2), y: Math.round(cuts[0].y + cuts[0].h / 2) };
 
     // Cut-outs: holes in the dim and a pulsing outline around each.
     this.holes.clear();
@@ -200,13 +234,15 @@ class Pause {
   buildBox(step, cuts) {
     const scene = this.scene;
     const b = cfg.box;
+    const body = this.flags.short && step.textIfShort ? step.textIfShort : step.text;
     const text = this.add(
       scene.add
-        .text(b.x, 0, step.text, { fontFamily: ui.font, fontSize: `${b.fontSize}px`, color: b.color, align: 'center', wordWrap: { width: b.wrap }, lineSpacing: b.lineSpacing })
+        .text(b.x, 0, body, { fontFamily: ui.font, fontSize: `${b.fontSize}px`, color: b.color, align: 'center', wordWrap: { width: b.wrap }, lineSpacing: b.lineSpacing })
         .setOrigin(0.5, 0)
     );
-    const hint = this.add(scene.add.text(b.x, 0, b.hint.text, { fontFamily: ui.font, fontSize: `${b.hint.fontSize}px`, color: b.hint.color }).setOrigin(0.5, 0));
-    const h = b.padY + text.height + b.hint.gap + hint.height + b.padY;
+    // A guided step ends with the tap on the spotlight, not with "Tap to continue".
+    const hint = this.add(scene.add.text(b.x, 0, this.guided ? '' : b.hint.text, { fontFamily: ui.font, fontSize: `${b.hint.fontSize}px`, color: b.hint.color }).setOrigin(0.5, 0));
+    const h = b.padY + text.height + (this.guided ? 0 : b.hint.gap + hint.height) + b.padY;
 
     // Box position: tutorial.json boxY (a centre y) or "auto": just above the spotlight, else just below it.
     let top;
@@ -228,7 +264,8 @@ class Pause {
     hint.setY(top + b.padY + text.height + b.hint.gap).setDepth(cfg.depth + 2);
     if (this.steps.length > 1) {
       const s = b.steps;
-      const n = this.add(scene.add.text(b.x + b.w / 2 - 10, top + 6, `${this.index + 1}/${this.steps.length}`, { fontFamily: ui.font, fontSize: `${s.fontSize}px`, color: s.color }).setOrigin(1, 0));
+      // On the hint row, bottom right: a full first line of text never runs into it.
+      const n = this.add(scene.add.text(b.x + b.w / 2 - 10, top + h - b.padY - hint.height, `${this.index + 1}/${this.steps.length}`, { fontFamily: ui.font, fontSize: `${s.fontSize}px`, color: s.color }).setOrigin(1, 0));
       n.setDepth(cfg.depth + 2);
     }
     this.anim.push((now) => {
@@ -282,6 +319,7 @@ class Pause {
     const scene = this.scene;
     scene.events.off('update', this.onUpdate);
     scene.events.off('shutdown', this.onShutdown);
+    if (this.onPointer) scene.input.off('pointerdown', this.onPointer);
     scene.tweens.timeScale = this.saved.tweens;
     scene.anims.globalTimeScale = this.saved.anims;
     scene.time.timeScale = this.saved.time;

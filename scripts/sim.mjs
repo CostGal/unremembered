@@ -178,9 +178,16 @@ function simulateBattle(battleId, profileName, mode, rnd) {
 
   // A tutorial battle also costs the time to read its hint banners and its tutorial pauses
   // (tutorial.json: one tap-through per step, T.pauseMs per profile; time only, no mechanics).
-  const pauseSteps = battle.tutorial
-    ? [battle.pauses?.battleStart, ...Object.values(battle.pauses?.enemyAttack || {}), D.tutorial.recallCard].reduce((n, id) => n + (D.tutorial.pauses[id] ? (D.tutorial.pauses[id].steps || [0]).length : 0), 0)
-    : 0;
+  // Only tutorial battles show them, except pauses marked `always`. red_ring comes in the first battle of the
+  // chapter that throws a red ring. Guided pauses (one step) cost a step too.
+  const hasRed = (b) => b.redRings !== false && b.enemies.some((e) => /"unparryable":\s*true/.test(JSON.stringify(D.enemies[e])));
+  const firstRed = D.chapter.filter((c) => c.type === 'battle').map((c) => c.id).find((id) => hasRed(D.battles[id]));
+  const pauseIds = [battle.pauses?.battleStart, ...Object.values(battle.pauses?.enemyAttack || {}), ...Object.values(battle.pauses?.menuAfterFlag || {}), battle.pauses?.techniqueMenu, battle.tutorial ? D.tutorial.recallCard : null];
+  if (battleId === firstRed) pauseIds.push('red_ring');
+  const pauseSteps = pauseIds.reduce((n, id) => {
+    const def = D.tutorial.pauses[id];
+    return n + (def && (battle.tutorial || def.always) ? (def.steps || [0]).length : 0);
+  }, 0);
   const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0) + pauseSteps * (T.pauseMs?.[profileName] ?? 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, memoryCasts: 0, memoryFails: 0, memoryGrade: null, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], firedCharge: new Set(), flags: [], playerHits: 0, parrySuccess: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   // Echo is per hero (each has their own reserve).
   // A difficulty with echoMult < 1 earns Echo more slowly (the fraction carries over); raw skips it (the Keepsake).

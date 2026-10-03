@@ -146,9 +146,18 @@ Notation: `Speaker [portrait]: text`. `>` = narration (no speaker). `✉` = lett
 - `duel_wake` (after Rhea's 2nd landed hit, or round 3, whichever first; Dov starts attacking):
   - Dov [dov_fierce]: Fine. Wake up, then!
   - > He raises his fists. He's holding back, but not by much.
-- `duel_nala` (Dov at or below 50% HP; the battle ends):
-  - > A calico cat bolts out of the rain and plants herself between them.
+- Tutorial pause `technique_guided` (Rhea's first command menu after `duel_blast_unlock`; guided: only a tap on the spotlit Technique button gets through):
+  - "Tap Technique."
+- Tutorial pause `blast_explain` (the first time the Technique list opens with Blast usable; tap to continue, 2 steps):
+  - 1/2 "Blast: your first Technique. 2 Echo, 2 bolts of pure memory." (spotlight: Blast)
+  - 2/2 "Techniques spend the Echo your Strikes and PERFECT parries earn. When Echo runs out, Strike." (spotlight: Blast + Echo row; with less than 2 Echo it adds "(Strike once more to afford it.)")
+- `duel_nala` (Dov at or below 50% HP; the battle ends). Nala's jump plays in silence, with no dialogue and no portrait; the dialogue opens only once she has landed:
+  - > [nala_meow, right; sfx meow] Nala leaps out of the rain and lands between them. One sharp meow, like an order.
   - Rhea [rhea_confused]: ...Nala?
+
+### Other tutorial pauses (always: once per run)
+- `break_intro` (b1_forgotten, Rhea's first menu): 1/2 "The golden line is its footing. Every hit chips it." (spotlight: the poise line) - 2/2 "Empty it and the enemy BREAKS: it loses its next turn and takes extra damage." (poise line + Strike).
+- `red_ring` (before the first red ring of the run, b2): 1/2 "A RED ring can't be parried. Swipe anywhere to dodge it." (attacker + tap zone, swipe hint) - 2/2 "A PERFECT dodge takes nothing. Late takes half. A tap takes it all."
 
 ### after_duel (street_rain)
 - Dov [dov_warm]: Nala! Easy, girl. Easy.

@@ -37,6 +37,7 @@ export function probe(page) {
         over: !!b.battleOver,
         pending: !!b.menu.pending,
         pause: b.tutorialPause ? `${b.tutorialPause.id}:${b.tutorialPause.step}` : null, // a tutorial pause is up: any tap continues
+        pauseHole: b.tutorialPause?.guided ? b.tutorialPause.hole : null, // a guided pause: only a tap inside this point gets through
         // A target card (slot 'target') carries the candidate's id and where its button is.
         items: (b.menu.items || []).map((i) => ({ slot: i.slot, value: i.value && typeof i.value === 'object' ? (i.kind === 'hero' ? 'hero' : 'enemy') : i.value, enabled: i.enabled !== false, id: i.value?.id, x: i.x, y: i.y, kind: i.kind })),
         rings: [...(b.qteRings || [])].map((r) => r.impactAt),
@@ -118,7 +119,7 @@ export class Bot {
     const b = st.battle;
 
     // A tutorial pause (spotlight + text): any tap continues (it ignores the first 300 ms).
-    if (b.pause) return this.tapOnce(180, 320, 450);
+    if (b.pause) return this.tapOnce(b.pauseHole?.x ?? 180, b.pauseHole?.y ?? 320, 450);
 
     // A Recollection beat: answered once, the way a player who gets it would.
     if (b.beat) {

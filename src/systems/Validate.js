@@ -64,17 +64,22 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     const targetOk = (name) => {
       if (known.has(name)) return true;
       const [a, b, c] = name.split('.');
+      if (a === 'cmd' && b && !c && techniques[b]) return true; // the slot a technique stands in (technique list open)
+      if (a === 'enemy' && b === 'poise' && /^\d+$/.test(c || '')) return true; // enemy n's poise line
       return !!c && withHero.has(`${a}.${b}`) && !!characters[c];
     };
     for (const [pid, def] of Object.entries(tutorial.pauses || {})) {
       const steps = def.steps || [def];
       if (!steps.length) err(`tutorial.pauses.${pid}: no steps`);
+      if (def.mode !== undefined && def.mode !== 'guided') err(`tutorial.pauses.${pid}.mode: must be "guided" (or absent)`);
+      if (def.mode === 'guided' && steps.length !== 1) err(`tutorial.pauses.${pid}: a guided pause has exactly one step`);
       steps.forEach((st, i) => {
         const at = def.steps ? `tutorial.pauses.${pid}.steps[${i}]` : `tutorial.pauses.${pid}`;
         if (typeof st.text !== 'string' || !st.text) err(`${at}: text must be a non-empty string`);
         if (!Array.isArray(st.targets) || !st.targets.length) err(`${at}: targets must be a non-empty list`);
         for (const name of st.targets || []) if (!targetOk(name)) err(`${at}: unknown target "${name}" (known: ${[...known].join(', ')}; hud.hp.<hero>, hud.echo.<hero>)`);
         if (st.indicator && !['tap', 'swipe'].includes(st.indicator)) err(`${at}: indicator must be null, "tap" or "swipe"`);
+        if (st.textIfShort !== undefined && (typeof st.textIfShort !== 'string' || !st.textIfShort)) err(`${at}: textIfShort must be a non-empty string`);
         if (st.boxY !== undefined && st.boxY !== 'auto' && typeof st.boxY !== 'number') err(`${at}: boxY must be a number or "auto"`);
       });
       for (const hint of def.skipHints || []) if (!ui.tutorial?.hints?.[hint]) err(`tutorial.pauses.${pid}.skipHints: "${hint}" is not in ui.tutorial.hints`);
@@ -124,7 +129,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     const pauseIds = [];
     if (battle.pauses !== undefined) {
       const p = battle.pauses;
-      if (typeof p !== 'object' || p === null || Array.isArray(p)) err(`battles.${id}.pauses: must be an object {battleStart, enemyAttack}`);
+      if (typeof p !== 'object' || p === null || Array.isArray(p)) err(`battles.${id}.pauses: must be an object {battleStart, enemyAttack, menuAfterFlag, techniqueMenu}`);
       else {
         if (p.battleStart !== undefined) pauseIds.push(['battleStart', p.battleStart]);
         if (p.enemyAttack !== undefined) {
@@ -133,7 +138,15 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
             pauseIds.push([`enemyAttack.${n}`, pid]);
           }
         }
-        for (const key of Object.keys(p)) if (!['battleStart', 'enemyAttack'].includes(key)) err(`battles.${id}.pauses: unknown key "${key}"`);
+        if (p.menuAfterFlag !== undefined) {
+          const flags = new Set((battle.events || []).flatMap((ev) => thenSplit(ev.then).post.map((a) => a?.setFlag).filter(Boolean)));
+          for (const [flag, pid] of Object.entries(p.menuAfterFlag || {})) {
+            if (!flags.has(flag)) err(`battles.${id}.pauses.menuAfterFlag: flag "${flag}" is never set by one of the battle's events`);
+            pauseIds.push([`menuAfterFlag.${flag}`, pid]);
+          }
+        }
+        if (p.techniqueMenu !== undefined) pauseIds.push(['techniqueMenu', p.techniqueMenu]);
+        for (const key of Object.keys(p)) if (!['battleStart', 'enemyAttack', 'menuAfterFlag', 'techniqueMenu'].includes(key)) err(`battles.${id}.pauses: unknown key "${key}"`);
       }
     }
     for (const [where, pid] of pauseIds) {
