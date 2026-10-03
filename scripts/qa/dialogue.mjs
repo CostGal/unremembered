@@ -10,6 +10,10 @@ const chapter = JSON.parse(readFileSync(join(root, 'src/data/chapter1.json'), 'u
 const ui = JSON.parse(readFileSync(join(root, 'src/data/ui.json'), 'utf8')).dialogue;
 const portraitDefs = JSON.parse(readFileSync(join(root, 'src/data/assets.json'), 'utf8')).portraits || {};
 const out = process.argv[process.argv.indexOf('--out') + 1];
+// --lang el: run the whole check with the game set to that language (the overlay text is what gets measured)
+const langIdx = process.argv.indexOf('--lang');
+const lang = langIdx > 0 ? process.argv[langIdx + 1] : null;
+const settings = lang ? { lang, fontVersion: 2 } : null;
 mkdirSync(out, { recursive: true });
 const noPortraits = ui.noPortraits || [];
 const bgOf = Object.fromEntries(chapter.filter((s) => s.type === 'dialogue').map((s) => [s.id, s.bg]));
@@ -17,7 +21,7 @@ const rows = [];
 const overflow = [];
 
 await withBrowser(async ({ chrome, server }) => {
-  const page = await open(chrome, server.url + '?step=0');
+  const page = await open(chrome, server.url + '?step=0', { settings });
   await page.gameReady();
   for (const id of Object.keys(dialogue)) {
     await page.ev(`(() => { const g = window.__game; g.scene.getScenes(true).forEach(s => { if (s.scene.key !== 'Loader') g.scene.stop(s.scene.key); }); g.registry.remove('runner'); g.scene.start('Dialogue', { id: ${JSON.stringify(id)}, bg: ${JSON.stringify(bgOf[id] ?? 'black')} }); })()`);
@@ -36,13 +40,13 @@ await withBrowser(async ({ chrome, server }) => {
         const d = window.__game.scene.getScene('Dialogue'); const T = window.__game.textures;
         const slots = Object.fromEntries(Object.entries(d.portraits).map(([side, s]) => [side, { key: s.key, owner: s.owner, visible: s.image.visible, flipX: s.image.flipX, tint: s.image.tintTopLeft, tex: s.image.texture.key, placeholder: !!T.get(s.image.texture.key).customData.placeholder, w: Math.round(s.image.displayWidth), h: Math.round(s.image.displayHeight) }]));
         const bt = d.bodyText; const bb = bt.getBounds();
-        return { index: d.index, speaker: d.nameText.text, name: d.nameText.text, textBottom: Math.round(bb.bottom), textRight: Math.round(bb.right), textLeft: Math.round(bb.left), boxBottom: d.box.y + d.box.height, boxRight: d.box.x + d.box.width, slots, sil: !!d.silhouette, fill: d.box.fillColor, bodyLines: bt.getWrappedText().length, shownFull: bt.text === d.fullText };
+        return { index: d.index, speaker: d.nameText.text, name: d.nameText.text, textBottom: Math.round(bb.bottom), textRight: Math.round(bb.right), shown: bt.text, textLeft: Math.round(bb.left), boxBottom: d.box.y + d.box.height, boxRight: d.box.x + d.box.width, slots, sil: !!d.silhouette, fill: d.box.fillColor, bodyLines: bt.getWrappedText().length, shownFull: bt.text === d.fullText };
       })()`);
       const line = lines[i];
       const issues = [];
       if (info.index !== i) issues.push(`index ${info.index}≠${i}`);
       if (!info.shownFull) issues.push('text not fully shown');
-      if (info.textBottom > info.boxBottom - 8) overflow.push({ id, i, bottom: info.textBottom, limit: info.boxBottom, lines: info.bodyLines, text: line.text });
+      if (info.textBottom > info.boxBottom - 8) overflow.push({ id, i, bottom: info.textBottom, limit: info.boxBottom, lines: info.bodyLines, text: info.shown });
       if (info.textRight > info.boxRight) issues.push('text past box right edge');
       const style = ui.styles[line.style || 'normal'];
       for (const [side, s] of Object.entries(info.slots)) {

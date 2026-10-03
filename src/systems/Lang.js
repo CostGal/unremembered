@@ -10,6 +10,11 @@ import breakData from '../data/break.json';
 import grade from '../data/grade.json';
 import levels from '../data/levels.json';
 import crit from '../data/crit.json';
+import dialogue from '../data/dialogue.json';
+import cutsceneOrigin from '../data/cutscene_origin.json';
+import tutorial from '../data/tutorial.json';
+import recollection from '../data/recollection.json';
+import enemies from '../data/enemies.json';
 import el from '../data/lang/el.json';
 
 // Languages: English is the data as written; another language is an overlay
@@ -19,12 +24,22 @@ import el from '../data/lang/el.json';
 // the same objects in place (so code holding `ui.menu` etc. sees it). A
 // string the overlay doesn't have stays English. Text objects pick up the
 // language when they are created, like the font (scenes restart on a switch).
+// The story is overlaid the same way: `dialogue` { id: [ {text}, ... ] } and
+// `cutscene_origin` { shots: [ {text}, ... ] } by line / shot index, `tutorial`
+// { pauses: { id: { text, steps: [ {text} ], textIfShort } } }, `recollection`,
+// `enemies` { id: { name } }. Speaker names and the data keys stay English.
 
-const MODULES = { ui, credits, qte, techniques, fragments, statuses, battleEvents, allies, break: breakData, grade, levels, crit };
+const MODULES = { ui, credits, qte, techniques, fragments, statuses, battleEvents, allies, break: breakData, grade, levels, crit, dialogue, cutscene_origin: cutsceneOrigin, tutorial, recollection, enemies };
 const OVERLAYS = { el };
 export const LANGUAGES = ui.languages.list;
 
 const english = JSON.parse(JSON.stringify(MODULES));
+
+// A fresh English copy of a module (by its overlay name), whatever language is applied now.
+// The dev editor works on the English source files, never on an overlay.
+export function englishData(name) {
+  return JSON.parse(JSON.stringify(english[name]));
+}
 
 export function langDef(settings) {
   return LANGUAGES.find((l) => l.id === settings?.lang) || LANGUAGES.find((l) => l.id === ui.languages.default);

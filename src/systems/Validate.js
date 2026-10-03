@@ -272,6 +272,63 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   for (const [id, cs] of Object.entries(cutscenes)) (cs.shots || []).forEach((shot, i) => fontCheck(`cutscene_${id}.shots[${i}]`, shot.text));
   for (const [path, text] of uiStrings(ui)) fontCheck(path, text);
 
+  // Language overlays (data.lang = { <id>: overlay }): the Greek story text is checked against the EN source.
+  // An overlay entry with no EN counterpart is an error (it would never show); an EN line without a
+  // translation is a warning (it stays English). Overlay text is checked against the Play font too.
+  for (const [lang, ov] of Object.entries(data.lang || {})) {
+    const at = `lang.${lang}`;
+    const textOf = (x) => (x && typeof x === 'object' ? x.text : undefined);
+    const fontOv = (path, value) => { for (const [p, t] of uiStrings(value, path)) fontCheck(p, t); };
+    fontOv(at, ov);
+    // dialogue: { id: [ {text} ] } by line index
+    for (const [id, lines] of Object.entries(ov.dialogue || {})) {
+      const src = dialogue[id];
+      if (!Array.isArray(src)) { err(`${at}.dialogue.${id}: no such dialogue in dialogue.json`); continue; }
+      if (!Array.isArray(lines)) { err(`${at}.dialogue.${id}: must be a list of {text}`); continue; }
+      if (lines.length > src.length) err(`${at}.dialogue.${id}: ${lines.length} lines but dialogue.json has ${src.length}`);
+      lines.forEach((l, i) => { if (i < src.length && src[i].text && !textOf(l)) warn(`${at}.dialogue.${id}[${i}]: untranslated`); });
+    }
+    for (const [id, src] of Object.entries(dialogue)) {
+      if (!Array.isArray(src)) continue;
+      const lines = ov.dialogue?.[id];
+      if (!lines) { warn(`${at}.dialogue.${id}: whole dialogue untranslated`); continue; }
+      src.forEach((l, i) => { if (i >= lines.length && l.text) warn(`${at}.dialogue.${id}[${i}]: untranslated`); });
+    }
+    // cutscene_origin: { shots: [ {text} ] } by shot index
+    const csOv = ov.cutscene_origin?.shots;
+    const csSrc = cutscenes.origin?.shots || [];
+    if (csOv) {
+      if (csOv.length > csSrc.length) err(`${at}.cutscene_origin: ${csOv.length} shots but cutscene_origin.json has ${csSrc.length}`);
+      csSrc.forEach((shot, i) => { if (shot.text && !textOf(csOv[i])) warn(`${at}.cutscene_origin.shots[${i}]: untranslated`); });
+    } else warn(`${at}.cutscene_origin: untranslated`);
+    // tutorial pauses: text / textIfShort / steps[i].text
+    const tp = tutorial?.pauses || {};
+    for (const [id, pov] of Object.entries(ov.tutorial?.pauses || {})) {
+      const src = tp[id];
+      if (!src) { err(`${at}.tutorial.pauses.${id}: no such pause in tutorial.json`); continue; }
+      for (const k of ['text', 'textIfShort']) if (pov[k] !== undefined && src[k] === undefined) err(`${at}.tutorial.pauses.${id}.${k}: not in tutorial.json`);
+      (pov.steps || []).forEach((st, i) => {
+        if (!src.steps?.[i]) err(`${at}.tutorial.pauses.${id}.steps[${i}]: not in tutorial.json`);
+        else if (st.textIfShort !== undefined && src.steps[i].textIfShort === undefined) err(`${at}.tutorial.pauses.${id}.steps[${i}].textIfShort: not in tutorial.json`);
+      });
+    }
+    for (const [id, src] of Object.entries(tp)) {
+      const pov = ov.tutorial?.pauses?.[id];
+      if (!pov) { warn(`${at}.tutorial.pauses.${id}: untranslated`); continue; }
+      if (src.text && !pov.text) warn(`${at}.tutorial.pauses.${id}.text: untranslated`);
+      (src.steps || []).forEach((st, i) => {
+        if (st.text && !pov.steps?.[i]?.text) warn(`${at}.tutorial.pauses.${id}.steps[${i}]: untranslated`);
+        if (st.textIfShort && !pov.steps?.[i]?.textIfShort) warn(`${at}.tutorial.pauses.${id}.steps[${i}].textIfShort: untranslated`);
+      });
+    }
+    // placeholders ({n}, {hero}...) must survive the translation
+    const braces = (t) => (String(t).match(/\{\w+\}/g) || []).sort().join(',');
+    const pairs = [];
+    (ov.dialogue ? Object.entries(ov.dialogue) : []).forEach(([id, lines]) => lines.forEach((l, i) => pairs.push([`dialogue.${id}[${i}]`, dialogue[id]?.[i]?.text, l?.text])));
+    csOv?.forEach((sh, i) => pairs.push([`cutscene_origin.shots[${i}]`, csSrc[i]?.text, sh?.text]));
+    for (const [path, en, tr] of pairs) if (typeof en === 'string' && typeof tr === 'string' && braces(en) !== braces(tr)) err(`${at}.${path}: placeholders differ from the English line`);
+  }
+
   // Heroes, enemies, allies
   for (const [id, c] of Object.entries(characters)) {
     for (const t of c.techniques || []) if (!techniques[t]) err(`characters.${id}: technique "${t}" is not in techniques.json`);

@@ -7,6 +7,10 @@ import { open, root, sleep, waitScene, withBrowser } from './lib.mjs';
 
 const shots = JSON.parse(readFileSync(join(root, 'src/data/cutscene_origin.json'), 'utf8')).shots;
 const out = process.argv[process.argv.indexOf('--out') + 1];
+// --lang el: run with the game set to that language (shot text bounds are measured on the overlay text)
+const langIdx = process.argv.indexOf('--lang');
+const lang = langIdx > 0 ? process.argv[langIdx + 1] : null;
+const settings = lang ? { lang, fontVersion: 2 } : null;
 mkdirSync(out, { recursive: true });
 const rows = [];
 const log = (ok, name, detail = '') => {
@@ -25,14 +29,15 @@ const MEASURE = `(() => {
 })()`;
 
 await withBrowser(async ({ chrome, server }) => {
-  const page = await open(chrome, server.url + '?cutscene=origin&shot=1');
+  const page = await open(chrome, server.url + '?cutscene=origin&shot=1', { settings });
   await waitScene(page, 'Cutscene');
   await page.waitFor(`window.__game.scene.getScene('Cutscene').index === 0`, { timeout: 30000 });
+  await page.ev(`(() => { const c = window.__game.scene.getScene('Cutscene'); if (c.shotTimer) c.shotTimer.remove(); })()`);
   const early = [];
   const late = [];
   for (let i = 0; i < shots.length; i++) {
     const shot = shots[i];
-    if (i > 0) await page.ev(`(() => { const c = window.__game.scene.getScene('Cutscene'); c.tweens.timeScale = 1; c.nextShot(); })()`);
+    if (i > 0) await page.ev(`(() => { const c = window.__game.scene.getScene('Cutscene'); c.tweens.timeScale = 1; c.nextShot(); if (c.shotTimer) c.shotTimer.remove(); })()`);  // the QA steps shots itself: no auto-advance race on a slow machine
     await sleep(500);
     await page.ev(`window.__game.scene.getScene('Cutscene').completeText()`);
     const a = await page.ev(MEASURE);
@@ -75,7 +80,7 @@ await withBrowser(async ({ chrome, server }) => {
   await page.ev(`window.__game.scene.getScene('Cutscene').tweens.timeScale = 1`);
 
   // ---- tap advance + hold-to-skip + transition (fresh run with the runner: ?step=0)
-  const p2 = await open(chrome, server.url + '?step=0');
+  const p2 = await open(chrome, server.url + '?step=0', { settings });
   await waitScene(p2, 'Cutscene');
   await p2.waitFor(`window.__game.scene.getScene('Cutscene').index === 0`, { timeout: 30000 });
   await sleep(300);

@@ -30,6 +30,11 @@ for (const file of readdirSync(spritesDir).filter((f) => f.endsWith('_animations
   data.animationSets[file.slice(0, -'_animations.json'.length)] = readJson(join(spritesDir, file));
 }
 
+// Language overlays (src/data/lang/<id>.json): checked against the English data, never against the font list.
+data.lang = {};
+const langDir = join(dataDir, 'lang');
+if (existsSync(langDir)) for (const file of readdirSync(langDir).filter((f) => f.endsWith('.json'))) data.lang[file.slice(0, -5)] = readJson(join(langDir, file));
+
 const sfxDir = join(root, 'public/assets/audio/sfx');
 data.sfxFileKeys = existsSync(sfxDir) ? readdirSync(sfxDir).filter((f) => f.endsWith('.mp3')).map((f) => f.slice(0, -4)) : [];
 

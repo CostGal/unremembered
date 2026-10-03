@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
-import dialogueSource from '../data/dialogue.json';
-import cutsceneSource from '../data/cutscene_origin.json';
+import { englishData } from '../systems/Lang.js';
 import chapter from '../data/chapter1.json';
 import assets from '../data/assets.json';
 import audioData from '../data/audio.json';
@@ -26,6 +25,9 @@ const TRANSITIONS = ['close'];
 const SENTINEL = { none: '__none', other: '__other', default: '__default', silent: '__silent' };
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
+// The editor edits the English source files, whatever language the game is set to.
+const dialogueSource = englishData('dialogue');
+const cutsceneSource = englishData('cutscene_origin');
 const sfxNames = Object.keys(audioData.sfx);
 const portraitKeys = Object.keys(assets.portraits);
 const backgroundKeys = Object.keys(assets.backgrounds);
