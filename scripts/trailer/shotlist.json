@@ -1,0 +1,220 @@
+{
+  "_doc": [
+    "The trailer edit, read by scripts/trailer.mjs. Each shot is recorded from the dev build in a headless browser (360x640, upscaled x3 nearest) or rendered from card.html.",
+    "kind: cutscene | dialogue | battle | title | card. url = query string on the dev server. seed = Math.random seed for that recording.",
+    "cut: {from: '<marker>', before: ms, after: ms} picks the window around a marker the recorder logs: ready (scene up, typing started), typed (typing finished), line:N (dialogue line N shown), ringImpact (first enemy ring closes), nala (Nala tapped), cast:<hero> (that hero spent Echo), beat (first Recollection beat), battle (battle scene up). An optional until: {from, after} ends the window that long after another marker instead.",
+    "stop: {marker, after: ms} ends the recording that long after the marker. fadeIn / fadeOut in ms. durationMs is for cards.",
+    "?shot= is 1-based (cutscene_origin.json index + 1). ?pauses=0 turns the tutorial spotlight pauses off."
+  ],
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "crf": 20,
+    "file": "_art/trailer/unremembered_trailer_v1.mp4",
+    "cover": "_art/trailer/cover.jpg",
+    "coverShot": "end_card"
+  },
+  "music": {
+    "tracks": [
+      {
+        "file": "public/assets/audio/music/cs_forgotten.mp3",
+        "start": 0,
+        "credit": "Eric Skiff, Resistor Anthems (CC BY 4.0)"
+      },
+      {
+        "file": "public/assets/audio/music/battle_duel.mp3",
+        "start": 0,
+        "credit": "Eric Skiff, Resistor Anthems (CC BY 4.0)"
+      }
+    ],
+    "switchAfterShot": "card_controls",
+    "crossfadeMs": 1000,
+    "fadeOutMs": 2000
+  },
+  "shots": [
+    {
+      "id": "cs_hush",
+      "kind": "cutscene",
+      "url": "?cutscene=origin&shot=22",
+      "seed": 1,
+      "stop": {
+        "marker": "typed",
+        "after": 1700
+      },
+      "cut": {
+        "from": "ready",
+        "before": 0,
+        "until": {
+          "from": "typed",
+          "after": 1200
+        }
+      },
+      "fadeIn": 400
+    },
+    {
+      "id": "cs_hollows",
+      "kind": "cutscene",
+      "url": "?cutscene=origin&shot=28",
+      "seed": 2,
+      "stop": {
+        "marker": "typed",
+        "after": 1100
+      },
+      "cut": {
+        "from": "ready",
+        "before": 0,
+        "until": {
+          "from": "typed",
+          "after": 800
+        }
+      }
+    },
+    {
+      "id": "letter",
+      "kind": "dialogue",
+      "url": "?step=2",
+      "seed": 3,
+      "line": 3,
+      "stop": {
+        "marker": "typed",
+        "after": 1300
+      },
+      "cut": {
+        "from": "line:3",
+        "before": 100,
+        "until": {
+          "from": "typed",
+          "after": 1000
+        }
+      },
+      "fadeOut": 300
+    },
+    {
+      "id": "card_controls",
+      "kind": "card",
+      "durationMs": 1300,
+      "lines": [
+        "Tap to parry.",
+        "Swipe to dodge."
+      ],
+      "fadeIn": 200,
+      "fadeOut": 200
+    },
+    {
+      "id": "duel",
+      "kind": "battle",
+      "url": "?battle=b0_duel&pauses=0",
+      "seed": 4,
+      "stop": {
+        "marker": "ringImpact",
+        "after": 1800
+      },
+      "cut": {
+        "from": "ringImpact",
+        "before": 1800,
+        "after": 1500
+      }
+    },
+    {
+      "id": "blast",
+      "kind": "battle",
+      "url": "?battle=b2_first_hollow&level=2&echo=3&pauses=0",
+      "seed": 5,
+      "stop": {
+        "marker": "nala",
+        "after": 2600
+      },
+      "cut": {
+        "from": "cast:rhea",
+        "before": 300,
+        "after": 2200
+      }
+    },
+    {
+      "id": "nala",
+      "kind": "battle",
+      "sameRecordingAs": "blast",
+      "cut": {
+        "from": "nala",
+        "before": 500,
+        "after": 1800
+      }
+    },
+    {
+      "id": "gate",
+      "kind": "battle",
+      "url": "?battle=b3_gate&level=3&echo=5&pauses=0",
+      "seed": 6,
+      "stop": {
+        "marker": "cast:dov",
+        "after": 2800
+      },
+      "cut": {
+        "from": "cast:dov",
+        "before": 500,
+        "after": 1300
+      }
+    },
+    {
+      "id": "quill",
+      "kind": "battle",
+      "url": "?battle=boss_clerk&level=4&pauses=0",
+      "seed": 7,
+      "stop": {
+        "marker": "battle",
+        "after": 4000
+      },
+      "cut": {
+        "from": "battle",
+        "before": 0,
+        "after": 1500
+      }
+    },
+    {
+      "id": "recollection",
+      "kind": "battle",
+      "url": "?battle=boss_clerk&level=4&echo=10&pauses=0&recollection=1",
+      "seed": 8,
+      "stop": {
+        "marker": "beat",
+        "after": 3500
+      },
+      "cut": {
+        "from": "beat",
+        "before": 2200,
+        "after": 2600
+      },
+      "fadeOut": 400
+    },
+    {
+      "id": "title",
+      "kind": "title",
+      "url": "",
+      "seed": 9,
+      "stop": {
+        "marker": "ready",
+        "after": 2800
+      },
+      "cut": {
+        "from": "ready",
+        "before": 0,
+        "after": 2000
+      },
+      "fadeIn": 300
+    },
+    {
+      "id": "end_card",
+      "kind": "card",
+      "durationMs": 3500,
+      "logo": true,
+      "lines": [
+        "Play it in your phone browser",
+        "costgal.github.io/unremembered",
+        "Made in one week for a game jam"
+      ],
+      "fadeIn": 300,
+      "fadeOut": 600
+    }
+  ]
+}
