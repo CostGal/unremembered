@@ -2783,10 +2783,14 @@ export default class BattleScene extends Phaser.Scene {
     let total = base;
     // enemies.json defend.dodge: rolled once per cast; the whole volley misses (the bolts still fly).
     const dodged = this.rollDodge(target, techId);
+    // Recall 5 (techniques.json blast.aim): a timed tap on the aim ring adds critBonus to this cast.
+    const aimed = tech.aimMinigame && tech.aim ? await this.blastAim(target, tech.aim) : false;
+    const critChance = Math.max(tech.critChance, effectMax(this.fragments, 'blastCritChance')) + (aimed ? tech.aim.critBonus : 0);
+    this.blastCritChance = critChance; // QA reads it (window.__battle)
     const fire = async () => {
       for (let i = 0; i < total && target.hp > 0; i++) {
         // Only a base bolt (i < base) rolls; the extra bolts it queued at the end never do.
-        const crit = i < base && Math.random() < Math.max(tech.critChance, effectMax(this.fragments, 'blastCritChance')) && total < tech.maxHits;
+        const crit = i < base && Math.random() < critChance && total < tech.maxHits;
         if (crit) total += 1;
         await this.fireBolt(hero, target, tech);
         if (dodged) {
@@ -2810,6 +2814,37 @@ export default class BattleScene extends Phaser.Scene {
       onHold: (resume) => fire().then(resume),
     });
     if (hero.hp > 0) hero.body.play(animKey(hero.type, 'idle'));
+  }
+
+  // Blast's aim ring (Recall 5): a gold reticle and a shrinking ring on the target. Tap only
+  // (a swipe counts as a tap: runRing without `swipe` judges the touch-down). PERFECT or GOOD
+  // within the parry windows = AIMED. The ring itself deals nothing.
+  async blastAim(target, aim) {
+    const x = target.container.x;
+    const y = target.container.y + qte.ring.offsetY;
+    const colour = aim.color.replace('#', '0x');
+    const ringCfg = { ...qte.ring, color: colour, targetColor: colour };
+    const r = qte.ring.endRadius;
+    const reticle = this.add.graphics().setDepth(qte.ring.depth);
+    reticle.lineStyle(qte.ring.lineWidth, Number(colour), 1);
+    reticle.lineBetween(x - r - 6, y, x - r + 4, y).lineBetween(x + r - 4, y, x + r + 6, y);
+    reticle.lineBetween(x, y - r - 6, x, y - r + 4).lineBetween(x, y + r - 4, x, y + r + 6);
+    this.blastAiming = true; // QA / the bot read it
+    let result;
+    do {
+      const ring = Qte.runRing(this, { x, y, telegraphMs: aim.ringMs, windows: this.parryWindows(), ring: ringCfg });
+      ({ result } = await ring.promise);
+      if (result === 'INTERRUPTED') await this.resumeGate;
+    } while (result === 'INTERRUPTED');
+    this.blastAiming = false;
+    reticle.destroy();
+    const aimed = result === 'PERFECT' || result === 'GOOD';
+    if (aimed) {
+      playSfx(result.toLowerCase());
+      Fx.popText(this, x, y, aim.text, aim.color, qte.text);
+      console.log(`${aim.text} (${result})`);
+    }
+    return aimed;
   }
 
   // One bolt from the hero to the target: the blast sheet's projectile sheet

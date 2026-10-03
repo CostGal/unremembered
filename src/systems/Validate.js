@@ -647,6 +647,18 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       }
     }
   }
+  // Blast's aim ring (Recall 5, levels.5.aimMinigame): a gold ring, +critBonus crit chance on a timed tap.
+  {
+    const a = techniques.blast?.aim;
+    const wants = Object.values(techniques.blast?.levels || {}).some((l) => l.aimMinigame);
+    if (wants && !a) err('techniques.blast.levels: aimMinigame needs techniques.blast.aim');
+    if (a) {
+      if (!(a.ringMs > 0)) err('techniques.blast.aim.ringMs must be a number > 0');
+      if (!(typeof a.critBonus === 'number' && a.critBonus > 0 && a.critBonus <= 1)) err('techniques.blast.aim.critBonus must be a number in (0, 1]');
+      if (typeof a.text !== 'string' || !a.text) err('techniques.blast.aim.text must be a non-empty string');
+      if (!/^#[0-9a-fA-F]{6}$/.test(a.color || '')) err('techniques.blast.aim.color must be a #rrggbb colour');
+    }
+  }
   if (techniques.recollection?.kill !== undefined && typeof techniques.recollection.kill !== 'boolean') err('techniques.recollection.kill must be true or false');
   validateRecollection(data, dialogue, enemies, ui, err);
   const keepsake = battleEvents.keepsake_burn?.dialogue;

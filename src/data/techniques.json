@@ -16,6 +16,7 @@
       "5": { "cost": 4, "hits": [4, 6], "dmg": [4, 5], "critChance": 0.3, "aimMinigame": true }
     },
     "maxHits": 10,
+    "aim": { "ringMs": 700, "critBonus": 0.15, "text": "AIMED", "color": "#f0c060" },
     "boltIntervalMs": 110,
     "boltFlightMs": 160,
     "boltColor": "0x3fd0c9",

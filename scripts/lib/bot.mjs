@@ -42,6 +42,7 @@ export function probe(page) {
         items: (b.menu.items || []).map((i) => ({ slot: i.slot, value: i.value && typeof i.value === 'object' ? (i.kind === 'hero' ? 'hero' : 'enemy') : i.value, enabled: i.enabled !== false, id: i.value?.id, x: i.x, y: i.y, kind: i.kind })),
         rings: [...(b.qteRings || [])].map((r) => r.impactAt),
         redRings: [...(b.qteRings || [])].filter((r) => r.unparryable).map((r) => r.impactAt),
+        aiming: !!b.blastAiming, // Blast's aim ring (Recall 5): tap only, a swipe would be judged as a tap
         nala: b.nala ? { watching: !!b.nala.ring, used: b.nala.used, x: b.nala.container.x, y: b.nala.container.y } : null,
         hero: b.activeHero?.type || null,
         heroes: (b.heroes || []).map((h) => ({ id: h.type, hp: h.hp, maxHp: h.maxHp, echo: h.echo })),
@@ -147,7 +148,7 @@ export class Bot {
       // A red ring can only be answered with a swipe (normal windows); a white one is swiped
       // (dodge windows) dodgeChance of the time, else tapped (parry windows).
       const red = b.redRings.includes(impactAt);
-      const dodge = !red && Math.random() < this.dodgeChance;
+      const dodge = !red && !b.aiming && Math.random() < this.dodgeChance;
       const w = dodge ? qte.dodge.windows : qte.windows;
       const offset = result === 'PERFECT' ? 0 : (w.perfectMs + w.goodMs) / 2;
       const delay = impactAt + offset - st.now - 6;

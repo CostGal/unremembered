@@ -543,9 +543,15 @@ function simulateBattle(battleId, profileName, mode, rnd) {
         let total = base;
         let bolts = 0;
         const dodged = defends(target, 'dodge', 'blast'); // once per cast: the whole volley misses
+        // Recall 5 aim ring: a PERFECT or GOOD tap adds aim.critBonus (the profile's parry odds).
+        let critChance = b.critChance;
+        if (b.aimMinigame && b.aim) {
+          st.ms += b.aim.ringMs;
+          if (roll(qteOdds(profile, storyMult), rnd) !== 'MISS') critChance += b.aim.critBonus;
+        }
         for (let i = 0; i < total && target.hp > 0; i++) {
           // A crit on a base bolt fires ONE extra bolt; extra bolts (i >= base) never roll.
-          const crit = i < base && rnd() < b.critChance && total < b.maxHits;
+          const crit = i < base && rnd() < critChance && total < b.maxHits;
           if (crit) total += 1;
           if (!dodged) {
             hitEnemy(target, between(rnd, b.dmg), 'multiHit', crit);
