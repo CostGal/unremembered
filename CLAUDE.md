@@ -113,7 +113,7 @@ New Game → ChapterRunner(chapter1.json) → EndScene → Menu
 ### Layout (360×640)
 - **y 0–360:** scene. Background, heroes on the left facing right, enemies on the right facing left, baseline y ≈ 300.
 - **y 360–440:** party status: per hero a name, HP bar and that hero's own Echo pips (teal; Rhea 10 with the locked ones dim, Dov 5).
-- **y 440–640:** command buttons in a 2×2 grid. During the enemy turn this whole lower area becomes the **tap zone**, with the hint "Tap when the ring closes".
+- **y 440–640:** command buttons in a 2×2 grid. During the enemy turn this whole lower area becomes the **tap zone**, with the hint "Tap to parry · swipe to dodge".
 
 ### Turn state machine
 ```
@@ -130,13 +130,13 @@ WIN → "Victory" → runner.next()      LOSE → Retry
 
 ### Parry QTE (the core feel — tune this carefully)
 - **Telegraph:** the enemy holds its attack sheet's `windupFrame` (or, on the rig fallback, the `windupT` keyframe) (its windup/telegraph pose — see Assets pipeline > Attack rig). A ring appears around the targeted hero and shrinks from radius 48 → 14 over `telegraphMs`. The moment it reaches 14 is the impact time **T**.
-- **Input:** the first `pointerdown` during ENEMY_TURN (anywhere in the lower half, or anywhere at all). Debounced.
+- **Input — two gestures, one judgement:** the first `pointerdown` during ENEMY_TURN (anywhere on screen) is judged at its touch-down time. **Tap = parry**, **swipe = dodge** (`qte.json` `dodge.swipe`: 32 px within 180 ms). The gesture settles on pointer-up (tap), on reaching the swipe distance (swipe, at once) or after the swipe time held still (tap), so the feedback follows the finger by well under 200 ms. A dodge is judged on the easier **dodge windows** (PERFECT ≤ 180 ms, GOOD ≤ 300 ms) on a white ring and gives 0 / half damage but **no Echo, no counter** (the chain is unchanged); the hero plays the `dodge` sheet (fallback: a 10 px sidestep). On a **red ring** (unparryable) only a swipe answers, judged with the normal parry windows below; a tap there is a MISS ("CAN'T PARRY"). Hints: "Tap to parry · swipe to dodge" under every white ring, "Swipe to dodge!" under red ones, plus the one-time banner `ui.tutorial.hints.dodge` after the tutorial slow-mo.
 - **Judgement on |t − T|:**
   - ≤ 90ms → **PERFECT**: 0 damage, +2 Echo, counter for 4 damage.
   - ≤ 200ms → **GOOD**: 50% damage, +1 Echo.
   - otherwise → **MISS**: full damage.
-  - Taps earlier than T − 350ms are **ignored** (no penalty, but they don't count). Taps in [T − 350, T − 200) count as MISS. No tap at all = MISS.
-- **Story Mode** (setting): windows × 1.5, damage taken × 0.5.
+  - (These windows are the parry/tap windows.) Touches earlier than T − 350ms are **ignored** (no penalty, but they don't count). Taps in [T − 350, T − 200) count as MISS. No tap at all = MISS.
+- **Story Mode** (setting): both window sets × 1.5, damage taken × 0.5.
 - **Feedback:**
   - PERFECT: hitstop 80ms, 4px shake, teal spark burst, "PERFECT" text, SFX.
   - GOOD: small flash, "GOOD" text.
@@ -212,10 +212,10 @@ Relay's second hit uses an offensive ring on the enemy: tap on close for the bon
                {"untilHpPct": 0, "onEnter": "keepsake_burn", "attacks": [
                  {"id": "stamp", "weight": 2, "telegraphMs": 700, "dmg": 15},
                  {"id": "redact", "weight": 2, "telegraphMs": 800, "feint": {"atPct": 0.6, "pauseMs": 400}, "dmg": 15},
-                 {"id": "archive", "weight": 1, "chargeTurns": 2, "interruptDmg": 40, "telegraphMs": 900, "dmg": 30}]}]}
+                 {"id": "archive", "weight": 1, "chargeTurns": 3, "interruptDmg": 40, "telegraphMs": 900, "dmg": 50}]}]}
 }
 ```
-- **Archive:** the Clerk spends `chargeTurns` (4) of his turns charging, guarded: he takes `guardMult` (60%) of every hit and the rest is remembered. Only a **BREAK** cancels the charge (the game never says so; Rhea works it out in the `archive_insight` dialogue after the first release). On release it fires as an unparryable QTE hit and heals `healMitigatedPct` of what the guard absorbed. A phase's `opening` list fixes its first turns' attacks (phase 1: stamp, then archive).
+- **Archive:** the Clerk spends `chargeTurns` (3) of his turns charging, guarded: he takes `guardMult` (60%) of every hit and the rest is remembered. Only a **BREAK** cancels the charge (the game never says so; Rhea works it out in the `archive_insight` dialogue after the first release). On release it fires as an unparryable QTE hit and heals `healMitigatedPct` of what the guard absorbed. A phase's `opening` list fixes its first turns' attacks (phase 1: stamp, then archive).
 
 `battles.json`
 ```json
@@ -266,7 +266,7 @@ Behaviour:
 
 ## Assets pipeline
 - `_art/` holds source art: raw downloads and PSDs. Commit it, but the game never loads from it — only `public/assets/` is served/bundled.
-- Sprites come from pixler.dev as transparent PNGs, pre-sized to their canvas — **128×128 for every character, 256×256 for Quill, the boss (key `clerk`)**. Render at `scale: 1`, never fractional; the canvas size *is* the display size.
+- Sprites come from pixler.dev as transparent PNGs, pre-sized to their canvas — **128×128 for every character, 256×256 for Quill, the boss (key `clerk`)**. Sprites render at an INTEGER `displayScale` from `characters.json` / `enemies.json` (default 1; Warden Hollow 2), never fractional. Size differences between characters come from the art canvas, not from scaling.
 - Backgrounds are 360×360 canvases, also rendered at `scale: 1`. In battle, darken them ~20% (a flat black overlay at ~20% alpha) so characters read clearly against them.
 - Register every sprite in `assets.json`: `key, file, scale, faces ("left"|"right")`. A part sprite (see Attack rig, below) also carries `pivot: [x, y]` in local canvas pixels.
 - **Facing:** in-game, heroes face right and enemies face left. Flip based on `faces`.

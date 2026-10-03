@@ -76,7 +76,8 @@ async function qteHit(page, offsets, { hit = {}, swipe = false, heroIdx = 0 } = 
 await withBrowser(async ({ chrome, server }) => {
   // ============ F-QTE: judgement matrix (normal) ============
   if (want('qte')) {
-    const page = await battle(chrome, server, 'boss_clerk');
+    // level=2: Rhea's Echo cap is 3 there (Recall 1 caps it at 1, which would clip the PERFECT's +2).
+    const page = await battle(chrome, server, 'boss_clerk', { extra: '&level=2' });
     await waitMenu(page);
     const cases = [
       ['PERFECT on the beat', [0], 'PERFECT', 0],
@@ -153,9 +154,22 @@ await withBrowser(async ({ chrome, server }) => {
     r = await qteHit(page, [150], { hit: { unparryable: true }, swipe: true });
     log(r.result === 'GOOD' && r.input === 'swipe' && r.hpLost === 10, 'red ring: a late swipe = GOOD dodge (half damage)', `${r.result}/${r.input} −${r.hpLost}`);
     await sleep(500);
+    // Every ring takes both gestures: a swipe on a white ring is a DODGE (dodge.windows), never a parry:
+    // no Echo, no counter, the chain stays.
+    await page.ev(`(() => { const B = window.__battle; B.heroes[0].echo = 0; B.refreshHud(); })()`);
+    const ehp0 = await B(page, 'B.enemies[0].hp');
     r = await qteHit(page, [0], { swipe: true });
-    // A parryable ring treats every touch as a parry (judged at T, shown at T): a swipe is never worse than a tap.
-    log(r.result === 'PERFECT' && r.input === 'tap' && r.hpLost === 0, 'normal ring: a swipe counts as a parry (judged at T)', `${r.result}/${r.input} −${r.hpLost}`);
+    await sleep(1500);
+    const echo = await B(page, 'B.heroes[0].echo');
+    const ehp1 = await B(page, 'B.enemies[0].hp');
+    log(r.result === 'PERFECT' && r.input === 'swipe' && r.hpLost === 0, 'normal ring: a swipe on the beat is a PERFECT dodge (0 damage)', `${r.result}/${r.input} −${r.hpLost}`);
+    log(echo === 0 && ehp0 === ehp1, 'a dodge gives no Echo and no counter', `echo ${echo}, enemy hp ${ehp0}→${ehp1}`);
+    await sleep(500);
+    r = await qteHit(page, [250], { swipe: true });
+    log(r.result === 'GOOD' && r.input === 'swipe' && r.hpLost === 10, 'normal ring: a swipe at +250 ms is a GOOD dodge (half damage, dodge window 300)', `${r.result}/${r.input} −${r.hpLost}; touch ${JSON.stringify(r.dts)} ms`);
+    await sleep(500);
+    r = await qteHit(page, [250]);
+    log(r.result === 'MISS' && r.input === 'tap' && r.hpLost === 20, 'normal ring: a tap at +250 ms is still a MISS (parry window 200)', `${r.result}/${r.input} −${r.hpLost}`);
   }
 
   // ============ F-boss moves: file_away multi-hit, redact feint, archive ============

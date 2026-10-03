@@ -18,30 +18,46 @@ export function scaledWindows(windows, mult) {
   return { ...windows, perfectMs: windows.perfectMs * mult, goodMs: windows.goodMs * mult };
 }
 
-// Shows the ring at (x, y) and resolves with {result, dtMs, input} once the tap
-// is judged: at T for an early tap, at the tap for a late one, at T + goodMs if
-// there is no tap (MISS). 'CANCEL' (Nala) and 'INTERRUPTED' (app hidden, see
-// interruptRings) are never judgements. impactAt = the performance.now() time of T.
-// feint = {atPct, pauseMs}: the ring freezes at atPct of its travel for
-// pauseMs, so T moves pauseMs later.
-// swipe = {minPx, maxMs} (enemy attacks only): a gesture that travels minPx
-// within maxMs is a dodge (input 'swipe'), anything else a parry ('tap'). Both
-// are judged on the touch-down time. unparryable: a tap is always a MISS, only
-// a swipe can answer, so the result waits until the gesture is classified.
-// On a parryable ring every touch is a parry, judged and shown at T (a parry
-// beats a dodge for the player, and the feedback never waits for finger-up).
-// onImpact: called once at T when no tap has come yet (the hit visibly lands;
-// a late tap can still make it a GOOD).
-export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe = null, unparryable = false, onImpact = null }) {
+// Shows the ring at (x, y) and resolves with {result, dtMs, input} once the
+// gesture is judged: at T for an early touch, once the gesture settles for a
+// later one, at T + the widest good window if there is no touch (MISS).
+// 'CANCEL' (Nala) and 'INTERRUPTED' (app hidden, see interruptRings) are never
+// judgements. impactAt = the performance.now() time of T.
+// feint = {atPct, pauseMs, resumeSpeed = 1}: the ring freezes at atPct of its
+// travel for pauseMs, then covers the rest resumeSpeed times faster:
+// T = start + atPct*tele + pauseMs + (1 - atPct)*tele/resumeSpeed.
+//
+// Input model (enemy attacks pass `swipe`; Recollection's rings don't and a
+// touch there is just a tap): two gestures, one judgement.
+//  - The judgement time is the touch-down, dt = down - T (a touch earlier than
+//    T - ignoreBeforeMs is ignored, no penalty; it never becomes a judgement).
+//  - The gesture is classified once it settles: pointer-up (tap), reaching
+//    swipe.minPx within swipe.maxMs (swipe, at once on move), or swipe.maxMs of
+//    holding (tap). Feedback follows the settle, never later than maxMs.
+//  - tap = parry (input 'tap'), judged with `windows`.
+//  - swipe = dodge (input 'swipe'): judged with `dodgeWindows` (the easier pair;
+//    perfectMs/goodMs, the rest from `windows`) on a parryable ring, with the
+//    normal `windows` on an unparryable one.
+//  - unparryable: a tap is always a MISS; only a swipe can answer.
+// A ring whose time ran out while a gesture is pending resolves as that gesture's
+// judgement (it is never judged twice). It stays alive until T + the widest good
+// window, so a late swipe still counts.
+// onImpact: called once at T when no touch has come yet (the hit visibly lands;
+// a late touch can still make it a GOOD).
+export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe = null, unparryable = false, dodgeWindows = null, onImpact = null }) {
+  const dodge = swipe && !unparryable && dodgeWindows ? { ...windows, ...dodgeWindows } : null;
+  const missAfterMs = dodge ? Math.max(windows.goodMs, dodge.goodMs) : windows.goodMs;
   const start = performance.now();
   const pauseAt = feint ? feint.atPct * telegraphMs : Infinity;
   const pauseMs = feint ? feint.pauseMs : 0;
-  const impactAt = start + telegraphMs + pauseMs;
+  const resumeSpeed = feint ? feint.resumeSpeed ?? 1 : 1;
+  const impactAt = start + telegraphMs + pauseMs + (feint ? (telegraphMs - pauseAt) / resumeSpeed - (telegraphMs - pauseAt) : 0);
 
   const g = scene.add.graphics().setDepth(ring.depth);
   const target = Number(ring.targetColor);
   const color = Number(ring.color);
 
+  let radiusNow = ring.startRadius; // current ring radius (QA reads it)
   let cancel = () => {};
   let interrupt = () => {};
   const promise = new Promise((resolve) => {
@@ -57,7 +73,7 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
       const result = judge(dtMs, windows);
       if (!result) return;
       judged = { result, dtMs, input: 'tap' };
-      if (swipe && unparryable) judged.pending = { pointer, at: performance.now() };
+      if (swipe) judged.pending = { pointer, at: performance.now() };
       pointer.qteUsedAt = pointer.downTime;
     };
 
@@ -67,6 +83,8 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
       delete judged.pending;
       judged.input = input;
       if (input === 'tap' && unparryable) judged.result = 'MISS';
+      else if (input === 'swipe' && dodge) judged.result = judge(judged.dtMs, dodge) ?? judged.result;
+      resolveIfDue(performance.now());
     };
     const isSwipe = (pointer) => pointer.getDistance() >= swipe.minPx && gestureMs(pointer) <= swipe.maxMs;
     const onMove = (pointer) => {
@@ -85,7 +103,10 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
       scene.events.off('shutdown', detach);
     };
 
+    let finished = false;
     const finish = (outcome) => {
+      if (finished) return;
+      finished = true;
       detach();
       // An interrupted ring vanishes at once: its fade would freeze with the paused scene.
       if (outcome.result === 'INTERRUPTED') g.destroy();
@@ -93,12 +114,19 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
       resolve(outcome);
     };
 
+    // A settled judgement shows at T (an early touch waits for it), else at once.
+    const resolveIfDue = (now) => {
+      if (judged && !judged.pending && judged.result !== 'CANCEL' && judged.result !== 'INTERRUPTED' && now >= impactAt) finish(judged);
+    };
+
     const onUpdate = () => {
       const now = performance.now();
       const elapsed = now - start;
-      const travel = elapsed < pauseAt ? elapsed : Math.max(pauseAt, elapsed - pauseMs);
+      // Before the freeze: linear. Frozen for pauseMs. After: the rest at resumeSpeed (1 = today's path).
+      const travel = elapsed < pauseAt ? elapsed : Math.max(pauseAt, pauseAt + (elapsed - pauseAt - pauseMs) * resumeSpeed);
       const t = Math.min(1, travel / telegraphMs);
       const radius = ring.startRadius + (ring.endRadius - ring.startRadius) * t;
+      radiusNow = radius;
 
       g.clear();
       g.lineStyle(ring.lineWidth, target, ring.targetAlpha);
@@ -108,12 +136,13 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
 
       // Held still past the swipe time: it was a tap.
       if (judged?.pending && now - judged.pending.at > swipe.maxMs) settle('tap');
+      if (finished) return;
       if (!judged && !impacted && now >= impactAt) {
         impacted = true;
         if (onImpact) onImpact();
       }
-      if (judged && !judged.pending && now >= impactAt) finish(judged);
-      else if (!judged && now > impactAt + windows.goodMs) finish({ result: 'MISS', dtMs: null, input: null });
+      if (judged) resolveIfDue(now);
+      else if (now > impactAt + missAfterMs) finish({ result: 'MISS', dtMs: null, input: null });
     };
 
     // e.g. Nala cancels the attack: resolves at once with result 'CANCEL'.
@@ -132,7 +161,7 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
     };
 
     scene.input.on('pointerdown', onDown);
-    if (swipe && unparryable) {
+    if (swipe) {
       scene.input.on('pointermove', onMove);
       scene.input.on('pointerup', onUp);
     }
@@ -142,7 +171,7 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
     onUpdate();
   });
 
-  const handle = { promise, impactAt, unparryable, cancel: () => cancel(), interrupt: () => interrupt() };
+  const handle = { promise, impactAt, startAt: start, telegraphMs, unparryable, radius: () => radiusNow, cancel: () => cancel(), interrupt: () => interrupt() };
   liveRings(scene).add(handle);
   return handle;
 }

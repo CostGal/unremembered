@@ -8,6 +8,7 @@ import allies from '../data/allies.json';
 import battleEvents from '../data/battleEvents.json';
 import dialogues from '../data/dialogue.json';
 import brk from '../data/break.json';
+import crit from '../data/crit.json';
 import statuses from '../data/statuses.json';
 import qte from '../data/qte.json';
 import techniques from '../data/techniques.json';
@@ -30,12 +31,11 @@ import { effectMax, effectTotal, ownedFragments } from '../systems/Fragments.js'
 import { battleXp, echoMaxFor, growth, learned, levelFor, techniqueAt, xpForLevel } from '../systems/Recall.js';
 import RecallCard from '../systems/RecallCard.js';
 import { animKey, hasSheet, playLoop, playOnce, SheetDriver, trace } from '../systems/SpriteAnims.js';
-import { whenReady } from '../systems/Assets.js';
+import { isRealTexture, whenReady } from '../systems/Assets.js';
 
 const layout = ui.battleLayout;
 
 const ATTACK_DURATION_MS = 400;
-const DASH_DURATION_MS = 180;
 const LUNGE_OUT_MS = 150;
 const WINDUP_MS = 200;
 // Two 0xRRGGBB tints multiplied channel by channel (how two lights stack).
@@ -123,9 +123,10 @@ export default class BattleScene extends Phaser.Scene {
     this.activeMarker = null;
 
     const view = viewRect();
-    mirrorEdges(this, this.add.image(180, 180, this.battleDef.bg).setDisplaySize(360, 360));
-    this.add.rectangle(view.x, 0, view.w, 360, 0x000000, 0.2).setOrigin(0);
     this.environment = environments[this.battleDef.bg] || {};
+    this.createBackground();
+    this.add.rectangle(view.x, 0, view.w, 360, 0x000000, 0.2).setOrigin(0);
+    this.createPlatform();
     this.createEnvironmentFx();
 
     if (this.battleDef.nala) this.createNala();
@@ -247,6 +248,38 @@ export default class BattleScene extends Phaser.Scene {
 
   // ---------- Environment ----------
 
+  // The background picture (depth 0). With environments.json `drift` it sways
+  // slowly: the image and its mirrored edge copies sit in one container whose x
+  // is tweened, and the copies exist even without side margins so the seams
+  // never show at the drift extremes (they are a full 360 px wide each).
+  createBackground() {
+    const drift = this.environment.drift;
+    const image = this.add.image(180, 180, this.battleDef.bg).setDisplaySize(360, 360);
+    const edges = mirrorEdges(this, image, !!drift);
+    if (!drift) return;
+    const container = this.add.container(0, 0, [...edges, image]).setDepth(0);
+    this.bgDrift = container;
+    container.x = -drift.x;
+    this.tweens.add({ targets: container, x: drift.x, duration: drift.ms, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+
+  // The floor the fighters stand on (environments.json `platform`), a separate
+  // layer above the background and its dark overlay, below the lights and the
+  // fighters. The art is <bg>_platform.png (360 wide, from platform.y down to
+  // the HUD); without it a gradient band with a light top edge is drawn.
+  createPlatform() {
+    const p = this.environment.platform;
+    if (!p) return;
+    const view = viewRect();
+    const h = layout.sceneBottom - p.y;
+    if (isRealTexture(this, p.key)) {
+      const image = this.add.image(180, p.y + h / 2, p.key).setDisplaySize(360, h).setDepth(p.depth);
+      mirrorEdges(this, image).forEach((e) => e.setDepth(p.depth));
+      return;
+    }
+    this.add.image(view.x, p.y, Fx.floorTexture(this, view.w, h, p)).setOrigin(0).setDepth(p.depth);
+  }
+
   // Lantern glows, rain and vignette for this battle's background (environments.json).
   createEnvironmentFx() {
     const env = this.environment;
@@ -300,6 +333,7 @@ export default class BattleScene extends Phaser.Scene {
     const anims = animSet?.animations?.idle ? animSet.animations : null;
     const image = anims ? playLoop(this.add.sprite(0, 0, animKey('nala', 'idle')), 'nala', 'idle') : this.add.image(0, 0, 'nala');
     container.add([glow, image]);
+    this.addShadow(container, sprite.w || 128, sprite.h);
     const faces = anims ? animSet.facing || 'left' : sprite.faces || 'right';
     container.setScale(faces !== 'right' ? -1 : 1, 1);
     this.checkLayout('nala', feetY, sprite.h);
@@ -402,6 +436,11 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   finishEntity({ id, type, def, container, x, y, facing, isHero, body, parts = {}, height, anims = null, animSet }) {
+    // Ground shadow: the container's first child at the feet (local y = half the
+    // unscaled frame height), so it follows every move, dash and knockback.
+    const ds0 = def.displayScale ?? 1;
+    const frameW = anims ? animSet.frame_size[0] : this.manifest.sprites[def.body]?.w || 128;
+    this.addShadow(container, frameW, height / ds0);
     if (anims) {
       body = this.add.sprite(0, 0, animKey(type, 'idle'));
       container.add(body);
@@ -440,6 +479,10 @@ export default class BattleScene extends Phaser.Scene {
       facing,
       isHero,
       restX: x,
+      restY: y,
+      feetY: y + height / 2,
+      // Half the body art's width, scaled: how close a melee attacker stands.
+      reach: (def.reach ?? layout.melee.reachDefault) * (def.displayScale ?? 1),
       height,
       // The container's own (positive) scale: tweens that squash it multiply this.
       baseScale: def.displayScale ?? 1,
@@ -459,6 +502,14 @@ export default class BattleScene extends Phaser.Scene {
     if (!anims || anims.idle.placeholder) entity.bobTween = this.idleBob(container);
 
     return entity;
+  }
+
+  addShadow(container, frameW, frameH) {
+    const cfg = layout.shadow;
+    if (!cfg) return null;
+    const shadow = Fx.shadow(this, frameW, cfg).setPosition(0, frameH / 2 + cfg.offsetY);
+    container.addAt(shadow, 0);
+    return shadow;
   }
 
   idleBob(container) {
@@ -931,7 +982,11 @@ export default class BattleScene extends Phaser.Scene {
     this.tapHint.setVisible(true);
     const hits = attack.hits || [attack];
     const restoreDepth = this.bringInFront(enemy, target);
+    // A melee attack walks up to its target first (before the first ring) and
+    // walks home after the last hit, whatever ended the attack.
+    const melee = !!attack.melee;
     try {
+      if (melee) await this.meleeApproach(enemy, target);
       const sheet = this.enemyAttackSheet(enemy, attack, hits.length);
       for (let k = 0; k < hits.length; k++) {
         if (target.hp <= 0 || enemy.hp <= 0) break;
@@ -942,11 +997,21 @@ export default class BattleScene extends Phaser.Scene {
           sfx: hits[k].sfx ?? attack.sfx,
           impactSfx: hits[k].impactSfx ?? attack.impactSfx,
         };
+        // crit.json enemy: rolled per hit; the bigger hit only shows if damage gets through.
+        if (Math.random() < crit.enemy.chance) {
+          hit.crit = true;
+          hit.dmg = Math.round(hit.dmg * crit.enemy.mult);
+        }
+        // enemies.json feintChance (hit or attack level): the feint only comes some of the time.
+        // A hit without feintChance keeps its feint every time.
+        const feintChance = hits[k].feintChance ?? attack.feintChance;
+        if (hit.feint && feintChance !== undefined && !(Math.random() < feintChance)) delete hit.feint;
         const result = await this.enemyHit(enemy, target, hit, sheet, k);
         if (result === 'CANCEL') break;
       }
       if (sheet) await sheet.finish();
     } finally {
+      if (melee) await this.meleeReturn(enemy);
       restoreDepth();
     }
     this.tapHint.setVisible(false);
@@ -1001,6 +1066,32 @@ export default class BattleScene extends Phaser.Scene {
     return mult === 1 ? windows : Qte.scaledWindows(windows, mult);
   }
 
+  // The easier windows of a swipe (dodge) on a parryable ring
+  // (qte.json dodge.windows). Same extras as parryWindows() (Worn Glove's
+  // perfectWindowMs, the miss-streak assist, the difficulty windowMult) so a
+  // dodge stays easier than a parry by the same margin everywhere.
+  dodgeWindows() {
+    const mult = this.difficulty.windowMult;
+    const extra = effectTotal(this.fragments, 'perfectWindowMs');
+    const assist = this.parryAssist();
+    const w = qte.dodge.windows;
+    const windows = { ...qte.windows, perfectMs: w.perfectMs + extra + assist, goodMs: w.goodMs + assist };
+    return mult === 1 ? windows : Qte.scaledWindows(windows, mult);
+  }
+
+  // The fallback dodge reaction (qte.json dodge.sidestepPx/sidestepMs): the hero's
+  // container slides away from the enemy and back, relative to where it stands
+  // (melee/restX positions stay as they were). Resolves when it is home again.
+  dodgeSidestep(hero) {
+    trace(`fallback:dodge:${hero.type}`);
+    const c = hero.container;
+    const { sidestepPx, sidestepMs } = qte.dodge;
+    const dir = hero.facing === 'right' ? -1 : 1;
+    return new Promise((resolve) => {
+      this.tweens.add({ targets: c, x: c.x + dir * sidestepPx, duration: sidestepMs, yoyo: true, ease: 'Quad.easeOut', onComplete: resolve });
+    });
+  }
+
   // Invisible help for a player who keeps missing (qte.json assist): every
   // missStreak MISSes in a row widen both windows by stepMs, up to maxMs; a
   // PERFECT takes it all back. Kept in the registry, so it carries across
@@ -1043,6 +1134,9 @@ export default class BattleScene extends Phaser.Scene {
     const red = qte.unparryable;
     const lesson = hit.unparryable && !dodgeLesson.learned && dodgeLesson.runs < red.lesson.attempts;
     this.tapHint.setText(hit.unparryable ? red.hint : qte.hint.text);
+    // The second gesture (ui.json tutorial.hints.dodge) is taught on the first white ring after the
+    // slow-mo tap lesson, in whichever battle that is; it shows once and waits if another banner is up.
+    if (!this.tutorialSlow && !hit.unparryable) this.hints.show('dodge');
     while (true) {
       const slow = this.tutorialSlow || lesson ? qte.tutorial.timeScale : 1;
       this.setTimeScale(slow);
@@ -1060,6 +1154,8 @@ export default class BattleScene extends Phaser.Scene {
         ring: hit.unparryable ? { ...qte.ring, color: red.ringColor, targetColor: red.targetColor } : qte.ring,
         swipe: qte.dodge.swipe,
         unparryable: hit.unparryable,
+        // Every ring takes both gestures: a tap parries, a swipe dodges (Qte.runRing).
+        dodgeWindows: slow === 1 ? this.dodgeWindows() : Qte.scaledWindows(this.dodgeWindows(), 1 / slow),
         // No tap by T: the hit visibly lands now, the judgement (a late GOOD
         // or a MISS) follows when the window closes.
         onImpact: () => target.hp > 0 && this.playHurt(target),
@@ -1094,7 +1190,11 @@ export default class BattleScene extends Phaser.Scene {
       }
       break;
     }
-    if (this.tutorialSlow && !hit.unparryable && result !== 'MISS') this.tutorialSlow = false;
+    // The slow-mo tutorial ends with the first GOOD/PERFECT parry (a dodge swipe isn't the lesson).
+    if (this.tutorialSlow && !hit.unparryable && result !== 'MISS' && input !== 'swipe') {
+      this.tutorialSlow = false;
+    }
+    if (input === 'swipe' && result !== 'MISS') this.hints.skip('dodge'); // they already found it
     if (lesson) {
       dodgeLesson.runs += 1;
       if (input === 'swipe' && result !== 'MISS') dodgeLesson.learned = true;
@@ -1209,8 +1309,9 @@ export default class BattleScene extends Phaser.Scene {
     trace(`fallback:lunge:${enemy.type}`);
     const lunge = enemy.def.attack?.distance !== undefined ? enemy.def.attack : FALLBACK_LUNGE;
     const dir = enemy.facing === 'right' ? 1 : -1;
-    const restX = enemy.restX;
     const c = enemy.container;
+    // Lunges from wherever the attacker stands (home, or beside its target).
+    const restX = c.x;
 
     const windup = this.tweens.add({ targets: c, x: restX - dir * (lunge.windupPx || 0), duration: WINDUP_MS, ease: 'Quad.easeOut' });
 
@@ -1537,7 +1638,7 @@ export default class BattleScene extends Phaser.Scene {
       Fx.sparks(this, target.container.x, target.container.y, cfg.sparks, { ...qte.sparks, color: r.ringColor }, qte.ring.depth);
       Fx.shake(this, cfg.shake, cfg.hitstopMs * 2);
     }
-    if (target.hp > 0) this.applyHit(target, dmg, r.textColor, { poise: brk.sources.hit });
+    if (target.hp > 0) this.applyHit(target, dmg, r.textColor, { poiseSource: 'ultimate' });
   }
 
   // Loops the cast sheet (cast_in first) until stop(); cast_out on stop.
@@ -1619,12 +1720,16 @@ export default class BattleScene extends Phaser.Scene {
     // MISS -> hurt, each only if the character has that sheet.
     const dodge = (result === 'GOOD' || (result === 'PERFECT' && dodged)) && hero.hp > 0 && hasSheet(hero.anims, 'dodge');
     const hpBefore = hero.hp;
-    if (dmg > 0) this.applyHit(hero, dmg, undefined, { react: !dodge });
+    const showCrit = !!hit.crit && dmg > 0;
+    if (dmg > 0) this.applyHit(hero, dmg, undefined, { react: !dodge, type: showCrit ? 'crit' : null });
+    if (showCrit) Fx.popText(this, x, y + qte.text.riseY, crit.text, crit.color, qte.text);
     // e.g. Siphon: the enemy keeps a share of the life it took (enemies.json lifesteal).
     if (hit.lifesteal && dmg > 0 && enemy.hp > 0) {
       this.healEnemy(enemy, Math.round(Math.min(dmg, hpBefore) * hit.lifesteal), battleEvents.lifesteal.text, battleEvents.lifesteal.color);
     }
     if (dodge && hero.hp > 0) this.playReaction(hero, 'dodge');
+    // A successful dodge without a dodge sheet: a small sidestep away from the enemy and back.
+    const sidestep = dodged && result !== 'MISS' && !dodge && hero.hp > 0 ? this.dodgeSidestep(hero) : null;
     if (dmg > 0 && this.brace) Fx.popText(this, x, y + qte.text.riseY, this.brace.blockText, this.brace.color, qte.text);
     if (cfg.knockback && hero.hp > 0) Fx.knockback(this, hero.container, hero.facing === 'right' ? -cfg.knockback : cfg.knockback);
     // e.g. Redact: a missed parry also leaves a memory status.
@@ -1638,6 +1743,7 @@ export default class BattleScene extends Phaser.Scene {
       }
     }
 
+    await sidestep;
     // A hero in Return to Sender answers any parry with the big counter
     // (a dodge isn't a parry).
     if (this.stance?.hero === hero) {
@@ -1687,7 +1793,7 @@ export default class BattleScene extends Phaser.Scene {
   // lands on its impact frame; otherwise straight away.
   async playCounter(hero, enemy, dmg) {
     const counter = () => {
-      if (enemy.hp > 0) this.applyHit(enemy, dmg, undefined, { poise: brk.sources.counter });
+      if (enemy.hp > 0) this.applyHit(enemy, dmg, undefined, { poiseSource: 'counter' });
     };
     if (!hasSheet(hero.anims, 'parry')) {
       trace(`fallback:parry:${hero.type}`);
@@ -1731,26 +1837,33 @@ export default class BattleScene extends Phaser.Scene {
 
   async runTechnique(hero, techId, target) {
     const tech = this.techOf(hero, techId);
-    if (tech.type === 'blast') await this.playBlast(hero, target, tech);
+    if (tech.type === 'blast') await this.playBlast(hero, target, tech, techId);
     else if (tech.type === 'counterStance') await this.startStance(hero, tech);
     else if (tech.type === 'heal') await this.playHeal(hero, tech);
     else if (tech.type === 'brace') await this.playBrace(hero, tech);
-    else if (tech.type === 'quake') await this.playQuake(hero, tech);
+    else if (tech.type === 'quake') await this.playQuake(hero, tech, techId);
   }
 
   // Tremor (Dov): he slams the ground and the shockwave hits every living
   // enemy (Hollows too: it's an Echo move). One cast is one player hit for Echo.
-  async playQuake(hero, tech) {
+  async playQuake(hero, tech, techId) {
     await this.playMove(hero, tech.anims || ['cast'], () => {
       Fx.popText(this, hero.container.x, hero.container.y, tech.castText, tech.color, qte.text);
       Fx.shake(this, tech.shake, tech.shakeMs);
       Fx.screenFlash(this, tech.flash, qte.flashDepth);
       const targets = this.enemies.filter((e) => e.hp > 0);
+      let landed = 0;
       for (const enemy of targets) {
         Fx.sparks(this, enemy.container.x, enemy.container.y + enemy.height / 2, tech.sparks.count, tech.sparks, ui.battleLayout.labelDepth);
-        this.applyHit(enemy, Phaser.Math.Between(tech.dmg[0], tech.dmg[1]), undefined, { poise: brk.sources.hit });
+        // enemies.json defend.dodge: rolled once per cast per enemy; a dodged enemy takes nothing.
+        if (this.rollDodge(enemy, techId)) {
+          this.popDefend(enemy, 'dodge');
+          continue;
+        }
+        this.applyHit(enemy, Phaser.Math.Between(tech.dmg[0], tech.dmg[1]), undefined, { poiseSource: 'ability' });
+        landed += 1;
       }
-      if (targets.length) this.gainEcho(hero, tech.echoOnHit);
+      if (landed) this.gainEcho(hero, tech.echoOnHit);
     });
   }
 
@@ -1758,15 +1871,22 @@ export default class BattleScene extends Phaser.Scene {
   // bolt (up to maxHits). With a blast sheet the bolts fly while the anim holds
   // its aim frame.
   // Echo: one landed volley is one player hit (+echoOnHit), not one per bolt.
-  async playBlast(hero, target, tech) {
+  async playBlast(hero, target, tech, techId) {
     let total = Phaser.Math.Between(tech.hits[0], tech.hits[1]);
+    // enemies.json defend.dodge: rolled once per cast; the whole volley misses (the bolts still fly).
+    const dodged = this.rollDodge(target, techId);
     const fire = async () => {
       for (let i = 0; i < total && target.hp > 0; i++) {
         const crit = Math.random() < Math.max(tech.critChance, effectMax(this.fragments, 'blastCritChance')) && total < tech.maxHits;
         if (crit) total += 1;
         await this.fireBolt(hero, target, tech);
+        if (dodged) {
+          if (i === 0) this.popDefend(target, 'dodge');
+          await this.wait(tech.boltIntervalMs);
+          continue;
+        }
         const dmg = Phaser.Math.Between(tech.dmg[0], tech.dmg[1]);
-        this.applyHit(target, dmg, undefined, { type: crit ? 'crit' : 'normal', poise: brk.sources.hit });
+        this.applyHit(target, dmg, undefined, { type: crit ? 'crit' : 'normal', poiseSource: 'multiHit', crit });
         if (i === 0) this.gainEcho(hero, tech.echoOnHit);
         if (crit) Fx.popText(this, target.container.x, target.container.y, tech.critText, tech.critColor, qte.text);
         await this.wait(tech.boltIntervalMs);
@@ -1849,7 +1969,7 @@ export default class BattleScene extends Phaser.Scene {
       const base = Phaser.Math.Between(tech.counterDmg[0], tech.counterDmg[1]);
       const dmg = Math.round(base * (result === 'PERFECT' ? tech.perfectMult : 1));
       Fx.popText(this, hero.container.x, hero.container.y, tech.counterText, tech.color, qte.text);
-      this.applyHit(enemy, dmg, tech.color, { poise: brk.sources.stanceCounter });
+      this.applyHit(enemy, dmg, tech.color, { poiseSource: 'ability' });
     };
 
     if (!stance.done || !inGuard()) {
@@ -1943,24 +2063,129 @@ export default class BattleScene extends Phaser.Scene {
     };
   }
 
-  async playerStrike(hero, target) {
-    const restX = hero.container.x;
-    const approachX = Phaser.Math.Linear(restX, target.container.x, 0.7);
+  // ---------- Melee approach (ui.battleLayout.melee) ----------
 
-    await this.tweenPromise(hero.container, { x: approachX }, DASH_DURATION_MS, 'Cubic.easeOut');
+  // Where a melee attacker stands to hit target: beside it (the facing side
+  // of the target), feet on the target's feet line.
+  meleeSpot(attacker, target) {
+    const m = layout.melee;
+    const dir = attacker.facing === 'right' ? 1 : -1;
+    const x = target.container.x - dir * (target.reach + attacker.reach + m.gap);
+    return { x: clampX(x, attacker.reach * 2), y: target.feetY - attacker.height / 2 };
+  }
+
+  // The idle bob tweens the container's y: stopped while the entity moves.
+  pauseBob(entity) {
+    if (entity.bobTween) entity.bobTween.stop();
+  }
+
+  resumeBob(entity) {
+    if (entity.bobTween && entity.hp > 0) entity.bobTween = this.idleBob(entity.container);
+  }
+
+  async meleeApproach(attacker, target) {
+    const spot = this.meleeSpot(attacker, target);
+    this.pauseBob(attacker);
+    await this.tweenPromise(attacker.container, spot, layout.melee.approachMs, 'Cubic.easeOut');
+  }
+
+  // Back to its own spot. A fallen attacker stays where it fell.
+  // `force`: a hero struck down at the spot (by a riposte) still goes home.
+  async meleeReturn(attacker, force = false) {
+    if (attacker.hp <= 0 && !force) return;
+    await this.tweenPromise(attacker.container, { x: attacker.restX, y: attacker.restY }, layout.melee.returnMs, 'Cubic.easeInOut');
+    this.resumeBob(attacker);
+  }
+
+  async playerStrike(hero, target) {
+    await this.meleeApproach(hero, target);
 
     // A Strike deals its damage once, on the first impact frame.
-    const dmg = Phaser.Math.Between(hero.strike[0], hero.strike[1]);
+    // crit.json hero: a chance to hit harder (never against an immune target).
+    const isCrit = Math.random() < crit.hero.chance && !this.isImmune(target, 'strike');
+    const base = Phaser.Math.Between(hero.strike[0], hero.strike[1]);
+    const dmg = isCrit ? Math.round(base * crit.hero.mult) : base;
+    let parry = null;
     await this.playAttackAnim(hero, (i) => {
       if (i !== 0) return;
       if (this.isImmune(target, 'strike')) this.passThrough(target);
+      else if (this.rollParry(target, 'strike')) parry = this.popDefend(target, 'parry');
       else {
-        this.applyHit(target, dmg, undefined, { poise: brk.sources.hit });
+        this.applyHit(target, dmg, undefined, { poiseSource: 'strike', type: isCrit ? 'crit' : null, crit: isCrit });
+        if (isCrit) Fx.popText(this, target.container.x, target.container.y, crit.text, crit.color, qte.text);
         this.gainEcho(hero, techniques.strike.echoOnHit);
       }
     });
 
-    await this.tweenPromise(hero.container, { x: restX }, DASH_DURATION_MS, 'Cubic.easeInOut');
+    // A parried Strike deals nothing; the enemy answers at once, while the hero is still at the melee spot.
+    if (parry) {
+      await parry;
+      if (hero.hp > 0 && target.hp > 0) await this.reparry(target, hero);
+    }
+
+    await this.meleeReturn(hero, true);
+  }
+
+  // ---------- Enemy defence (enemies.json "defend", qte.json enemyDefendChance) ----------
+
+  // Never while dead, broken or charging (the guard is its own defence).
+  canDefend(enemy) {
+    return !!enemy.def.defend && enemy.hp > 0 && !enemy.broken && !enemy.charge;
+  }
+
+  rollDefend() {
+    return Math.random() < this.difficulty.enemyDefendChance;
+  }
+
+  // kind = 'parry' | 'dodge'; techId = the technique id listed in def.defend[kind].
+  // Called once per action (per enemy), at the moment the roll matters.
+  rollDefendAs(enemy, kind, techId) {
+    return this.canDefend(enemy) && !!enemy.def.defend[kind]?.includes(techId) && this.rollDefend();
+  }
+
+  rollParry(enemy, techId) {
+    return this.rollDefendAs(enemy, 'parry', techId);
+  }
+
+  rollDodge(enemy, techId) {
+    return this.rollDefendAs(enemy, 'dodge', techId);
+  }
+
+  // The defender's reaction sheet (clerk_parry / clerk_dodge) and the text over it.
+  // Without the sheet it sidesteps away from the hero for a moment. Returns the reaction's promise.
+  popDefend(enemy, kind) {
+    const d = battleEvents.defend;
+    const name = kind === 'parry' ? 'parry' : 'dodge';
+    Fx.popText(this, enemy.container.x, enemy.container.y, d[`${name}Text`], d.color, qte.text);
+    if (hasSheet(enemy.anims, name)) return this.playReaction(enemy, name);
+    trace(`fallback:${name}:${enemy.type}`);
+    const c = enemy.container;
+    const dir = enemy.facing === 'right' ? -1 : 1;
+    return new Promise((resolve) => {
+      this.tweens.add({ targets: c, x: c.x + dir * d.sidestepPx, duration: d.sidestepMs, yoyo: true, onComplete: resolve });
+    });
+  }
+
+  // The riposte after a parried Strike: a ring on the hero, with its own telegraph and damage.
+  // Judged like any enemy attack (PERFECT = the usual counter + Echo). The counter is applyHit
+  // on the enemy, never a Strike, so it can't be parried in turn.
+  async reparry(enemy, hero) {
+    const rp = enemy.def.defend.reparry;
+    const hit = { id: 'reparry', telegraphMs: rp.telegraphMs, dmg: rp.dmg, unparryable: false };
+    // Not a counted player hit (applyHit would mark the PERFECT counter as one).
+    const wasPlayerAction = this.playerAction;
+    this.playerAction = false;
+    const restoreDepth = this.bringInFront(enemy, hero);
+    this.tapHint.setVisible(true);
+    try {
+      if (rp.melee) await this.meleeApproach(enemy, hero);
+      await this.enemyHit(enemy, hero, hit, null, 0);
+    } finally {
+      this.tapHint.setVisible(false);
+      if (rp.melee) await this.meleeReturn(enemy);
+      restoreDepth();
+      this.playerAction = wasPlayerAction;
+    }
   }
 
   // enemies.json "immune": ["strike"] (Hollows): steel passes through like smoke.
@@ -2053,8 +2278,10 @@ export default class BattleScene extends Phaser.Scene {
 
   // react: false = the caller plays its own reaction instead of hurt.
   // type = damage number style (ui.json damageNumbers); heroes' damage is "hurt".
-  // poise = poise damage to an enemy (break.json sources). A broken enemy takes break.damageMult.
-  applyHit(target, dmg, color, { react = true, type = null, poise = 0 } = {}) {
+  // poiseSource = which break.json weight applies ('strike'|'counter'|'ability'|'multiHit'|'ultimate',
+  // null = none); the poise damage is the final damage x that weight (x critWeight on a crit).
+  // A broken enemy takes break.damageMult.
+  applyHit(target, dmg, color, { react = true, type = null, poiseSource = null, crit = false } = {}) {
     let kind = type;
     if (!target.isHero) dmg = this.chainDamage(dmg);
     if (target.broken) dmg = Math.round(dmg * brk.damageMult);
@@ -2079,7 +2306,7 @@ export default class BattleScene extends Phaser.Scene {
     if (target.isHero) this.refreshHud();
     else {
       this.checkPhase(target);
-      if (poise) this.hitPoise(target, poise);
+      if (poiseSource) this.hitPoise(target, dmg * brk.weights[poiseSource] * (crit ? brk.weights.critWeight : 1));
     }
 
     if (target.hp <= 0) this.markDown(target);
@@ -2144,15 +2371,22 @@ export default class BattleScene extends Phaser.Scene {
     enemy.poise = Math.max(0, enemy.poise - amount);
     enemy.poiseBar.set(enemy.poise);
     this.hints.show('break');
-    if (enemy.poise === 0) this.breakEnemy(enemy);
+    if (enemy.poise <= brk.line.epsilon) {
+      enemy.poise = 0;
+      this.breakEnemy(enemy);
+    }
   }
 
   // BROKEN: it skips its next action and takes extra damage until that turn is over.
-  breakEnemy(enemy) {
+  // Not awaited by callers: the hitstop at the end only freezes tweens for a beat.
+  async breakEnemy(enemy) {
     const fx = brk.fx;
     enemy.broken = true;
+    enemy.poiseBar.shatter();
     enemy.poiseBar.setBroken(true);
-    Fx.popText(this, enemy.container.x, enemy.container.y, fx.text, fx.color, { ...qte.text, fontSize: fx.fontSize, offsetY: fx.offsetY });
+    const word = Fx.popText(this, enemy.container.x, enemy.container.y, fx.text, fx.color, { ...qte.text, fontSize: fx.fontSize, offsetY: fx.offsetY });
+    word.setScale(fx.popScale);
+    this.tweens.add({ targets: word, scale: 1, duration: fx.popMs, ease: 'Back.easeOut' });
     Fx.shake(this, fx.shake, fx.shakeMs);
     Fx.screenFlash(this, fx.flash, qte.flashDepth);
     Fx.sparks(this, enemy.container.x, enemy.container.y, fx.sparks, { ...qte.sparks, color: fx.sparkColor }, qte.ring.depth);
@@ -2163,6 +2397,7 @@ export default class BattleScene extends Phaser.Scene {
       Fx.popText(this, enemy.container.x, enemy.container.y + qte.text.riseY, battleEvents.charge.brokenText, battleEvents.charge.textColor, qte.text);
       this.endCharge(enemy, true);
     }
+    await Fx.hitstop(this, fx.hitstopMs);
   }
 
   // The broken enemy's turn: it does nothing, then recovers with full poise.

@@ -3,26 +3,30 @@
     "name": "Forgotten",
     "hp": 80,
     "xp": 15,
-    "poise": 6,
+    "poise": 18,
     "body": "blank",
+    "displayScale": 1,
+    "reach": 34,
     "attack": { "type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15, "windupPx": 4 },
     "hollow": false,
     "attacks": [
-      { "id": "punch", "weight": 1, "telegraphMs": 900, "dmg": 10 },
-      { "id": "lunge", "weight": 1, "telegraphMs": 600, "dmg": 8, "unparryable": true }
+      { "id": "punch", "melee": true, "weight": 1, "telegraphMs": 900, "dmg": 10 },
+      { "id": "lunge", "melee": true, "weight": 1, "telegraphMs": 600, "dmg": 8, "unparryable": true }
     ]
   },
   "hollow": {
     "name": "Hollow",
     "hp": 65,
     "xp": 30,
-    "poise": 8,
+    "poise": 24,
     "body": "hollow",
+    "displayScale": 1,
+    "reach": 40,
     "attack": { "type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15, "windupPx": 4 },
     "hollow": true,
     "immune": ["strike"],
     "attacks": [
-      { "id": "claw", "weight": 3, "telegraphMs": 700, "dmg": 8, "onMiss": { "status": "fog", "chance": 0.3 } },
+      { "id": "claw", "melee": true, "weight": 3, "telegraphMs": 700, "dmg": 8, "onMiss": { "status": "fog", "chance": 0.3 } },
       {
         "id": "siphon",
         "weight": 1,
@@ -38,19 +42,22 @@
     "name": "Quill",
     "hp": 440,
     "xp": 120,
-    "poise": 20,
+    "poise": 60,
     "body": "clerk",
+    "displayScale": 1,
+    "reach": 70,
     "attack": { "type": "lunge", "windupT": 0.3, "distance": 14, "squash": 0.15, "windupPx": 6 },
     "hollow": false,
     "boss": true,
+    "defend": { "parry": ["strike"], "dodge": ["blast", "tremor"], "reparry": { "telegraphMs": 350, "dmg": 22, "melee": false } },
     "phases": [
       {
         "untilHpPct": 50,
         "opening": ["stamp", "archive"],
         "attacks": [
-          { "id": "stamp", "impactSfx": "stamp", "weight": 2, "telegraphMs": 800, "dmg": 15 },
+          { "id": "stamp", "melee": true, "impactSfx": "stamp", "weight": 2, "telegraphMs": 800, "feint": { "atPct": 0.6, "pauseMs": 350, "resumeSpeed": 1.6 }, "feintChance": 0.3, "dmg": 15 },
           {
-            "id": "file_away", "sfx": "ledger",
+            "id": "file_away", "melee": true, "sfx": "ledger",
             "weight": 1,
             "hits": [{ "telegraphMs": 700, "dmg": 10 }, { "telegraphMs": 600, "dmg": 10 }]
           },
@@ -59,13 +66,13 @@
             "anim": "archive_release",
             "chargeAnim": "archive_charge",
             "weight": 0,
-            "chargeTurns": 4,
+            "chargeTurns": 3,
             "guardMult": 0.6,
             "healMitigatedPct": 0.5,
             "onRelease": "archive_insight",
             "unparryable": true,
             "telegraphMs": 900,
-            "dmg": 35
+            "dmg": 50
           }
         ]
       },
@@ -74,13 +81,14 @@
         "musicIntensity": 1,
         "onEnter": "keepsake_burn",
         "attacks": [
-          { "id": "stamp", "impactSfx": "stamp", "weight": 2, "telegraphMs": 700, "dmg": 15 },
+          { "id": "stamp", "melee": true, "impactSfx": "stamp", "weight": 2, "telegraphMs": 700, "feint": { "atPct": 0.6, "pauseMs": 350, "resumeSpeed": 1.6 }, "feintChance": 0.3, "dmg": 15 },
           {
             "id": "redact",
+            "melee": true,
             "weight": 2,
             "telegraphMs": 800,
             "onMiss": { "status": "redacted" },
-            "feint": { "atPct": 0.6, "pauseMs": 400 },
+            "feint": { "atPct": 0.6, "pauseMs": 400, "resumeSpeed": 1.6 },
             "dmg": 15
           },
           {
@@ -88,13 +96,13 @@
             "anim": "archive_release",
             "chargeAnim": "archive_charge",
             "weight": 1,
-            "chargeTurns": 4,
+            "chargeTurns": 3,
             "guardMult": 0.6,
             "healMitigatedPct": 0.5,
             "onRelease": "archive_insight",
             "unparryable": true,
             "telegraphMs": 900,
-            "dmg": 35
+            "dmg": 50
           }
         ]
       }
@@ -105,6 +113,7 @@
     "hp": 70,
     "xp": 40,
     "body": "dov",
+    "reach": 40,
     "animSet": "dov",
     "displayScale": 1,
     "attack": { "type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15, "windupPx": 4 },
@@ -112,16 +121,17 @@
     "refuseUntilFlag": "duelWake",
     "refuseMs": 900,
     "attacks": [
-      { "id": "jab", "weight": 2, "telegraphMs": 900, "dmg": 6, "anim": "attack" },
-      { "id": "hook", "weight": 1, "telegraphMs": 800, "dmg": 7, "feint": { "atPct": 0.6, "pauseMs": 350 }, "anim": "attack" }
+      { "id": "jab", "melee": true, "weight": 2, "telegraphMs": 900, "dmg": 6, "anim": "attack" },
+      { "id": "hook", "melee": true, "weight": 1, "telegraphMs": 800, "dmg": 7, "feint": { "atPct": 0.6, "pauseMs": 350 }, "anim": "attack" }
     ]
   },
   "hollow_warden": {
     "name": "Warden Hollow",
     "hp": 100,
     "xp": 50,
-    "poise": 12,
+    "poise": 36,
     "body": "hollow",
+    "reach": 40,
     "animSet": "hollow",
     "displayScale": 2,
     "attack": { "type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15, "windupPx": 4 },
@@ -131,6 +141,7 @@
       { "id": "siphon", "anim": "siphon", "weight": 2, "telegraphMs": 800, "dmg": 4, "lifesteal": 1, "onMiss": { "echo": -2 } },
       {
         "id": "maul",
+        "melee": true,
         "anim": "claw",
         "weight": 2,
         "hits": [{ "telegraphMs": 700, "dmg": 6 }, { "telegraphMs": 600, "dmg": 6, "feint": { "atPct": 0.6, "pauseMs": 350 } }]

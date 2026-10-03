@@ -174,12 +174,47 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   }
   for (const [id, e] of Object.entries(enemies)) for (const t of e.immune || []) if (!techniques[t]) err(`enemies.${id}: immune "${t}" is not in techniques.json`);
 
+  // crit.json: Strike / enemy-hit crit chance and damage multiplier, plus the pop text.
+  const critData = data.crit;
+  if (!critData) err('crit.json: missing');
+  else {
+    for (const side of ['hero', 'enemy']) {
+      const c = critData[side];
+      if (!c) err(`crit.json: "${side}" is required`);
+      else {
+        if (!(typeof c.chance === 'number' && c.chance >= 0 && c.chance <= 1)) err(`crit.json: ${side}.chance must be a number in [0, 1]`);
+        if (!(typeof c.mult === 'number' && c.mult > 0)) err(`crit.json: ${side}.mult must be a number > 0`);
+      }
+    }
+    if (typeof critData.text !== 'string' || !critData.text) err('crit.json: "text" is required');
+    if (typeof critData.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(critData.color)) err('crit.json: "color" must be a #rrggbb string');
+  }
+
+  // break.json: poise weights per damage source + the golden line's look.
+  const brk = data.break;
+  if (!brk) err('break.json: missing');
+  else {
+    if (brk.sources) err('break.json: "sources" was replaced by "weights"');
+    if (brk.pips) err('break.json: "pips" was replaced by "line"');
+    const weightKeys = ['strike', 'counter', 'ability', 'multiHit', 'ultimate', 'critWeight'];
+    if (!brk.weights) err('break.json: "weights" is required');
+    else for (const k of weightKeys) if (!(typeof brk.weights[k] === 'number' && brk.weights[k] >= 0)) err(`break.json: weights.${k} must be a number >= 0`);
+    if (!brk.line) err('break.json: "line" is required');
+    else {
+      for (const k of ['w', 'h', 'offsetY', 'depth', 'tweenMs', 'brokenPulseMs', 'epsilon']) if (typeof brk.line[k] !== 'number') err(`break.json: line.${k} must be a number`);
+      for (const k of ['bg', 'fill', 'brokenFill']) if (!Number.isFinite(Number(brk.line[k]))) err(`break.json: line.${k} must be a 0x colour`);
+      const sh = brk.line.shards;
+      if (!sh || !(sh.count >= 0) || !(sh.size > 0) || !(sh.lifeMs > 0) || typeof sh.gravity !== 'number' || !(Array.isArray(sh.speed) && sh.speed.length === 2)) err('break.json: line.shards needs count, size, speed [min, max], gravity, lifeMs');
+    }
+    for (const k of ['hitstopMs', 'shake', 'shakeMs', 'sparks', 'popScale', 'popMs']) if (typeof brk.fx?.[k] !== 'number') err(`break.json: fx.${k} must be a number`);
+  }
+
   if (!techniques.strike) err('techniques.json: "strike" is required');
   if (!techniques.recollection) err('techniques.json: "recollection" is required');
 
   for (const [id, e] of Object.entries(enemies)) {
     if (!assets.sprites?.[e.body]) err(`enemies.${id}: body sprite "${e.body}" is not in assets.json sprites`);
-    if (e.poise !== undefined && !(Number.isInteger(e.poise) && e.poise > 0)) err(`enemies.${id}: poise must be a positive integer`);
+    if (e.poise !== undefined && !(typeof e.poise === 'number' && e.poise > 0)) err(`enemies.${id}: poise must be a positive number (damage units)`);
     const lists = e.phases ? e.phases.map((p, i) => [`phases[${i}]`, p.attacks]) : [['attacks', e.attacks]];
     for (const [where, attacks] of lists) {
       if (!attacks?.length) err(`enemies.${id}.${where}: no attacks`);
@@ -187,6 +222,14 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
         for (const hit of a.hits || [a]) {
           if (!(hit.telegraphMs > 0)) err(`enemies.${id}.${where}.${a.id}: telegraphMs missing`);
           if (typeof hit.dmg !== 'number') err(`enemies.${id}.${where}.${a.id}: dmg missing`);
+          const f = hit.feint;
+          if (f) {
+            if (!(f.atPct > 0 && f.atPct < 1)) err(`enemies.${id}.${where}.${a.id}: feint.atPct must be in (0, 1)`);
+            if (!(f.pauseMs >= 0)) err(`enemies.${id}.${where}.${a.id}: feint.pauseMs must be >= 0`);
+            if (f.resumeSpeed !== undefined && !(f.resumeSpeed > 0)) err(`enemies.${id}.${where}.${a.id}: feint.resumeSpeed must be > 0`);
+          }
+          const fc = hit.feintChance ?? a.feintChance;
+          if (fc !== undefined && !(fc >= 0 && fc <= 1)) err(`enemies.${id}.${where}.${a.id}: feintChance must be in [0, 1]`);
         }
       }
     }
@@ -215,7 +258,8 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   // lifesteal: the share of damage dealt that an enemy heals. tint: 0xRRGGBB.
   for (const [group, defs] of [['characters', characters], ['enemies', enemies]]) {
     for (const [id, def] of Object.entries(defs)) {
-      if (def.displayScale !== undefined && !(Number.isInteger(def.displayScale) && def.displayScale > 0)) err(`${group}.${id}: displayScale must be a positive integer`);
+      if (def.displayScale !== undefined && !(Number.isInteger(def.displayScale) && def.displayScale > 0)) err(`${group}.${id}: displayScale must be a positive INTEGER (never fractional: a fractional scale breaks the pixel grid, CLAUDE.md pixel rule)`);
+      if (def.reach !== undefined && !(typeof def.reach === 'number' && def.reach > 0)) err(`${group}.${id}: reach must be a positive number (half the body art width, px)`);
       if (def.tint !== undefined && !(typeof def.tint === 'string' && /^0x[0-9a-fA-F]{6}$/.test(def.tint))) err(`${group}.${id}: tint must be a hex string like "0x9aa8b8"`);
     }
   }
@@ -223,10 +267,72 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     const attacks = e.phases ? e.phases.flatMap((p) => p.attacks || []) : e.attacks || [];
     for (const a of attacks) {
       for (const hit of [a, ...(a.hits || [])]) {
+        if (hit.melee !== undefined && typeof hit.melee !== 'boolean') err(`enemies.${id}.${a.id}: melee must be true or false`);
         if (hit.lifesteal !== undefined && !(typeof hit.lifesteal === 'number' && hit.lifesteal >= 0)) err(`enemies.${id}.${a.id}: lifesteal must be a number >= 0`);
       }
     }
   }
+  // defend: an enemy's chance (qte.json enemyDefendChance) to parry a Strike or dodge a technique, by technique id.
+  for (const [id, e] of Object.entries(enemies)) {
+    const d = e.defend;
+    if (!d) continue;
+    for (const kind of ['parry', 'dodge']) {
+      if (d[kind] !== undefined && !Array.isArray(d[kind])) err(`enemies.${id}.defend.${kind}: must be a list of technique ids`);
+      for (const t of d[kind] || []) if (!techniques[t]) err(`enemies.${id}.defend.${kind}: "${t}" is not in techniques.json`);
+    }
+    if (d.parry?.length) {
+      const r = d.reparry;
+      if (!(r && r.telegraphMs > 0)) err(`enemies.${id}.defend.reparry.telegraphMs must be > 0 (a parried Strike is answered with a ring)`);
+      if (!(r && typeof r.dmg === 'number' && r.dmg >= 0)) err(`enemies.${id}.defend.reparry.dmg must be a number >= 0`);
+      if (r?.melee !== undefined && typeof r.melee !== 'boolean') err(`enemies.${id}.defend.reparry.melee must be true or false`);
+    }
+    const bd = battleEvents.defend;
+    if (!(bd && typeof bd.parryText === 'string' && bd.parryText && typeof bd.dodgeText === 'string' && bd.dodgeText && bd.color && bd.sidestepPx >= 0 && bd.sidestepMs > 0)) {
+      err('battleEvents.defend: parryText, dodgeText, color, sidestepPx and sidestepMs are required');
+    }
+  }
+  for (const id of data.qte?.difficulties?.order || []) {
+    const c = data.qte.difficulties[id]?.enemyDefendChance;
+    if (!(typeof c === 'number' && c >= 0 && c <= 1)) err(`qte.difficulties.${id}.enemyDefendChance must be a number in [0, 1]`);
+  }
+  // Two gestures on every ring (qte.json dodge): a tap parries, a swipe dodges with the easier dodge.windows.
+  if (data.qte) {
+    const q = data.qte;
+    const w = q.windows;
+    const dw = q.dodge?.windows;
+    if (!(dw && dw.perfectMs > 0 && dw.goodMs > 0)) err('qte.dodge.windows: perfectMs and goodMs are required (> 0)');
+    else {
+      if (dw.perfectMs > dw.goodMs) err('qte.dodge.windows: perfectMs must be <= goodMs');
+      if (dw.goodMs > w.ignoreBeforeMs) err(`qte.dodge.windows.goodMs (${dw.goodMs}) must be <= windows.ignoreBeforeMs (${w.ignoreBeforeMs})`);
+    }
+    if (w.perfectMs > w.goodMs) err('qte.windows: perfectMs must be <= goodMs');
+    if (w.goodMs > w.ignoreBeforeMs) err('qte.windows: goodMs must be <= ignoreBeforeMs');
+    const sw = q.dodge?.swipe;
+    if (!(sw && sw.minPx > 0 && sw.maxMs > 0)) err('qte.dodge.swipe: minPx and maxMs are required (> 0)');
+    if (!(q.dodge?.sidestepPx >= 0 && q.dodge?.sidestepMs > 0)) err('qte.dodge: sidestepPx (>= 0) and sidestepMs (> 0) are required');
+    if (typeof q.hint?.text !== 'string' || !q.hint.text) err('qte.hint.text is required');
+  }
+  // Battle environments: floor platform + background drift (environments.json)
+  for (const [id, env] of Object.entries(data.environments || {})) {
+    const at = `environments.${id}`;
+    const p = env.platform;
+    if (p !== undefined) {
+      if (!backgrounds[p.key]) err(`${at}.platform.key: "${p.key}" is not in assets.json backgrounds`);
+      if (!(typeof p.y === 'number' && p.y >= 0 && p.y <= 360)) err(`${at}.platform.y must be a number within 0..360`);
+      for (const k of ['color', 'edgeColor']) if (!Number.isFinite(Number(p[k]))) err(`${at}.platform.${k} must be a 0x colour string`);
+      for (const k of ['edgeAlpha', 'bottomAlpha']) if (!(typeof p[k] === 'number' && p[k] >= 0 && p[k] <= 1)) err(`${at}.platform.${k} must be a number in [0, 1]`);
+      if (typeof p.depth !== 'number') err(`${at}.platform.depth must be a number`);
+    }
+    const d = env.drift;
+    if (d !== undefined && !(typeof d.x === 'number' && d.x >= 0 && typeof d.ms === 'number' && d.ms > 0)) err(`${at}.drift: x must be a number >= 0 and ms > 0`);
+  }
+  const sh = ui.battleLayout?.shadow;
+  if (sh !== undefined) {
+    for (const k of ['widthPct', 'heightPct', 'texRadius']) if (!(typeof sh[k] === 'number' && sh[k] > 0)) err(`ui.battleLayout.shadow.${k} must be a number > 0`);
+    if (!Number.isFinite(Number(sh.color)) || !(typeof sh.alpha === 'number' && sh.alpha >= 0 && sh.alpha <= 1) || typeof sh.offsetY !== 'number') err('ui.battleLayout.shadow: color, alpha (0-1) and offsetY are required');
+  }
+  const melee = ui.battleLayout?.melee;
+  for (const k of ['gap', 'approachMs', 'returnMs', 'reachDefault']) if (typeof melee?.[k] !== 'number' || melee[k] < 0) err(`ui.battleLayout.melee.${k} must be a number >= 0`);
   const party = ui.battleLayout?.defaultParty;
   if (party !== undefined && (!Array.isArray(party) || !party.length || party.some((h) => !characters[h]))) err('ui.battleLayout.defaultParty: must list hero ids from characters.json');
   const steal = battleEvents.lifesteal;

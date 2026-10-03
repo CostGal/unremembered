@@ -52,6 +52,12 @@ export default class TutorialHints {
     if (this.current?.id === id) this.hide();
   }
 
+  // The player already knows it: take it down if it's up and never show it.
+  skip(id) {
+    shown.add(id);
+    this.done(id);
+  }
+
   isShowing(id) {
     return this.current?.id === id;
   }

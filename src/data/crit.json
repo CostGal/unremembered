@@ -1,0 +1,6 @@
+{
+  "hero": { "chance": 0.15, "mult": 1.5 },
+  "enemy": { "chance": 0.1, "mult": 1.5 },
+  "text": "CRIT!",
+  "color": "#f0c060"
+}

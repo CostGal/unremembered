@@ -28,6 +28,7 @@ const D = {
   techniques: read('src/data/techniques.json'),
   qte: read('src/data/qte.json'),
   brk: read('src/data/break.json'),
+  crit: read('src/data/crit.json'),
   grade: read('src/data/grade.json'),
   levels: read('src/data/levels.json'),
   statuses: read('src/data/statuses.json'),
@@ -96,12 +97,14 @@ function solveProfile({ PERFECT, GOOD }) {
   return best;
 }
 
-function qteOdds(profile, windowMult) {
-  const w = D.qte.windows;
-  const p = (1 - profile.lapse) * inWindow(w.perfectMs * windowMult, profile.bias, profile.sigma);
-  const pg = (1 - profile.lapse) * inWindow(w.goodMs * windowMult, profile.bias, profile.sigma);
+// Odds of PERFECT/GOOD/MISS for a window pair {perfectMs, goodMs} (the parry windows or the
+// easier dodge windows), widened or narrowed by mult (Story Mode, the tutorial slow-mo).
+function qteOddsFor(profile, w, mult) {
+  const p = (1 - profile.lapse) * inWindow(w.perfectMs * mult, profile.bias, profile.sigma);
+  const pg = (1 - profile.lapse) * inWindow(w.goodMs * mult, profile.bias, profile.sigma);
   return { PERFECT: p, GOOD: pg - p, MISS: 1 - pg };
 }
+const qteOdds = (profile, windowMult) => qteOddsFor(profile, D.qte.windows, windowMult);
 
 function roll(odds, rnd) {
   const r = rnd();
@@ -151,7 +154,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: D.enemies[id].hp, max: D.enemies[id].hp, phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false }));
 
   // A tutorial battle also costs the time to read its hint banners.
-  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], flags: [], playerHits: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], flags: [], playerHits: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   // Echo is per hero (each has their own reserve).
   const gain = (hero, n) => (hero.echo = Math.max(0, Math.min(hero.echoMax, hero.echo + n)));
   const rhea = heroes.find((h) => h.id === 'rhea'); // may be absent (battles.json party)
@@ -164,8 +167,9 @@ function simulateBattle(battleId, profileName, story, rnd) {
     const mult = 1 + (Math.min(st.chain, qte.chain.maxSteps) * qte.chain.stepPct) / 100;
     return mult === 1 ? dmg : Math.floor(dmg * mult + rnd());
   };
-  // poiseDmg: break.json sources (hit 1, counter 2, stanceCounter 3). A broken enemy takes more damage.
-  const hitEnemy = (enemy, rawDmg, poiseDmg = 0) => {
+  // poiseSource: a break.json weight key (strike/counter/ability/multiHit/ultimate); poise damage =
+  // final damage x weight (x critWeight on a crit), as in BattleScene.applyHit. A broken enemy takes more damage.
+  const hitEnemy = (enemy, rawDmg, poiseSource = null, crit = false) => {
     let dmg = chainDmg(rawDmg);
     if (enemy.broken) dmg = Math.round(dmg * D.brk.damageMult);
     // A charging enemy's guard absorbs part of the hit; Exposed (Recollection) adds.
@@ -189,9 +193,10 @@ function simulateBattle(battleId, profileName, story, rnd) {
         if (enemy.def.poise && !enemy.broken) enemy.poise = enemy.def.poise;
       }
     }
-    if (poiseDmg && enemy.def.poise && enemy.hp > 0 && !enemy.broken) {
-      enemy.poise = Math.max(0, enemy.poise - poiseDmg);
-      if (enemy.poise === 0) {
+    if (poiseSource && enemy.def.poise && enemy.hp > 0 && !enemy.broken) {
+      enemy.poise = Math.max(0, enemy.poise - dmg * D.brk.weights[poiseSource] * (crit ? D.brk.weights.critWeight : 1));
+      if (enemy.poise <= D.brk.line.epsilon) {
+        enemy.poise = 0;
         enemy.broken = true;
         st.breaks += 1;
         // A BREAK is the one thing that cancels a charge.
@@ -208,6 +213,43 @@ function simulateBattle(battleId, profileName, story, rnd) {
     return { ...computeGrade(stats, battleId, D.grade), stats };
   };
   const windowMult = () => storyMult * (st.tutorialSlow ? 1 / qte.tutorial.timeScale : 1);
+
+  // enemies.json defend + qte.json enemyDefendChance (story 0): mirrors BattleScene.rollDefendAs.
+  const defendChance = qte.difficulties[story ? 'story' : 'normal'].enemyDefendChance;
+  const defends = (enemy, kind, techId) => !!enemy.def.defend?.[kind]?.includes(techId) && enemy.hp > 0 && !enemy.broken && !enemy.charge && rnd() < defendChance;
+  // How the scripted player answers one enemy ring: a red ring always with a swipe (normal
+  // windows), a white ring with a swipe (the easier dodge windows) policy.dodgeChance of the
+  // time, else a tap (parry windows). The tutorial slow-mo teaches the tap, so no swipes there.
+  const dodgeChance = D.sim.policy.dodgeChance?.[profileName] ?? 0.2;
+  const answerRing = (unparryable) => {
+    const swipes = unparryable || (!st.tutorialSlow && rnd() < dodgeChance);
+    const windows = swipes && !unparryable ? D.qte.dodge.windows : D.qte.windows;
+    return { res: roll(qteOddsFor(profile, windows, windowMult()), rnd), dodged: swipes };
+  };
+  // A parried Strike is answered with a ring on the hero (reparry): judged like any enemy hit,
+  // a PERFECT earns the usual counter (applyHit on the enemy, so no parry roll, not a counted player hit).
+  const reparry = (hero, enemy) => {
+    const rp = enemy.def.defend.reparry;
+    st.ms += rp.telegraphMs + T.hitResolveMs + (rp.melee ? T.meleeMs : 0);
+    const { res, dodged } = answerRing(false);
+    st.qtes[res] += 1;
+    const cfg = dodged ? { ...qte.results[res], ...qte.dodge.results[res] } : qte.results[res];
+    if (cfg.chain !== 0) {
+      if (res === 'PERFECT') st.chain += 1;
+      else if (res === 'MISS') st.chain = 0;
+    }
+    st.maxChain = Math.max(st.maxChain, st.chain);
+    gain(hero, cfg.echo);
+    const dmg = Math.round(rp.dmg * cfg.damageMult * dmgTakenMult);
+    st.damageTaken += Math.min(dmg, hero.hp);
+    hero.hp = Math.max(0, hero.hp - dmg);
+    if (res === 'PERFECT' && !dodged && enemy.hp > 0) {
+      const was = st.playerAction;
+      st.playerAction = false;
+      hitEnemy(enemy, cfg.counterDmg, 'counter');
+      st.playerAction = was;
+    }
+  };
 
   const afterTurn = () => {
     while (st.pending.length) {
@@ -279,7 +321,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
       const r = tech.recollection;
       for (let i = 0; i < r.taps && target.hp > 0; i++) {
         const res = roll(qteOdds(profile, storyMult), rnd);
-        hitEnemy(target, r.dmg[res.toLowerCase()], D.brk.sources.hit);
+        hitEnemy(target, r.dmg[res.toLowerCase()], 'ultimate');
       }
       if (r.applies && target.hp > 0) target.exposed = { mult: D.statuses[r.applies.status].damageTakenMult, turns: r.applies.turns };
       st.ms += T.recollectionFadeMs * 2 + r.taps * (qte.recollection.ringMs + r.intervalMs);
@@ -309,8 +351,13 @@ function simulateBattle(battleId, profileName, story, rnd) {
       // Tremor (hits every enemy) when there's a crowd or a Strike-immune target.
       if (can('tremor') && (targets.length > 1 || !strikeTarget)) {
         hero.echo -= tk('tremor').cost;
-        for (const e of targets) hitEnemy(e, between(rnd, tk('tremor').dmg), D.brk.sources.hit);
-        gain(hero, tk('tremor').echoOnHit || 0);
+        let landed = 0;
+        for (const e of targets) {
+          if (defends(e, 'dodge', 'tremor')) continue;
+          hitEnemy(e, between(rnd, tk('tremor').dmg), 'ability');
+          landed += 1;
+        }
+        if (landed) gain(hero, tk('tremor').echoOnHit || 0);
         st.ms += sheetMs('dov', 'attack', T.attackMs);
         return;
       }
@@ -322,11 +369,14 @@ function simulateBattle(battleId, profileName, story, rnd) {
         const b = tk('blast');
         let total = between(rnd, b.hits);
         let bolts = 0;
+        const dodged = defends(target, 'dodge', 'blast'); // once per cast: the whole volley misses
         for (let i = 0; i < total && target.hp > 0; i++) {
           const crit = rnd() < b.critChance && total < b.maxHits;
           if (crit) total += 1;
-          hitEnemy(target, between(rnd, b.dmg), D.brk.sources.hit);
-          if (i === 0) gain(hero, b.echoOnHit || 0);
+          if (!dodged) {
+            hitEnemy(target, between(rnd, b.dmg), 'multiHit', crit);
+            if (i === 0) gain(hero, b.echoOnHit || 0);
+          }
           bolts += 1;
         }
         st.ms += sheetMs('rhea', 'blast', 900) + bolts * (b.boltFlightMs + b.boltIntervalMs);
@@ -341,7 +391,15 @@ function simulateBattle(battleId, profileName, story, rnd) {
     }
     // Strike (an immune target takes nothing and gives no Echo).
     if (strikeTarget) {
-      hitEnemy(strikeTarget, between(rnd, hero.strike), D.brk.sources.hit);
+      const isCrit = rnd() < D.crit.hero.chance;
+      const base = between(rnd, hero.strike);
+      if (defends(strikeTarget, 'parry', 'strike')) {
+        st.parries += 1;
+        st.ms += T.dashMs * 2 + sheetMs(hero.id, 'attack', T.attackMs);
+        reparry(hero, strikeTarget);
+        return;
+      }
+      hitEnemy(strikeTarget, isCrit ? Math.round(base * D.crit.hero.mult) : base, 'strike', isCrit);
       gain(hero, tech.strike.echoOnHit);
     } else st.immuneSeen = true;
     st.ms += T.dashMs * 2 + sheetMs(hero.id, 'attack', T.attackMs);
@@ -395,21 +453,29 @@ function simulateBattle(battleId, profileName, story, rnd) {
         return;
       }
     }
+    // A melee attacker walks up before the first ring and home after the last (approach + return).
+    if (attack.melee) st.ms += T.meleeMs;
     for (const h of attack.hits || [attack]) {
       const hit = { ...h, unparryable: h.unparryable ?? attack.unparryable ?? false };
+      // crit.json enemy: per hit, before the parry's damage multiplier (same in Story Mode).
+      if (rnd() < D.crit.enemy.chance) hit.dmg = Math.round(hit.dmg * D.crit.enemy.mult);
       if (target.hp <= 0 || enemy.hp <= 0) break;
       const slow = st.tutorialSlow ? qte.tutorial.timeScale : 1;
-      st.ms += (hit.telegraphMs + (hit.feint?.pauseMs || 0)) / slow + T.hitResolveMs;
+      // A feint (enemies.json) pauses the ring, then finishes the rest resumeSpeed x faster; feintChance rolls per hit.
+      let feint = hit.feint;
+      const feintChance = h.feintChance ?? attack.feintChance;
+      if (feint && feintChance !== undefined && !(rnd() < feintChance)) feint = null;
+      const tele = hit.telegraphMs;
+      const ringMs = feint ? feint.atPct * tele + feint.pauseMs + ((1 - feint.atPct) * tele) / (feint.resumeSpeed ?? 1) : tele;
+      st.ms += ringMs / slow + T.hitResolveMs;
       // Nala cancels the first Hollow attack (the scripted player always taps her).
       if (!st.nalaUsed && enemy.def.hollow && rnd() < D.sim.policy.nalaTapChance[profileName]) {
         st.nalaUsed = true;
         break;
       }
-      const res = roll(qteOdds(profile, windowMult()), rnd);
+      // A swipe is a dodge: its own results (no counter, no Echo) and not a parry for Return to Sender.
+      const { res, dodged } = answerRing(!!hit.unparryable);
       st.qtes[res] += 1;
-      // A red ring (unparryable) is answered with a swipe: same odds, but a dodge
-      // has its own results (no counter, less Echo) and isn't a parry for Return to Sender.
-      const dodged = !!hit.unparryable;
       const cfg = dodged ? { ...qte.results[res], ...qte.dodge.results[res] } : qte.results[res];
       if (cfg.chain !== 0) {
         if (res === 'PERFECT') st.chain += 1;
@@ -436,11 +502,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
         const s = st.stance;
         st.stance = null;
         if (!dodged && res !== 'MISS' && target.hp > 0) {
-          hitEnemy(enemy, Math.round(between(rnd, s.tech.counterDmg) * (res === 'PERFECT' ? s.tech.perfectMult : 1)), D.brk.sources.stanceCounter);
+          hitEnemy(enemy, Math.round(between(rnd, s.tech.counterDmg) * (res === 'PERFECT' ? s.tech.perfectMult : 1)), 'ability');
           st.ms += T.counterMs;
         }
       } else if (res === 'PERFECT' && !dodged && enemy.hp > 0) {
-        hitEnemy(enemy, qte.results.PERFECT.counterDmg, D.brk.sources.counter);
+        hitEnemy(enemy, qte.results.PERFECT.counterDmg, 'counter');
       }
     }
     st.brace = null;

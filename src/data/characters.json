@@ -3,6 +3,8 @@
     "name": "Rhea",
     "hp": 60,
     "body": "rhea_body",
+    "displayScale": 1,
+    "reach": 36,
     "parts": [{ "key": "arm", "sprite": "rhea_arm", "pivot": [56, 65] }],
     "attack": {
       "windupT": 0.3,
@@ -23,6 +25,8 @@
     "name": "Dov",
     "hp": 90,
     "body": "dov",
+    "displayScale": 1,
+    "reach": 40,
     "attack": { "type": "lunge", "windupT": 0.3, "distance": 10, "squash": 0.15 },
     "strike": [7, 9],
     "echoMax": 5,
