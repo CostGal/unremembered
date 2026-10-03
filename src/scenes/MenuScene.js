@@ -112,6 +112,7 @@ export default class MenuScene extends Phaser.Scene {
     }
     if (item.id === 'new') this.newGame();
     else if (item.id === 'settings') this.scene.start('Settings');
+    else if (item.id === 'credits') this.scene.start('End', { credits: true });
   }
 
   // Every New Game asks how hard the fights should be (qte.json difficulties;
