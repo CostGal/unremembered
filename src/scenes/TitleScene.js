@@ -7,6 +7,7 @@ import { requestFullscreen, titleLine, wantsFullscreen } from '../systems/Fullsc
 import { addText } from '../systems/Button.js';
 import { isRealTexture, whenReady } from '../systems/Assets.js';
 import * as Fx from '../systems/Fx.js';
+import { JAM } from '../systems/Jam.js';
 
 const cfg = ui.title;
 
@@ -50,7 +51,7 @@ export default class TitleScene extends Phaser.Scene {
     this.tapText = tap;
 
     addText(this, 180, layout.silent.y, cfg.silent.text, cfg.silent).setDepth(cfg.art.textDepth);
-    this.buildFullscreenLine();
+    if (!JAM) this.buildFullscreenLine();
 
     this.input.once('pointerdown', () => {
       unlockAudio();

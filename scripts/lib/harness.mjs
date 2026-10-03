@@ -92,9 +92,12 @@ async function launchShimBrowser() {
 }
 
 // Vite dev server on a free port (dev build: window.__game / __battle exist).
+// JAM=1 (or --jam): the same server on vite.jam.config.js, i.e. the jam build's
+// code and data (__JAM__ true, ui.json jam overrides, no credits) with the dev hooks.
 export async function startServer() {
   const { createServer } = await import('vite');
-  const server = await createServer({ root, logLevel: 'error', server: { port: 0, host: '127.0.0.1', hmr: false, watch: null } });
+  const jam = process.env.JAM === '1' || process.argv.includes('--jam');
+  const server = await createServer({ root, ...(jam ? { configFile: join(root, 'vite.jam.config.js') } : {}), logLevel: 'error', server: { port: 0, host: '127.0.0.1', hmr: false, watch: null } });
   await server.listen();
   const url = server.resolvedUrls.local[0];
   return { url, close: () => server.close() };
