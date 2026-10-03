@@ -34,7 +34,8 @@ import tutorialData from '../data/tutorial.json';
 import * as TutorialPause from '../systems/TutorialPause.js';
 import { addPauseButton, pauseScene } from '../systems/PauseButton.js';
 import * as Qte from '../systems/Qte.js';
-import { devInt } from '../systems/DevParams.js';
+import { devInt, devParam } from '../systems/DevParams.js';
+import { impact, impactLab, prewarmImpact } from '../systems/Impact.js';
 import { dropsFor, effectMax, effectTotal, ownedFragments } from '../systems/Fragments.js';
 import DropCard from '../systems/DropCard.js';
 import { battleXp, echoMaxFor, growth, learned, levelFor, techniqueAt, xpForLevel } from '../systems/Recall.js';
@@ -207,6 +208,12 @@ export default class BattleScene extends Phaser.Scene {
     if (import.meta.env.DEV) {
       this.enableHudDebug();
       window.__battle = this;
+    }
+    prewarmImpact(this);
+    // ?impact=1: the impact lab loops the impact.json presets at the first enemy (perf checks).
+    if (devParam('impact')) {
+      window.__battle = this;
+      impactLab(this, () => this.impactPoint(this.enemies.find((e) => e.hp > 0)));
     }
 
     this.buildCommandMenu();
@@ -2599,13 +2606,17 @@ export default class BattleScene extends Phaser.Scene {
     // Battle events {parries: n}: a PERFECT or GOOD answered with a tap (not a dodge, not a reparry ring).
     if (!dodged && result !== 'MISS' && !hit.reparry) this.counters.parries += 1;
 
-    if (cfg.text) Fx.popText(this, x, y, cfg.text, cfg.color, qte.text);
+    // A PERFECT tap is dressed by the impact system below (word, flashes, sfx and buzz included).
+    const big = result === 'PERFECT' && !dodged;
+    if (cfg.text && !big) Fx.popText(this, x, y, cfg.text, cfg.color, qte.text);
     if (cfg.flash) Fx.screenFlash(this, cfg.flash, qte.flashDepth);
     // The prop lands (the Clerk's stamp), parried or not.
     if (hit.impactSfx) playSfx(hit.impactSfx);
     if (hit.unparryable && input === 'tap') Fx.popText(this, x, y + qte.text.riseY, qte.unparryable.tapText, qte.unparryable.tapColor, qte.text);
-    playSfx(result.toLowerCase());
-    vibrate(cfg.vibrateMs);
+    if (!big) {
+      playSfx(result.toLowerCase());
+      vibrate(cfg.vibrateMs);
+    }
     if (cfg.echo > 0) this.hints.show('echo');
     // Before the counter below, so a PERFECT's own counter already gets the new step.
     // A PERFECT dodge leaves the chain as it is (cfg.chain 0).
@@ -2625,7 +2636,7 @@ export default class BattleScene extends Phaser.Scene {
     const hpBefore = hero.hp;
     const showCrit = !!hit.crit && dmg > 0;
     if (dmg > 0) this.applyHit(hero, dmg, undefined, { react: !dodge, type: showCrit ? 'crit' : null });
-    if (showCrit) Fx.popText(this, x, y + qte.text.riseY, crit.text, crit.color, qte.text);
+    if (showCrit) impact(this, 'critEnemy', { ...this.impactPoint(hero), text: crit.text, color: crit.color });
     // e.g. Siphon: the enemy keeps a share of the life it took (enemies.json lifesteal).
     if (hit.lifesteal && dmg > 0 && enemy.hp > 0) {
       this.healEnemy(enemy, Math.round(Math.min(dmg, hpBefore) * hit.lifesteal), battleEvents.lifesteal.text, battleEvents.lifesteal.color);
@@ -2638,7 +2649,11 @@ export default class BattleScene extends Phaser.Scene {
     // e.g. Redact: a missed parry also leaves a memory status.
     if (result === 'MISS' && hit.onMiss?.status && Math.random() < (hit.onMiss.chance ?? 1)) this.applyStatus(hero, hit.onMiss.status);
 
-    if (result === 'PERFECT') {
+    let imp = null;
+    if (big) {
+      imp = impact(this, 'perfect', { x, y: y + qte.ring.offsetY, target: hero, text: cfg.text, color: cfg.color });
+      await imp.done;
+    } else if (result === 'PERFECT') {
       Fx.sparks(this, x, y + qte.ring.offsetY, cfg.sparks, qte.sparks, qte.ring.depth);
       if (cfg.hitstopMs) {
         Fx.shake(this, cfg.shake, cfg.hitstopMs * 2);
@@ -2651,9 +2666,24 @@ export default class BattleScene extends Phaser.Scene {
     // (a dodge isn't a parry).
     if (this.stance?.hero === hero) {
       await this.endStance(!dodged && result !== 'MISS' && hero.hp > 0, enemy, result);
+      imp?.endSlow();
       return;
     }
     if (result === 'PERFECT' && cfg.counterDmg) await this.playCounter(hero, enemy, cfg.counterDmg + effectTotal(this.fragments, 'counterBonus'));
+    // The slow-mo of a PERFECT never reaches the next ring.
+    imp?.endSlow();
+  }
+
+  // The impact point of an entity (impact.json): its centre, and the entity for the dust ring at its feet.
+  impactPoint(entity) {
+    if (!entity) return null;
+    return { x: entity.container.x, y: entity.container.y, target: entity };
+  }
+
+  // Dev/QA (window.__battle.impact('perfect')): plays an impact.json preset at an entity (default: the first enemy).
+  impact(name = 'perfect', entity = null, text = null) {
+    const at = entity || this.enemies.find((e) => e.hp > 0) || this.heroes[0];
+    return impact(this, name, { ...this.impactPoint(at), text: text ?? name.toUpperCase() });
   }
 
   // ---------- Perfect chain ----------
@@ -3062,7 +3092,7 @@ export default class BattleScene extends Phaser.Scene {
         // Nala's Echo: the Strike wounds a Hollow it would have passed through.
         if (target.def.immune?.includes('strike')) Fx.popText(this, hero.container.x, hero.container.y, allies.nala.glowStrikeText, allies.nala.glowStrikeColor, qte.text);
         this.applyHit(target, dmg, undefined, { poiseSource: 'strike', type: isCrit ? 'crit' : null, crit: isCrit });
-        if (isCrit) Fx.popText(this, target.container.x, target.container.y, crit.text, crit.color, qte.text);
+        if (isCrit) impact(this, 'crit', { ...this.impactPoint(target), text: crit.text, color: crit.color });
         this.gainEcho(hero, techniques.strike.echoOnHit);
       }
     });
@@ -3356,17 +3386,14 @@ export default class BattleScene extends Phaser.Scene {
     const word = Fx.popText(this, enemy.container.x, enemy.container.y, fx.text, fx.color, { ...qte.text, fontSize: fx.fontSize, offsetY: fx.offsetY });
     word.setScale(fx.popScale);
     this.tweens.add({ targets: word, scale: 1, duration: fx.popMs, ease: 'Back.easeOut' });
-    Fx.shake(this, fx.shake, fx.shakeMs);
-    Fx.screenFlash(this, fx.flash, qte.flashDepth);
-    Fx.sparks(this, enemy.container.x, enemy.container.y, fx.sparks, { ...qte.sparks, color: fx.sparkColor }, qte.ring.depth);
-    playSfx(fx.sfx);
-    vibrate(qte.results.PERFECT.vibrateMs);
+    // The shake, flashes, sparks, lines, sfx and buzz are the impact.json 'break' preset (the word above stays).
+    const imp = impact(this, 'break', this.impactPoint(enemy));
     // A BREAK is the one thing that stops a charge (the player finds this out).
     if (enemy.charge) {
       Fx.popText(this, enemy.container.x, enemy.container.y + qte.text.riseY, battleEvents.charge.brokenText, battleEvents.charge.textColor, qte.text);
       this.endCharge(enemy, true);
     }
-    await Fx.hitstop(this, fx.hitstopMs);
+    await imp.done;
   }
 
   // The broken enemy's turn: it does nothing, then recovers with full poise.

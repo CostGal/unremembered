@@ -1,0 +1,91 @@
+{
+  "_about": "The impact system (systems/Impact.js): PERFECT parries, crits and BREAK. Every number is scaled by `intensity` of the difficulty (Story a little softer). A preset: hitstopMs (frozen beat, tweens + anims), slowMo {scale, ms} (real ms, never over a live ring, ends before the next one), zoom {to, inMs, outMs} (camera punch toward the impact point), pan {px, ms} (camera drift toward the target and back), shake {amount, ms}, flash [two layered full-screen flashes], sparks [two bursts], speedLines {radial streaks from the impact point, one Graphics}, dustRing {a ring at the target's feet}, text {the slammed word} (the string comes from the caller: qte.json PERFECT, crit.json; colour = the caller's, else this one), haptic (vibrate pattern, ms: buzz, gap, buzz...), sfx [{name, delayMs?, pitch?}] (audio.json recipes or sfx files). Lab: ?impact=1 on a battle loops these presets every labMs at the first enemy; __battle.impact('perfect').",
+  "intensity": { "story": 0.8, "normal": 1, "unforgettable": 1 },
+  "camera": { "focus": 0.5 },
+  "depths": { "flash": 960, "lines": 961, "sparks": 962, "text": 1005 },
+  "dustDepthOffset": 0.5,
+  "dustSquash": 0.32,
+  "lab": { "labMs": 1500, "presets": ["perfect", "crit", "critEnemy", "break"] },
+  "presets": {
+    "perfect": {
+      "hitstopMs": 90,
+      "slowMo": { "scale": 0.5, "ms": 220 },
+      "zoom": { "to": 1.05, "inMs": 70, "outMs": 300 },
+      "pan": { "px": 5, "ms": 360 },
+      "shake": { "amount": 4, "ms": 160 },
+      "flash": [
+        { "color": "0xffffff", "alpha": 0.5, "ms": 80 },
+        { "color": "0x3fd0c9", "alpha": 0.32, "ms": 260 }
+      ],
+      "sparks": [
+        { "count": 14, "color": "0x3fd0c9", "speed": [90, 240], "lifeMs": 380, "size": 3 },
+        { "count": 8, "color": "0xffffff", "speed": [40, 150], "lifeMs": 260, "size": 2 }
+      ],
+      "speedLines": { "count": 14, "inner": 16, "length": [34, 78], "width": 5, "color": "0xf1efe8", "alpha": 0.85, "ms": 200 },
+      "dustRing": { "radius": 44, "color": "0xf1efe8", "alpha": 0.5, "ms": 360, "lineWidth": 2 },
+      "text": { "size": 34, "scale": 2.2, "stroke": 6, "strokeColor": "#0b0d14", "slamMs": 150, "holdMs": 260, "fadeMs": 300, "riseY": 22, "offsetY": -78, "letterSpacing": 3, "color": "#3fd0c9", "shadow": { "x": 0, "y": 3, "color": "#0b0d14" } },
+      "haptic": [15, 30, 15],
+      "sfx": [{ "name": "impact_perfect_low" }, { "name": "perfect" }, { "name": "impact_perfect_high", "delayMs": 40 }]
+    },
+    "crit": {
+      "hitstopMs": 75,
+      "slowMo": { "scale": 0.5, "ms": 160 },
+      "zoom": { "to": 1.045, "inMs": 60, "outMs": 260 },
+      "pan": { "px": 4, "ms": 320 },
+      "shake": { "amount": 3, "ms": 130 },
+      "flash": [
+        { "color": "0xffffff", "alpha": 0.45, "ms": 70 },
+        { "color": "0xf0c060", "alpha": 0.3, "ms": 220 }
+      ],
+      "sparks": [
+        { "count": 14, "color": "0xf0c060", "speed": [90, 230], "lifeMs": 360, "size": 3 },
+        { "count": 6, "color": "0xffffff", "speed": [40, 140], "lifeMs": 240, "size": 2 }
+      ],
+      "speedLines": { "count": 12, "inner": 14, "length": [30, 70], "width": 5, "color": "0xf0c060", "alpha": 0.85, "ms": 180 },
+      "dustRing": { "radius": 40, "color": "0xf0c060", "alpha": 0.45, "ms": 320, "lineWidth": 2 },
+      "text": { "size": 32, "scale": 2.2, "stroke": 6, "strokeColor": "#0b0d14", "slamMs": 140, "holdMs": 220, "fadeMs": 280, "riseY": 20, "offsetY": -78, "letterSpacing": 3, "color": "#f0c060", "shadow": { "x": 0, "y": 3, "color": "#0b0d14" } },
+      "haptic": [20, 25, 30],
+      "sfx": [{ "name": "impact_crit" }]
+    },
+    "critEnemy": {
+      "hitstopMs": 55,
+      "slowMo": null,
+      "zoom": { "to": 1.03, "inMs": 50, "outMs": 220 },
+      "pan": { "px": 3, "ms": 260 },
+      "shake": { "amount": 3, "ms": 120 },
+      "flash": [
+        { "color": "0xd8505a", "alpha": 0.34, "ms": 90 },
+        { "color": "0xffffff", "alpha": 0.2, "ms": 120 }
+      ],
+      "sparks": [
+        { "count": 10, "color": "0xd8505a", "speed": [70, 190], "lifeMs": 300, "size": 3 },
+        { "count": 4, "color": "0xffffff", "speed": [40, 110], "lifeMs": 220, "size": 2 }
+      ],
+      "speedLines": { "count": 8, "inner": 14, "length": [26, 56], "width": 4, "color": "0xd8505a", "alpha": 0.75, "ms": 160 },
+      "dustRing": { "radius": 32, "color": "0xd8505a", "alpha": 0.4, "ms": 280, "lineWidth": 2 },
+      "text": { "size": 26, "scale": 1.9, "stroke": 5, "strokeColor": "#0b0d14", "slamMs": 130, "holdMs": 200, "fadeMs": 260, "riseY": 16, "offsetY": -78, "letterSpacing": 2, "color": "#d8505a", "shadow": { "x": 0, "y": 3, "color": "#0b0d14" } },
+      "haptic": [40, 20, 30],
+      "sfx": [{ "name": "impact_crit", "pitch": 0.72 }]
+    },
+    "break": {
+      "hitstopMs": 120,
+      "slowMo": null,
+      "zoom": { "to": 1.04, "inMs": 60, "outMs": 280 },
+      "pan": { "px": 4, "ms": 300 },
+      "shake": { "amount": 8, "ms": 300 },
+      "flash": [
+        { "color": "0xffffff", "alpha": 0.4, "ms": 90 },
+        { "color": "0xe0a040", "alpha": 0.45, "ms": 240 }
+      ],
+      "sparks": [
+        { "count": 24, "color": "0xe0a040", "speed": [90, 240], "lifeMs": 380, "size": 3 },
+        { "count": 10, "color": "0xffffff", "speed": [40, 150], "lifeMs": 260, "size": 2 }
+      ],
+      "speedLines": { "count": 16, "inner": 18, "length": [36, 84], "width": 5, "color": "0xe0a040", "alpha": 0.85, "ms": 220 },
+      "dustRing": { "radius": 52, "color": "0xe0a040", "alpha": 0.5, "ms": 380, "lineWidth": 2 },
+      "text": null,
+      "haptic": [15, 40, 15],
+      "sfx": [{ "name": "break" }]
+    }
+  }
+}

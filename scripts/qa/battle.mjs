@@ -130,6 +130,117 @@ await withBrowser(async ({ chrome, server }) => {
   }
 
   // ============ F-QTE story mode ============
+  // ============ F-impact: the impact system (impact.json presets, systems/Impact.js) ============
+  if (want('impact')) {
+    const impactData = JSON.parse(readFileSync(join(root, 'src/data/impact.json'), 'utf8'));
+    const page = await battle(chrome, server, 'b1_forgotten', { extra: '&level=2' });
+    await waitMenu(page);
+    // A recorder: one sample per frame of the camera zoom/scroll, the clocks, and which impact objects are showing.
+    const REC = `(() => { window.__rec = []; window.__recOn = true; const B = window.__battle; (function f() { const c = B.cameras.main; const vis = B.children.list.filter((o) => (o.type === 'Text' && o.depth === 1005) && o.visible).map((o) => o.text);
+      window.__rec.push({ t: performance.now(), z: c.zoom, sx: c.scrollX, sy: c.scrollY, ts: B.timeScale, tw: B.tweens.timeScale, an: B.anims.globalTimeScale, ct: B.time.timeScale, words: vis, flashes: B.children.list.filter((o) => o.type === 'Rectangle' && o.depth === 960 && o.visible).length, gfx: B.children.list.filter((o) => o.type === 'Graphics' && o.depth === 961 && o.visible).length });
+      if (window.__recOn) requestAnimationFrame(f); })();
+      // Exact samples at every zoom / clock change too: a loaded machine draws too few frames to catch a 60 ms peak.
+      const snap = () => { const c = B.cameras.main; const last = window.__rec[window.__rec.length - 1] || {}; window.__rec.push({ ...last, t: performance.now(), z: c.zoom, sx: c.scrollX, sy: c.scrollY, ts: B.timeScale, tw: B.tweens.timeScale, an: B.anims.globalTimeScale, ct: B.time.timeScale }); };
+      const cam = B.cameras.main; const sz = cam.setZoom.bind(cam); cam.setZoom = (z) => { const r = sz(z); snap(); return r; };
+      const st = B.setTimeScale.bind(B); B.setTimeScale = (v) => { st(v); snap(); }; })()`;
+    const NOW = `(() => { const B = window.__battle; const c = B.cameras.main; return { z: c.zoom, sx: c.scrollX, sy: c.scrollY, ts: B.timeScale, tw: B.tweens.timeScale, an: B.anims.globalTimeScale, ct: B.time.timeScale, words: B.children.list.filter((o) => o.type === 'Text' && o.depth === 1005 && o.visible).map((o) => o.text), flashes: B.children.list.filter((o) => o.type === 'Rectangle' && o.depth === 960 && o.visible).length, gfx: B.children.list.filter((o) => o.type === 'Graphics' && o.depth === 961 && o.visible).length }; })()`;
+
+    // 1. Each preset by hand: zoom stays <= 1.06, the word slams in, everything returns. A loaded machine can
+    // stall a whole 60 ms peak between two frames, so a preset is fired up to 3 times until a peak is caught.
+    await page.ev(REC);
+    await sleep(100);
+    const rest = await B(page, '({ sx: B.cameras.main.scrollX, sy: B.cameras.main.scrollY })');
+    const fire = async (name) => {
+      const agg = { maxZ: 1, minTs: 1, words: new Set(), flashes: 0, gfx: 0, slowMs: 0, tries: 0 };
+      for (let i = 0; i < 3 && agg.maxZ < 1 + (impactData.presets[name].zoom.to - 1) * 0.8; i++) {
+        agg.tries += 1;
+        await page.ev(`window.__rec.length = 0; window.__battle.impact('${name}'); 0`);
+        await sleep(300);
+        await page.waitFor(`!window.__battle.children.list.some((o) => o.type === 'Text' && o.depth === 1005 && o.visible) && window.__battle.cameras.main.zoom === 1 && window.__battle.timeScale === 1`, { timeout: 12000 }).catch(() => {});
+        const rec = await page.ev(`window.__rec.slice()`);
+        agg.maxZ = Math.max(agg.maxZ, ...rec.map((r) => r.z));
+        agg.minTs = Math.min(agg.minTs, ...rec.map((r) => r.ts));
+        for (const r of rec) for (const w of r.words || []) agg.words.add(w);
+        agg.flashes = Math.max(agg.flashes, ...rec.map((r) => r.flashes || 0));
+        agg.gfx = Math.max(agg.gfx, ...rec.map((r) => r.gfx || 0));
+        // From the first slow sample to the first one back at normal speed.
+        const i0 = rec.findIndex((r) => r.ts < 1);
+        const i1 = i0 < 0 ? -1 : rec.findIndex((r, j) => j > i0 && r.ts === 1);
+        if (i0 >= 0 && i1 > i0) agg.slowMs = Math.max(agg.slowMs, rec[i1].t - rec[i0].t);
+      }
+      agg.now = await page.ev(NOW);
+      return agg;
+    };
+    const px = impactData.presets.perfect;
+    const a1 = await fire('perfect');
+    log(a1.maxZ > 1.02 && a1.maxZ <= 1.06 && Math.abs(a1.maxZ - px.zoom.to) < 0.012, `impact perfect: camera punch peaks at ${a1.maxZ.toFixed(3)} (preset ${px.zoom.to}, never above 1.06)`);
+    log(a1.now.z === 1 && a1.now.sx === rest.sx && a1.now.sy === rest.sy, 'impact perfect: the zoom and the camera scroll return exactly to rest', JSON.stringify({ now: a1.now, rest }));
+    log(a1.words.has('PERFECT') && a1.flashes >= 1 && a1.gfx >= 1, 'impact perfect: the PERFECT word, a flash and the speed lines show', JSON.stringify([...a1.words]));
+    log(a1.now.words.length === 0 && a1.now.flashes === 0 && a1.now.gfx === 0, 'impact perfect: word, flashes and lines are gone again');
+    // The slammed word is really drawn (a restyled Text with an empty canvas passes every visibility check).
+    const painted = await page.ev(`(() => { const t = window.__battle.children.list.find((o) => o.type === 'Text' && o.depth === 1005); const c = t.canvas; const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++; return { n, w: c.width, text: t.text }; })()`);
+    log(painted.n > 500 && painted.w > 60 && painted.text === 'PERFECT', 'impact perfect: the PERFECT word canvas is painted (letters + stroke)', JSON.stringify(painted));
+    log(a1.minTs < 1 && a1.minTs >= px.slowMo.scale - 0.001 && a1.now.ts === 1 && a1.now.tw === 1 && a1.now.an === 1 && a1.now.ct === 1, `impact perfect: slow-mo dips to x${a1.minTs.toFixed(2)} and the clocks (scene, tweens, anims, time) are back at 1`, JSON.stringify(a1.now));
+    log(a1.slowMs >= px.slowMo.ms * 0.6 && a1.slowMs <= px.slowMo.ms * 2.2, `impact perfect: the slow-mo lasts about ${px.slowMo.ms} real ms (measured ${Math.round(a1.slowMs)})`);
+    // The same for crit and critEnemy and break (no slow-mo in the last two).
+    for (const name of ['crit', 'critEnemy', 'break']) {
+      const a = await fire(name);
+      const wz = impactData.presets[name].zoom.to;
+      const slowOk = impactData.presets[name].slowMo ? a.minTs < 1 : a.minTs === 1;
+      log(a.maxZ > 1.015 && a.maxZ <= 1.06 && Math.abs(a.maxZ - wz) < 0.012 && a.now.z === 1 && a.now.ts === 1 && a.now.sx === rest.sx && slowOk, `impact ${name}: zoom peak ${a.maxZ.toFixed(3)} (preset ${wz}), slow-mo ${impactData.presets[name].slowMo ? 'x' + a.minTs.toFixed(2) : 'none'}, back at rest, clocks at 1`);
+    }
+    // Screenshots mid-impact (taken after the measurements: a screenshot stalls the page's frames).
+    for (const name of ['perfect', 'crit']) {
+      await page.ev(`window.__battle.impact('${name}'); 0`);
+      await sleep(95);
+      await page.shot(join(out, `impact_${name}_mid.png`));
+      await sleep(900);
+    }
+
+    // 2. Never over a live ring: an impact fired mid-telegraph leaves the clock alone.
+    await page.ev(`(() => { const B = window.__battle; B.hideCommandMenu(); B.tutorialSlow = false; B.setTimeScale(1); const h = B.heroes[0]; h.hp = h.maxHp; window.__done = null;
+      B.enemyHit(B.enemies[0], h, { telegraphMs: 1500, dmg: 10, unparryable: false }, null, 0).then((r) => { window.__done = r; }); })()`);
+    await page.waitFor(`window.__battle.qteRings && window.__battle.qteRings.size > 0`, { timeout: 5000 });
+    await page.ev(`window.__rec.length = 0; window.__battle.impact('perfect')`);
+    await sleep(500);
+    const live = await page.ev(`window.__rec.slice()`);
+    log(live.length > 0 && live.every((r) => r.ts === 1 && r.tw === 1), 'impact over a live ring: no slow-mo (clocks stay at 1)');
+    await page.tap(180, 610);
+    await page.waitFor(`window.__done !== null`, { timeout: 8000 }).catch(() => {});
+    await sleep(1500);
+
+    // 3. The real PERFECT path: a parry on the beat runs the impact; the next ring is not touched.
+    await page.ev(`window.__rec.length = 0`);
+    const r1 = await qteHit(page, [0]);
+    // right away, a second hit (the multi-hit case): its ring must run at normal speed and its judgement stays true.
+    await page.ev(`(() => { const B = window.__battle; B.hideCommandMenu(); window.__ringTs = null; window.__done = null; const h = B.heroes[0]; h.hp = h.maxHp;
+      window.__rec.length = 0;
+      B.enemyHit(B.enemies[0], h, { telegraphMs: 700, dmg: 20, unparryable: false }, null, 1).then((r) => { window.__done = r; }); })()`);
+    await page.waitFor(`window.__battle.qteRings && window.__battle.qteRings.size > 0`, { timeout: 5000 });
+    const ringState = await page.ev(`({ ts: window.__battle.timeScale, tw: window.__battle.tweens.timeScale, left: [...window.__battle.qteRings][0].impactAt - performance.now() })`);
+    const at2 = await page.ev(`[...window.__battle.qteRings][0].impactAt`);
+    const wait2 = at2 - (await page.ev(`performance.now()`)) - 4;
+    if (wait2 > 0) await sleep(wait2);
+    await page.tap(180, 610);
+    await page.waitFor(`window.__done !== null`, { timeout: 8000 }).catch(() => {});
+    const r2res = await page.ev(`window.__results[window.__results.length - 1]`);
+    await sleep(1000);
+    const rec3 = await page.ev(`window.__rec.slice()`);
+    const l3 = await page.ev(NOW);
+    log(r1.result === 'PERFECT' && ringState.ts === 1 && ringState.tw === 1 && ringState.left > 400, 'PERFECT path: the first parry is PERFECT and the next ring starts at normal speed right after', JSON.stringify({ first: r1.result, ringState }));
+    log(r2res?.result === 'PERFECT', 'PERFECT path: the follow-up ring is judged normally (tap on the beat = PERFECT)', JSON.stringify(r2res));
+    log(l3.z === 1 && l3.ts === 1 && l3.tw === 1 && l3.an === 1 && l3.sx === rest.sx, 'PERFECT path: zoom 1, timeScale 1 and the camera at rest after the impact', JSON.stringify(l3));
+    log(rec3.some((r) => r.z > 1.02), 'PERFECT path: the camera really punched in during the parry');
+
+    // 4. Intensity: Story is a notch softer (0.8 of the zoom delta).
+    await page.ev(`window.__battle.registry.set('settings', { ...window.__battle.registry.get('settings'), difficulty: 'story', storyMode: true }); 0`);
+    const zs = (await fire('perfect')).maxZ;
+    const want4 = 1 + (px.zoom.to - 1) * impactData.intensity.story;
+    log(Math.abs(zs - want4) < 0.008, `Story intensity: zoom peaks at ${zs.toFixed(3)} (want ~${want4.toFixed(3)})`);
+    await page.ev(`window.__recOn = false`);
+    log(page.errors.length === 0, 'no console errors in the impact lab', page.errors.slice(0, 2).join(' | '));
+  }
+
   if (want('story')) {
     const page = await battle(chrome, server, 'boss_clerk', { settings: { difficulty: 'story', storyMode: true, difficultyChosen: true } });
     await waitMenu(page);

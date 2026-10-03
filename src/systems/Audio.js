@@ -123,9 +123,10 @@ export function setAudioPaused(on) {
 // ---------- Haptics ----------
 
 // A short buzz where the browser supports it (Android; iOS ignores it).
+// `ms` is a number or a pattern [buzz, gap, buzz, ...] (impact.json haptic).
 // Off when the SFX volume is 0.
 export function vibrate(ms) {
-  if (!ms || volumes.sfxVolume <= 0) return;
+  if (!ms || (Array.isArray(ms) && !ms.length) || volumes.sfxVolume <= 0) return;
   try {
     if (navigator.vibrate) navigator.vibrate(ms);
   } catch (err) {

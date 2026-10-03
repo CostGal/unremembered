@@ -352,7 +352,67 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       const sh = brk.line.shards;
       if (!sh || !(sh.count >= 0) || !(sh.size > 0) || !(sh.lifeMs > 0) || typeof sh.gravity !== 'number' || !(Array.isArray(sh.speed) && sh.speed.length === 2)) err('break.json: line.shards needs count, size, speed [min, max], gravity, lifeMs');
     }
-    for (const k of ['hitstopMs', 'shake', 'shakeMs', 'sparks', 'popScale', 'popMs']) if (typeof brk.fx?.[k] !== 'number') err(`break.json: fx.${k} must be a number`);
+    for (const k of ['popScale', 'popMs']) if (typeof brk.fx?.[k] !== 'number') err(`break.json: fx.${k} must be a number`);
+  }
+
+  // impact.json: the impact presets (systems/Impact.js).
+  const imp = data.impact;
+  if (!imp) err('impact.json: missing');
+  else {
+    const num = (at, v, min = 0) => {
+      if (!(typeof v === 'number' && v >= min)) err(`${at}: must be a number >= ${min}`);
+    };
+    const colour = (at, v) => {
+      if (!Number.isFinite(Number(v))) err(`${at}: must be a 0x colour`);
+    };
+    for (const id of qteDifficultyIds(data)) num(`impact.json: intensity.${id}`, imp.intensity?.[id]);
+    num('impact.json: camera.focus', imp.camera?.focus);
+    for (const k of ['flash', 'lines', 'sparks', 'text']) num(`impact.json: depths.${k}`, imp.depths?.[k]);
+    num('impact.json: dustSquash', imp.dustSquash);
+    num('impact.json: lab.labMs', imp.lab?.labMs, 100);
+    for (const name of imp.lab?.presets || []) if (!imp.presets?.[name]) err(`impact.json: lab.presets "${name}" is not a preset`);
+    for (const need of ['perfect', 'crit', 'critEnemy', 'break']) if (!imp.presets?.[need]) err(`impact.json: presets.${need} is required`);
+    for (const [name, p] of Object.entries(imp.presets || {})) {
+      const at = `impact.json: presets.${name}`;
+      num(`${at}.hitstopMs`, p.hitstopMs);
+      if (p.slowMo) {
+        num(`${at}.slowMo.scale`, p.slowMo.scale, 0.05);
+        num(`${at}.slowMo.ms`, p.slowMo.ms);
+      }
+      if (p.zoom) for (const k of ['to', 'inMs', 'outMs']) num(`${at}.zoom.${k}`, p.zoom[k], k === 'to' ? 1 : 0);
+      if (p.zoom && p.zoom.to > 1.06) err(`${at}.zoom.to: keep the camera punch <= 1.06 (the HUD zooms with the scene)`);
+      if (p.pan) for (const k of ['px', 'ms']) num(`${at}.pan.${k}`, p.pan[k]);
+      if (p.shake) for (const k of ['amount', 'ms']) num(`${at}.shake.${k}`, p.shake[k]);
+      if ((p.flash || []).length > 2) err(`${at}.flash: at most two layered flashes`);
+      for (const [i, f] of (p.flash || []).entries()) {
+        colour(`${at}.flash[${i}].color`, f.color);
+        num(`${at}.flash[${i}].alpha`, f.alpha);
+        num(`${at}.flash[${i}].ms`, f.ms, 1);
+      }
+      for (const [i, sp] of (p.sparks || []).entries()) {
+        colour(`${at}.sparks[${i}].color`, sp.color);
+        for (const k of ['count', 'lifeMs', 'size']) num(`${at}.sparks[${i}].${k}`, sp[k], 1);
+        if (!(Array.isArray(sp.speed) && sp.speed.length === 2)) err(`${at}.sparks[${i}].speed: [min, max]`);
+      }
+      if (p.speedLines) {
+        colour(`${at}.speedLines.color`, p.speedLines.color);
+        for (const k of ['count', 'inner', 'width', 'alpha', 'ms']) num(`${at}.speedLines.${k}`, p.speedLines[k]);
+        if (!(Array.isArray(p.speedLines.length) && p.speedLines.length.length === 2)) err(`${at}.speedLines.length: [min, max]`);
+      }
+      if (p.dustRing) {
+        colour(`${at}.dustRing.color`, p.dustRing.color);
+        for (const k of ['radius', 'alpha', 'ms', 'lineWidth']) num(`${at}.dustRing.${k}`, p.dustRing[k]);
+      }
+      if (p.text) {
+        for (const k of ['size', 'scale', 'stroke', 'slamMs', 'holdMs', 'fadeMs', 'riseY', 'letterSpacing']) num(`${at}.text.${k}`, p.text[k]);
+        if (typeof p.text.offsetY !== 'number') err(`${at}.text.offsetY: must be a number`);
+        for (const k of ['color', 'strokeColor']) if (!/^#[0-9a-fA-F]{6}$/.test(p.text[k] || '')) err(`${at}.text.${k}: must be a #rrggbb string`);
+      }
+      if (p.haptic && !(Array.isArray(p.haptic) && p.haptic.every((n) => typeof n === 'number' && n >= 0))) err(`${at}.haptic: a list of ms`);
+      for (const [i, l] of (p.sfx || []).entries()) {
+        if (typeof l.name !== 'string' || !(data.audio?.sfx?.[l.name] || (data.sfxFileKeys || []).includes(l.name))) err(`${at}.sfx[${i}]: "${l.name}" is not in audio.json sfx and has no file`);
+      }
+    }
   }
 
   if (!techniques.strike) err('techniques.json: "strike" is required');
@@ -946,4 +1006,8 @@ function validateRecollection(data, dialogue, enemies, ui, err) {
   const c = ui.cutIn;
   if (!c || !c.band || !pos(c.band.h) || !pos(c.band.slideMs) || !pos(c.holdMs) || !c.portrait?.fallback || !pos(c.text?.charsPerSec)) err('ui.cutIn: band {y, h, slideMs, ...}, portrait {fallback}, text {charsPerSec} and holdMs are required');
   for (const line of dialogue[rc.cutIn] || []) if (line.portrait && !data.assets?.portraits?.[line.portrait]) err(`dialogue.${rc.cutIn}: portrait "${line.portrait}" is not in assets.json portraits`);
+}
+
+function qteDifficultyIds(data) {
+  return data.qte?.difficulties?.order || [];
 }

@@ -22,14 +22,7 @@
     "fontSize": 30,
     "offsetY": -40,
     "popScale": 2.2,
-    "popMs": 260,
-    "hitstopMs": 120,
-    "shake": 8,
-    "shakeMs": 300,
-    "flash": { "color": "0xe0a040", "alpha": 0.45, "ms": 220 },
-    "sparks": 40,
-    "sparkColor": "0xe0a040",
-    "sfx": "break"
+    "popMs": 260
   },
   "recoverText": { "text": "Recovered", "color": "#8a8fa3" }
 }

@@ -736,6 +736,21 @@
         "gain": 0.3
       }
     ],
+    "impact_perfect_low": [
+      { "type": "osc", "wave": "sine", "from": 130, "to": 40, "ms": 240, "gain": 0.55 },
+      { "type": "noise", "ms": 90, "gain": 0.3, "filterHz": 420 }
+    ],
+    "impact_perfect_high": [
+      { "type": "osc", "wave": "triangle", "from": 1568, "to": 1568, "ms": 340, "gain": 0.16 },
+      { "type": "osc", "wave": "sine", "from": 2349, "to": 2349, "ms": 400, "gain": 0.09, "delayMs": 30 },
+      { "type": "noise", "filter": "highpass", "filterHz": 4000, "ms": 60, "gain": 0.07 }
+    ],
+    "impact_crit": [
+      { "type": "noise", "ms": 150, "gain": 0.5, "filterHz": 1500 },
+      { "type": "osc", "wave": "square", "from": 280, "to": 70, "ms": 130, "gain": 0.18 },
+      { "type": "osc", "wave": "sine", "from": 1175, "to": 1175, "ms": 440, "gain": 0.13, "delayMs": 40 },
+      { "type": "osc", "wave": "triangle", "from": 1760, "to": 1760, "ms": 320, "gain": 0.06, "delayMs": 60 }
+    ],
     "break": [
       {
         "type": "noise",

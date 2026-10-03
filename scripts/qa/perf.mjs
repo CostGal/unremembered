@@ -117,6 +117,11 @@ await withBrowser(async ({ chrome, server }) => {
       await ready(page);
       await sleep(2000);
       res['battle idle (rain only)'] = stats(await sample(page, 6000));
+      // The impact lab (?impact=1): impact.json presets loop every 1.5 s at the first enemy, over the rain.
+      page = await open(chrome, `${server.url}?battle=b1_forgotten&level=2&impact=1&fps=1`, { cpu });
+      await ready(page);
+      await sleep(2000);
+      res['impact lab (?impact=1, b1)'] = stats(await sample(page, 12000));
       const shots = JSON.parse(readFileSync(join(root, 'src/data/cutscene_origin.json'), 'utf8')).shots;
       const fxShots = shots.map((s, i) => [i, s.fx || []]).filter(([, fx]) => fx.some((f) => ['rain', 'embers', 'crystal_particles', 'eyes_glow'].includes(f)));
       page = await open(chrome, `${server.url}?cutscene=origin&shot=1&fps=1`, { cpu });
