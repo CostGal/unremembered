@@ -13,7 +13,7 @@ const check = (name, ok, detail = '') => {
   rows.push({ name, ok, detail });
   console.log(`${ok ? '✓' : '✗'} ${name}${detail ? ' — ' + detail : ''}`);
 };
-const texts = (page, scene) => page.ev(`window.__game.scene.getScene('${scene}').children.list.filter(o => o.type === 'Text').map(o => ({ t: o.text, x: Math.round(o.x), y: Math.round(o.y), v: o.visible, a: +o.alpha.toFixed(2) }))`);
+const texts = (page, scene) => page.ev(`(() => { const out = []; const walk = (list, ox, oy) => list.forEach(o => { if (o.type === 'Text') out.push({ t: o.text, x: Math.round(o.x + ox), y: Math.round(o.y + oy), v: o.visible, a: +o.alpha.toFixed(2) }); else if (o.type === 'Container') walk(o.list, ox + o.x, oy + o.y); }); walk(window.__game.scene.getScene('${scene}').children.list, 0, 0); return out; })()`);
 const settings = (page) => page.ev(`JSON.stringify(window.__game.registry.get('settings'))`).then(JSON.parse);
 
 await withBrowser(async ({ chrome, server }) => {

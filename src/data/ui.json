@@ -411,14 +411,40 @@
       "holdMs": 450,
       "moveTol": 10,
       "levelLine": "Recall {n}: {detail}",
-      "technique": { "name": "Technique", "short": "Spend Echo on a move. Your Strikes and PERFECT parries fill it." },
+      "technique": {
+        "name": "Technique",
+        "short": "Spend Echo on a move. Your Strikes and PERFECT parries fill it."
+      },
       "card": {
-        "x": 180, "y": 540, "w": 328, "h": 168, "padX": 16, "padY": 12, "wrap": 296,
-        "fill": "0x0b0d14", "alpha": 0.97, "stroke": "0x3fd0c9", "radius": 12, "depth": 5,
-        "name": { "fontSize": 18, "color": "#f1efe8" },
-        "cost": { "fontSize": 13, "color": "#3fd0c9" },
-        "short": { "fontSize": 14, "color": "#f1efe8", "lineSpacing": 2 },
-        "level": { "fontSize": 12, "color": "#f0c060" },
+        "x": 180,
+        "y": 540,
+        "w": 328,
+        "h": 168,
+        "padX": 16,
+        "padY": 12,
+        "wrap": 296,
+        "fill": "0x0b0d14",
+        "alpha": 0.97,
+        "stroke": "0x3fd0c9",
+        "radius": 12,
+        "depth": 5,
+        "name": {
+          "fontSize": 18,
+          "color": "#f1efe8"
+        },
+        "cost": {
+          "fontSize": 13,
+          "color": "#3fd0c9"
+        },
+        "short": {
+          "fontSize": 14,
+          "color": "#f1efe8",
+          "lineSpacing": 2
+        },
+        "level": {
+          "fontSize": 12,
+          "color": "#f0c060"
+        },
         "fadeMs": 90
       }
     }
@@ -1425,6 +1451,16 @@
       "delayMs": 1500,
       "pulseAlpha": 0.35,
       "pulseMs": 700
+    },
+    "scroll": {
+      "padTop": 28,
+      "padBottom": 24,
+      "firstGap": 10,
+      "musicGap": 10,
+      "afterMusic": 16,
+      "autoDelayMs": 2500,
+      "autoMsPerPx": 40,
+      "dragDeadPx": 8
     }
   },
   "pause": {

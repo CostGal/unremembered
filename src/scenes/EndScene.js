@@ -32,31 +32,72 @@ export default class EndScene extends Phaser.Scene {
     glassPanel(this, 180, p.y, p.w, p.h, p).setDepth(depth);
     addText(this, 180, cfg.title.y, this.creditsOnly ? credits.creditsTitle : credits.endTitle, cfg.title).setDepth(depth);
 
+    // The credit lines live in one container, clipped to the panel and scrollable (drag, plus a slow
+    // auto-scroll when they don't fit), so the list can grow without overlapping (ui.json end.scroll).
+    const sc = cfg.scroll || {};
+    const innerTop = p.y - p.h / 2 + (sc.padTop ?? 28);
+    const innerBottom = p.y + p.h / 2 - (sc.padBottom ?? 24);
+    const list = this.add.container(0, 0).setDepth(depth);
+    const put = (y, text, style) => {
+      const t = addText(this, 180, y, text, style);
+      list.add(t);
+      return t;
+    };
+    let y = innerTop + (sc.firstGap ?? 10);
     if (credits.revealed) {
-      let y = cfg.firstY;
       for (const line of credits.lines) {
-        addText(this, 180, y, line.role, { fontSize: cfg.roleFontSize, color: cfg.roleColor }).setDepth(depth);
-        addText(this, 180, y + cfg.lineH * 0.7, line.name, { fontSize: cfg.nameFontSize, color: cfg.nameColor }).setDepth(depth);
+        put(y, line.role, { fontSize: cfg.roleFontSize, color: cfg.roleColor });
+        put(y + cfg.lineH * 0.7, line.name, { fontSize: cfg.nameFontSize, color: cfg.nameColor });
         y += cfg.lineH * 1.8;
       }
     } else {
-      addText(this, 180, cfg.hidden.y, credits.hiddenText, cfg.hidden).setDepth(depth);
+      put(y, credits.hiddenText, cfg.hidden);
+      y += cfg.lineH * 2.2;
     }
     // The music licences stay on show: credits.json musicLine (Kostas's one line), else one line per entry.
     const m = cfg.music;
+    y += sc.musicGap ?? 10;
     if (credits.musicLine) {
-      addText(this, 180, m.y, credits.musicLine, m).setDepth(depth);
+      const t = put(y, credits.musicLine, m);
+      y += t.height + (sc.afterMusic ?? 16);
     } else {
-      credits.music.forEach((track, i) => {
+      credits.music.forEach((track) => {
         const line = m.format.replace('{title}', track.title).replace('{author}', track.author).replace('{license}', track.license);
-        addText(this, 180, m.y + i * m.lineH, line, m).setDepth(depth);
+        put(y, line, m);
+        y += m.lineH;
       });
+      y += sc.afterMusic ?? 16;
     }
+    const contentBottom = y;
+    const maskShape = this.make.graphics({ add: false });
+    maskShape.fillRect(0, innerTop, 720, innerBottom - innerTop);
+    list.setMask(maskShape.createGeometryMask());
+    const overflow = Math.max(0, contentBottom - innerBottom);
+    let scrollY = 0;
+    const setScroll = (v) => {
+      scrollY = Phaser.Math.Clamp(v, -overflow, 0);
+      list.y = scrollY;
+    };
+    if (overflow > 0) {
+      // Slow auto-scroll to the end after a pause; a drag takes over and stops it.
+      const auto = this.tweens.addCounter({ from: 0, to: -overflow, duration: Math.max(2000, overflow * (sc.autoMsPerPx ?? 40)), delay: sc.autoDelayMs ?? 2500, ease: 'Linear', onUpdate: (tw) => setScroll(tw.getValue()) });
+      let dragFrom = null;
+      let dragged = false;
+      this.input.on('pointerdown', (ptr) => { dragFrom = { y: ptr.y, scroll: scrollY }; dragged = false; });
+      this.input.on('pointermove', (ptr) => {
+        if (!dragFrom || !ptr.isDown) return;
+        const dy = ptr.y - dragFrom.y;
+        if (Math.abs(dy) > (sc.dragDeadPx ?? 8)) { dragged = true; auto.stop(); setScroll(dragFrom.scroll + dy); }
+      });
+      this.input.on('pointerup', () => { dragFrom = null; });
+      this.wasDrag = () => dragged;
+    } else this.wasDrag = () => false;
 
     this.time.delayedCall(cfg.hint.delayMs, () => {
       const hint = addText(this, 180, cfg.hint.y, cfg.hint.text, cfg.hint).setDepth(depth);
       this.tweens.add({ targets: hint, alpha: cfg.hint.pulseAlpha, duration: cfg.hint.pulseMs, yoyo: true, repeat: -1 });
-      this.input.once('pointerdown', () => this.scene.start('Menu'));
+      // A short tap returns; a drag on the list does not (end of the drag = pointerup).
+      this.input.on('pointerup', () => { if (!this.wasDrag()) this.scene.start('Menu'); });
     });
   }
 }
