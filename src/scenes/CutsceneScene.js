@@ -21,6 +21,8 @@ const CUTSCENES = { origin: cutsceneOrigin };
 // so it plays with zero art. The picture fills the screen (9:16 illustrations);
 // the line sits on a dark gradient at the bottom. ?cutscene=origin&shot=N
 // (1-based, as numbered in docs/STORY.md) starts at shot N (dev).
+// data.preview = true + data.shots (the dev editor, ?editor): the shot at `shot` shown once, silent,
+// whole line, never advancing; `shots` is the editor's unsaved copy.
 //
 // Shot fx beyond the picture fx (ui.json cutscene.fx holds every number):
 //   red_tint    a red wash fading in over the picture and staying for the shot, plus a
@@ -51,7 +53,8 @@ export default class CutsceneScene extends Phaser.Scene {
     this.pictures = [];
     this.musicTrack = undefined;
     this.cutsceneId = data.id || 'origin';
-    this.shots = (CUTSCENES[this.cutsceneId] || { shots: [] }).shots;
+    this.preview = !!data.preview;
+    this.shots = data.shots || (CUTSCENES[this.cutsceneId] || { shots: [] }).shots;
     this.firstShot = Math.max(1, Math.min(this.shots.length, data.shot ?? devInt('shot') ?? 1)) - 1;
   }
 
@@ -102,11 +105,14 @@ export default class CutsceneScene extends Phaser.Scene {
       })
       .setOrigin(1, 1)
       .setDepth(cfg.depth.text);
+    this.skipHint.setVisible(!this.preview);
     this.tweens.add({ targets: this.skipHint, alpha: 0, delay: cfg.skipHint.showMs, duration: cfg.skipHint.fadeMs });
 
     this.holdRing = this.add.graphics().setDepth(cfg.depth.hold);
-    this.setupInput();
-    addPauseButton(this);
+    if (!this.preview) {
+      this.setupInput();
+      addPauseButton(this);
+    }
 
     this.index = this.firstShot - 1;
     this.nextShot();
@@ -195,7 +201,7 @@ export default class CutsceneScene extends Phaser.Scene {
     const stage = this.add.container(180, this.area.y + this.area.h / 2);
     this.shotLayer.add(stage);
 
-    this.shotMusic();
+    if (!this.preview) this.shotMusic();
     const bgView = shot.view ?? shot.bgView;
     const split = shot.split || 'none';
     this.picture = null;
@@ -221,11 +227,19 @@ export default class CutsceneScene extends Phaser.Scene {
     // Sound: the shot's own sfx, else the first of its fx that has one (ui.json fxSfx).
     const sfx = shot.sfx !== undefined ? shot.sfx : (shot.fx || []).map((fx) => cfg.fxSfx[fx]).find(Boolean);
     // The long cues of the shot before (a crowd, a scream) fade out instead of running on or cutting off.
-    stopAllSfx(audioData.sfxFadeMs, audioData.sfxLong);
-    if (sfx) playSfx(sfx);
-    playAmbience(this.shotAmbience(shot));
+    if (!this.preview) {
+      stopAllSfx(audioData.sfxFadeMs, audioData.sfxLong);
+      if (sfx) playSfx(sfx);
+      playAmbience(this.shotAmbience(shot));
+    }
 
     this.typeText(shot.text || '');
+    // Preview (the dev editor): the line is shown whole and the shot never advances; its fx and
+    // move play once (the editor's Replay restarts the scene).
+    if (this.preview) {
+      this.completeText();
+      return;
+    }
     this.shotTimer = this.time.delayedCall(duration, () => {
       if (this.typing) this.completeText();
       this.nextShot();

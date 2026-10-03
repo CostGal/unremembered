@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import ui from '../data/ui.json';
+import { devParam } from './DevParams.js';
 
 // The game is designed on a 360×640 canvas (x 0–360 is the design space).
 // A phone whose viewport is wider than 9:16 (browser toolbars eat height,
@@ -12,6 +13,8 @@ import ui from '../data/ui.json';
 const cfg = ui.view;
 
 function measure() {
+  // ?editor (desktop dev page): always the plain 360×640 design, whatever the window shape.
+  if (devParam('editor') !== null) return { w: cfg.designW, h: cfg.designH, pad: 0, designW: cfg.designW, designH: cfg.designH };
   const el = typeof document !== 'undefined' && document.getElementById('game');
   const vw = (el && el.clientWidth) || window.innerWidth || cfg.designW;
   const vh = (el && el.clientHeight) || window.innerHeight || cfg.designH;

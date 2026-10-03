@@ -17,7 +17,11 @@ export default class PreloadScene extends Phaser.Scene {
     this.scene.launch('Loader');
 
     const battleId = devBattleId();
-    if (isAnimTest()) this.scene.start('AnimTest');
+    if (devParam('editor') !== null) {
+      // ?editor: the dev-only dialogue / cutscene editor. Its module (and DOM) is fetched only now,
+      // so the normal phone path never loads it.
+      import('./EditorScene.js').then((m) => this.scene.add('Editor', m.default, true));
+    } else if (isAnimTest()) this.scene.start('AnimTest');
     else if (battleId) this.scene.start('Battle', { battleId });
     else if (devParam('music')) {
       // ?music=<key>: the track panel (systems/MusicPanel.js) is the whole screen.

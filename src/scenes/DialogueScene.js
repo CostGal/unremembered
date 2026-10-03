@@ -32,6 +32,10 @@ const VOICED = /[\p{L}\p{N}]/u;
 // Tap while typing = finish the line; tap after = next line.
 // data = {id, bg} from the chapter, or {id, overlay: true, onDone} when
 // another scene (the boss battle) pauses itself for a conversation.
+// data.preview = {index, lines?} (the dev editor, ?editor): one line shown statically, as the
+// game would show it after the lines before it: typing finished, no sound, no input, no intro,
+// no pause button; the picture is the step's bg with any earlier line "bg" already applied.
+// `lines` replaces dialogue.json's list for this run (the editor's unsaved copy).
 export default class DialogueScene extends Phaser.Scene {
   constructor() {
     super('Dialogue');
@@ -52,13 +56,19 @@ export default class DialogueScene extends Phaser.Scene {
     this.bgKey = data.bg;
     this.overlay = !!data.overlay;
     this.onDone = data.onDone;
+    this.preview = data.preview || null;
     // Music (audio.json music.placement): a step's track is set in build(); dialogueSwitch swaps to
     // a one-shot when its speaker first talks; the Keepsake overlay goes silent after a given line.
-    this.musicSwitch = data.overlay ? null : placement.dialogueSwitch?.[data.id] || null;
+    this.musicSwitch = data.overlay || data.preview ? null : placement.dialogueSwitch?.[data.id] || null;
     this.musicSwitched = false;
     this.silenceAfter = data.overlay && data.id === placement.keepsakeDialogue ? placement.keepsakeSilenceAfterLine : null;
-    this.lines = dialogue[data.id] || [];
-    if (!dialogue[data.id]) console.warn(`dialogue "${data.id}" not found`);
+    this.lines = data.preview?.lines || dialogue[data.id] || [];
+    if (!this.lines.length) console.warn(`dialogue "${data.id}" not found`);
+    if (this.preview) {
+      this.preview = { ...this.preview, index: Math.max(0, Math.min(this.lines.length - 1, this.preview.index || 0)) };
+      // A line's "bg" switches the picture for the lines after it: start from the one in force.
+      for (let i = 0; i <= this.preview.index; i++) if (this.lines[i]?.bg) this.bgKey = this.lines[i].bg;
+    }
   }
 
   // Waits for this scene's assets (loaded in the background by the Loader).
@@ -72,12 +82,16 @@ export default class DialogueScene extends Phaser.Scene {
       this.add.rectangle(v.x, v.y, v.w, v.h, Number(cfg.overlayDim.color), cfg.overlayDim.alpha).setOrigin(0);
     } else {
       const track = dialogueTrack(this.dialogueId);
-      if (track !== undefined) playMusic(track);
+      if (track !== undefined && !this.preview) playMusic(track);
       this.buildBackground();
     }
 
     this.portraits = { left: this.buildPortraitSlot('left'), right: this.buildPortraitSlot('right') };
     this.buildBox();
+    if (this.preview) {
+      this.showPreview();
+      return;
+    }
     addPauseButton(this);
 
     this.index = -1;
@@ -90,6 +104,21 @@ export default class DialogueScene extends Phaser.Scene {
       this.tweens.add({ targets: cover, alpha: 0, duration: cfg.transition.open.ms, onComplete: () => cover.destroy() });
     }
     this.playIntro(() => this.advance());
+  }
+
+  // Preview mode: replay the portraits of the lines before the shown one (who stands where, who is
+  // dimmed), then show that line with its typing finished.
+  showPreview() {
+    const target = this.preview.index;
+    for (let i = 0; i < target; i++) {
+      const line = this.lines[i];
+      const style = cfg.styles[line.style || 'normal'] || cfg.styles.normal;
+      this.updatePortraits(line, style);
+      if (line.silhouette) this.showSilhouette(line.silhouette);
+    }
+    this.index = target;
+    this.showLine(this.lines[target]);
+    this.completeLine();
   }
 
   // The box (panel, name, text) fades together; alpha is set on the objects
@@ -190,7 +219,7 @@ export default class DialogueScene extends Phaser.Scene {
     // Rain falls over the whole screen (behind the text box and portraits).
     if (env.rain) Fx.rain(this, env.rain, v, { fill: true });
     if (env.vignette) Fx.vignette(this, { ...env.vignette, depth: 0 }, area);
-    if (env.ambience) playAmbience(env.ambience);
+    if (env.ambience && !this.preview) playAmbience(env.ambience);
     // Fade the picture into the ink below it.
     this.add.rectangle(v.x, cfg.bg.size - cfg.bg.fadeH, v.w, cfg.bg.fadeH, Number(ui.dialogue.box.fill), cfg.bg.fadeAlpha).setOrigin(0);
   }
@@ -208,7 +237,7 @@ export default class DialogueScene extends Phaser.Scene {
     const env = environments[this.bgKey] || {};
     if (env.rain) Fx.rain(this, env.rain, v, { fill: true });
     if (env.vignette) Fx.vignette(this, { ...env.vignette, depth: 0 }, { x: v.x, y: 0, w: v.w, h });
-    if (env.ambience) playAmbience(env.ambience);
+    if (env.ambience && !this.preview) playAmbience(env.ambience);
   }
 
   // The cover-fit picture (see above). zoom > 1 shows the same window magnified
@@ -266,7 +295,8 @@ export default class DialogueScene extends Phaser.Scene {
     const s = cfg.silhouette;
     const image = this.add.image(s.x, s.bottomY, key).setOrigin(0.5, 1).setDepth(s.depth).setTint(Number(s.tint)).setAlpha(0);
     image.setScale(s.height / image.height);
-    this.tweens.add({ targets: image, alpha: s.alpha, duration: s.fadeMs });
+    if (this.preview) image.setAlpha(s.alpha);
+    else this.tweens.add({ targets: image, alpha: s.alpha, duration: s.fadeMs });
     this.silhouette = image;
   }
 
@@ -366,7 +396,7 @@ export default class DialogueScene extends Phaser.Scene {
     }
     // Story sounds: a style's sfx (the letter unfolding), a speaker's (the glitch of a forgotten name).
     const sfx = line.sfx !== undefined ? line.sfx : cfg.nameSfx[speaker] || style.sfx;
-    if (sfx) playSfx(sfx);
+    if (sfx && !this.preview) playSfx(sfx);
     const nameColor = cfg.nameColors[speaker] || cfg.nameColors.default;
     // The data string stays (colour and voice lookups use it); only the drawing changes.
     const boxed = this.drawNameBoxes(speaker, nameColor);

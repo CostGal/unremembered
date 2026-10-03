@@ -87,6 +87,10 @@ Rhea wiring → #55 (layout, Teaser) → rain FX → parry QTE #4 → combat kit
 - Before leaving the PC: "commit and push everything, including _art".
 - New ideas → issue with label `idea`, milestone Post-jam. Never mid-build.
 
+## Dev params
+- `?step=N`, `?battle=<id>`, `?level`, `?echo`, `?shot=N`, `?cutscene=<id>`, `?fakesheets`, `?reward`, `?fragments`, `?animtest=1&char=<key>`, `?music=<key>`, `?fps=1`: see the file headers of the scenes that read them (`systems/DevParams.js`). None is linked from a menu.
+- **`?editor`** (desktop, dev only): the dialogue / cutscene editor. Sidebar = every dialogue id → lines (chapter order) and the 33 origin shots, with a search box; middle = the real `DialogueScene` / `CutsceneScene` in preview mode (`data.preview`: one line or shot, static, silent, no input); right = the form for the selected entry. Dialogue line: speaker, portrait (assets.json portraits or none), style, text, bg (cover keys), sfx, transition, plus a preview-only background. Shot: text, bg, bg2, split, move, tint, fx, sfx (list), durationMs; the fields it does not edit (layers, whenArt, bgFallback, crossfadeTo…) are kept as they are. Edits re-render the preview live. Download buttons (and Copy) give `dialogue.json` / `cutscene_origin.json`; put them in `src/data/` and commit (`dialogue.json` is written with one line object per row like the file, `cutscene_origin.json` as 2-space JSON). Nothing is written to the repo; unsaved edits are kept as a draft in that browser's localStorage. Keys: Alt+Up/Down = previous/next entry, Alt+R = replay, arrows in the list. The module (`scenes/EditorScene.js`, `systems/Editor.js`) is a separate chunk fetched only when `?editor` is in the URL. QA: `node scripts/qa/editor.mjs [--out dir]`.
+
 ## Break gauge (#69)
 Enemies have `poise` in `enemies.json` (Blank 6, Hollow 8, Clerk 20), shown as pips under the name label. Poise damage per hit: `src/data/break.json` `sources` (player hit 1, PERFECT counter 2, Return to Sender counter 3). At 0: BREAK! (enemy skips its next action, takes `damageMult` 1.5 until that turn ends, then poise refills; a phase change also refills). `npm run sim` has a `breaks` column.
 
