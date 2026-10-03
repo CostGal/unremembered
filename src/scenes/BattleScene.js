@@ -1036,6 +1036,8 @@ export default class BattleScene extends Phaser.Scene {
         const hit = {
           ...hits[k],
           telegraphMs: hits[k].telegraphMs * telegraphMult,
+          // The slowed first attack is the lesson itself: no extra slow-mo on top, windows widened by the same factor.
+          firstSlow: telegraphMult > 1 ? telegraphMult : 0,
           unparryable: hits[k].unparryable ?? attack.unparryable ?? false,
           // Sounds can be set per hit or once for the whole attack.
           sfx: hits[k].sfx ?? attack.sfx,
@@ -1182,11 +1184,11 @@ export default class BattleScene extends Phaser.Scene {
     // slow-mo tap lesson, in whichever battle that is; it shows once and waits if another banner is up.
     if (!this.tutorialSlow && !hit.unparryable) this.hints.show('dodge');
     while (true) {
-      const slow = this.tutorialSlow || lesson ? qte.tutorial.timeScale : 1;
+      const slow = (this.tutorialSlow && !hit.firstSlow) || lesson ? qte.tutorial.timeScale : 1;
       this.setTimeScale(slow);
       if (this.tutorialSlow || lesson) this.showTutorialPrompt(true, lesson ? red.lesson.text : qte.tutorial.prompt.text);
 
-      const windows = this.parryWindows();
+      const windows = hit.firstSlow ? Qte.scaledWindows(this.parryWindows(), hit.firstSlow) : this.parryWindows();
       const x = target.container.x;
       const y = target.container.y + qte.ring.offsetY;
       ring = Qte.runRing(this, {

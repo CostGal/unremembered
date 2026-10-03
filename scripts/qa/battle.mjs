@@ -379,7 +379,7 @@ await withBrowser(async ({ chrome, server }) => {
     log(refusedFirst === true && !!ring, 'Duel: Dov refuses at first; duel_wake sets duelWake and his first attack comes');
     const baseMs = await B(page, `B.enemies[0].def.attacks.map((a) => a.telegraphMs)`);
     const first = ring.tele[0];
-    log(ring.tele.length === 1 && baseMs.includes(first / 2.5) && ring.scale < 1, 'Duel: the first real attack telegraph is x2.5 and the tutorial slow-mo is on top', `telegraphMs ${first} (bases ${baseMs}), timeScale ${ring.scale}, ring ${Math.round(ring.at - ring.now)} ms left`);
+    log(ring.tele.length === 1 && baseMs.includes(first / 2.5) && ring.scale === 1, 'Duel: the first real attack telegraph is x2.5 at normal speed (it replaces the slow-mo for that ring)', `telegraphMs ${first} (bases ${baseMs}), timeScale ${ring.scale}, ring ${Math.round(ring.at - ring.now)} ms left`);
     await sleep(Math.max(0, ring.at - ring.now - 6));
     await page.tap(180, 610);
     await page.waitFor(`window.__results.length > 0`, { timeout: 5000 });

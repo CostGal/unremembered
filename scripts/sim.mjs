@@ -474,7 +474,8 @@ function simulateBattle(battleId, profileName, story, rnd) {
       // crit.json enemy: per hit, before the parry's damage multiplier (same in Story Mode).
       if (rnd() < D.crit.enemy.chance) hit.dmg = Math.round(hit.dmg * D.crit.enemy.mult);
       if (target.hp <= 0 || enemy.hp <= 0) break;
-      const slow = st.tutorialSlow ? qte.tutorial.timeScale : 1;
+      // The slowed first attack (firstAttackTelegraphMult) replaces the slow-mo for that ring.
+      const slow = st.tutorialSlow && telegraphMult === 1 ? qte.tutorial.timeScale : 1;
       // A feint (enemies.json) pauses the ring, then finishes the rest resumeSpeed x faster; feintChance rolls per hit.
       let feint = hit.feint;
       const feintChance = h.feintChance ?? attack.feintChance;
