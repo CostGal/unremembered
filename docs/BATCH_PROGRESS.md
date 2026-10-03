@@ -32,3 +32,4 @@ Order: A1 #141 · #128+A5 #142 · #129+#139 · A2 #143 · A3 #144 · A4 #145 · 
 | Phase 2 | report | – | docs/BATCH_REPORT_4.md written; final gate on Phase 2 head: validate 0/0, build ok, sim 16.8 min non-gamer (b3 99.9%), playtest real + story pass, mobile-check 36/36 |
 | Phase 2 | PR | – | https://github.com/CostGal/unremembered/pull/162 (stacked on #161). Batch complete 01:05 Sat. |
 | #163 | done | (this commit) | swipe = dodge on every ring, no flag; validate 0/0, build ok, judge-unit pass, battle lab 33/33, playtest real 342 s 0 retries, mobile-check 36/36, sim 100% / 16.9 min non-gamer; duel hints strike→techniques→echo→dodge |
+| merge | done | 41458c6 + 4f4a324 | Kostas asked to merge both: #161 then #162 merged to main (Sat 09:05); deploy runs on push to main |

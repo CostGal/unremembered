@@ -3,7 +3,7 @@
 Orchestrated batch: every `who:claude-auto` issue of the Story v2 prompt, one Sonnet subagent per issue, one commit per issue, checks run by the orchestrator after each one. Log: `docs/BATCH_PROGRESS.md`.
 
 ## Was main merged?
-**No.** Claude did not push to main. Two PRs, both green on validate / build / sim / playtest / mobile-check:
+**Yes, Sat 3/10 ~09:05 (Kostas's go-ahead):** PR #161 then PR #162 merged into main via merge commits; main deploys automatically. Both were green on validate / build / sim / playtest / mobile-check:
 
 | Phase | Branch | PR | Base |
 |---|---|---|---|
