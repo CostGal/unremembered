@@ -5,3 +5,5 @@ dist/
 _inbox/
 node_modules
 .claude/worktrees/
+dist-jam/
+dist-jam-zip/

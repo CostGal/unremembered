@@ -21,6 +21,7 @@ const slots = JSON.parse(readFileSync(join(root, 'src/data/ui.json'), 'utf8')).c
 const STRIKE_SLOT = slots.strike;
 const BACK_SLOT = slots.back;
 const MIN_H = 56;
+const JAM = process.env.JAM === '1' || process.argv.includes('--jam');
 const EDGE = 16;
 
 const results = [];
@@ -89,15 +90,17 @@ async function runDevice(browser, url, name, d) {
   const silent = await page.evaluate(() => window.__game.scene.getScene('Title').children.list.some((o) => o.type === 'Text' && /silent mode/i.test(o.text) && o.visible));
   check(name, 'Title shows the silent-mode hint', silent);
 
-  const guards = await page.evaluate(() => {
+  // The jam build (JAM=1 / --jam) uses touch-action:manipulation on html, body (canvas stays none).
+  const pageTouch = JAM ? 'manipulation' : 'none';
+  const guards = await page.evaluate((pageTouch) => {
     const els = [document.documentElement, document.body, document.querySelector('canvas')];
-    const css = els.every((el) => getComputedStyle(el).touchAction === 'none' && ['none'].includes(getComputedStyle(el).userSelect || getComputedStyle(el).webkitUserSelect));
+    const css = els.every((el, i) => getComputedStyle(el).touchAction === (i < 2 ? pageTouch : 'none') && ['none'].includes(getComputedStyle(el).userSelect || getComputedStyle(el).webkitUserSelect));
     const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
     document.querySelector('canvas').dispatchEvent(ev);
     const meta = document.querySelector('meta[name=viewport]').content;
     return { css, menuBlocked: ev.defaultPrevented, noZoom: /user-scalable=no/.test(meta) && /maximum-scale=1/.test(meta) };
-  });
-  check(name, 'touch-action/user-select none on html, body, canvas', guards.css);
+  }, pageTouch);
+  check(name, `touch-action/user-select guards on html, body (${pageTouch}), canvas (none)`, guards.css);
   check(name, 'long-press menu (contextmenu) blocked', guards.menuBlocked);
   check(name, 'viewport blocks pinch/double-tap zoom', guards.noZoom);
 
