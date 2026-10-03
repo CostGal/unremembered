@@ -15,7 +15,7 @@
     ]
   },
   "hud": {
-    "panel": { "x": 0, "y": 360, "w": 360, "h": 80, "color": "0x0b0d14", "alpha": 0.72, "borderColor": "0x2a2e3d" },
+    "panel": { "x": 0, "y": 360, "w": 360, "h": 80, "color": "0x0b0d14", "alpha": 0.45, "borderColor": "0x2a2e3d" },
     "textColor": "#f1efe8",
     "activeColor": "#3fd0c9",
     "lowHp": { "pct": 0.25, "color": "0xff4050", "pad": 2, "alphaMin": 0.15, "alphaMax": 0.9, "pulseMs": 380, "nameColor": "#ff8a80" },
@@ -89,14 +89,14 @@
     "melee": { "gap": 6, "approachMs": 180, "returnMs": 180, "reachDefault": 40 },
     "label": { "fontSize": 12, "color": "#f1efe8", "stroke": "#0b0d14", "strokeThickness": 3 },
     "defaultParty": ["rhea", "dov"],
-    "heroes": { "rhea": { "x": 116, "feetY": 342 }, "dov": { "x": 76, "feetY": 300 } },
-    "nala": { "x": 36, "feetY": 336 },
+    "heroes": { "rhea": { "x": 116, "feetY": 346 }, "dov": { "x": 76, "feetY": 316 } },
+    "nala": { "x": 36, "feetY": 340 },
     "enemies": {
-      "1": [{ "x": 256, "feetY": 326 }],
-      "2": [{ "x": 292, "feetY": 286 }, { "x": 224, "feetY": 342 }],
-      "3": [{ "x": 296, "feetY": 272 }, { "x": 204, "feetY": 310 }, { "x": 268, "feetY": 350 }],
-      "boss": [{ "x": 236, "feetY": 334 }],
-      "gate": [{ "x": 262, "feetY": 330 }, { "x": 196, "feetY": 346 }]
+      "1": [{ "x": 256, "feetY": 332 }],
+      "2": [{ "x": 292, "feetY": 308 }, { "x": 224, "feetY": 346 }],
+      "3": [{ "x": 296, "feetY": 296 }, { "x": 204, "feetY": 322 }, { "x": 268, "feetY": 350 }],
+      "boss": [{ "x": 236, "feetY": 340 }],
+      "gate": [{ "x": 262, "feetY": 322 }, { "x": 196, "feetY": 350 }]
     }
   },
   "battleBackdrop": {
@@ -121,8 +121,9 @@
   },
   "hurt": { "knockbackPx": 6, "durationMs": 160 },
   "commands": {
-    "glass": { "y": 440, "color": "0x0b0d14", "alpha": 0.72, "strokeColor": "0x2a2e3d", "depth": 0.6 },
+    "glass": { "y": 440, "color": "0x0b0d14", "alpha": 0.45, "strokeColor": "0x2a2e3d", "depth": 0.6 },
     "button": {
+      "depth": 0.8,
       "w": 156,
       "h": 60,
       "fontSize": 16,

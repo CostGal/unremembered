@@ -419,6 +419,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
         else if (!animationSets[def.animSet]) warn(`${group}.${id}: animSet "${def.animSet}" has no ${def.animSet}_animations.json (rig fallback)`);
       }
       if (def.refuseUntilFlag !== undefined && typeof def.refuseUntilFlag !== 'string') err(`${group}.${id}: refuseUntilFlag must be a string`);
+      if (def.firstAttackWindowMult !== undefined && !(typeof def.firstAttackWindowMult === 'number' && def.firstAttackWindowMult >= 1)) err(`${group}.${id}: firstAttackWindowMult must be a number >= 1`);
       if (def.firstAttackTelegraphMult !== undefined && !(typeof def.firstAttackTelegraphMult === 'number' && def.firstAttackTelegraphMult >= 1)) err(`${group}.${id}: firstAttackTelegraphMult must be a number >= 1`);
     }
   }

@@ -31,6 +31,7 @@ export default class CommandMenu {
         color: cfg.button.textColor,
       })
       .setOrigin(0.5)
+      .setDepth(cfg.button.depth || 0)
       .setVisible(false);
   }
 

@@ -254,6 +254,7 @@
       "h": 1280,
       "filter": "linear",
       "displayScale": 0.5,
+      "fit": {"scale": 0.56, "roadY": 0.64},
       "desaturate": 0.6,
       "ambient": {
         "fog": {
@@ -350,6 +351,7 @@
       "h": 1280,
       "filter": "linear",
       "displayScale": 0.5,
+      "fit": {"scale": 0.56, "roadY": 0.62},
       "desaturate": 0.6,
       "ambient": {
         "fog": {
@@ -411,6 +413,7 @@
       "h": 1280,
       "filter": "linear",
       "displayScale": 0.5,
+      "fit": {"scale": 0.56, "roadY": 0.62},
       "desaturate": 0.6,
       "ambient": {
         "fog": {
@@ -472,6 +475,7 @@
       "h": 1280,
       "filter": "linear",
       "displayScale": 0.5,
+      "fit": {"scale": 0.56, "roadY": 0.6},
       "desaturate": 0.6,
       "ambient": {
         "fog": {

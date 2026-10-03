@@ -1306,6 +1306,8 @@ export default class BattleScene extends Phaser.Scene {
     const hits = attack.hits || [attack];
     // enemies.json firstAttackTelegraphMult: the enemy's first real attack (a refused turn doesn't count) winds up slower.
     const telegraphMult = !enemy.attacked && enemy.def.firstAttackTelegraphMult ? enemy.def.firstAttackTelegraphMult : 1;
+    // enemies.json firstAttackWindowMult (else the telegraph multiplier): how much wider the first ring's windows are.
+    const firstWindowMult = !enemy.attacked ? (enemy.def.firstAttackWindowMult ?? telegraphMult) : 1;
     enemy.attacked = true;
     enemy.attackCount = (enemy.attackCount || 0) + 1;
     const restoreDepth = this.bringInFront(enemy, target);
@@ -1324,7 +1326,7 @@ export default class BattleScene extends Phaser.Scene {
           ...hits[k],
           telegraphMs: hits[k].telegraphMs * telegraphMult,
           // The slowed first attack is the lesson itself: no extra slow-mo on top, windows widened by the same factor.
-          firstSlow: telegraphMult > 1 ? telegraphMult : 0,
+          firstSlow: firstWindowMult > 1 ? firstWindowMult : 0,
           unparryable: hits[k].unparryable ?? attack.unparryable ?? false,
           // Sounds can be set per hit or once for the whole attack.
           sfx: hits[k].sfx ?? attack.sfx,
@@ -1387,6 +1389,7 @@ export default class BattleScene extends Phaser.Scene {
     this.tapHint = this.add
       .text(x, y, text, { fontFamily: ui.font, fontSize: `${fontSize}px`, color })
       .setOrigin(0.5)
+      .setDepth(ui.commands.button.depth || 0)
       .setVisible(false);
   }
 

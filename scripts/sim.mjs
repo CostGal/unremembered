@@ -263,7 +263,8 @@ function simulateBattle(battleId, profileName, mode, rnd) {
     const stats = { perfects: st.qtes.PERFECT, maxChain: st.maxChain, damageTaken: st.damageTaken, partyHp: heroes.reduce((n, h) => n + h.max, 0), turns: st.rounds };
     return { ...computeGrade(stats, battleId, D.grade), stats };
   };
-  const windowMult = () => storyMult * (st.tutorialSlow ? 1 / qte.tutorial.timeScale : 1);
+  // hitMult: the first real attack's own window multiplier (enemies.json firstAttackWindowMult / telegraph mult), which replaces the tutorial slow-mo.
+  const windowMult = (hitMult) => storyMult * (hitMult > 1 ? hitMult : st.tutorialSlow ? 1 / qte.tutorial.timeScale : 1);
 
   // enemies.json defend + qte.json enemyDefendChance (story 0): mirrors BattleScene.rollDefendAs.
   const defendChance = diff.enemyDefendChance;
@@ -272,10 +273,10 @@ function simulateBattle(battleId, profileName, mode, rnd) {
   // windows), a white ring with a swipe (the easier dodge windows) policy.dodgeChance of the
   // time, else a tap (parry windows). The tutorial slow-mo teaches the tap, so no swipes there.
   const dodgeChance = D.sim.policy.dodgeChance?.[profileName] ?? 0.2;
-  const answerRing = (unparryable) => {
+  const answerRing = (unparryable, hitMult = 0) => {
     const swipes = unparryable || (!st.tutorialSlow && rnd() < dodgeChance);
     const windows = swipes && !unparryable ? D.qte.dodge.windows : D.qte.windows;
-    return { res: roll(qteOddsFor(profile, windows, windowMult()), rnd), dodged: swipes };
+    return { res: roll(qteOddsFor(profile, windows, windowMult(hitMult)), rnd), dodged: swipes };
   };
   // A parried Strike is answered with a ring on the hero (reparry): judged like any enemy hit,
   // a PERFECT earns the usual counter (applyHit on the enemy, so no parry roll, not a counted player hit).
@@ -575,6 +576,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
     if (attack.melee) st.ms += T.meleeMs;
     // enemies.json firstAttackTelegraphMult: the first real attack winds up slower.
     const telegraphMult = !enemy.attacked && enemy.def.firstAttackTelegraphMult ? enemy.def.firstAttackTelegraphMult : 1;
+    const firstWindowMult = !enemy.attacked ? (enemy.def.firstAttackWindowMult ?? telegraphMult) : 1;
     enemy.attacked = true;
     for (const h of attack.hits || [attack]) {
       const hit = { ...h, telegraphMs: h.telegraphMs * telegraphMult, unparryable: h.unparryable ?? attack.unparryable ?? false };
@@ -582,7 +584,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       if (rnd() < D.crit.enemy.chance) hit.dmg = Math.round(hit.dmg * D.crit.enemy.mult);
       if (target.hp <= 0 || enemy.hp <= 0) break;
       // The slowed first attack (firstAttackTelegraphMult) replaces the slow-mo for that ring.
-      const slow = st.tutorialSlow && telegraphMult === 1 ? qte.tutorial.timeScale : 1;
+      const slow = st.tutorialSlow && firstWindowMult <= 1 ? qte.tutorial.timeScale : 1;
       // A feint (enemies.json) pauses the ring, then finishes the rest resumeSpeed x faster; feintChance rolls per hit.
       let feint = hit.feint;
       const feintChance = h.feintChance ?? attack.feintChance;
@@ -596,7 +598,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
         break;
       }
       // A swipe is a dodge: its own results (no counter, no Echo) and not a parry for Return to Sender.
-      const { res, dodged } = answerRing(!!hit.unparryable);
+      const { res, dodged } = answerRing(!!hit.unparryable, firstWindowMult);
       st.qtes[res] += 1;
       if (!dodged && res !== 'MISS') st.parrySuccess += 1; // battle events {parries: n}
       const cfg = dodged ? { ...qte.results[res], ...qte.dodge.results[res] } : qte.results[res];

@@ -141,6 +141,7 @@
     "refuseUntilFlag": "duelWake",
     "refuseMs": 900,
     "firstAttackTelegraphMult": 2.5,
+    "firstAttackWindowMult": 4,
     "attacks": [
       { "id": "jab", "melee": true, "weight": 2, "telegraphMs": 900, "dmg": 6, "anim": "attack" },
       { "id": "hook", "melee": true, "weight": 1, "telegraphMs": 800, "dmg": 7, "feint": { "atPct": 0.6, "pauseMs": 350 }, "anim": "attack" }

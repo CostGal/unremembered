@@ -83,13 +83,23 @@ export function createBackdrop(scene, battleDef, env) {
     const tall = frame.height >= cfg.tallMinH;
     // Tall illustration: cover the screen (360x640 -> scale 1). Square pixel-art fallback: its own scale,
     // top at fallback.y, the missing lower part filled by a mirrored copy (a wet street).
-    const s = tall ? Math.max(360 / frame.width, 640 / frame.height) : cfg.fallback.scale;
+    // assets.json `fit` {scale, roadY}: the picture is shown at `scale` x its source size (derived texture
+    // = source x displayScale) and moved so its row `roadY` (the end of the road / floor) sits on the
+    // platform's top edge; whatever is left below the picture is filled with the glass colour.
+    const def = manifestDef('backgrounds', source) || {};
+    const fit = tall && source === battleDef.bg && env?.platform ? def.fit : null;
+    const s = fit ? fit.scale / (def.displayScale ?? 1) : tall ? Math.max(360 / frame.width, 640 / frame.height) : cfg.fallback.scale;
     const dispW = frame.width * s;
     const dispH = frame.height * s;
-    const top = tall ? (640 - dispH) / 2 : cfg.fallback.y;
+    const top = fit ? env.platform.y - fit.roadY * dispH : tall ? (640 - dispH) / 2 : cfg.fallback.y;
     picture = { left: 180 - dispW / 2, top, w: dispW, h: dispH, tall };
 
-    const parts = [scene.add.image(180, top + dispH / 2, tex).setDisplaySize(dispW, dispH)];
+    const parts = [];
+    if (fit && top + dispH < 640) {
+      const fill = ui.commands.glass;
+      parts.push(scene.add.rectangle(180, top + dispH + (640 - top - dispH) / 2 + 1, view.w + dispW * 2, 640 - top - dispH + 2, Number(fill.color)));
+    }
+    parts.push(scene.add.image(180, top + dispH / 2, tex).setDisplaySize(dispW, dispH));
     if (!tall && top + dispH < 640) {
       const reflect = scene.add
         .image(180, top + dispH + dispH / 2, tex)
@@ -104,7 +114,7 @@ export function createBackdrop(scene, battleDef, env) {
     const drift = env?.drift?.x || 0;
     const reach = view.w / 2 + drift + Math.abs(shift) - dispW / 2;
     if (reach > 0) {
-      for (const p of [...parts]) {
+      for (const p of [...parts].filter((q) => q.type === 'Image')) {
         for (const dir of [-1, 1]) {
           const copy = scene.add.image(p.x + dir * dispW, p.y, tex).setDisplaySize(dispW, p.displayHeight).setFlipX(true).setFlipY(p.flipY).setAlpha(p.alpha);
           if (p.isTinted) copy.setTint(p.tintTopLeft);
@@ -202,9 +212,13 @@ function createAmbient(scene, container, key, picture, own) {
   if (picture?.tall && own && ambient.glowPoints) {
     ambient.glowPoints.slice(0, cfg.glow.max).forEach((g, i) => {
       const [lo, hi] = g.alpha;
+      const gx = picture.left + g.x * picture.w;
+      const gy = picture.top + g.y * picture.h;
+      const r = g.r * (picture.w / 360);
+      if (gy + r < 0 || gy - r > 640) return; // zoomed out of view
       const image = scene.add
-        .image(picture.left + g.x * picture.w, picture.top + g.y * picture.h, softTexture(scene, cfg.glow.texRadius))
-        .setDisplaySize(g.r * 2, g.r * 2)
+        .image(gx, gy, softTexture(scene, cfg.glow.texRadius))
+        .setDisplaySize(r * 2, r * 2)
         .setBlendMode(Phaser.BlendModes.ADD)
         .setTint(Number(g.color))
         .setAlpha(lo);

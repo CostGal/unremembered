@@ -342,7 +342,7 @@ await withBrowser(async ({ chrome, server }) => {
     const page = await battle(chrome, server, 'b0_duel', { extra: '&pauses=0' });
     await waitMenu(page);
     // The telegraph of every real Dov attack, as handed to the ring (enemyHit wrapper).
-    await page.ev(`(() => { const B = window.__battle; window.__tele = []; const o = B.enemyHit.bind(B); B.enemyHit = (en, t, hit, sh, k) => { window.__tele.push(hit.telegraphMs); return o(en, t, hit, sh, k); }; })()`);
+    await page.ev(`(() => { const B = window.__battle; window.__tele = []; window.__firstSlow = []; const o = B.enemyHit.bind(B); B.enemyHit = (en, t, hit, sh, k) => { window.__tele.push(hit.telegraphMs); window.__firstSlow.push(hit.firstSlow); return o(en, t, hit, sh, k); }; })()`);
     const tapDialogue = async (label) => {
       let n = 0;
       for (let i = 0; i < 80 && (await page.scenes()).includes('Dialogue'); i++) {
@@ -366,7 +366,7 @@ await withBrowser(async ({ chrome, server }) => {
     await sleep(300);
 
     // Strike until Dov wakes (duel_refuse after the first hit; he refuses until duel_wake). His first real
-    // attack follows in the same round: slow ring (telegraph x2.5) on top of the tutorial slow-mo, then a real tap on impact.
+    // attack follows in the same round: slow ring (telegraph x2.5, windows x4) instead of the tutorial slow-mo, then a real tap on impact.
     let ring = null;
     let refusedFirst = null;
     for (let i = 0; i < 10 && !ring; i++) {
@@ -374,17 +374,17 @@ await withBrowser(async ({ chrome, server }) => {
       await page.tap(...slots.strike);
       await sleep(600); // the tapped button's menu is still "pending" for a moment
       for (let t = 0; t < 400 && !ring; t++) {
-        if (await page.ev(`!!(window.__battle.qteRings && window.__battle.qteRings.size > 0)`)) ring = await page.ev(`({ at: [...window.__battle.qteRings][0].impactAt, now: performance.now(), scale: window.__battle.timeScale, tele: window.__tele.slice() })`);
+        if (await page.ev(`!!(window.__battle.qteRings && window.__battle.qteRings.size > 0)`)) ring = await page.ev(`({ at: [...window.__battle.qteRings][0].impactAt, now: performance.now(), scale: window.__battle.timeScale, tele: window.__tele.slice(), wide: window.__firstSlow.slice(), hits: window.__battle.counters.playerHits, round: window.__battle.stats.turns })`);
         else if (await page.ev(`!!(window.__battle.menu && window.__battle.menu.pending)`)) break;
         else if ((await page.scenes()).includes('Dialogue')) await page.tap(180, 560);
         await sleep(150);
       }
       if (i === 0) refusedFirst = !(await B(page, 'B.hasFlag("duelWake")'));
     }
-    log(refusedFirst === true && !!ring, 'Duel: Dov refuses at first; duel_wake sets duelWake and his first attack comes');
+    log(refusedFirst === true && !!ring && (ring.hits === 2 || ring.round >= 3), 'Duel: Dov refuses at first; duel_wake (after Rhea\'s 2nd hit, or round 3) sets duelWake and his first attack comes', `playerHits ${ring?.hits}, round ${ring?.round}`);
     const baseMs = await B(page, `B.enemies[0].def.attacks.map((a) => a.telegraphMs)`);
     const first = ring.tele[0];
-    log(ring.tele.length === 1 && baseMs.includes(first / 2.5) && ring.scale === 1, 'Duel: the first real attack telegraph is x2.5 at normal speed (it replaces the slow-mo for that ring)', `telegraphMs ${first} (bases ${baseMs}), timeScale ${ring.scale}, ring ${Math.round(ring.at - ring.now)} ms left`);
+    log(ring.tele.length === 1 && baseMs.includes(first / 2.5) && ring.scale === 1 && ring.wide[0] === 4, 'Duel: the first real attack telegraph is x2.5 with windows x4 (PERFECT 360 / GOOD 800 ms) at normal speed (it replaces the slow-mo for that ring)', `telegraphMs ${first} (bases ${baseMs}), window mult ${ring.wide}, timeScale ${ring.scale}, ring ${Math.round(ring.at - ring.now)} ms left`);
     await sleep(Math.max(0, ring.at - ring.now - 6));
     await page.tap(180, 610);
     await page.waitFor(`window.__results.length > 0`, { timeout: 5000 });
