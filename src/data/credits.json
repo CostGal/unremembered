@@ -1,7 +1,7 @@
 {
   "endTitle": "End of Demo",
   "creditsTitle": "Credits",
-  "revealed": false,
+  "revealed": true,
   "hiddenText": "Will be revealed post game jam",
   "musicLine": "Music: Eric Skiff — Resistor Anthems (CC BY 4.0) · xDeviruchi — 8-Bit Fantasy & Adventure (CC BY-SA 4.0) · Juhani Junkala (CC0) · other artists: full credits post-jam",
   "music": [
@@ -85,8 +85,7 @@
   "lines": [
     {
       "role": "A game by",
-      "name": "Kostas",
-      "todo": true
+      "name": "Kostas"
     },
     {
       "role": "Code",
@@ -102,8 +101,7 @@
     },
     {
       "role": "Music",
-      "name": "TBD",
-      "todo": true
+      "name": "TBD"
     },
     {
       "role": "Font",

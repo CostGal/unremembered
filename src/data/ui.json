@@ -1265,9 +1265,7 @@
       },
       {
         "id": "credits",
-        "label": "Credits",
-        "locked": true,
-        "inert": true
+        "label": "Credits"
       }
     ],
     "credits": {

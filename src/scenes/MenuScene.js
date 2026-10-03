@@ -47,7 +47,7 @@ export default class MenuScene extends Phaser.Scene {
       // Locked items answer on the tap itself (the toast), the rest after the press.
       const button = makeGlassButton(this, 180, y, cfg.button, ui.glass, variant, item.label, () => this.choose(item, y), { instant: !!item.locked });
       button.container.setDepth(cfg.buttonDepth);
-      if (item.id === 'credits') this.addBadge(button);
+      if (item.id === 'credits' && item.inert) this.addBadge(button);
       const delay = cfg.enter.delayMs + i * cfg.enter.staggerMs;
       this.enter(button.body, delay);
       if (item.id === 'new') this.pulse(y, delay + cfg.enter.ms);

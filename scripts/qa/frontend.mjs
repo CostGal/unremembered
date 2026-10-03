@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { open, root, sleep, waitScene, withBrowser } from './lib.mjs';
 
 const ui = JSON.parse(readFileSync(join(root, 'src/data/ui.json'), 'utf8'));
+const credits = JSON.parse(readFileSync(join(root, 'src/data/credits.json'), 'utf8'));
 const out = process.argv[process.argv.indexOf('--out') + 1];
 mkdirSync(out, { recursive: true });
 const rows = [];
@@ -88,16 +89,15 @@ await withBrowser(async ({ chrome, server }) => {
   check('Settings: Back returns to Menu', true);
   // ---- Credits
   await sleep(300);
-  // The Credits item is closed until after the jam: a tap does nothing; the End scene still opens directly.
+  // Credits are revealed (credits.json revealed: true): the tap opens the End scene with the list.
   await page.tap(180, first + 4 * ui.menu.spacing);
-  await sleep(500);
-  check('Credits: menu item is inert', !(await page.scenes()).includes('End'));
-  await page.ev(`window.__game.scene.getScene('Menu').scene.start('End', { credits: true }); 1`);
   await waitScene(page, 'End');
+  check('Credits: menu item opens the credits', (await page.scenes()).includes('End'));
   await sleep(2200);
   await page.shot(join(out, 'credits.png'));
   const ct = await texts(page, 'End');
-  check('Credits: hidden text + hint rendered', ct.some((t) => /post game jam/i.test(t.t)) && ct.some((t) => /Tap to return/i.test(t.t)), `${ct.length} text objects; hint "${ct.find((t) => /Tap to return/i.test(t.t))?.t}" a=${ct.find((t) => /Tap to return/i.test(t.t))?.a}`);
+  const revealed = credits.revealed !== false;
+  check('Credits: list (or hidden text) + hint rendered', (revealed ? ct.some((t) => /Credits/i.test(t.t)) && ct.length >= credits.lines.length : ct.some((t) => /post game jam/i.test(t.t))) && ct.some((t) => /Tap to return/i.test(t.t)), `${ct.length} text objects; hint "${ct.find((t) => /Tap to return/i.test(t.t))?.t}" a=${ct.find((t) => /Tap to return/i.test(t.t))?.a}`);
   const maxY = Math.max(...ct.map((t) => t.y));
   check('Credits: nothing past y 580 (bottom 60 px)', maxY <= 580, `max y ${maxY}`);
   await page.tap(180, 300);
