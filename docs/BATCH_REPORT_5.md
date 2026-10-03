@@ -43,7 +43,7 @@ Chapter (19 steps, `?step=N`): 0 origin · 1 wake · 2 letter · 3 meet_dov · 4
 Recollection all-three-miss chance: non-gamer 3 % (Story 1 %, Unforgettable 11 %), average 0.3 %, good 0 %. Chapter total: non-gamer ≈ 19.4 min, average ≈ 14.9, good ≈ 12.5.
 
 ## Checks on the final head
-See the last line of `docs/BATCH_PROGRESS.md` (final gate: validate, build, story playtest, mobile-check).
+Head `982f96a`: `npm run validate` 0/0 · `npm run build` ok · `npm run playtest -- --story` real 347 s / 0 retries and fake 347 s / 0 retries · `npm run mobile-check` 39/39 · sim as above. Follow-ups after this gate (Recollection auto-cast, 20-tap finale, dialogue editor, music consistency) are logged in `BATCH_PROGRESS.md`.
 
 ## Still a placeholder / missing
 - `ui_badge_postjam.png` (code pill used), `hollow_slam` / `blank_crush` sheets (features cut), Nala jump sheet (arc uses `alert`).
