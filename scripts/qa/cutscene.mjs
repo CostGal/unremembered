@@ -105,7 +105,7 @@ await withBrowser(async ({ chrome, server }) => {
   await waitScene(p2, 'Dialogue', 8000).catch(() => {});
   await sleep(500);
   const d = await p2.ev(`(() => { const g = window.__game; const d = g.scene.getScene('Dialogue'); return { active: g.scene.getScenes(true).map(s => s.scene.key), id: d && d.dialogueId }; })()`);
-  log(d.active.includes('Dialogue') && d.id === 'letter', 'hold 800 ms skips the cutscene → letter dialogue', JSON.stringify(d));
+  log(d.active.includes('Dialogue') && d.id === 'wake', 'hold 800 ms skips the cutscene → wake dialogue', JSON.stringify(d));
   await p2.shot(join(out, 'letter_after_skip.png'));
   log(page.errors.length + p2.errors.length === 0, 'no console errors in cutscene runs', [...page.errors, ...p2.errors].slice(0, 2).join(' | '));
   writeFileSync(join(out, 'cutscene_measure.json'), JSON.stringify({ early, late }, null, 1));
