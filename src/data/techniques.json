@@ -1,5 +1,6 @@
 {
-  "strike": { "name": "Strike", "cost": 0, "type": "strike", "target": "enemy", "echoOnHit": 1, "immuneText": "IMMUNE", "immuneColor": "#9db4c8" },
+  "strike": { "name": "Strike", "cost": 0, "type": "strike", "target": "enemy", "echoOnHit": 1, "immuneText": "IMMUNE", "immuneColor": "#9db4c8",
+              "help": { "short": "Free. Builds Echo on hit. Can't touch Hollows." } },
   "blast": {
     "name": "Blast",
     "cost": 4,
@@ -22,7 +23,15 @@
     "boltColor": "0x3fd0c9",
     "critColor": "#3fd0c9",
     "critText": "+1",
-    "boltSize": 6
+    "boltSize": 6,
+    "help": {
+      "short": "Bolts of pure memory. Spends Echo.",
+      "upgrades": {
+        "3": ["Blast now crits: a crit fires one extra bolt."],
+        "4": ["More bolts, more crits: a crit fires one extra bolt."],
+        "5": ["Aim it: tap when the gold ring closes for +15% crit."]
+      }
+    }
   },
   "return_to_sender": {
     "name": "Return to Sender",
@@ -32,13 +41,21 @@
     "perfectMult": 1.5,
     "castText": "On guard",
     "counterText": "Return to Sender!",
-    "color": "#3fd0c9"
+    "color": "#3fd0c9",
+    "help": {
+      "short": "Guard a turn. Parry the next hit to throw it back.",
+      "steps": ["Guard for a turn. Parry the next hit to throw it back hard.", "PERFECT parry = bigger return."]
+    }
   },
   "tremor": {
     "name": "Tremor",
-    "cost": 5,
+    "cost": 4,
     "type": "quake",
     "target": "all",
+    "levels": {
+      "1": { "cost": 3, "target": "enemy", "name": "Tremor", "help": { "short": "Hits one enemy. Echo carries it: Hollows feel it." } },
+      "2": { "cost": 4, "target": "all" }
+    },
     "anims": ["attack", "cast"],
     "dmg": [7, 9],
     "castText": "Tremor!",
@@ -46,7 +63,12 @@
     "shake": 5,
     "shakeMs": 220,
     "flash": { "color": "0xe0a040", "alpha": 0.3, "ms": 220 },
-    "sparks": { "count": 14, "color": "0xe0a040", "speed": [60, 170], "lifeMs": 420, "size": 3 }
+    "sparks": { "count": 14, "color": "0xe0a040", "speed": [60, 170], "lifeMs": 420, "size": 3 },
+    "help": {
+      "short": "Hits every enemy. Echo carries it: Hollows feel it.",
+      "steps": ["Dov slams one enemy. Echo carries it: Hollows feel it.", "Costs {cost} of his 5 Echo."],
+      "upgrades": { "2": ["Tremor now costs 4 and hits every enemy."] }
+    }
   },
   "anchor": {
     "name": "Anchor",
@@ -60,7 +82,12 @@
       "1": { "amount": 20, "canRevive": false },
       "3": { "amount": 25, "canRevive": true, "clearStatuses": true }
     },
-    "color": "#e0a040"
+    "color": "#e0a040",
+    "help": {
+      "short": "Heals a hero for {amount}.",
+      "steps": ["Dov steadies a hero: heals {amount}.", "Pick who. Later it revives too."],
+      "upgrades": { "3": ["Anchor now heals {amount}, revives a fallen hero and clears their statuses."] }
+    }
   },
   "brace": {
     "name": "Brace",
@@ -74,7 +101,11 @@
     "castText": "Brace!",
     "blockText": "Braced",
     "counterText": "+1 Echo",
-    "color": "#e0a040"
+    "color": "#e0a040",
+    "help": {
+      "short": "Everyone takes half this enemy turn. Each soaked hit gives Dov Echo.",
+      "steps": ["Dov braces for the whole enemy turn: everyone takes half.", "Each hit he soaks gives him Echo and chips the attacker."]
+    }
   },
   "recollection": {
     "name": "Recollection",
@@ -83,6 +114,7 @@
     "taps": 3,
     "intervalMs": 500,
     "dmg": { "perfect": 60, "good": 40, "miss": 20 },
-    "kill": true
+    "kill": true,
+    "help": { "short": "Burn the page. Only this ends him." }
   }
 }

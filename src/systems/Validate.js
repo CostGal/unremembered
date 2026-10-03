@@ -85,6 +85,10 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       for (const hint of def.skipHints || []) if (!ui.tutorial?.hints?.[hint]) err(`tutorial.pauses.${pid}.skipHints: "${hint}" is not in ui.tutorial.hints`);
     }
     if (tutorial.recallCard && !tutorial.pauses?.[tutorial.recallCard]) err(`tutorial.recallCard: no pause "${tutorial.recallCard}"`);
+    const rl = tutorial.recallLearn;
+    if (rl?.enabled && (typeof rl.idPrefix !== 'string' || typeof rl.lineTarget !== 'string')) err('tutorial.recallLearn: idPrefix and lineTarget must be strings');
+    const hc = ui.commands?.help;
+    if (ui.commands && !(hc && hc.holdMs > 0 && hc.moveTol >= 0 && hc.card?.w > 0 && hc.technique?.short)) err('ui.commands.help: needs holdMs, moveTol, card {w, ...} and technique {name, short}');
   }
 
   // Battles
@@ -166,7 +170,12 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
           }
         }
         if (p.techniqueMenu !== undefined) pauseIds.push(['techniqueMenu', p.techniqueMenu]);
-        for (const key of Object.keys(p)) if (!['battleStart', 'enemyAttack', 'menuAfterFlag', 'techniqueMenu'].includes(key)) err(`battles.${id}.pauses: unknown key "${key}"`);
+        if (p.nalaWatch !== undefined) {
+          pauseIds.push(['nalaWatch', p.nalaWatch]);
+          if (!battle.nala) err(`battles.${id}.pauses.nalaWatch: the battle has no Nala`);
+          if (tutorial?.pauses?.[p.nalaWatch]?.mode !== 'guided') err(`battles.${id}.pauses.nalaWatch: "${p.nalaWatch}" must be a guided pause`);
+        }
+        for (const key of Object.keys(p)) if (!['battleStart', 'enemyAttack', 'menuAfterFlag', 'techniqueMenu', 'nalaWatch'].includes(key)) err(`battles.${id}.pauses: unknown key "${key}"`);
       }
     }
     for (const [where, pid] of pauseIds) {
@@ -369,8 +378,39 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       }
     }
     for (const [id, t] of Object.entries(techniques)) {
+      if (t.type === 'quake') {
+        // Tremor: a single enemy (the player picks it) or every enemy, per level.
+        for (const [k, def] of [['base', t], ...Object.entries(t.levels || {})]) {
+          const tg = def.target ?? t.target;
+          if (tg !== 'enemy' && tg !== 'all') err(`techniques.${id}${k === 'base' ? '' : `.levels.${k}`}.target: must be "enemy" or "all"`);
+        }
+      }
       for (const k of Object.keys(t.levels || {})) {
         if (!(Number.isInteger(Number(k)) && Number(k) >= 1 && Number(k) <= xpAt.length)) err(`techniques.${id}.levels.${k}: level must be a whole number 1..${xpAt.length}`);
+      }
+    }
+    // Move help (techniques.json <id>.help): the long-press card and the Recall card's learn pauses.
+    const helpText = (at, str) => {
+      if (typeof str !== 'string' || !str) return err(`${at} must be a non-empty string`);
+      for (const [, tok] of str.matchAll(/\{(\w+)\}/g)) if (!['amount', 'cost', 'n'].includes(tok)) err(`${at}: unknown token {${tok}}`);
+      if (str.length > 80) warn(`${at} is ${str.length} chars: over two lines on a phone`);
+    };
+    for (const id of ['strike', 'recollection']) if (techniques[id]) helpText(`techniques.${id}.help.short`, techniques[id].help?.short);
+    for (const [hero, list] of Object.entries(levels.learn || {})) {
+      for (const [id, lv] of Object.entries(list)) {
+        const h = techniques[id]?.help;
+        if (!techniques[id]) continue;
+        helpText(`techniques.${id}.help.short`, h?.short);
+        // Remembered at Recall 2+: the card shows "{hero} remembers ..." and the learn pause needs 1-2 steps.
+        if (lv > 1 || h?.steps !== undefined) {
+          if (!Array.isArray(h?.steps) || h.steps.length < 1 || h.steps.length > 2) err(`techniques.${id}.help.steps: 1-2 short steps (${hero} remembers it at Recall ${lv})`);
+          else h.steps.forEach((t, i) => helpText(`techniques.${id}.help.steps[${i}]`, t));
+        }
+        for (const [k, steps] of Object.entries(h?.upgrades || {})) {
+          if (!techniques[id].levels?.[k] || Number(k) <= lv) err(`techniques.${id}.help.upgrades.${k}: not a Recall level where it grows`);
+          if (!Array.isArray(steps) || steps.length < 1 || steps.length > 2) err(`techniques.${id}.help.upgrades.${k}: 1-2 short steps`);
+          else steps.forEach((t, i) => helpText(`techniques.${id}.help.upgrades.${k}[${i}]`, t));
+        }
       }
     }
     for (const [id, e] of Object.entries(enemies)) if (!(Number.isInteger(e.xp) && e.xp >= 0)) err(`enemies.${id}: xp must be a whole number >= 0`);

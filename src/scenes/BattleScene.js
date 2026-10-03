@@ -22,6 +22,7 @@ import * as Fx from '../systems/Fx.js';
 import { clampX, mirrorEdges, rect as viewRect } from '../systems/View.js';
 import { difficultyDef } from '../systems/Difficulty.js';
 import CommandMenu from '../systems/CommandMenu.js';
+import { helpCard } from '../systems/MoveHelp.js';
 import { createBackdrop, createPlatform } from '../systems/BattleBackdrop.js';
 import CutIn from '../systems/CutIn.js';
 import { gradeOf, runBeats } from '../systems/RecollectionBeats.js';
@@ -510,7 +511,7 @@ export default class BattleScene extends Phaser.Scene {
   // Called when an enemy starts a telegraph. Returns true if Nala is watching it.
   nalaWatch(enemy, ring) {
     const nala = this.nala;
-    if (!nala || nala.used || nala.glowCasting || !enemy.def.hollow) return false;
+    if (!this.nalaCanWatch(enemy)) return false;
     nala.ring = ring;
     nala.enemy = enemy;
     const g = nala.def.glow;
@@ -520,6 +521,12 @@ export default class BattleScene extends Phaser.Scene {
     this.tapHint.setText(nala.def.promptText);
     this.nalaRefreshGlow();
     return true;
+  }
+
+  // Nala would sense this enemy's attack now: she has a save left, is not casting, and it is a Hollow.
+  nalaCanWatch(enemy) {
+    const nala = this.nala;
+    return !!nala && !nala.used && !nala.glowCasting && !!enemy.def.hollow;
   }
 
   nalaStopWatching() {
@@ -1095,13 +1102,14 @@ export default class BattleScene extends Phaser.Scene {
     const name = (label) => (this.fogged(hero) ? statuses.fog.label : label);
     while (true) {
       const main = [
-        { slot: 'strike', label: name(labels.strike), value: 'strike', pulse: this.hints.isShowing('strike') },
+        { slot: 'strike', label: name(labels.strike), value: 'strike', pulse: this.hints.isShowing('strike'), help: this.helpFor('strike', hero) },
         {
           slot: 'technique',
           label: name(labels.technique),
           value: 'technique',
           enabled: hero.techniques.some((id) => !this.covered(hero, id)),
           pulse: this.hints.isShowing('techniques'),
+          help: this.helpFor('technique', hero),
         },
       ];
       // Only battles with `recollection` get the ultimate slot; elsewhere it stays empty.
@@ -1184,11 +1192,12 @@ export default class BattleScene extends Phaser.Scene {
   // visible from the first fight.
   ultimateItem(hero, label) {
     if (!this.battleDef.recollection) return null;
-    if (this.canUltimate(hero)) return { slot: 'ultimate', label, value: 'ultimate', pulse: true, variant: 'primary' };
+    const help = this.helpFor('recollection', hero);
+    if (this.canUltimate(hero)) return { slot: 'ultimate', label, value: 'ultimate', pulse: true, variant: 'primary', help };
     const rhea = this.heroes.find((h) => h.def.canUltimate) || this.heroes[0];
     const max = techniques.recollection.cost;
     const cost = ui.commands.labels.ultimateProgress.replace('{n}', Math.min(rhea.echo, max)).replace('{max}', max);
-    return { slot: 'ultimate', label, enabled: false, variant: 'teaser', cost, progress: { value: rhea.echo, max } };
+    return { slot: 'ultimate', label, enabled: false, variant: 'teaser', cost, progress: { value: rhea.echo, max }, help };
   }
 
   canUltimate(hero) {
@@ -1218,9 +1227,15 @@ export default class BattleScene extends Phaser.Scene {
       enabled: hero.echo >= this.techOf(hero, id).cost && !this.covered(hero, id) && this.healHasTarget(this.techOf(hero, id)),
       covered: this.covered(hero, id),
       value: id,
+      help: this.covered(hero, id) ? null : this.helpFor(id, hero),
     }));
     items.push({ slot: 'back', label: ui.commands.labels.back, value: null });
     return items;
+  }
+
+  // The long-press card of a command (MoveHelp.helpCard) at the hero's Recall level; none while fogged.
+  helpFor(id, hero) {
+    return this.fogged(hero) ? null : helpCard(id, hero.level ?? this.level);
   }
 
   // battles.json lockedTechniques {techId: flag}: the technique can't be used until a battle event sets the flag.
@@ -1687,6 +1702,9 @@ export default class BattleScene extends Phaser.Scene {
     // The first red ring of the run: a spotlight pause before the ring exists (tutorial.json red_ring).
     // The slow-mo lesson below still runs; its own text prompt would repeat the pause, so it stays off.
     const redPaused = hit.pausedBefore || (hit.unparryable && (await this.runPause('red_ring', { enemy, hero: target })));
+    // battles.json pauses.nalaWatch: the first time Nala senses a Hollow, a guided pause (tap her) before the ring
+    // exists. Resolves true when the tap went through to her: the save fires as soon as the ring is up.
+    let nalaSave = this.nalaCanWatch(enemy) && (await this.runPause(this.battleDef.pauses?.nalaWatch));
     this.tapHint.setText(hit.unparryable ? red.hint : qte.hint.text);
     // The second gesture (ui.json tutorial.hints.dodge) is taught on the first white ring after the
     // slow-mo tap lesson, in whichever battle that is; it shows once and waits if another banner is up.
@@ -1718,6 +1736,10 @@ export default class BattleScene extends Phaser.Scene {
       // The attack's own sound as it winds up (enemies.json hit.sfx), e.g. the Clerk's ledger pages.
       if (hit.sfx && k === 0) playSfx(hit.sfx);
       const watched = this.nalaWatch(enemy, ring);
+      if (watched && nalaSave) {
+        nalaSave = false;
+        this.nalaHiss();
+      }
 
       const abort = { aborted: false };
       const feintPauseMs = hit.feint ? hit.feint.pauseMs / slow : 0;
@@ -2783,17 +2805,18 @@ export default class BattleScene extends Phaser.Scene {
     else if (tech.type === 'counterStance') await this.startStance(hero, tech);
     else if (tech.type === 'heal') await this.playHeal(hero, tech, target);
     else if (tech.type === 'brace') await this.playBrace(hero, tech);
-    else if (tech.type === 'quake') await this.playQuake(hero, tech, techId);
+    else if (tech.type === 'quake') await this.playQuake(hero, tech, techId, target);
   }
 
   // Tremor (Dov): he slams the ground and the shockwave hits every living
   // enemy (Hollows too: it's an Echo move). One cast is one player hit for Echo.
-  async playQuake(hero, tech, techId) {
+  // At the levels where techniques.json tremor.target is "enemy" (Recall 1) it hits only the chosen one.
+  async playQuake(hero, tech, techId, target = null) {
     await this.playMove(hero, tech.anims || ['cast'], () => {
       Fx.popText(this, hero.container.x, hero.container.y, tech.castText, tech.color, qte.text);
       Fx.shake(this, tech.shake, tech.shakeMs);
       Fx.screenFlash(this, tech.flash, qte.flashDepth);
-      const targets = this.enemies.filter((e) => e.hp > 0);
+      const targets = this.enemies.filter((e) => e.hp > 0 && (tech.target !== 'enemy' || !target || e === target));
       let landed = 0;
       for (const enemy of targets) {
         Fx.sparks(this, enemy.container.x, enemy.container.y + enemy.height / 2, tech.sparks.count, tech.sparks, ui.battleLayout.labelDepth);

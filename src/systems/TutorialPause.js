@@ -51,8 +51,10 @@ export function hasSeen(registry, id) {
 
 // The pause with this id would show now: it exists, pauses are on, this battle
 // shows tutorials (or the pause is `always`) and it wasn't shown this run.
-export function wouldShow(scene, id) {
-  const def = tutorial.pauses[id];
+// `inline` is a pause definition that is not in tutorial.json (the Recall card builds
+// learn_<tech> pauses from techniques.json help); it counts as seen under its id like any other.
+export function wouldShow(scene, id, inline = null) {
+  const def = inline || tutorial.pauses[id];
   if (!def || pausesMode() === 'off') return false;
   if (scene.battleDef && !scene.battleDef.tutorial && !def.always) return false;
   return pausesMode() === 'all' || !hasSeen(scene.registry, id);
@@ -63,9 +65,9 @@ export function stepsOf(def) {
 }
 
 // Resolves true when the player has been through the pause, false at once when it doesn't apply.
-export function show(scene, id, targets = {}, flags = {}) {
-  if (!wouldShow(scene, id)) return Promise.resolve(false);
-  const def = tutorial.pauses[id];
+export function show(scene, id, targets = {}, flags = {}, inline = null) {
+  if (!wouldShow(scene, id, inline)) return Promise.resolve(false);
+  const def = inline || tutorial.pauses[id];
   scene.registry.set(REGISTRY_KEY, [...(scene.registry.get(REGISTRY_KEY) || []), id]);
   for (const hint of def.skipHints || []) scene.hints?.skip(hint);
   return new Promise((resolve) => new Pause(scene, id, def, targets, resolve, flags).start());

@@ -25,6 +25,7 @@
   "_targetsAbout": "cmd.<techniqueId> spotlights the slot that technique stands in while the technique list is open; enemy.poise.<n> is enemy n's poise line.",
   "targetsWithHero": ["hud.hp", "hud.echo"],
   "recallCard": "leveling",
+  "recallLearn": { "enabled": true, "idPrefix": "learn_", "lineTarget": "recall.line", "_about": "RecallCard: once its lines are up, a pause per technique learned (or upgraded) this run, built from techniques.json <id>.help (steps on learn, upgrades[level] on an upgrade); id learn_<tech> / learn_<tech>_<level>; spotlight = that card line." },
   "pauses": {
     "battle_start": {
       "steps": [
@@ -58,7 +59,8 @@
           "text": "Techniques spend the Echo your Strikes and PERFECT parries earn. When Echo runs out, Strike.",
           "textIfShort": "Techniques spend the Echo your Strikes and PERFECT parries earn. When Echo runs out, Strike. (Strike once more to afford it.)",
           "targets": ["cmd.blast", "hud.echo.rhea"]
-        }
+        },
+        { "text": "Hold any ability to read what it does.", "targets": ["cmd.blast"] }
       ]
     },
     "break_intro": {
@@ -87,6 +89,13 @@
       "targets": ["tapzone"],
       "indicator": "swipe",
       "always": true
+    },
+    "nala_save": {
+      "mode": "guided",
+      "always": true,
+      "text": "Nala senses a Hollow. Tap her to stop the attack!",
+      "targets": ["nala"],
+      "indicator": "tap"
     },
     "nala_glow": {
       "steps": [

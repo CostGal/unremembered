@@ -83,6 +83,10 @@ export function makeGlassButton(scene, x, y, size, glass, variant, label, onTap,
   paint(false);
 
   rect.setInteractive({ useHandCursor: true });
+  if (opts.hold) {
+    attachHold(scene, container, rect, glass, paint, onTap, opts.hold);
+    return { container, rect, text, body, setVariant: (name) => { v = glass.variants[name]; paint(false); } };
+  }
   rect.on('pointerdown', () => {
     if (!opts.instant) {
       pressButton(scene, container, rect, glass, onTap, paint);
@@ -107,6 +111,46 @@ export function makeGlassButton(scene, x, y, size, glass, variant, label, onTap,
     paint(false);
   };
   return { container, rect, text, body, setVariant };
+}
+
+// A button that tells a short tap from a long press (opts.hold = {ms, moveTol, enabled, onHold(), onRelease()}).
+// The press shows at once (the lit fill; the tick comes with the action); the action runs on RELEASE, only if the press was
+// shorter than `ms` and the finger moved at most `moveTol` px. Held `ms`: onHold() opens the help card,
+// the release (anywhere) calls onRelease() and never the action. A disabled button
+// (hold.enabled === false) still opens its help but has no tap action.
+function attachHold(scene, container, rect, glass, paint, onTap, hold) {
+  let press = null; // {timer, held}
+  const cancel = () => {
+    if (!press) return;
+    clearTimeout(press.timer);
+    press = null;
+    scene.input.off('pointerup', up);
+    scene.input.off('pointerupoutside', up);
+  };
+  const up = (pointer) => {
+    const p = press;
+    if (!p) return;
+    cancel();
+    if (rect.active) paint(false);
+    if (p.held) return hold.onRelease?.();
+    if (hold.enabled === false || (pointer && pointer.getDistance() > hold.moveTol)) return;
+    pressButton(scene, container, rect, glass, onTap, paint);
+  };
+  rect.on('pointerdown', (pointer) => {
+    if (press || container.pressed) return;
+    press = { held: false, timer: 0 };
+    if (hold.enabled !== false) paint(true);
+    press.timer = setTimeout(() => {
+      if (!press || !rect.active || !pointer.isDown || pointer.getDistance() > hold.moveTol) return;
+      press.held = true;
+      paint(false);
+      hold.onHold();
+    }, hold.ms);
+    scene.input.on('pointerup', up);
+    scene.input.on('pointerupoutside', up);
+  });
+  rect.on('pointerup', up);
+  container.once('destroy', cancel);
 }
 
 export function addText(scene, x, y, str, cfg) {

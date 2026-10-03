@@ -46,6 +46,7 @@
     "enemies": ["blank", "hollow"],
     "nala": true,
     "music": "battle_hollow",
+    "pauses": { "nalaWatch": "nala_save" },
     "events": [
       { "id": "b2_start", "when": "battleStart", "dialogue": "b2_start" },
       { "id": "b2_immune", "when": "firstImmune", "dialogue": "b2_immune" }

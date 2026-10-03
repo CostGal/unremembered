@@ -8,7 +8,7 @@
   },
   "learn": {
     "rhea": { "blast": 1, "return_to_sender": 2 },
-    "dov": { "anchor": 1, "tremor": 3, "brace": 4 }
+    "dov": { "tremor": 1, "anchor": 1, "brace": 4 }
   },
   "flavor": {
     "return_to_sender": "A courier's rule: every letter finds its way home.",
@@ -26,7 +26,8 @@
     "upgrade": "{tech} grows: {detail}",
     "hud": "Lv{n}"
   },
-  "upgradeDetail": { "cost": "{n} Echo", "hits": "{a}–{b} bolts", "hitsSame": "{a} bolts", "critChance": "{pct}% crit", "amount": "heals {n}" },
+  "upgradeDetail": { "cost": "{n} Echo", "hits": "{a}–{b} bolts", "hitsSame": "{a} bolts", "critChance": "{pct}% crit", "amount": "heals {n}",
+    "target": "hits everyone" },
   "hud": { "fontSize": 10, "color": "#f0c060", "gap": 3, "dy": 1 },
   "card": {
     "x": 30,

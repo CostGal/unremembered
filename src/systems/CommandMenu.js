@@ -81,6 +81,7 @@ export default class CommandMenu {
   }
 
   hide() {
+    this.hideHelp();
     this.pending = null;
     this.items = [];
     for (const b of this.buttons) {
@@ -93,6 +94,48 @@ export default class CommandMenu {
     this.promptText.setY(this.cfg.prompt.y).setFontSize(this.cfg.prompt.fontSize);
   }
 
+  // The long-press help card (ui.commands.help.card) over the command area: name, cost, the short text and,
+  // for Blast, its current level line. info = MoveHelp.helpCard(). Closed by the release (the button calls
+  // hideHelp), by any new touch, or when the menu changes.
+  showHelp(info) {
+    this.hideHelp();
+    const c = this.cfg.help.card;
+    const scene = this.scene;
+    const text = (x, y, str, f, extra = {}) =>
+      scene.add.text(x, y, str, { fontFamily: this.font, fontSize: `${f.fontSize}px`, color: f.color, ...extra });
+    const left = c.x - c.w / 2 + c.padX;
+    const name = text(left, 0, info.name, c.name);
+    const cost = info.cost ? text(c.x + c.w / 2 - c.padX, 0, info.cost, c.cost).setOrigin(1, 0) : null;
+    const short = text(left, 0, info.short, c.short, { wordWrap: { width: c.wrap }, lineSpacing: c.short.lineSpacing });
+    const level = info.level ? text(left, 0, info.level, c.level, { wordWrap: { width: c.wrap } }) : null;
+    const gap = 8;
+    const h = c.padY * 2 + name.height + gap + short.height + (level ? gap + level.height : 0);
+    const top = c.y - h / 2;
+    const bg = scene.add.graphics();
+    bg.fillStyle(Number(c.fill), c.alpha);
+    bg.fillRoundedRect(c.x - c.w / 2, top, c.w, h, c.radius);
+    bg.lineStyle(2, Number(c.stroke), 1);
+    bg.strokeRoundedRect(c.x - c.w / 2, top, c.w, h, c.radius);
+    name.setY(top + c.padY);
+    cost?.setY(top + c.padY + (name.height - cost.height) / 2);
+    short.setY(top + c.padY + name.height + gap);
+    level?.setY(short.y + short.height + gap);
+    const parts = [bg, name, short, ...(cost ? [cost] : []), ...(level ? [level] : [])];
+    parts.forEach((o) => o.setDepth(o === bg ? c.depth : c.depth + 0.1).setAlpha(0)); // the panel under its texts
+    scene.tweens.add({ targets: parts, alpha: 1, duration: c.fadeMs });
+    this.helpCard = parts;
+    // Any new touch closes it too (a release swallowed by an overlay must not leave it up).
+    this.helpClose = () => this.hideHelp();
+    scene.input.once('pointerdown', this.helpClose);
+  }
+
+  hideHelp() {
+    if (!this.helpCard) return;
+    this.scene.input.off('pointerdown', this.helpClose);
+    this.helpCard.forEach((o) => o.destroy());
+    this.helpCard = null;
+  }
+
   // A glass button (ui.glass). variant: item.variant, else normal / disabled.
   // item.progress = {value, max}: a bar fills the button from the left (the
   // Recollection teaser).
@@ -102,7 +145,10 @@ export default class CommandMenu {
     const w = item.pos?.w ?? this.cfg.slotWidths?.[item.slot] ?? b.w;
     const enabled = item.enabled !== false;
     const variant = item.variant || (enabled ? 'normal' : 'disabled');
-    const button = makeGlassButton(this.scene, x, y, { w, h: b.h, fontSize: b.fontSize }, ui.glass, variant, item.label, onTap);
+    // item.help (MoveHelp.helpCard): a long press shows the card instead of acting (Button.js attachHold).
+    const hc = this.cfg.help;
+    const hold = item.help ? { ms: hc.holdMs, moveTol: hc.moveTol, enabled, onHold: () => this.showHelp(item.help), onRelease: () => this.hideHelp() } : null;
+    const button = makeGlassButton(this.scene, x, y, { w, h: b.h, fontSize: b.fontSize }, ui.glass, variant, item.label, onTap, hold ? { hold } : {});
     const { container, rect, text, body } = button;
     container.setDepth(b.depth || 0);
 
@@ -142,7 +188,7 @@ export default class CommandMenu {
       body.add(bar);
     }
 
-    if (!enabled) rect.disableInteractive();
+    if (!enabled && !item.help) rect.disableInteractive();
 
     let pulse = null;
     if (item.pulse && enabled) {

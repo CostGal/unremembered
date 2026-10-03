@@ -5,6 +5,7 @@ import { playSfx } from './Audio.js';
 import * as Fx from './Fx.js';
 import tutorial from '../data/tutorial.json';
 import * as TutorialPause from './TutorialPause.js';
+import { learnSteps } from './MoveHelp.js';
 import { growth, levelFor, levelUps, maxLevel, techniqueAt, xpForLevel } from './Recall.js';
 
 const color = (hex) => Number(hex);
@@ -158,12 +159,12 @@ export default class RecallCard {
     }
     for (const hero of this.heroes) {
       for (const id of up.learned[hero.type] || []) {
-        lines.push({ text: fill(t.remembers, { hero: hero.name, tech: techniques[id]?.name || id }), learn: true, flavor: levels.flavor[id] });
+        lines.push({ text: fill(t.remembers, { hero: hero.name, tech: techniques[id]?.name || id }), learn: true, flavor: levels.flavor[id], pauseKey: id });
       }
     }
     for (const hero of this.heroes) {
       for (const id of up.upgraded?.[hero.type] || []) {
-        lines.push({ text: fill(t.upgrade, { tech: techniques[id]?.name || id, detail: this.upgradeDetail(id, up.level) }), learn: true });
+        lines.push({ text: fill(t.upgrade, { tech: techniques[id]?.name || id, detail: this.upgradeDetail(id, up.level) }), learn: true, pauseKey: `${id}_${up.level}` });
       }
     }
     return lines;
@@ -190,6 +191,10 @@ export default class RecallCard {
     const l = levels.card.lines;
     const out = [this.text(l.x, this.lineY, line.text, l.fontSize, line.learn ? l.learnColor : l.color).setOrigin(0, 0.5)];
     this.lineObjs.push(out[0]);
+    // The Recall-learn pauses spotlight this line (tutorial.json recallLearn).
+    if (line.pauseKey && this.scene.tutorialTargets) {
+      this.scene.tutorialTargets[`${tutorial.recallLearn.lineTarget}.${line.pauseKey}`] = { x: l.x, y: this.lineY - l.spacing / 2 + 1, w: levels.card.w - (l.x - levels.card.x) * 2, h: l.spacing - 2, pad: 4 };
+    }
     this.lineY += line.flavor ? l.flavorSpacing : l.spacing;
     if (line.flavor) {
       const f = this.text(l.x, this.lineY, line.flavor, l.flavorFontSize, l.flavorColor, { fontStyle: 'italic', wordWrap: { width: l.wrap } }).setOrigin(0, 0);
@@ -220,6 +225,28 @@ export default class RecallCard {
     this.done();
   }
 
+  // One pause per move remembered (steps) or grown (upgrades[level]) on this card that the run has not
+  // explained yet: pause id learn_<tech> / learn_<tech>_<level>, spotlight on that card line.
+  async learnPauses() {
+    const cfg = tutorial.recallLearn;
+    if (!cfg?.enabled) return;
+    this.phase = 'paused';
+    for (const up of this.ups) {
+      const jobs = [];
+      for (const hero of this.heroes) {
+        for (const id of up.learned[hero.type] || []) jobs.push({ key: id, id, upgrade: false });
+        for (const id of up.upgraded?.[hero.type] || []) jobs.push({ key: `${id}_${up.level}`, id, upgrade: true });
+      }
+      for (const job of jobs) {
+        const steps = learnSteps(job.id, up.level, job.upgrade);
+        if (!steps) continue;
+        const target = `${cfg.lineTarget}.${job.key}`;
+        const def = { always: true, steps: steps.map((text) => ({ text, targets: [target] })) };
+        await TutorialPause.show(this.scene, `${cfg.idPrefix}${job.key}`, {}, {}, def);
+      }
+    }
+  }
+
   done() {
     if (this.phase !== 'filling') return;
     this.phase = 'ending';
@@ -230,6 +257,7 @@ export default class RecallCard {
         this.phase = 'paused';
         await TutorialPause.show(this.scene, tutorial.recallCard);
       }
+      await this.learnPauses();
       this.phase = 'ready';
       const go = this.scene.add
         .text(180, b.hintY, b.continueText, { fontFamily: ui.font, fontSize: `${b.hintFontSize}px`, color: b.hintColor })

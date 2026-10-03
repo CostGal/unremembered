@@ -20,7 +20,7 @@ import { join } from 'node:path';
 import { root } from './lib/harness.mjs';
 import { dueEvents, thenSplit } from '../src/systems/BattleEvents.js';
 import { computeGrade } from '../src/systems/Grade.js';
-import { chapterXpBefore, echoMaxFor, growth, learned, levelFor, techniqueAt } from '../src/systems/Recall.js';
+import { chapterXpBefore, echoMaxFor, growth, learned, levelFor, levelUps, techniqueAt } from '../src/systems/Recall.js';
 
 const read = (p) => JSON.parse(readFileSync(join(root, p), 'utf8'));
 const D = {
@@ -191,13 +191,23 @@ function simulateBattle(battleId, profileName, mode, rnd) {
   // A move with firstUsePause (the crush) stands in for the generic red_ring pause when every red ring of that fight has one.
   const redAttacks = battle.enemies.flatMap((e) => reds(battle, e));
   const redPause = redAttacks.length && redAttacks.every((a) => a.firstUsePause) ? redAttacks[0].firstUsePause : 'red_ring';
-  const pauseIds = [battle.pauses?.battleStart, ...Object.values(battle.pauses?.enemyAttack || {}), ...Object.values(battle.pauses?.menuAfterFlag || {}), battle.pauses?.techniqueMenu, battle.tutorial ? D.tutorial.recallCard : null];
+  const pauseIds = [battle.pauses?.battleStart, ...Object.values(battle.pauses?.enemyAttack || {}), ...Object.values(battle.pauses?.menuAfterFlag || {}), battle.pauses?.techniqueMenu, battle.pauses?.nalaWatch, battle.tutorial ? D.tutorial.recallCard : null];
   if (battleId === firstRed) pauseIds.push(redPause);
   const pauseSteps = pauseIds.reduce((n, id) => {
     const def = D.tutorial.pauses[id];
     return n + (def && (battle.tutorial || def.always) ? (def.steps || [0]).length : 0);
   }, 0);
-  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0) + pauseSteps * (T.pauseMs?.[profileName] ?? 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, memoryCasts: 0, memoryFails: 0, memoryGrade: null, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaSaves: battle.nala ? 1 + mem('nalaExtraUses') : 0, glowOn: false, glowCd: 0, glows: 0, hollowDamage: 0, hollowImmune: 0, quietRounds: 0, stance: null, brace: null, pending: [], firedCharge: new Set(), flags: [], playerHits: 0, parrySuccess: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  // The Recall card after a win also pauses once per move remembered or grown (tutorial.json recallLearn,
+  // techniques.json help): one tap-through per step. Time only.
+  let learnSteps = 0;
+  if (D.tutorial.recallLearn?.enabled && stepIndex >= 0) {
+    const xpAfter = chapterXpBefore(D.chapter, stepIndex + 1, D.battles, D.enemies);
+    for (const up of levelUps(chapterXpBefore(D.chapter, stepIndex, D.battles, D.enemies), xpAfter, D.levels, D.techniques)) {
+      for (const ids of Object.values(up.learned)) for (const id of ids) learnSteps += (D.techniques[id]?.help?.steps || []).length;
+      for (const ids of Object.values(up.upgraded)) for (const id of ids) learnSteps += (D.techniques[id]?.help?.upgrades?.[up.level] || []).length;
+    }
+  }
+  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0) + (pauseSteps + learnSteps) * (T.pauseMs?.[profileName] ?? 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, memoryCasts: 0, memoryFails: 0, memoryGrade: null, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaSaves: battle.nala ? 1 + mem('nalaExtraUses') : 0, glowOn: false, glowCd: 0, glows: 0, hollowDamage: 0, hollowImmune: 0, quietRounds: 0, stance: null, brace: null, pending: [], firedCharge: new Set(), flags: [], playerHits: 0, parrySuccess: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   // Echo is per hero (each has their own reserve).
   // A difficulty with echoMult < 1 earns Echo more slowly (the fraction carries over); raw skips it (the Keepsake).
   const gain = (hero, n, raw = false) => {
@@ -527,10 +537,13 @@ function simulateBattle(battleId, profileName, mode, rnd) {
         return;
       }
       // Tremor (hits every enemy) when there's a crowd or a Strike-immune target.
-      if (can('tremor') && (targets.length > 1 || !strikeTarget)) {
+      // At Recall 1 Tremor hits ONE enemy (techniques.json tremor.levels.1.target "enemy"): worth its Echo only
+      // against a Strike-immune Hollow (it carries Echo), so Dov casts it on that one.
+      const single = tk('tremor')?.target === 'enemy';
+      if (can('tremor') && (single ? targets.some((e) => immune(e, 'strike', hero)) : targets.length > 1 || !strikeTarget)) {
         hero.echo -= tk('tremor').cost;
         let landed = 0;
-        for (const e of targets) {
+        for (const e of single ? [target] : targets) {
           if (defends(e, 'dodge', 'tremor')) continue;
           hitEnemy(e, between(rnd, tk('tremor').dmg), 'ability');
           landed += 1;

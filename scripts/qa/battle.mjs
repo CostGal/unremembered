@@ -459,6 +459,36 @@ await withBrowser(async ({ chrome, server }) => {
     await sleep(700);
     const j1 = await pb.ev(`({ x: window.__battle.nala.container.x, y: window.__battle.nala.container.y, sx: window.__battle.nala.container.scaleX, sy: window.__battle.nala.container.scaleY, apex: window.__apex, anim: window.__battle.nala.image.anims.currentAnim?.key, trace: Object.keys(window.__animTrace || {}).includes('nala:jumpIn') })`);
     log(Math.abs(j1.x - j0.x) < 0.5 && Math.abs(j1.y - j0.y) < 0.5 && j0.y - j1.apex > 60 && j1.sx < 0 && j1.sy === 1 && j1.anim === 'nala_idle' && j1.trace, 'Nala: jumpIn() arcs ~70px over the ground, lands where she stood (flip kept), back to idle', JSON.stringify({ j0, j1 }));
+
+    // ---- nala_save: the first Hollow of the run stops the game before its ring (guided: tap Nala) ----
+    const ng = await battle(chrome, server, 'b2_first_hollow', { extra: '&level=2&pauses=on' });
+    await waitMenuThroughDialogue(ng);
+    await ng.ev(`window.__battle.hideCommandMenu(); window.__battle.tutorialSlow = false; window.__battle.heroes.forEach((h) => { h.hp = h.maxHp; }); window.__results.length = 0; window.__done = null; window.__stub([0, 0.0]); window.__battle.enemyTurn(window.__battle.enemies[0]).then(() => { window.__done = true; }); null`); // not the promise: the pause holds it
+    await ng.waitFor(`window.__done === true`, { timeout: 15000 });
+    const blankPaused = await B(ng, `B.registry.get('tutorialSeen') || []`);
+    log(!blankPaused.includes('nala_save'), 'nala_save: a Forgotten attack does not trigger it', JSON.stringify(blankPaused));
+    await ng.ev(`window.__battle.nala.used = false; window.__battle.heroes.forEach((h) => { h.hp = h.maxHp; }); window.__results.length = 0; window.__done = null; window.__stub([0, 0.0]); window.__battle.enemyTurn(window.__battle.enemies[1]).then(() => { window.__done = true; }); null`); // not the promise: the pause holds it
+    await ng.waitFor(`window.__battle.tutorialPause && window.__battle.tutorialPause.id === 'nala_save'`, { timeout: 15000 });
+    await sleep(500);
+    const np = await B(ng, `({ id: B.tutorialPause.id, guided: B.tutorialPause.guided, hole: B.tutorialPause.hole, rings: B.qteRings?.size || 0, ring: !!B.nala.ring, nala: (() => { const b = B.nala.image.getBounds(); return { x: b.centerX, y: b.centerY }; })() })`);
+    log(np.guided && np.rings === 0 && !np.ring, 'nala_save: guided pause up BEFORE the ring exists (no ring, Nala not watching yet)', JSON.stringify(np));
+    log(Math.abs(np.hole.x - np.nala.x) < 40 && Math.abs(np.hole.y - np.nala.y) < 60, 'nala_save: the spotlight is on Nala', JSON.stringify({ hole: np.hole, nala: np.nala }));
+    const npt = await pauseTexts2(ng);
+    log(npt.some((t) => t === 'Nala senses a Hollow. Tap her to stop the attack!') && !npt.includes('Tap to continue'), 'nala_save: text, no "Tap to continue"', JSON.stringify(npt));
+    await ng.shot(join(out, 'nala_save_pause.png'));
+    await ng.tap(180, 590);
+    await sleep(500);
+    log(await B(ng, `B.tutorialPause?.id === 'nala_save' && !B.nala.used && (B.qteRings?.size || 0) === 0`), 'nala_save: a tap outside the spotlight is swallowed (still paused, nothing started)');
+    await ng.tap(np.hole.x, np.hole.y);
+    await ng.waitFor(`window.__done === true`, { timeout: 8000 });
+    const ns = await B(ng, `({ pause: B.tutorialPause, used: B.nala.used, results: window.__results.length, hp: B.heroes.map((h) => h.hp), max: B.heroes.map((h) => h.maxHp), trace: Object.keys(window.__animTrace || {}).filter((k) => k.includes('nala_hiss')) })`);
+    log(!ns.pause && ns.used && ns.results === 0 && ns.hp.every((h, i) => h === ns.max[i]) && ns.trace.includes('play:nala_hiss'), 'nala_save: the tap through the spotlight fires the save (hiss, attack cancelled, no damage, no judgement)', JSON.stringify(ns));
+    await ng.ev(`window.__battle.nala.used = false; window.__battle.heroes.forEach((h) => { h.hp = h.maxHp; }); window.__results.length = 0; window.__done = null; window.__stub([0, 0.0]); window.__battle.enemyTurn(window.__battle.enemies[1]).then(() => { window.__done = true; }); null`); // not the promise: the pause holds it
+    await sleep(900);
+    const again = await B(ng, `({ pause: B.tutorialPause?.id ?? null, watching: !!B.nala.ring, rings: B.qteRings?.size || 0 })`);
+    log(again.pause === null && again.watching && again.rings > 0, 'nala_save: once per run (the next Hollow telegraph starts at once, Nala glows, text prompt only)', JSON.stringify(again));
+    await ng.waitFor(`window.__done === true`, { timeout: 10000 });
+    log(ng.errors.length === 0, 'nala_save: no page errors', ng.errors.slice(0, 2).join(' | '));
   }
 
   // ============ F-duel: refuse -> wake -> slow first ring -> parry -> events -> Blast -> Nala -> interrupted end ============
@@ -716,13 +746,18 @@ await withBrowser(async ({ chrome, server }) => {
     await sleep(500);
     await page.shot(join(out, 'pause_e2_blast.png'));
     const b1t = await pauseTexts();
-    log((await tp())?.steps === 2 && b1t.some((t) => /^Blast: your first Technique\. 2 Echo, 2 bolts of pure memory\.$/.test(t.text)) && b1t.every((t) => t.lines <= 3 || /\d\/\d|Tap to continue/.test(t.text)), 'Pauses: blast_explain step 1 text', JSON.stringify(b1t.map((t) => [t.text, t.lines])));
+    log((await tp())?.steps === 3 && b1t.some((t) => /^Blast: your first Technique\. 2 Echo, 2 bolts of pure memory\.$/.test(t.text)) && b1t.every((t) => t.lines <= 3 || /\d\/\d|Tap to continue/.test(t.text)), 'Pauses: blast_explain step 1 text', JSON.stringify(b1t.map((t) => [t.text, t.lines])));
     await continueTap();
     await waitStep(1);
     await sleep(500);
     await page.shot(join(out, 'pause_e3_echo.png'));
     const b2t = await pauseTexts();
     log(b2t.some((t) => /^Techniques spend the Echo your Strikes and PERFECT parries earn\. When Echo runs out, Strike\. \(Strike once more to afford it\.\)$/.test(t.text)), 'Pauses: blast_explain step 2 text (with the "Strike once more" line when Echo < 2)', JSON.stringify(b2t.map((t) => t.text)));
+    await continueTap();
+    await waitStep(2);
+    await sleep(500);
+    const b3t = await pauseTexts();
+    log(b3t.some((t) => /^Hold any ability to read what it does\.$/.test(t.text)) && b3t.every((t) => t.lines <= 2 || /\d\/\d|Tap to continue/.test(t.text)), 'Pauses: blast_explain step 3 text ("Hold any ability ...", at most 2 lines)', JSON.stringify(b3t.map((t) => [t.text, t.lines])));
     await continueTap();
     await page.waitFor(`!window.__battle.tutorialPause`, { timeout: 5000 });
     await sleep(300);
@@ -1124,6 +1159,112 @@ await withBrowser(async ({ chrome, server }) => {
     await sleep(300);
     log((await page.ev(`window.__pick`)) === 'dov', 'no revive: the downed hero is no candidate, one valid hero is auto-picked');
     log(page.errors.length === 0, 'no console errors in targeting (anchor)', page.errors.slice(0, 2).join(' | '));
+  }
+
+  // ============ F-moves: long-press help cards, move tutorials on the Recall card ============
+  if (want('moves')) {
+    const hcfg = ui.commands.help;
+    const cardUp = (page) => B(page, `!!B.menu.helpCard`);
+    const cardTexts = (page) => B(page, `(B.menu.helpCard || []).filter((o) => o.type === 'Text').map((o) => o.text)`);
+    const page = await battle(chrome, server, 'b1_forgotten', { extra: '&level=1&pauses=0' });
+    await waitMenu(page);
+    await page.ev(`window.__battle.tutorialSlow = false`);
+    const hp0 = await B(page, `B.enemies.map((e) => e.hp)`);
+    // A long press on Strike: the card opens, no Strike; the release closes it.
+    await page.move(...slots.strike);
+    await page.down(...slots.strike);
+    await sleep(hcfg.holdMs + 250);
+    const t1 = await cardTexts(page);
+    log(t1.includes('Strike') && t1.includes("Free. Builds Echo on hit. Can't touch Hollows."), 'Help: a long press on Strike opens its card (name + short text)', JSON.stringify(t1));
+    await page.shot(join(out, 'help_strike.png'));
+    await page.up(...slots.strike);
+    await sleep(500);
+    const a1 = await B(page, `({ pending: !!B.menu.pending, hp: B.enemies.map((e) => e.hp), card: !!B.menu.helpCard, items: B.menu.items.map((i) => i.slot) })`);
+    log(a1.pending && JSON.stringify(a1.hp) === JSON.stringify(hp0) && !a1.card && a1.items.includes('strike'), 'Help: the release closes the card and the long press did NOT strike (menu still waiting, enemy HP unchanged)', JSON.stringify(a1));
+    // Moving > 10 px cancels the long press (and the tap).
+    await page.move(...slots.strike);
+    await page.down(...slots.strike);
+    await page.move(slots.strike[0] + 30, slots.strike[1]);
+    await sleep(hcfg.holdMs + 250);
+    log(!(await cardUp(page)), 'Help: a press that moves more than 10 px opens no card');
+    await page.up(slots.strike[0] + 30, slots.strike[1]);
+    await sleep(400);
+    log(await B(page, `!!B.menu.pending && B.menu.items.some((i) => i.slot === 'strike')`), 'Help: ...and that drag is no tap either (nothing struck)');
+    // Technique: a long press shows its card and does not open the list; a short tap opens it.
+    await page.move(...slots.technique);
+    await page.down(...slots.technique);
+    await sleep(hcfg.holdMs + 250);
+    const t2 = await cardTexts(page);
+    log(t2.includes('Technique'), 'Help: Technique has a card too', JSON.stringify(t2));
+    await page.up(...slots.technique);
+    await sleep(300);
+    log(await B(page, `!!B.menu.pending && B.menu.items.some((i) => i.slot === 'technique')`), 'Help: a long press on Technique does not open the list');
+    await page.tap(...slots.technique);
+    await sleep(500);
+    log(await B(page, `B.menu.items.some((i) => i.value === 'blast')`), 'Help: a short tap on Technique opens the list');
+    await page.move(...slots.strike);
+    await page.down(...slots.strike);
+    await sleep(hcfg.holdMs + 250);
+    const t3 = await cardTexts(page);
+    log(t3.includes('Blast') && t3.some((t) => /^Recall 1: 2 Echo, 2 bolts$/.test(t)) && t3.includes('Bolts of pure memory. Spends Echo.'), "Help: a technique entry shows name, cost, short text and Blast's level line", JSON.stringify(t3));
+    await sleep(400);
+    await page.shot(join(out, 'help_blast.png'));
+    await page.up(...slots.strike);
+    await sleep(300);
+    log(await B(page, `!!B.menu.pending && B.menu.items.some((i) => i.value === 'blast')`), 'Help: ...and did not cast it');
+    await page.tap(...slots.back);
+    await sleep(400);
+    await page.tap(...slots.strike);
+    await sleep(600);
+    log(await B(page, `B.menu.items.some((i) => i.slot === 'target')`), 'Help: a short tap on Strike acts (the target cards open)');
+    log(page.errors.length === 0, 'Help: no page errors', page.errors.slice(0, 2).join(' | '));
+
+    // Recollection teaser (boss): a card on the disabled button, no action.
+    const bp = await battle(chrome, server, 'boss_clerk');
+    await waitMenuThroughDialogue(bp);
+    await bp.move(...slots.ultimate);
+    await bp.down(...slots.ultimate);
+    await sleep(hcfg.holdMs + 250);
+    const t4 = await cardTexts(bp);
+    log(t4.includes('Recollection') && t4.includes('Burn the page. Only this ends him.'), 'Help: the Recollection teaser has its card', JSON.stringify(t4));
+    await bp.up(...slots.ultimate);
+    await sleep(300);
+    log(await B(bp, `!!B.menu.pending && !B.menu.helpCard`), 'Help: releasing the teaser closes the card, menu unchanged');
+
+    // Recall card: b1 from Recall 1 -> Recall 2 (Rhea remembers Return to Sender): the learn pauses.
+    const rc = await battle(chrome, server, 'b1_forgotten', { extra: '&level=1&pauses=on' });
+    await waitMenu(rc);
+    await rc.ev(`(() => { const B = window.__battle; B.tutorialSlow = false; B.recallXp = 40; B.enemies.forEach((e) => { e.hp = 1; }); })()`); // 40 Memories = after the duel
+    const seenIds = [];
+    for (let i = 0; i < 160 && !seenIds.some((x) => x.startsWith('learn_return_to_sender')); i++) {
+      const id = await B(rc, `B.tutorialPause ? B.tutorialPause.id + ':' + B.tutorialPause.step + '/' + B.tutorialPause.steps : null`);
+      if (id && !seenIds.includes(id) && id.startsWith('learn_')) {
+        seenIds.push(id);
+        await sleep(500);
+        await rc.shot(join(out, 'learn_' + id.replace(/\W+/g, '_') + '.png'));
+      }
+      if (id) await rc.tap(180, 600);
+      else if ((await rc.scenes()).includes('Dialogue')) await rc.tap(180, 560);
+      else if (await B(rc, `B.battleOver`)) await rc.tap(180, 560);
+      else {
+        const tg = await B(rc, `B.menu.items.find((i) => i.slot === 'target') ? [B.menu.items.find((i) => i.slot === 'target').x, B.menu.items.find((i) => i.slot === 'target').y] : null`);
+        if (tg) await rc.tap(...tg);
+        else if (await B(rc, `!!B.menu.pending && B.menu.items.some((i) => i.slot === 'strike')`)) await rc.tap(...slots.strike);
+      }
+      await sleep(350);
+    }
+    log(seenIds.includes('learn_return_to_sender:0/2'), 'Recall: the Recall card runs the learn_return_to_sender pause (2 steps)', JSON.stringify(seenIds));
+    log(rc.errors.length === 0, 'Recall: no page errors', rc.errors.slice(0, 2).join(' | '));
+
+    // Tremor: Recall 1 = cost 3, one chosen enemy (a Hollow takes it); Recall 2+ = cost 4, every enemy.
+    const tr = await battle(chrome, server, 'b2_first_hollow', { extra: '&level=1&pauses=0' });
+    await waitMenuThroughDialogue(tr);
+    for (const [lv, cost, target] of [[1, 3, 'enemy'], [2, 4, 'all']]) {
+      const r = await tr.ev(`(async () => { const B = window.__battle; B.hideCommandMenu(); const dov = B.heroes[1]; dov.level = ${lv}; const t = B.techOf(dov, 'tremor'); B.enemies.forEach((e) => { e.hp = e.maxHp; }); const before = B.enemies.map((e) => e.hp); await B.runTechnique(dov, 'tremor', B.enemies[1]); await new Promise((r) => setTimeout(r, 300)); return { cost: t.cost, target: t.target, before, after: B.enemies.map((e) => e.hp), hollow: B.enemies[1].type }; })()`);
+      const hit = r.after.map((h, i) => h < r.before[i]);
+      log(r.cost === cost && r.target === target && hit[1] && (target === 'all' ? hit[0] : !hit[0]), `Tremor at Recall ${lv}: cost ${cost}, ${target === 'all' ? 'hits every enemy' : 'hits only the chosen enemy (a Hollow takes it)'}`, JSON.stringify(r));
+    }
+    log(tr.errors.length === 0, 'Tremor: no page errors', tr.errors.slice(0, 2).join(' | '));
   }
 });
 
