@@ -146,6 +146,16 @@ await withBrowser(async ({ chrome, server }) => {
     await page.ev(`(() => { const B = window.__battle; B.chain = 0; B.applyHit(B.enemies[0], 1); })()`);
     log(await B(page, '!B.pendingEvents.includes("keepsake_burn")'), 'keepsake_burn fires once');
 
+    // The floor: once unlocked, no hit takes him below floorHp; "He won't fall" shows every 2nd clamped hit
+    const floor = clerk.stages[1].floorHp;
+    const floorTexts = (n) => B(page, `B.children.list.filter((c) => c.type === 'Text' && c.text === ${JSON.stringify(events.stage.floorText)}).length`);
+    const res = [];
+    for (let i = 0; i < 3; i++) {
+      await page.ev(`(() => { const B = window.__battle; B.chain = 0; B.applyHit(B.enemies[0], 999); })()`);
+      res.push([await B(page, 'B.enemies[0].hp'), await floorTexts()]);
+      await sleep(1800);
+    }
+    log(res.every(([hp]) => hp === floor) && res[0][1] === 1 && res[1][1] === 0 && res[2][1] === 1 && (await B(page, '!B.enemies[0].rising && B.enemies.some((e) => e.hp > 0)')), `floor: 999-damage hits leave him at ${floor} HP, "${events.stage.floorText}" on every 2nd clamped hit`, JSON.stringify(res));
     // Recollection always kills (the three rings are left unanswered: MISS x3 = 60 damage, far under his HP)
     const rhea = await B(page, 'B.heroes.findIndex((h) => h.def.canUltimate)');
     await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; e.hp = e.maxHp; B.updateLabel(e); window.__done = null; B.playRecollection(B.heroes[${rhea}], e).then(() => { window.__done = true; }); })()`);

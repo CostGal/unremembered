@@ -2665,6 +2665,7 @@ export default class BattleScene extends Phaser.Scene {
       kind = kind || 'guarded';
     }
     if (target.exposed) dmg = Math.round(dmg * target.exposed.mult);
+    if (!target.isHero) dmg = this.floorDamage(target, dmg);
     const images = [target.body, ...Object.values(target.parts).map((p) => p.img)];
     Fx.flash(this, images, 60);
     Fx.shake(this, 2, 80);
@@ -2683,6 +2684,16 @@ export default class BattleScene extends Phaser.Scene {
 
     if (target.hp <= 0) this.markDown(target);
     else if (react) this.playHurt(target);
+  }
+
+  // A stage's `floorHp` (enemies.json stages), active once the Recollection is unlocked: no hit takes the
+  // enemy below it (only killEnemy, the Recollection's kill, does). A clamped hit shows floorText, every 2nd time.
+  floorDamage(enemy, dmg) {
+    const stage = enemy.def.stages?.[enemy.phase || 0];
+    if (stage?.floorHp === undefined || !enemy.recollectionUnlocked || enemy.hp - dmg >= stage.floorHp) return dmg;
+    enemy.floorHits = (enemy.floorHits || 0) + 1;
+    if (enemy.floorHits % 2 === 1) Fx.popText(this, enemy.container.x, enemy.container.y, battleEvents.stage.floorText, battleEvents.stage.floorColor, qte.text);
+    return Math.max(0, enemy.hp - stage.floorHp);
   }
 
   // ---------- Memory statuses ----------

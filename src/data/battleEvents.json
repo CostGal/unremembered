@@ -9,6 +9,8 @@
     "laughText": "heh",
     "laughColor": "#d8303a",
     "laughOffsetY": 26,
+    "floorText": "He won't fall",
+    "floorColor": "#d8303a",
     "deathHoldMs": 250,
     "fallbackDeathAlpha": 0.35,
     "riseMs": 600,

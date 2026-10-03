@@ -374,6 +374,11 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
         if (stage.tint !== undefined && !/^0x[0-9a-fA-F]{6}$/.test(stage.tint)) err(`${at}: tint must be a hex string like "0xff6a5a"`);
         const a = stage.aura;
         if (a && !(/^0x[0-9a-fA-F]{6}$/.test(a.color || '') && a.radius > 0 && Array.isArray(a.alpha) && a.alpha.length === 2 && a.pulseMs > 0)) err(`${at}: aura needs color (0xRRGGBB), radius, alpha [min, max] and pulseMs`);
+        if (stage.floorHp !== undefined) {
+          if (!(Number.isInteger(stage.floorHp) && stage.floorHp >= 1)) err(`${at}: floorHp must be a whole number >= 1`);
+          if (stage.recollectionAtHpPct === undefined) err(`${at}: floorHp needs recollectionAtHpPct (the floor holds once the Recollection is unlocked)`);
+          if (last === false) err(`${at}: floorHp belongs to the last stage`);
+        }
         if (stage.laughEvery !== undefined) {
           const l = stage.laughEvery;
           if (!(Array.isArray(l) && l.length === 2 && Number.isInteger(l[0]) && Number.isInteger(l[1]) && l[0] >= 1 && l[1] >= l[0])) err(`${at}: laughEvery must be [min, max] turns (whole numbers, 1 or more)`);
@@ -531,6 +536,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   }
   if (Object.values(enemies).some((e) => e.stages)) {
     const sg = battleEvents.stage;
+    if (Object.values(enemies).some((e) => (e.stages || []).some((x) => x.floorHp !== undefined)) && !(typeof sg?.floorText === 'string' && sg.floorText && sg.floorColor)) err('battleEvents.stage: floorText and floorColor are required when a stage has floorHp');
     if (!(sg && typeof sg.enragedText === 'string' && sg.enragedText && sg.enragedColor && typeof sg.laughText === 'string' && sg.laughColor && sg.deathHoldMs >= 0 && sg.riseMs > 0 && sg.fallbackDeathAlpha >= 0 && sg.fallbackDeathAlpha <= 1)) err('battleEvents.stage: enragedText, enragedColor, laughText ("" = none), laughColor, deathHoldMs, riseMs and fallbackDeathAlpha are required');
   }
   for (const [id, e] of Object.entries(enemies)) {

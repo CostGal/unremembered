@@ -203,6 +203,9 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       enemy.charge.mitigated += full - dmg;
     }
     if (enemy.exposed) dmg = Math.round(dmg * enemy.exposed.mult);
+    // stages floorHp (after the Recollection unlock): no hit takes him below it, only the Recollection's kill.
+    const floorHp = enemy.def.stages?.[enemy.phase]?.floorHp;
+    if (floorHp !== undefined && enemy.recollectionUnlocked && enemy.hp - dmg < floorHp) dmg = Math.max(0, enemy.hp - floorHp);
     // playerHits (battle events): a Strike / attack technique that dealt damage.
     if (st.playerAction && dmg > 0) st.actionLanded = true;
     enemy.hp = Math.max(0, enemy.hp - dmg);

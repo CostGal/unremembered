@@ -40,7 +40,7 @@
   },
   "clerk": {
     "name": "Quill",
-    "hp": 200,
+    "hp": 220,
     "xp": 120,
     "poise": 60,
     "body": "clerk",
@@ -84,11 +84,12 @@
         "tint": "0xff6a5a",
         "aura": { "color": "0xd8303a", "radius": 150, "alpha": [0.15, 0.4], "pulseMs": 600 },
         "musicIntensity": 1,
-        "recollectionAtHpPct": 40,
+        "recollectionAtHpPct": 35,
+        "floorHp": 1,
         "laughEvery": [2, 3],
         "laughSfx": "sfx_laugh",
         "attacks": [
-          { "id": "stamp", "melee": true, "impactSfx": "stamp", "weight": 2, "telegraphMs": 620, "feint": { "atPct": 0.6, "pauseMs": 350, "resumeSpeed": 1.6 }, "feintChance": 0.3, "dmg": 15 },
+          { "id": "stamp", "melee": true, "impactSfx": "stamp", "weight": 2, "telegraphMs": 620, "feint": { "atPct": 0.6, "pauseMs": 350, "resumeSpeed": 1.6 }, "feintChance": 0.3, "dmg": 18 },
           {
             "id": "redact",
             "melee": true,
@@ -96,7 +97,7 @@
             "telegraphMs": 700,
             "onMiss": { "status": "redacted" },
             "feint": { "atPct": 0.6, "pauseMs": 400, "resumeSpeed": 1.6 },
-            "dmg": 15
+            "dmg": 18
           },
           {
             "id": "archive", "chargeSfx": "archive",
@@ -110,7 +111,7 @@
             "onRelease": "archive_insight",
             "unparryable": true,
             "telegraphMs": 800,
-            "dmg": 62
+            "dmg": 65
           }
         ]
       }
