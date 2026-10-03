@@ -99,6 +99,8 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
         if (!characters[hero]) err(`battles.${id}.party: no character "${hero}" in characters.json`);
       }
     }
+    // initiative: who opens each round ("hero" = default, "enemy" = the enemies act first).
+    if (battle.initiative !== undefined && !['hero', 'enemy'].includes(battle.initiative)) err(`battles.${id}.initiative: must be "hero" or "enemy"`);
     // formation: a key of ui.battleLayout.enemies with a slot per enemy.
     if (battle.formation !== undefined) {
       const slots = ui.battleLayout?.enemies?.[battle.formation];
@@ -316,7 +318,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   for (const [id, e] of Object.entries(enemies)) {
     if (!assets.sprites?.[e.body]) err(`enemies.${id}: body sprite "${e.body}" is not in assets.json sprites`);
     if (e.poise !== undefined && !(typeof e.poise === 'number' && e.poise > 0)) err(`enemies.${id}: poise must be a positive number (damage units)`);
-    const lists = e.phases ? e.phases.map((p, i) => [`phases[${i}]`, p.attacks]) : [['attacks', e.attacks]];
+    const lists = e.stages ? e.stages.map((p, i) => [`stages[${i}]`, p.attacks]) : e.phases ? e.phases.map((p, i) => [`phases[${i}]`, p.attacks]) : [['attacks', e.attacks]];
     for (const [where, attacks] of lists) {
       if (!attacks?.length) err(`enemies.${id}.${where}: no attacks`);
       for (const a of attacks || []) {
@@ -342,6 +344,55 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     for (const p of e.phases || []) {
       if (p.onEnter && !BATTLE_EVENTS.includes(p.onEnter)) err(`enemies.${id}: unknown phase event "${p.onEnter}"`);
     }
+    // stages: a chain of HP stages. The first opens at hpPct % of `hp`; a stage with onZero does not end the
+    // enemy at 0 HP: it plays the dialogue, runs the death sheet backwards and rises into the next one at full HP.
+    if (e.stages) {
+      const st = e.stages;
+      if (e.phases) err(`enemies.${id}: use stages or phases, not both`);
+      if (!Array.isArray(st) || st.length < 2) err(`enemies.${id}.stages: needs at least two stages`);
+      const ids = new Set();
+      st.forEach((stage, i) => {
+        const at = `enemies.${id}.stages[${i}]`;
+        if (!stage.id || typeof stage.id !== 'string') err(`${at}: id is required`);
+        else if (ids.has(stage.id)) err(`${at}: duplicate id "${stage.id}"`);
+        ids.add(stage.id);
+        if (i === 0 && !(stage.hpPct > 0 && stage.hpPct <= 100)) err(`${at}: hpPct (the share of hp the first stage opens with) must be in (0, 100]`);
+        if (i > 0 && stage.hpPct !== undefined) err(`${at}: hpPct belongs to the first stage only (later stages refill via the previous onZero.refillTo)`);
+        if (!stage.attacks?.length) err(`${at}: no attacks`);
+        const last = i === st.length - 1;
+        const z = stage.onZero;
+        if (!last && !z) err(`${at}: a stage that is not the last needs onZero`);
+        if (last && z) err(`${at}: the last stage cannot have onZero (0 HP there is the defeat)`);
+        if (z) {
+          if (!z.anim || typeof z.anim !== 'string') err(`${at}.onZero: anim is required`);
+          if (z.reverseAnim !== undefined && typeof z.reverseAnim !== 'string') err(`${at}.onZero: reverseAnim must be an animation name`);
+          if (z.dialogue !== undefined && !dialogue[z.dialogue]) err(`${at}.onZero: no dialogue "${z.dialogue}"`);
+          if (z.refillTo !== undefined && !(z.refillTo > 0 && z.refillTo <= 1)) err(`${at}.onZero: refillTo must be in (0, 1]`);
+          if (z.sfx !== undefined) checkSfx(`${at}.onZero`, z.sfx);
+        }
+        if (stage.recollectionAtHpPct !== undefined && !(stage.recollectionAtHpPct > 0 && stage.recollectionAtHpPct < 100)) err(`${at}: recollectionAtHpPct must be in (0, 100)`);
+        if (stage.tint !== undefined && !/^0x[0-9a-fA-F]{6}$/.test(stage.tint)) err(`${at}: tint must be a hex string like "0xff6a5a"`);
+        const a = stage.aura;
+        if (a && !(/^0x[0-9a-fA-F]{6}$/.test(a.color || '') && a.radius > 0 && Array.isArray(a.alpha) && a.alpha.length === 2 && a.pulseMs > 0)) err(`${at}: aura needs color (0xRRGGBB), radius, alpha [min, max] and pulseMs`);
+        if (stage.laughEvery !== undefined) {
+          const l = stage.laughEvery;
+          if (!(Array.isArray(l) && l.length === 2 && Number.isInteger(l[0]) && Number.isInteger(l[1]) && l[0] >= 1 && l[1] >= l[0])) err(`${at}: laughEvery must be [min, max] turns (whole numbers, 1 or more)`);
+          else if (stage.laughSfx === undefined) err(`${at}: laughEvery needs laughSfx`);
+        }
+        if (stage.laughSfx !== undefined) checkSfx(at, stage.laughSfx);
+        if (stage.musicIntensity !== undefined && !(stage.musicIntensity >= 0 && stage.musicIntensity <= 1)) err(`${at}: musicIntensity must be in [0, 1]`);
+        for (const key of ['opening']) for (const aid of stage[key] || []) if (!(stage.attacks || []).some((x) => x.id === aid)) err(`${at}: ${key} "${aid}" is not one of the stage's attacks`);
+      });
+    }
+    // onChargeStart / onRelease name a battleEvents.json entry (a dialogue played once after the turn).
+    for (const a of (e.stages || e.phases || [{ attacks: e.attacks }]).flatMap((p) => p.attacks || [])) {
+      for (const hook of ['onChargeStart', 'onRelease']) {
+        if (a[hook] === undefined) continue;
+        const ev = battleEvents[a[hook]];
+        if (!ev?.dialogue) err(`enemies.${id}.${a.id}: ${hook} "${a[hook]}" is not a battleEvents.json entry with a dialogue`);
+        else if (!dialogue[ev.dialogue]) err(`battleEvents.${a[hook]}: no dialogue "${ev.dialogue}"`);
+      }
+    }
   }
   // animSet: borrow another id's sheets (dov_rival -> dov). Warn only: without
   // the set, the entity falls back to its rig.
@@ -366,7 +417,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     }
   }
   for (const [id, e] of Object.entries(enemies)) {
-    const attacks = e.phases ? e.phases.flatMap((p) => p.attacks || []) : e.attacks || [];
+    const attacks = (e.stages || e.phases) ? (e.stages || e.phases).flatMap((p) => p.attacks || []) : e.attacks || [];
     for (const a of attacks) {
       for (const hit of [a, ...(a.hits || [])]) {
         if (hit.melee !== undefined && typeof hit.melee !== 'boolean') err(`enemies.${id}.${a.id}: melee must be true or false`);
@@ -478,6 +529,18 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   for (const [id, a] of Object.entries(allies)) {
     if (!assets.sprites?.[a.body]) err(`allies.${id}: body sprite "${a.body}" is not in assets.json sprites`);
   }
+  if (Object.values(enemies).some((e) => e.stages)) {
+    const sg = battleEvents.stage;
+    if (!(sg && typeof sg.enragedText === 'string' && sg.enragedText && sg.enragedColor && typeof sg.laughText === 'string' && sg.laughColor && sg.deathHoldMs >= 0 && sg.riseMs > 0 && sg.fallbackDeathAlpha >= 0 && sg.fallbackDeathAlpha <= 1)) err('battleEvents.stage: enragedText, enragedColor, laughText ("" = none), laughColor, deathHoldMs, riseMs and fallbackDeathAlpha are required');
+  }
+  for (const [id, e] of Object.entries(enemies)) {
+    for (const [i, stage] of (e.stages || []).entries()) {
+      for (const name of [stage.onZero?.anim, stage.onZero?.reverseAnim]) {
+        if (name && animationSets[id] && !animationSets[id].animations?.[name]) warn(`enemies.${id}.stages[${i}].onZero: no "${name}" animation in ${id}_animations.json (fallback: the body dims and fades back)`);
+      }
+    }
+  }
+  if (techniques.recollection?.kill !== undefined && typeof techniques.recollection.kill !== 'boolean') err('techniques.recollection.kill must be true or false');
   const keepsake = battleEvents.keepsake_burn?.dialogue;
   if (keepsake && !dialogue[keepsake]) err(`battleEvents.keepsake_burn: no dialogue "${keepsake}"`);
 

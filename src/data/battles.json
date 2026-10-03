@@ -50,5 +50,5 @@
     ]
   },
   "b3_gate": { "bg": "bg_office_gate", "platform": "platform_street", "env": "street_rain", "enemies": ["hollow_warden", "hollow"], "formation": "gate", "nala": true, "music": "battle" },
-  "boss_clerk": { "bg": "records_office", "platform": "platform_office", "env": "records_office", "enemies": ["clerk"], "nala": true, "music": "boss", "recollection": true }
+  "boss_clerk": { "bg": "records_office", "platform": "platform_office", "env": "records_office", "enemies": ["clerk"], "nala": true, "music": "boss", "recollection": true, "initiative": "enemy" }
 }

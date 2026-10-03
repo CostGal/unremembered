@@ -40,7 +40,7 @@
   },
   "clerk": {
     "name": "Quill",
-    "hp": 320,
+    "hp": 200,
     "xp": 120,
     "poise": 60,
     "body": "clerk",
@@ -50,9 +50,10 @@
     "hollow": false,
     "boss": true,
     "defend": { "parry": ["strike"], "dodge": ["blast", "tremor"], "reparry": { "telegraphMs": 350, "dmg": 22, "melee": false } },
-    "phases": [
+    "stages": [
       {
-        "untilHpPct": 50,
+        "id": "normal",
+        "hpPct": 50,
         "opening": ["stamp", "archive"],
         "attacks": [
           { "id": "stamp", "melee": true, "impactSfx": "stamp", "weight": 2, "telegraphMs": 800, "feint": { "atPct": 0.6, "pauseMs": 350, "resumeSpeed": 1.6 }, "feintChance": 0.3, "dmg": 15 },
@@ -69,24 +70,30 @@
             "chargeTurns": 3,
             "guardMult": 0.6,
             "healMitigatedPct": 0.5,
+            "onChargeStart": "archive_warn",
             "onRelease": "archive_insight",
             "unparryable": true,
             "telegraphMs": 900,
             "dmg": 50
           }
-        ]
+        ],
+        "onZero": { "anim": "death", "dialogue": "quill_rise", "reverseAnim": "death", "refillTo": 1.0, "sfx": "sfx_laugh" }
       },
       {
-        "untilHpPct": 0,
+        "id": "enraged",
+        "tint": "0xff6a5a",
+        "aura": { "color": "0xd8303a", "radius": 150, "alpha": [0.15, 0.4], "pulseMs": 600 },
         "musicIntensity": 1,
-        "onEnter": "keepsake_burn",
+        "recollectionAtHpPct": 40,
+        "laughEvery": [2, 3],
+        "laughSfx": "sfx_laugh",
         "attacks": [
-          { "id": "stamp", "melee": true, "impactSfx": "stamp", "weight": 2, "telegraphMs": 700, "feint": { "atPct": 0.6, "pauseMs": 350, "resumeSpeed": 1.6 }, "feintChance": 0.3, "dmg": 15 },
+          { "id": "stamp", "melee": true, "impactSfx": "stamp", "weight": 2, "telegraphMs": 620, "feint": { "atPct": 0.6, "pauseMs": 350, "resumeSpeed": 1.6 }, "feintChance": 0.3, "dmg": 15 },
           {
             "id": "redact",
             "melee": true,
             "weight": 2,
-            "telegraphMs": 800,
+            "telegraphMs": 700,
             "onMiss": { "status": "redacted" },
             "feint": { "atPct": 0.6, "pauseMs": 400, "resumeSpeed": 1.6 },
             "dmg": 15
@@ -96,13 +103,14 @@
             "anim": "archive_release",
             "chargeAnim": "archive_charge",
             "weight": 1,
-            "chargeTurns": 3,
+            "chargeTurns": 2,
             "guardMult": 0.6,
             "healMitigatedPct": 0.5,
+            "onChargeStart": "archive_threat",
             "onRelease": "archive_insight",
             "unparryable": true,
-            "telegraphMs": 900,
-            "dmg": 50
+            "telegraphMs": 800,
+            "dmg": 62
           }
         ]
       }

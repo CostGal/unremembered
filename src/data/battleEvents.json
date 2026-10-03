@@ -1,6 +1,20 @@
 {
   "keepsake_burn": { "dialogue": "keepsake_burn", "echoMax": 10, "flash": { "color": "0x3fd0c9", "alpha": 0.45, "ms": 500 } },
   "archive_insight": { "dialogue": "archive_insight" },
+  "archive_warn": { "dialogue": "archive_warn" },
+  "archive_threat": { "dialogue": "archive_threat" },
+  "stage": {
+    "enragedText": "ENRAGED",
+    "enragedColor": "#ff6a5a",
+    "laughText": "heh",
+    "laughColor": "#d8303a",
+    "laughOffsetY": 26,
+    "deathHoldMs": 250,
+    "fallbackDeathAlpha": 0.35,
+    "riseMs": 600,
+    "flash": { "color": "0xd8303a", "alpha": 0.4, "ms": 500 },
+    "shake": { "amount": 5, "ms": 300 }
+  },
   "charge": {
     "glowRadius": 90,
     "glowColor": "0x3fd0c9",

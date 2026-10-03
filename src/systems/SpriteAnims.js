@@ -151,6 +151,33 @@ export function playOnce(sprite, id, name, def, { onImpact, onHold } = {}) {
   });
 }
 
+// Plays a sheet animation backwards (last frame to first, each frame for its own duration) and
+// resolves when it ends. The Clerk's rise after his stage-1 death is the death sheet reversed.
+// Works on placeholder sheets too: they are registered animations like any other.
+export function playReverseOnce(sprite, id, name) {
+  const key = animKey(id, name);
+  trace(`playReverse:${key}`);
+  return new Promise((resolve) => {
+    let finished = false;
+    const finish = (anim) => {
+      if (anim.key !== key || finished) return;
+      finished = true;
+      sprite.off('animationstart', onStart);
+      sprite.off('animationcomplete', finish);
+      sprite.off('animationstop', finish);
+      resolve();
+    };
+    // Another animation taking over the sprite ends this one too.
+    const onStart = (anim) => {
+      if (anim.key !== key) finish({ key });
+    };
+    sprite.on('animationstart', onStart);
+    sprite.on('animationcomplete', finish);
+    sprite.on('animationstop', finish);
+    sprite.anims.playReverse(key);
+  });
+}
+
 // Drives one non-looping sheet frame by frame, for moves timed against the
 // clock: runTo(frame) plays (or continues) until that frame and pauses there.
 // Enemy attacks use it to hold the windup and land impact frame k on the

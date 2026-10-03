@@ -116,6 +116,16 @@ Each hero has **their own Echo** (`hero.echo`, max `characters.json echoMax`, de
 - *(Cap-8 sentence superseded by Story v2: Rhea's cap follows `levels.json` `echoMax` and the Recollection is boss-only.)* **Recollection**: 60/40/20 per ring and the target is **Exposed** (`statuses.json`, ×1.3 damage taken for its next 3 turns). Rhea's Echo caps at 8 (`characters.json echoMax`) until the Keepsake raises it to 10 (`battleEvents.keepsake_burn.echoMax`) and fills it: the ultimate is reachable only from there. Locked pips are drawn dim.
 - Clerk HP 260, boss par 14. `npm run sim` (normal): non-gamer 17 rounds / 100% win, average 14, good 12.
 
+## Quill v3 (batch 5): he acts first, two stages with a revive
+- `battles.json boss_clerk.initiative: "enemy"`: the enemies act before the heroes in every round (BattleStateMachine + sim; default heroes first).
+- `enemies.json clerk.stages` replaces `phases` (the engine still supports `phases` for other enemies). `hp` is the **stage-2 max**; stage 1 opens at `stages[0].hpPct` % of it and its label/bar shows that stage's own max. At 0 HP in a stage with `onZero` he is **not** down (`entity.rising`, ignored by the win check): the death sheet plays and holds, the `onZero.dialogue` (`quill_rise`) plays, the death sheet runs **in reverse** (`playReverseOnce` in SpriteAnims), then HP = `hp` x `refillTo`, poise full, statuses cleared, the next stage's look starts (body tint, additive aura, `musicIntensity`, "ENRAGED" pop + flash, laugh). Texts/timings: `battleEvents.json stage`. A missing/placeholder death sheet dims the body and fades it back instead.
+- Stage 2 (`enraged`): Stamp 620 ms / 15, Redact 700 ms / 15, Archive `chargeTurns` 2 / 62 dmg / 800 ms; `laughEvery [2, 3]` (+ `laughSfx`) laugh after his turns.
+- **Recollection** only in stage 2: `recollectionAtHpPct` (40 %) of the stage-2 max queues `keepsake_burn` once (Rhea's cap 10, Echo full); the old `onEnter: keepsake_burn` is gone. `techniques.json recollection.kill: true`: a completed Recollection sets his HP to 0 (the three rings stay for now, the kill is unconditional).
+- Attack hook `onChargeStart: "<battleEvents id>"` (once per battle per id, like `onRelease`): `archive_warn` (first charge, stage 1), `archive_threat` (first charge, stage 2). `quill_rise`, `archive_warn`, `archive_threat` are in `dialogue.json`.
+- `npm run validate` checks `stages` (ids, hpPct, attacks, onZero, recollectionAtHpPct, laughEvery/laughSfx, aura, tint), the hook ids and `initiative`.
+- Sim: `--no-recollection` (or `sim.json policy.recollection: false`) = the player never casts it; `--unforgettable` adds the third difficulty (enemyHpMult, echoMult, enemyDefendChance are modelled for it).
+- Lab: `node scripts/qa/quill.mjs --out <dir>` (direct beats + the real loop to Victory).
+
 
 ## Session Thu 1/10 (autonomous batch: every `who:claude-auto` issue)
 Done in one batch (#84 #110 #111 #109 #107 #97 #96 #95 #98 #99 #93 #91 #113 #104 #100 #81 #82 #83 #105 #106). Decisions that change the spec:

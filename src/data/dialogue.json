@@ -115,6 +115,19 @@
     { "speaker": "Dov", "style": "normal", "text": "Every blow we landed came back as his.", "portrait": "dov_worried" },
     { "speaker": "Rhea", "style": "normal", "text": "Then we don't let him sit in there. Hit him until he staggers. Hard and fast.", "portrait": "rhea_determined" }
   ],
+  "archive_warn": [
+    { "speaker": "Dov", "style": "normal", "text": "He's pulling back into the Ledger. Break him before it closes!", "portrait": "dov_fierce" },
+    { "speaker": "Rhea", "style": "normal", "text": "Then we hit hard. Now.", "portrait": "rhea_determined" }
+  ],
+  "archive_threat": [
+    { "speaker": "Quill", "style": "normal", "text": "This time you won't get away.", "portrait": "clerk_furious" },
+    { "speaker": "Dov", "style": "normal", "text": "Faster than before. Rhea, he's charging it faster!", "portrait": "dov_worried" }
+  ],
+  "quill_rise": [
+    { "speaker": null, "style": "narration", "text": "Quill crumples. Then the Ledger flips open on its own.", "portrait": null, "sfx": "sfx_laugh" },
+    { "speaker": "Quill", "style": "normal", "text": "You don't close a Ledger. It closes you.", "portrait": "clerk_furious" },
+    { "speaker": null, "style": "narration", "text": "He rises. His wounds are ink, and the ink is flowing back.", "portrait": null }
+  ],
   "keepsake_burn": [
     { "speaker": "Rhea", "style": "normal", "text": "He's right. I can't beat him like this.", "portrait": "rhea_pained" },
     { "speaker": null, "style": "narration", "text": "A Keepsake: a memory held back for the end. Rhea has one. The page.", "portrait": null },

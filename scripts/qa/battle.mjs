@@ -9,6 +9,9 @@ import { open, root, sleep, waitScene, withBrowser } from './lib.mjs';
 const ui = JSON.parse(readFileSync(join(root, 'src/data/ui.json'), 'utf8'));
 const qte = JSON.parse(readFileSync(join(root, 'src/data/qte.json'), 'utf8'));
 const slots = ui.commands.slots;
+const clerkDef = JSON.parse(readFileSync(join(root, 'src/data/enemies.json'), 'utf8')).clerk;
+// The Clerk's stage-2 Archive (the boss moves below run in stage 2: enemy.phase = 1).
+const archiveDef = clerkDef.stages[1].attacks.find((a) => a.id === 'archive');
 const out = process.argv[process.argv.indexOf('--out') + 1];
 const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1].split(',') : null;
 mkdirSync(out, { recursive: true });
@@ -174,7 +177,8 @@ await withBrowser(async ({ chrome, server }) => {
 
   // ============ F-boss moves: file_away multi-hit, redact feint, archive ============
   if (want('boss')) {
-    const page = await battle(chrome, server, 'boss_clerk');
+    // level=4: both heroes have more HP than the 62-damage Archive (Rhea at Recall 1 has 60).
+    const page = await battle(chrome, server, 'boss_clerk', { extra: '&level=4' });
     await waitMenu(page);
     await page.ev(`window.__battle.hideCommandMenu(); window.__battle.tutorialSlow = false;`);
     const enemyTurnTapping = async (stub, tapOffsets, label) => {
@@ -230,19 +234,18 @@ await withBrowser(async ({ chrome, server }) => {
     const idleAfter = await page.ev(`window.__battle.enemies[0].body.anims.currentAnim && window.__battle.enemies[0].body.anims.currentAnim.key`);
     log(idleAfter === 'clerk_idle', 'Archive: cancelled → clerk returns to idle', idleAfter);
     await page.ev(`(() => { const B = window.__battle; B.refillPoise(B.enemies[0]); })()`);
-    // charge → 4 turns → release, no dodge: full 35 dmg, then heals half of what the guard absorbed
+    // charge → chargeTurns (data) → release, no dodge: full damage, then heals half of what the guard absorbed
     await sleep(500);
     t = await enemyTurnTapping([0, 0.9999], [], 'archive1');
     const c1 = await B(page, 'B.enemies[0].charge && B.enemies[0].charge.turnsLeft');
     await page.ev(`(() => { const B = window.__battle; B.enemies[0].hp = 100; B.updateLabel(B.enemies[0]); B.chain = 0; B.applyHit(B.enemies[0], 20); })()`);
-    t = await enemyTurnTapping([0], [], 'archive2');
-    t = await enemyTurnTapping([0], [], 'archive3');
-    t = await enemyTurnTapping([0], [], 'archive4');
+    // The charging turns in between (the last one leaves turnsLeft at 1), then the release turn.
+    for (let i = 2; i < archiveDef.chargeTurns + 1; i++) t = await enemyTurnTapping([0], [], `archive${i}`);
     const c4 = await B(page, 'B.enemies[0].charge && B.enemies[0].charge.turnsLeft');
-    t = await enemyTurnTapping([0], [], 'archive5');
+    t = await enemyTurnTapping([0], [], 'archiveRelease');
     const lost = await B(page, 'B.heroes[0].maxHp - B.heroes[0].hp + B.heroes[1].maxHp - B.heroes[1].hp');
     const hpAfter = await B(page, 'B.enemies[0].hp');
-    log(c1 === 4 && c4 === 1 && t.results.length === 1 && t.results[0] === 'MISS' && lost === 35, 'Archive: 4 turns of charge, then fires as a red-ring hit; a missed dodge costs 35', `turnsLeft after turn 1: ${c1}, after turn 4: ${c4}; results ${t.results}; hp lost ${lost}; trace ${t.trace.filter((k) => /archive/.test(k)).join(' ')}`);
+    log(c1 === archiveDef.chargeTurns && c4 === 1 && t.results.length === 1 && t.results[0] === 'MISS' && lost === archiveDef.dmg, `Archive: ${archiveDef.chargeTurns} turns of charge, then fires as a red-ring hit; a missed dodge costs ${archiveDef.dmg}`, `turnsLeft after turn 1: ${c1}, before the release: ${c4}; results ${t.results}; hp lost ${lost}; trace ${t.trace.filter((k) => /archive/.test(k)).join(' ')}`);
     log(hpAfter === 100 - 12 + 4, 'Archive: release heals half of what the guard absorbed (20 hit → 12 taken, +4 back)', `clerk hp ${hpAfter}`);
     log(page.errors.length === 0, 'no console errors during boss moves', page.errors.slice(0, 2).join(' | '));
   }
@@ -251,10 +254,11 @@ await withBrowser(async ({ chrome, server }) => {
   if (want('keepsake')) {
     const page = await battle(chrome, server, 'boss_clerk');
     await waitMenu(page);
-    await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; e.hp = Math.ceil(e.maxHp * 0.52); B.updateLabel(e); })()`);
-    await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; B.applyHit(e, Math.ceil(e.maxHp * 0.06)); })()`);
-    const phase = await B(page, 'B.enemies[0].phase');
-    log(phase === 1, 'Keepsake: crossing 50% HP enters phase 2', `phase ${phase}`);
+    // Story: the Recollection unlocks in stage 2 once HP is <= recollectionAtHpPct (quill.mjs checks the whole rise).
+    await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; e.phase = 1; e.maxHp = ${clerkDef.hp}; e.hp = Math.ceil(e.maxHp * 0.42); B.updateLabel(e); })()`);
+    await page.ev(`(() => { const B = window.__battle; const e = B.enemies[0]; B.applyHit(e, Math.ceil(e.maxHp * 0.04)); })()`);
+    const queued = await B(page, 'B.pendingEvents.includes("keepsake_burn")');
+    log(queued, `Keepsake: crossing ${clerkDef.stages[1].recollectionAtHpPct}% of stage 2 queues the event`, `pending ${await B(page, 'B.pendingEvents.join()')}`);
     // The expression must not evaluate to the promise: page.ev awaits one, and this one only settles after the taps below.
     await page.ev(`window.__battle.hideCommandMenu(); window.__ke = window.__battle.afterTurn().then(() => { window.__keDone = true; }); null`);
     await sleep(800);

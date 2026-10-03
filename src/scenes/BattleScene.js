@@ -34,8 +34,8 @@ import { devInt } from '../systems/DevParams.js';
 import { effectMax, effectTotal, ownedFragments } from '../systems/Fragments.js';
 import { battleXp, echoMaxFor, growth, learned, levelFor, techniqueAt, xpForLevel } from '../systems/Recall.js';
 import RecallCard from '../systems/RecallCard.js';
-import { animKey, hasSheet, playLoop, playOnce, SheetDriver, trace } from '../systems/SpriteAnims.js';
-import { whenReady } from '../systems/Assets.js';
+import { animKey, hasSheet, playLoop, playOnce, playReverseOnce, SheetDriver, trace } from '../systems/SpriteAnims.js';
+import { isRealTexture, whenReady } from '../systems/Assets.js';
 
 const layout = ui.battleLayout;
 
@@ -206,7 +206,8 @@ export default class BattleScene extends Phaser.Scene {
       },
       isOver: () => this.battleOver,
       isAlive: (entity) => entity.hp > 0,
-      allEnemiesDown: () => this.enemies.every((e) => e.hp <= 0),
+      // A stage end (enemies.json stages onZero) is not a defeat: the enemy rises into its next stage.
+      allEnemiesDown: () => this.enemies.every((e) => e.hp <= 0 && !e.rising),
       allHeroesDown: () => this.heroes.every((h) => h.hp <= 0),
       roundStart: () => (this.stats.turns += 1),
       playerTurn: (hero) => this.playerTurn(hero),
@@ -220,7 +221,7 @@ export default class BattleScene extends Phaser.Scene {
     // scene instance is reused, so a loop from before a restart is ignored.
     this.runId = (this.runId || 0) + 1;
     const runId = this.runId;
-    machine.run(this.heroes, this.enemies).catch((err) => {
+    machine.run(this.heroes, this.enemies, { initiative: this.battleDef.initiative }).catch((err) => {
       if (runId !== this.runId || !this.scene.isActive()) return;
       console.error('battle: turn loop failed', err);
       if (!this.battleOver) this.onBattleEnd('ERROR');
@@ -482,9 +483,10 @@ export default class BattleScene extends Phaser.Scene {
       type,
       def,
       name: def.name,
-      // Difficulty scales enemy HP (qte.json difficulties.enemyHpMult).
-      hp: isHero ? def.hp : Math.round(def.hp * this.difficulty.enemyHpMult),
-      maxHp: isHero ? def.hp : Math.round(def.hp * this.difficulty.enemyHpMult),
+      // Difficulty scales enemy HP (qte.json difficulties.enemyHpMult). An enemy with `stages` opens at
+      // the first stage's hpPct share of it; the bar (and the label) show that stage's own max.
+      hp: isHero ? def.hp : this.startHp(def),
+      maxHp: isHero ? def.hp : this.startHp(def),
       container,
       body,
       parts,
@@ -516,6 +518,12 @@ export default class BattleScene extends Phaser.Scene {
     if (!anims || anims.idle.placeholder) entity.bobTween = this.idleBob(container);
 
     return entity;
+  }
+
+  // An enemy's HP at the start of the battle (see `stages`).
+  startHp(def) {
+    const full = Math.round(def.hp * this.difficulty.enemyHpMult);
+    return def.stages ? Math.round((full * def.stages[0].hpPct) / 100) : full;
   }
 
   addShadow(container, frameW, frameH) {
@@ -649,8 +657,11 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   // Downed: the death sheet plays once and holds its last frame. Without one,
-  // the entity freezes and dims.
+  // the entity freezes and dims. An enemy whose stage ends (enemies.json stages
+  // `onZero`) is only down for now: it keeps its label, holds the death pose and
+  // rises in the next stage (riseStage, from afterTurn).
   markDown(entity) {
+    const rising = this.stageEnding(entity);
     if (entity.isHero) {
       entity.statuses = {};
       this.refreshHud();
@@ -659,8 +670,16 @@ export default class BattleScene extends Phaser.Scene {
     } else {
       entity.exposed = null;
       this.updateEnemyStatus(entity);
+      this.dropCharge(entity);
     }
     if (entity.bobTween) entity.bobTween.stop();
+    if (rising) {
+      entity.rising = true;
+      entity.poiseBar?.setBroken(false);
+      entity.deathDone = this.playStageDeath(entity, entity.def.stages[entity.phase || 0].onZero);
+      return;
+    }
+    if (entity.aura) this.stopAura(entity);
     if (entity.label) this.tweens.add({ targets: entity.label, alpha: 0, duration: ui.downed.enemyFadeMs });
     if (entity.poiseBar) {
       entity.poiseBar.setBroken(false);
@@ -682,6 +701,140 @@ export default class BattleScene extends Phaser.Scene {
       return;
     }
     this.tweens.add({ targets: entity.container, alpha: 0, duration: ui.downed.enemyFadeMs });
+  }
+
+  // ---------- Stages (enemies.json `stages`) ----------
+
+  // True when this enemy's HP reaching 0 ends a stage instead of the enemy.
+  stageEnding(entity) {
+    const stages = entity.def.stages;
+    const i = entity.phase || 0;
+    return !entity.isHero && !!stages && i < stages.length - 1 && !!stages[i].onZero;
+  }
+
+  // The stage-end death: the death sheet (placeholders too) plays once and holds; without a real
+  // sheet the body dims instead. Resolves when it is over.
+  playStageDeath(entity, onZero) {
+    const def = entity.anims?.[onZero.anim];
+    const dim = !hasSheet(entity.anims, onZero.anim);
+    if (dim) trace(`fallback:stageDeath:${entity.type}`);
+    if (entity.anims) entity.body.anims.stop();
+    const dimmed = dim ? this.tweenPromise(entity.container, { alpha: battleEvents.stage.fallbackDeathAlpha }, battleEvents.stage.riseMs) : Promise.resolve();
+    const played = def ? playOnce(entity.body, entity.type, onZero.anim, def) : Promise.resolve();
+    return Promise.all([played, dimmed]);
+  }
+
+  // The charge glow and counter vanish with no _out sheet (the enemy fell, or the stage ended).
+  dropCharge(entity) {
+    const ch = entity.charge;
+    if (!ch) return;
+    ch.loop?.cancel();
+    ch.glowTween.stop();
+    ch.glow.destroy();
+    ch.counter.destroy();
+    entity.charge = null;
+  }
+
+  // Stage end -> next stage: the death pose holds, the story beat plays, the death sheet runs
+  // backwards, and the enemy stands up at full HP of the next stage, statuses gone, poise full.
+  // The win check ignores the enemy meanwhile (`rising`).
+  async riseStage(enemy) {
+    const stages = enemy.def.stages;
+    const from = stages[enemy.phase || 0];
+    const next = stages[(enemy.phase || 0) + 1];
+    const z = from.onZero;
+    const cfg = battleEvents.stage;
+    await enemy.deathDone;
+    await this.wait(cfg.deathHoldMs);
+    if (this.battleOver) return;
+    if (z.dialogue && dialogues[z.dialogue]) await this.playDialogueOverlay(z.dialogue);
+
+    // The death sheet backwards (a missing or placeholder sheet: the body fades back in).
+    if (z.sfx) playSfx(z.sfx);
+    const name = z.reverseAnim || z.anim;
+    const def = enemy.anims?.[name];
+    const fade = !hasSheet(enemy.anims, name) ? this.tweenPromise(enemy.container, { alpha: 1 }, cfg.riseMs) : Promise.resolve();
+    if (def) await Promise.all([playReverseOnce(enemy.body, enemy.type, name), fade]);
+    else await fade;
+
+    enemy.phase = (enemy.phase || 0) + 1;
+    enemy.turnsInPhase = 0;
+    enemy.rising = false;
+    enemy.deathDone = null;
+    enemy.maxHp = Math.round(enemy.def.hp * this.difficulty.enemyHpMult);
+    enemy.hp = Math.max(1, Math.round(enemy.maxHp * (z.refillTo ?? 1)));
+    enemy.exposed = null;
+    this.updateEnemyStatus(enemy);
+    if (enemy.maxPoise) this.refillPoise(enemy);
+    enemy.container.alpha = 1;
+    if (enemy.label) {
+      enemy.label.setAlpha(1);
+      this.updateLabel(enemy);
+      this.tweens.add({ targets: enemy.label, scale: { from: 1.5, to: 1 }, duration: cfg.riseMs, ease: 'Back.easeOut' });
+    }
+    if (enemy.anims) playLoop(enemy.body, enemy.type, 'idle');
+    if (!enemy.anims || enemy.anims.idle.placeholder) enemy.bobTween = this.idleBob(enemy.container);
+    this.enterStage(enemy, next);
+    await this.wait(cfg.riseMs);
+  }
+
+  // What a stage looks like: a tint on the body, an additive aura behind it, the music pushed up,
+  // an ENRAGED pop with a flash, and the first laugh.
+  enterStage(enemy, stage) {
+    const cfg = battleEvents.stage;
+    const images = [enemy.body, ...Object.values(enemy.parts).map((p) => p.img)];
+    if (stage.tint) Fx.setBaseTint(images, multiplyTints(enemy.body.baseTint ?? 0xffffff, Number(stage.tint)));
+    if (stage.aura) this.startAura(enemy, stage.aura);
+    if (stage.musicIntensity !== undefined) setMusicIntensity(stage.musicIntensity);
+    if (stage.laughEvery) enemy.laughIn = Phaser.Math.Between(stage.laughEvery[0], stage.laughEvery[1]);
+    Fx.popText(this, enemy.container.x, enemy.container.y, cfg.enragedText, cfg.enragedColor, qte.text);
+    if (cfg.flash) Fx.screenFlash(this, cfg.flash, qte.flashDepth);
+    if (cfg.shake) Fx.shake(this, cfg.shake.amount, cfg.shake.ms);
+    this.laugh(enemy, stage, cfg.laughOffsetY);
+  }
+
+  // The enemy laughs: its stage's laughSfx and a small pop of laughText (may be empty).
+  laugh(enemy, stage = enemy.def.stages?.[enemy.phase || 0], offsetY = 0) {
+    const cfg = battleEvents.stage;
+    if (!stage?.laughSfx || this.battleOver) return;
+    playSfx(stage.laughSfx);
+    if (cfg.laughText) Fx.popText(this, enemy.container.x, enemy.container.y + offsetY, cfg.laughText, cfg.laughColor, qte.text);
+  }
+
+  // After each of its turns: every laughEvery[0..1] turns of a stage the enemy laughs.
+  // (Drawn after the turn's own rolls, so a forced attack in a lab isn't disturbed.)
+  stageLaugh(enemy) {
+    const every = enemy.def.stages?.[enemy.phase || 0]?.laughEvery;
+    if (!every || enemy.hp <= 0) return;
+    enemy.laughIn = (enemy.laughIn ?? Phaser.Math.Between(every[0], every[1])) - 1;
+    if (enemy.laughIn > 0) return;
+    enemy.laughIn = Phaser.Math.Between(every[0], every[1]);
+    this.laugh(enemy);
+  }
+
+  // A pulsing additive glow behind the enemy (stage `aura`), following it wherever it walks.
+  startAura(enemy, a) {
+    this.stopAura(enemy);
+    const glow = this.add
+      .image(enemy.container.x, enemy.container.y, Fx.glowTexture(this, a.radius))
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setTint(Number(a.color))
+      .setAlpha(a.alpha[0])
+      .setDepth(enemy.container.depth - 1);
+    const tween = this.tweens.add({ targets: glow, alpha: a.alpha[1], duration: a.pulseMs, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    const follow = () => glow.setPosition(enemy.container.x, enemy.container.y).setDepth(enemy.container.depth - 1);
+    this.events.on('update', follow);
+    this.events.once('shutdown', () => this.events.off('update', follow));
+    enemy.aura = { glow, tween, follow };
+  }
+
+  stopAura(enemy) {
+    const a = enemy.aura;
+    if (!a) return;
+    this.events.off('update', a.follow);
+    a.tween.stop();
+    this.tweens.add({ targets: a.glow, alpha: 0, duration: ui.downed.enemyFadeMs, onComplete: () => a.glow.destroy() });
+    enemy.aura = null;
   }
 
   // Non-lethal damage: the hurt sheet, then back to idle. Without a hurt sheet
@@ -1063,6 +1216,7 @@ export default class BattleScene extends Phaser.Scene {
   async enemyTurn(enemy) {
     await this.enemyAct(enemy);
     this.tickEnemyStatus(enemy);
+    this.stageLaugh(enemy);
   }
 
   // Each hit of the attack is its own parry ring on the targeted hero.
@@ -1101,6 +1255,13 @@ export default class BattleScene extends Phaser.Scene {
       attack = this.pickAttack(enemy);
       if (attack.chargeTurns) {
         this.startCharge(enemy, attack);
+        // attack.onChargeStart: a battle event (battleEvents.json) the first time any charge of
+        // that id starts in the battle; it plays after this turn (afterTurn).
+        const started = attack.onChargeStart;
+        if (started && !this.firedEvents.has(`chargeStart:${started}`)) {
+          this.firedEvents.add(`chargeStart:${started}`);
+          this.pendingEvents.push(started);
+        }
         await this.wait(battleEvents.charge.chargingMs);
         return;
       }
@@ -1166,7 +1327,7 @@ export default class BattleScene extends Phaser.Scene {
   // A phase's "opening" (enemies.json) fixes the attack of that phase's first
   // turns (the Clerk charges Archive on his second); after that, weighted.
   pickAttack(enemy) {
-    const phase = enemy.def.phases?.[enemy.phase || 0];
+    const phase = (enemy.def.stages || enemy.def.phases)?.[enemy.phase || 0];
     const n = enemy.turnsInPhase || 0;
     enemy.turnsInPhase = n + 1;
     const id = phase?.opening?.[n];
@@ -1481,13 +1642,18 @@ export default class BattleScene extends Phaser.Scene {
 
   // A boss uses the attack list of its current phase.
   enemyAttacks(enemy) {
-    return enemy.def.phases ? enemy.def.phases[enemy.phase || 0].attacks : enemy.def.attacks;
+    const phases = enemy.def.stages || enemy.def.phases;
+    return phases ? phases[enemy.phase || 0].attacks : enemy.def.attacks;
   }
 
   // After damage: move a boss into the next phase once its HP share drops to
   // the current phase's untilHpPct. The phase's onEnter event waits for the
   // end of the current turn (afterTurn).
   checkPhase(enemy) {
+    if (enemy.def.stages) {
+      this.checkStage(enemy);
+      return;
+    }
     const phases = enemy.def.phases;
     if (!phases || enemy.hp <= 0) return;
     const pct = (enemy.hp / enemy.maxHp) * 100;
@@ -1503,7 +1669,22 @@ export default class BattleScene extends Phaser.Scene {
     }
   }
 
+  // `stages` (the Clerk): a stage's own HP is its bar, 0 ends the stage (markDown -> riseStage), and
+  // recollectionAtHpPct unlocks the Recollection (the Keepsake event) once per battle.
+  checkStage(enemy) {
+    const stage = enemy.def.stages[enemy.phase || 0];
+    if (enemy.hp <= 0 || !stage.recollectionAtHpPct || enemy.recollectionUnlocked) return;
+    if ((enemy.hp / enemy.maxHp) * 100 <= stage.recollectionAtHpPct) {
+      enemy.recollectionUnlocked = true;
+      this.pendingEvents.push('keepsake_burn');
+    }
+  }
+
   async afterTurn() {
+    // A stage end first: the enemy that fell rises before anything else happens.
+    for (const enemy of this.enemies) {
+      if (enemy.rising && !this.battleOver && this.heroes.some((h) => h.hp > 0)) await this.riseStage(enemy);
+    }
     while (this.pendingEvents.length && !this.battleOver) {
       const event = this.pendingEvents.shift();
       if (event === 'keepsake_burn') await this.keepsakeBurn();
@@ -1742,6 +1923,8 @@ export default class BattleScene extends Phaser.Scene {
     this.tapHint.setVisible(true);
     await this.recollectionRings(target, tech);
     this.tapHint.setVisible(false);
+    // The memory ends it: the ultimate's kill is unconditional (techniques.json recollection.kill).
+    if (tech.kill && target.hp > 0) this.killEnemy(target);
     // The memory leaves its mark: the target takes more damage for a few turns.
     if (tech.applies && target.hp > 0) this.applyEnemyStatus(target, tech.applies.status, tech.applies.turns);
     castDone.stop();
@@ -1796,6 +1979,13 @@ export default class BattleScene extends Phaser.Scene {
       if (i < tech.taps - 1) await this.wait(Math.max(0, ring.impactAt + tech.intervalMs - performance.now()));
     }
     counter.destroy();
+  }
+
+  // Straight to 0 HP and down (the normal death path: a stage end rises, the last stage is the win).
+  killEnemy(enemy) {
+    enemy.hp = 0;
+    this.updateLabel(enemy);
+    this.markDown(enemy);
   }
 
   recollectionHit(target, result, tech) {

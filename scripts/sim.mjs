@@ -8,6 +8,8 @@
 //   npm run sim -- --runs 5000   more runs
 //   npm run sim -- --battle boss_clerk --json
 //   npm run sim -- --set enemies.clerk.hp=400 --set characters.rhea.hp=70
+//   npm run sim -- --no-recollection   the player never casts Recollection (sim.json policy.recollection: false)
+//   npm run sim -- --unforgettable     adds the Unforgettable difficulty rows
 //
 // QTE model: a profile is "lapse" (no useful tap at all) + a biased Gaussian
 // timing error (bias, sigma), solved so that the default windows (qte.json)
@@ -66,6 +68,9 @@ for (let i = 0; i < args.length; i++) {
 const RUNS = Number(opt('runs', D.sim.runs));
 const ONLY = opt('battle', null);
 const JSON_OUT = args.includes('--json');
+// Recollection is cast whenever Rhea has the Echo, unless the policy (or --no-recollection) says never.
+const CASTS_RECOLLECTION = D.sim.policy.recollection !== false && !args.includes('--no-recollection');
+const MODES = ['normal', 'story', ...(args.includes('--unforgettable') ? ['unforgettable'] : [])];
 
 // ---------- QTE profiles ----------
 const erf = (x) => {
@@ -120,6 +125,8 @@ const sheetMs = (id, anim, fallback) => {
   return def ? def.durations_ms.reduce((a, b) => a + b, 0) : fallback;
 };
 const T = D.sim.timing;
+// Typing + reading time of one dialogue (the same model as the chapter's dialogue minutes).
+const dialogueMs = (id) => (D.dialogue[id] || []).reduce((n, line) => n + (line.text.length / D.ui.dialogue.charsPerSec) * 1000 + T.readAfterLineMs, 0);
 
 // ---------- one battle ----------
 const between = (rnd, [a, b]) => a + Math.floor(rnd() * (b - a + 1));
@@ -133,14 +140,15 @@ function pickWeighted(list, rnd) {
   return list[list.length - 1];
 }
 
-function simulateBattle(battleId, profileName, story, rnd) {
+function simulateBattle(battleId, profileName, mode, rnd) {
   const battle = D.battles[battleId];
   const profile = D.sim.profilesSolved[profileName];
   const tech = D.techniques;
   const qte = D.qte;
   const echoMax = D.ui.hud.echo.max;
-  const storyMult = story ? qte.difficulties.story.windowMult : 1;
-  const dmgTakenMult = story ? qte.difficulties.story.damageMult : 1;
+  const diff = qte.difficulties[mode];
+  const storyMult = diff.windowMult;
+  const dmgTakenMult = diff.damageMult;
   const think = D.sim.thinkMs[profileName];
 
   // Recall: the level a playthrough reaches by this battle (levels.json).
@@ -152,16 +160,27 @@ function simulateBattle(battleId, profileName, story, rnd) {
     const hp = def.hp + g.hp;
     return { id, def, hp, max: hp, strike: [def.strike[0] + g.strike, def.strike[1] + g.strike], techniques: learned(id, level, def.techniques, D.levels), redacted: null, echo: 0, echoMax: echoMaxFor(id, level, D.levels) ?? def.echoMax ?? echoMax };
   });
-  const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: D.enemies[id].hp, max: D.enemies[id].hp, phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false }));
+  // enemies.json `stages`: the first stage opens at hpPct % of the HP (the bar shows that stage's own max).
+  const fullHp = (def) => Math.round(def.hp * diff.enemyHpMult);
+  const startHp = (def) => (def.stages ? Math.round((fullHp(def) * def.stages[0].hpPct) / 100) : fullHp(def));
+  const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: D.enemies[id], hp: startHp(D.enemies[id]), max: startHp(D.enemies[id]), phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false, rising: false }));
 
   // A tutorial battle also costs the time to read its hint banners and its tutorial pauses
   // (tutorial.json: one tap-through per step, T.pauseMs per profile; time only, no mechanics).
   const pauseSteps = battle.tutorial
     ? [battle.pauses?.battleStart, ...Object.values(battle.pauses?.enemyAttack || {}), D.tutorial.recallCard].reduce((n, id) => n + (D.tutorial.pauses[id] ? (D.tutorial.pauses[id].steps || [0]).length : 0), 0)
     : 0;
-  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0) + pauseSteps * (T.pauseMs?.[profileName] ?? 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], flags: [], playerHits: 0, parrySuccess: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0) + pauseSteps * (T.pauseMs?.[profileName] ?? 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], firedCharge: new Set(), flags: [], playerHits: 0, parrySuccess: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   // Echo is per hero (each has their own reserve).
-  const gain = (hero, n) => (hero.echo = Math.max(0, Math.min(hero.echoMax, hero.echo + n)));
+  // A difficulty with echoMult < 1 earns Echo more slowly (the fraction carries over); raw skips it (the Keepsake).
+  const gain = (hero, n, raw = false) => {
+    if (!raw && n > 0 && diff.echoMult !== 1) {
+      hero.echoFrac = (hero.echoFrac || 0) + n * diff.echoMult;
+      n = Math.floor(hero.echoFrac);
+      hero.echoFrac -= n;
+    }
+    hero.echo = Math.max(0, Math.min(hero.echoMax, hero.echo + n));
+  };
   const rhea = heroes.find((h) => h.id === 'rhea'); // may be absent (battles.json party)
   const living = (list) => list.filter((e) => e.hp > 0);
   const immune = (enemy, techId) => !!enemy.def.immune?.includes(techId);
@@ -188,7 +207,20 @@ function simulateBattle(battleId, profileName, story, rnd) {
     if (st.playerAction && dmg > 0) st.actionLanded = true;
     enemy.hp = Math.max(0, enemy.hp - dmg);
     if (enemy.hp <= 0) enemy.charge = null;
-    const phases = enemy.def.phases;
+    // `stages`: 0 HP ends a stage that has onZero (the enemy rises in afterTurn); the stage's
+    // recollectionAtHpPct queues the Keepsake once.
+    const stages = enemy.def.stages;
+    if (stages) {
+      const stage = stages[enemy.phase];
+      if (enemy.hp <= 0 && enemy.phase < stages.length - 1 && stage.onZero) {
+        enemy.rising = true;
+        enemy.exposed = null;
+      } else if (enemy.hp > 0 && stage.recollectionAtHpPct && !enemy.recollectionUnlocked && (enemy.hp / enemy.max) * 100 <= stage.recollectionAtHpPct) {
+        enemy.recollectionUnlocked = true;
+        st.pending.push('keepsake_burn');
+      }
+    }
+    const phases = stages ? null : enemy.def.phases;
     if (phases && enemy.hp > 0) {
       const pct = (enemy.hp / enemy.max) * 100;
       while (enemy.phase < phases.length - 1 && pct <= phases[enemy.phase].untilHpPct) {
@@ -220,7 +252,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
   const windowMult = () => storyMult * (st.tutorialSlow ? 1 / qte.tutorial.timeScale : 1);
 
   // enemies.json defend + qte.json enemyDefendChance (story 0): mirrors BattleScene.rollDefendAs.
-  const defendChance = qte.difficulties[story ? 'story' : 'normal'].enemyDefendChance;
+  const defendChance = diff.enemyDefendChance;
   const defends = (enemy, kind, techId) => !!enemy.def.defend?.[kind]?.includes(techId) && enemy.hp > 0 && !enemy.broken && !enemy.charge && rnd() < defendChance;
   // How the scripted player answers one enemy ring: a red ring always with a swipe (normal
   // windows), a white ring with a swipe (the easier dodge windows) policy.dodgeChance of the
@@ -257,18 +289,36 @@ function simulateBattle(battleId, profileName, story, rnd) {
   };
 
   const afterTurn = () => {
+    // A stage end: the enemy that fell rises into the next stage (death sheet both ways, the dialogue, a beat).
+    for (const e of enemies) {
+      if (!e.rising || !living(heroes).length) continue;
+      const z = e.def.stages[e.phase].onZero;
+      e.phase += 1;
+      e.turnsInPhase = 0;
+      e.rising = false;
+      e.max = fullHp(e.def);
+      e.hp = Math.max(1, Math.round(e.max * (z.refillTo ?? 1)));
+      e.exposed = null;
+      e.broken = false;
+      if (e.def.poise) e.poise = e.def.poise;
+      const b = D.battleEvents.stage;
+      st.ms += 2 * sheetMs(e.type, z.anim, 1000) + b.deathHoldMs + (z.dialogue ? dialogueMs(z.dialogue) : 0) + b.riseMs * 2;
+    }
     while (st.pending.length) {
       const ev = st.pending.shift();
       if (ev === 'keepsake_burn' && living(enemies).length) {
         st.keepsake = true;
+        st.keepsakeRound = st.rounds;
         st.ms += T.keepsakeMs;
         // The Keepsake unlocks Rhea's last pips, then fills them.
         if (rhea) {
           rhea.echoMax = Math.max(rhea.echoMax, D.battleEvents.keepsake_burn.echoMax || rhea.echoMax);
-          gain(rhea, rhea.echoMax);
+          gain(rhea, rhea.echoMax, true);
         }
       } else if (D.battleEvents[ev]?.dialogue && living(enemies).length) {
-        st.ms += T.insightMs;
+        // Reading time of a short event: archive_insight keeps its calibrated insightMs; the Archive
+        // warnings (a line or two) cost what their lines cost (typing + the pause after each line).
+        st.ms += ev === 'archive_insight' ? T.insightMs : dialogueMs(D.battleEvents[ev].dialogue);
       }
     }
   };
@@ -324,7 +374,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
     const hurt = heroes.filter((h) => h.hp > 0 && h.hp < h.max * D.sim.policy.anchorBelow);
 
     // Recollection when full.
-    if (battle.recollection && hero.def.canUltimate && hero.echo >= tech.recollection.cost) {
+    if (CASTS_RECOLLECTION && battle.recollection && hero.def.canUltimate && hero.echo >= tech.recollection.cost) {
       st.playerAction = false; // the ultimate is not a counted hit
       hero.echo -= tech.recollection.cost;
       st.recollections += 1;
@@ -332,6 +382,16 @@ function simulateBattle(battleId, profileName, story, rnd) {
       for (let i = 0; i < r.taps && target.hp > 0; i++) {
         const res = roll(qteOdds(profile, storyMult), rnd);
         hitEnemy(target, r.dmg[res.toLowerCase()], 'ultimate');
+      }
+      // techniques.json recollection.kill: the memory ends it, whatever the rings did.
+      if (r.kill && target.hp > 0) {
+        target.hp = 0;
+        target.charge = null;
+        const stages = target.def.stages;
+        if (stages && target.phase < stages.length - 1 && stages[target.phase].onZero) {
+          target.rising = true;
+          target.exposed = null;
+        }
       }
       if (r.applies && target.hp > 0) target.exposed = { mult: D.statuses[r.applies.status].damageTakenMult, turns: r.applies.turns };
       st.ms += T.recollectionFadeMs * 2 + r.taps * (qte.recollection.ringMs + r.intervalMs);
@@ -453,7 +513,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
       mitigated = enemy.charge.mitigated;
       enemy.charge = null;
     } else {
-      const phase = enemy.def.phases ? enemy.def.phases[enemy.phase] : null;
+      const phase = (enemy.def.stages || enemy.def.phases)?.[enemy.phase] ?? null;
       const list = phase ? phase.attacks : enemy.def.attacks;
       // The parry tutorial teaches the tap first: no red ring until it's done.
       const open = st.tutorialSlow || battle.redRings === false ? list.filter((a) => !a.unparryable) : list;
@@ -464,6 +524,11 @@ function simulateBattle(battleId, profileName, story, rnd) {
       attack = (fixedId && (open.length ? open : list).find((a) => a.id === fixedId)) || pickWeighted(open.length ? open : list, rnd);
       if (attack.chargeTurns) {
         st.archives += 1;
+        // onChargeStart: a battle event the first time any charge of that id starts.
+        if (attack.onChargeStart && !st.firedCharge.has(attack.onChargeStart)) {
+          st.firedCharge.add(attack.onChargeStart);
+          st.pending.push(attack.onChargeStart);
+        }
         enemy.charge = { attack, turnsLeft: attack.chargeTurns, mitigated: 0 };
         st.ms += T.chargeMs;
         return;
@@ -542,9 +607,8 @@ function simulateBattle(battleId, profileName, story, rnd) {
 
   checkEvents(); // `when: "battleStart"`
   if (st.interrupted) return interrupted();
-  while (true) {
-    st.rounds += 1;
-    if (st.rounds > 200) return { ...st, win: false, stuck: true };
+  // battles.json `initiative: "enemy"`: the enemies act before the heroes in every round.
+  const heroPhase = () => {
     for (const hero of heroes) {
       if (hero.hp <= 0) continue;
       playerTurn(hero);
@@ -554,6 +618,9 @@ function simulateBattle(battleId, profileName, story, rnd) {
       if (st.interrupted) return interrupted();
       if (!living(enemies).length) return { ...st, win: true, ms: st.ms + T.victoryMs, grade: gradeOf() };
     }
+    return null;
+  };
+  const enemyPhase = () => {
     for (const enemy of enemies) {
       if (enemy.hp <= 0) continue;
       enemyTurn(enemy);
@@ -562,6 +629,16 @@ function simulateBattle(battleId, profileName, story, rnd) {
       if (st.interrupted) return interrupted();
       if (!living(heroes).length) return { ...st, win: false, ms: st.ms + T.loseMs };
       if (!living(enemies).length) return { ...st, win: true, ms: st.ms + T.victoryMs, grade: gradeOf() };
+    }
+    return null;
+  };
+  const order = battle.initiative === 'enemy' ? [enemyPhase, heroPhase] : [heroPhase, enemyPhase];
+  while (true) {
+    st.rounds += 1;
+    if (st.rounds > 200) return { ...st, win: false, stuck: true };
+    for (const phase of order) {
+      const result = phase();
+      if (result) return result;
     }
   }
 }
@@ -593,12 +670,12 @@ function mulberry32(seed) {
 D.sim.profilesSolved = Object.fromEntries(Object.entries(D.sim.profiles).map(([k, v]) => [k, solveProfile(v)]));
 const battleIds = Object.keys(D.battles).filter((id) => (ONLY ? id === ONLY : D.chapter.some((s) => s.id === id)));
 const rows = [];
-for (const story of [false, true]) {
+for (const mode of MODES) {
   for (const id of battleIds) {
     for (const profileName of Object.keys(D.sim.profiles)) {
       const rnd = mulberry32(D.sim.seed);
       const res = [];
-      for (let i = 0; i < RUNS; i++) res.push(simulateBattle(id, profileName, story, rnd));
+      for (let i = 0; i < RUNS; i++) res.push(simulateBattle(id, profileName, mode, rnd));
       const wins = res.filter((r) => r.win);
       const graded = wins.filter((r) => r.grade); // an interrupted battle has no grade
       const avg = (f, list = res) => list.reduce((s, r) => s + f(r), 0) / Math.max(1, list.length);
@@ -606,7 +683,7 @@ for (const story of [false, true]) {
       const q = (x) => sorted[Math.floor(x * (sorted.length - 1))];
       rows.push({
         battle: id,
-        mode: story ? 'story' : 'normal',
+        mode,
         profile: profileName,
         win: wins.length / RUNS,
         rounds: avg((r) => r.rounds),

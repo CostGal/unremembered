@@ -9,6 +9,7 @@
   },
   "thinkMs": { "non-gamer": 3500, "average": 2200, "good": 1400 },
   "policy": {
+    "recollection": true,
     "anchorBelow": 0.4,
     "returnToSenderChance": 0.5,
     "braceOnArchive": true,
