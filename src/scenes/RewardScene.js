@@ -1,12 +1,14 @@
 import Phaser from 'phaser';
 import fragments from '../data/fragments.json';
 import ui from '../data/ui.json';
-import { playSfx } from '../systems/Audio.js';
+import audioData from '../data/audio.json';
+import { playMusic, playOneShot, playSfx } from '../systems/Audio.js';
 import { drawChoices } from '../systems/Fragments.js';
 import { whenReady } from '../systems/Assets.js';
 import { glassPanel, keyArtBackdrop } from '../systems/Backdrop.js';
 
 const cfg = fragments.screen;
+const placement = audioData.music.placement;
 
 // "A memory returns…": the step's pool (fragments.json `pools[step id]`), tap
 // one to keep it for the rest of the run (registry 'fragments').
@@ -27,6 +29,12 @@ export default class RewardScene extends Phaser.Scene {
   // Over the Menu's key-art backdrop, the fragments as glass cards.
   build() {
     this.picked = false;
+    // Music (placement.step.<id>): the rest track keeps playing, the memory jingle ducks it.
+    const music = placement.step?.[this.stepId];
+    if (music) {
+      if (music.over) playMusic(music.over.track);
+      if (music.oneShot) playOneShot(music.oneShot, { duck: music.over?.duck, resume: true });
+    }
     const owned = this.registry.get('fragments') || [];
     const choices = drawChoices(owned, this.stepId);
     if (!choices.length) {

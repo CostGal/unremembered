@@ -674,16 +674,6 @@
       "w": 720,
       "h": 1280
     },
-    "cs_city_red_tower": {
-      "file": "cutscene/cs_city_red_tower.jpg",
-      "w": 720,
-      "h": 1280,
-      "placeholder": {
-        "tint": "0x2e1218",
-        "label": "Veyra with the tower glowing red",
-        "shape": "street"
-      }
-    },
     "cs_forgotten": {
       "file": "cutscene/cs_forgotten.jpg",
       "w": 720,

@@ -37,7 +37,13 @@ export default class BootScene extends Phaser.Scene {
 async function validateInDev(animationSets) {
   const { validateData } = await import('../systems/Validate.js');
   const modules = import.meta.glob('../data/*.json', { eager: true, import: 'default' });
-  const data = { cutscenes: {}, animationSets };
+  // The music / SFX files on disk (vite.config.js lists them at build time).
+  const data = {
+    cutscenes: {},
+    animationSets,
+    musicFileKeys: typeof __MUSIC_FILES__ !== 'undefined' ? __MUSIC_FILES__ : [],
+    sfxFileKeys: typeof __SFX_FILES__ !== 'undefined' ? __SFX_FILES__ : [],
+  };
   for (const [path, json] of Object.entries(modules)) {
     const name = path.split('/').pop().slice(0, -5);
     if (name.startsWith('cutscene_')) data.cutscenes[name.slice('cutscene_'.length)] = json;

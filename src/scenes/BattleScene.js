@@ -13,7 +13,8 @@ import statuses from '../data/statuses.json';
 import qte from '../data/qte.json';
 import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
-import { playAmbience, playMusic, playSfx, setMusicIntensity, setMusicWarm, vibrate } from '../systems/Audio.js';
+import audioData from '../data/audio.json';
+import { playAmbience, playMusic, playOneShot, playSfx, setMusicIntensity, setMusicWarm, vibrate } from '../systems/Audio.js';
 import { dueEvents, thenSplit } from '../systems/BattleEvents.js';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
@@ -39,6 +40,7 @@ import { animKey, hasSheet, playLoop, playOnce, playReverseOnce, SheetDriver, tr
 import { isRealTexture, whenReady } from '../systems/Assets.js';
 
 const layout = ui.battleLayout;
+const musicPlan = audioData.music.placement; // where the music plays (audio.json music.placement)
 
 const ATTACK_DURATION_MS = 400;
 const LUNGE_OUT_MS = 150;
@@ -745,6 +747,9 @@ export default class BattleScene extends Phaser.Scene {
     const next = stages[(enemy.phase || 0) + 1];
     const z = from.onZero;
     const cfg = battleEvents.stage;
+    // Music: the stage's track stops as the enemy falls; the stinger plays as it rises (enterStage starts the next track).
+    const musicChange = musicPlan.battle?.[this.battleId]?.stageChange;
+    if (musicChange?.stop) playMusic(null);
     await enemy.deathDone;
     await this.wait(cfg.deathHoldMs);
     if (this.battleOver) return;
@@ -752,6 +757,7 @@ export default class BattleScene extends Phaser.Scene {
 
     // The death sheet backwards (a missing or placeholder sheet: the body fades back in).
     if (z.sfx) playSfx(z.sfx);
+    if (musicChange?.oneShot) playOneShot(musicChange.oneShot, { resume: false });
     const name = z.reverseAnim || z.anim;
     const def = enemy.anims?.[name];
     const fade = !hasSheet(enemy.anims, name) ? this.tweenPromise(enemy.container, { alpha: 1 }, cfg.riseMs) : Promise.resolve();
@@ -786,6 +792,7 @@ export default class BattleScene extends Phaser.Scene {
     const images = [enemy.body, ...Object.values(enemy.parts).map((p) => p.img)];
     if (stage.tint) Fx.setBaseTint(images, multiplyTints(enemy.body.baseTint ?? 0xffffff, Number(stage.tint)));
     if (stage.aura) this.startAura(enemy, stage.aura);
+    if (stage.music) playMusic(stage.music);
     if (stage.musicIntensity !== undefined) setMusicIntensity(stage.musicIntensity);
     if (stage.laughEvery) enemy.laughIn = Phaser.Math.Between(stage.laughEvery[0], stage.laughEvery[1]);
     Fx.popText(this, enemy.container.x, enemy.container.y, cfg.enragedText, cfg.enragedColor, qte.text);
@@ -1639,6 +1646,12 @@ export default class BattleScene extends Phaser.Scene {
     });
   }
 
+  // The track the fight plays now: the living staged boss's stage music, else the battle's.
+  battleMusic() {
+    const boss = this.enemies.find((e) => e.def.stages && e.hp > 0);
+    return boss?.def.stages[boss.phase || 0].music || this.battleDef.music || null;
+  }
+
   // ---------- Boss phases (enemies.json phases) ----------
 
   // A boss uses the attack list of its current phase.
@@ -1772,6 +1785,9 @@ export default class BattleScene extends Phaser.Scene {
   // and the Recollection button pulses on her next turn.
   async keepsakeBurn() {
     if (this.enemies.every((e) => e.hp <= 0)) return;
+    // Music: the Keepsake track takes over under the conversation (the Dialogue scene cuts it after its silence line).
+    const burn = musicPlan.overlay.keepsake_burn;
+    if (burn) playOneShot(burn.track, { duck: burn.duck, resume: burn.resume });
     await this.playDialogueOverlay(battleEvents.keepsake_burn.dialogue);
     const rhea = this.heroes.find((h) => h.def.canUltimate) || this.heroes[0];
     const k = battleEvents.keepsake_burn;
@@ -1920,6 +1936,8 @@ export default class BattleScene extends Phaser.Scene {
     }
     Fx.popText(this, hero.container.x, hero.container.y, tech.name, r.textColor, qte.text);
     playSfx('ultimate');
+    // Music: the Recollection track from the cast to the end of the attack (placement.overlay.recollection).
+    if (musicPlan.overlay.recollection) playMusic(musicPlan.overlay.recollection.track);
     setMusicWarm(true);
     const castDone = this.playCastLoop(hero);
     await this.wait(r.tint.fadeMs);
@@ -1933,6 +1951,8 @@ export default class BattleScene extends Phaser.Scene {
     if (tech.applies && target.hp > 0) this.applyEnemyStatus(target, tech.applies.status, tech.applies.turns);
     castDone.stop();
     setMusicWarm(false);
+    // Still fighting after the attack: back to the stage's track (a kill goes on to the Victory jingle).
+    if (musicPlan.overlay.recollection && this.enemies.some((e) => e.hp > 0)) playMusic(this.battleMusic());
 
     this.tweens.add({ targets: overlay, fillAlpha: 0, duration: r.tint.fadeMs, onComplete: () => overlay.destroy() });
     if (memoryBg) this.tweens.add({ targets: [memoryBg, ...(memoryBg.edges || [])], alpha: 0, duration: r.tint.fadeMs, onComplete: () => memoryBg.destroy() });
@@ -2846,7 +2866,11 @@ export default class BattleScene extends Phaser.Scene {
         message.setScale(v.popScale);
         this.tweens.add({ targets: message, scale: 1, duration: v.popMs, ease: 'Back.easeOut' });
       }
-      playSfx('victory');
+      // Music: the battle track fades under the Victory jingle (placement.events.battleWin).
+      playOneShot(musicPlan.events.battleWin.oneShot, { resume: false });
+    } else if (result === 'LOSE') {
+      // Music: stopped; the Retry screen gets its own jingle (placement.events.retry).
+      playOneShot(musicPlan.events.retry.oneShot, { resume: false });
     }
 
     // A short delay so the tap that ended the fight doesn't also skip this.
@@ -2887,7 +2911,10 @@ export default class BattleScene extends Phaser.Scene {
   showRecall() {
     const to = this.recallXp + battleXp(this.battleDef.enemies, enemies);
     this.registry.set('recallXp', to);
-    return new RecallCard(this, this.recallXp, to, this.heroes).show();
+    const card = new RecallCard(this, this.recallXp, to, this.heroes);
+    // Music: a level gained plays the memory jingle over the card (placement.events.recallCard).
+    if (card.ups.length) playOneShot(musicPlan.events.recallCard.oneShot, { resume: false });
+    return card.show();
   }
 
   // Retry restarts the same battle from its starting state (full HP, starting Echo).

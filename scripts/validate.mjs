@@ -33,6 +33,9 @@ for (const file of readdirSync(spritesDir).filter((f) => f.endsWith('_animations
 const sfxDir = join(root, 'public/assets/audio/sfx');
 data.sfxFileKeys = existsSync(sfxDir) ? readdirSync(sfxDir).filter((f) => f.endsWith('.mp3')).map((f) => f.slice(0, -4)) : [];
 
+const musicDir = join(root, 'public/assets/audio/music');
+data.musicFileKeys = existsSync(musicDir) ? readdirSync(musicDir).filter((f) => f.endsWith('.mp3')).map((f) => f.slice(0, -4)) : [];
+
 const { errors, warnings } = validateData(data, { sheetExists: (sheet) => existsSync(join(spritesDir, sheet)) });
 for (const w of warnings) console.warn(`! ${w}`);
 for (const e of errors) console.error(`✗ ${e}`);

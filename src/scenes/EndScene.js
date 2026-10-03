@@ -42,12 +42,16 @@ export default class EndScene extends Phaser.Scene {
     } else {
       addText(this, 180, cfg.hidden.y, credits.hiddenText, cfg.hidden).setDepth(depth);
     }
-    // The music licences stay on show (nothing to list while every track is procedural).
+    // The music licences stay on show: credits.json musicLine (Kostas's one line), else one line per entry.
     const m = cfg.music;
-    credits.music.forEach((track, i) => {
-      const line = m.format.replace('{title}', track.title).replace('{author}', track.author).replace('{license}', track.license);
-      addText(this, 180, m.y + i * m.lineH, line, m).setDepth(depth);
-    });
+    if (credits.musicLine) {
+      addText(this, 180, m.y, credits.musicLine, m).setDepth(depth);
+    } else {
+      credits.music.forEach((track, i) => {
+        const line = m.format.replace('{title}', track.title).replace('{author}', track.author).replace('{license}', track.license);
+        addText(this, 180, m.y + i * m.lineH, line, m).setDepth(depth);
+      });
+    }
 
     this.time.delayedCall(cfg.hint.delayMs, () => {
       const hint = addText(this, 180, cfg.hint.y, cfg.hint.text, cfg.hint).setDepth(depth);

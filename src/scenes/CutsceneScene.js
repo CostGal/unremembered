@@ -3,7 +3,9 @@ import cutsceneOrigin from '../data/cutscene_origin.json';
 import environments from '../data/environments.json';
 import { addPauseButton } from '../systems/PauseButton.js';
 import ui from '../data/ui.json';
-import { playAmbience, playSceneMusic, playSfx } from '../systems/Audio.js';
+import audioData from '../data/audio.json';
+import { playAmbience, playMusic, playSfx, stopAllSfx } from '../systems/Audio.js';
+import { cutsceneTrack, prefetchMusicForShot } from '../systems/MusicPlan.js';
 import * as Fx from '../systems/Fx.js';
 import { whenReady } from '../systems/Assets.js';
 import { devInt } from '../systems/DevParams.js';
@@ -26,6 +28,12 @@ const CUTSCENES = { origin: cutsceneOrigin };
 //               (alpha; default fx.red_tint.alpha, a lighter 0.14 on the red tower).
 //               whenArt {redTint: 0.1} lightens it once the real red art is in.
 //   shake       the camera shake builds 1 -> 6 px over 1.5 s, then stops (the Hush).
+//   crossfadeTo {bg, atPct, ms}: a second picture fades in over the shot's own at atPct of its
+//               duration (the Hush: hush_1 -> hush_mid). Without that art the shot keeps its own.
+//   view        {focus: [x, y], zoom} for the shot's picture (alias of bgView).
+//   sfx         a name or a list of names, all played at the shot's start.
+// The music follows audio.json music.placement.cutscene_<id>.ranges (by shot index): the track
+// crossfades when the range changes, null = silence, no range = the music is left alone.
 //   red_surge   a red wave rolls out of `surgeAt` ([x, y], 0-1 of the picture, default the
 //               tower) over the view, then a red tint fades out (the Hush, after the shake).
 export default class CutsceneScene extends Phaser.Scene {
@@ -41,6 +49,7 @@ export default class CutsceneScene extends Phaser.Scene {
     this.fxObjects = [];
     this.fxTweens = [];
     this.pictures = [];
+    this.musicTrack = undefined;
     this.cutsceneId = data.id || 'origin';
     this.shots = (CUTSCENES[this.cutsceneId] || { shots: [] }).shots;
     this.firstShot = Math.max(1, Math.min(this.shots.length, data.shot ?? devInt('shot') ?? 1)) - 1;
@@ -52,7 +61,6 @@ export default class CutsceneScene extends Phaser.Scene {
   }
 
   build() {
-    playSceneMusic('Cutscene');
     this.cameras.main.setBackgroundColor(cfg.background);
     const a = cfg.area;
     const view = viewRect();
@@ -187,17 +195,20 @@ export default class CutsceneScene extends Phaser.Scene {
     const stage = this.add.container(180, this.area.y + this.area.h / 2);
     this.shotLayer.add(stage);
 
+    this.shotMusic();
+    const bgView = shot.view ?? shot.bgView;
     const split = shot.split || 'none';
     this.picture = null;
     if (split === 'none') {
-      this.picture = this.addPicture(stage, shot.bg, 0, 0, this.area.w, this.area.h, shot.tint, shot.bgView);
+      this.picture = this.addPicture(stage, shot.bg, 0, 0, this.area.w, this.area.h, shot.tint, bgView);
+      if (shot.crossfadeTo) this.crossfadePicture(stage, shot, duration, bgView);
     } else {
       const vertical = split === 'vertical';
       const w = vertical ? this.area.w / 2 : this.area.w;
       const h = vertical ? this.area.h : this.area.h / 2;
       const dx = vertical ? w / 2 : 0;
       const dy = vertical ? 0 : h / 2;
-      this.picture = this.addPicture(stage, shot.bg, -dx, -dy, w, h, shot.tint, shot.bgView);
+      this.picture = this.addPicture(stage, shot.bg, -dx, -dy, w, h, shot.tint, bgView);
       this.addPicture(stage, shot.bg2, dx, dy, w, h, shot.tint, shot.bg2View);
       const line = this.add.rectangle(0, 0, vertical ? cfg.splitLine : this.area.w, vertical ? this.area.h : cfg.splitLine, Number(cfg.splitColor));
       stage.add(line);
@@ -209,6 +220,8 @@ export default class CutsceneScene extends Phaser.Scene {
     for (const fx of shot.fx || []) this.applyFx(fx, stage, layers, duration, shot);
     // Sound: the shot's own sfx, else the first of its fx that has one (ui.json fxSfx).
     const sfx = shot.sfx !== undefined ? shot.sfx : (shot.fx || []).map((fx) => cfg.fxSfx[fx]).find(Boolean);
+    // The long cues of the shot before (a crowd, a scream) fade out instead of running on or cutting off.
+    stopAllSfx(audioData.sfxFadeMs, audioData.sfxLong);
     if (sfx) playSfx(sfx);
     playAmbience(this.shotAmbience(shot));
 
@@ -217,6 +230,31 @@ export default class CutsceneScene extends Phaser.Scene {
       if (this.typing) this.completeText();
       this.nextShot();
     });
+  }
+
+  // The music of the current shot (placement ranges): a changed track crossfades in; the next
+  // range's file and the step after the cutscene are fetched, the rest is freed.
+  shotMusic() {
+    const track = cutsceneTrack(this.cutsceneId, this.index);
+    if (track === undefined || track === this.musicTrack) return;
+    this.musicTrack = track;
+    playMusic(track);
+    prefetchMusicForShot(this.cutsceneId, this.index, this.nextStepInfo());
+  }
+
+  nextStepInfo() {
+    const runner = this.registry.get('runner');
+    return runner ? runner.steps[runner.index + 1] : null;
+  }
+
+  // shot.crossfadeTo {bg, atPct, ms}: the second picture (same cell, view and tint) sits above the
+  // first at alpha 0 and fades in at atPct of the shot. No art for it = the shot stays on its own.
+  crossfadePicture(stage, shot, duration, view) {
+    const to = shot.crossfadeTo;
+    const next = this.addPicture(stage, to.bg, 0, 0, this.area.w, this.area.h, shot.tint, to.view ?? view);
+    if (!next) return;
+    next.setAlpha(0);
+    this.fxTweens.push(this.tweens.add({ targets: next, alpha: 1, delay: duration * to.atPct, duration: to.ms, ease: 'Sine.easeInOut' }));
   }
 
   // Everything a shot's fx made: objects, their tweens and timers, the camera shake.
@@ -481,6 +519,7 @@ export default class CutsceneScene extends Phaser.Scene {
     this.done = true;
     this.clearFx();
     playAmbience(null);
+    stopAllSfx(audioData.sfxFadeMs);
     this.cameras.main.fadeOut(cfg.fadeOutMs, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
       const runner = this.registry.get('runner');

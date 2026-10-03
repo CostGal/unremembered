@@ -2,6 +2,9 @@ import battles from '../data/battles.json';
 import enemies from '../data/enemies.json';
 import levels from '../data/levels.json';
 import { devInt } from './DevParams.js';
+import { stopAllSfx } from './Audio.js';
+import audioData from '../data/audio.json';
+import { prefetchMusicFor } from './MusicPlan.js';
 import { resetPauses } from './TutorialPause.js';
 import { chapterXpBefore, xpForLevel } from './Recall.js';
 
@@ -57,6 +60,10 @@ export default class ChapterRunner {
         continue;
       }
 
+      // Music: download what this step and the next can play, free the rest (audio.json music.prefetchPolicy).
+      prefetchMusicFor(step, this.steps[this.index + 1]);
+      // A cue still ringing from the scene that just ended fades out.
+      stopAllSfx(audioData.sfxFadeMs);
       if (step.type === 'battle') scene.scene.start(key, { battleId: step.id });
       else if (step.type === 'reward') scene.scene.start(key, { id: step.id });
       else scene.scene.start(key, { id: step.id, bg: step.bg });

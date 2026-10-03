@@ -48,7 +48,7 @@ export function unlockAudio() {
     // Whenever the context (re)starts running, make sure the wanted music is
     // actually playing: the first gesture can resolve resume() a beat late.
     ctx.onstatechange = onStateChange;
-    if (wantedMusic) playMusic(wantedMusic);
+    if (wantedMusic) applyMusic(wantedMusic);
     if (wantedAmbience) startAmbience(wantedAmbience, audioData.ambience.beds[wantedAmbience]);
   }
   // Not running yet (first gesture), or 'interrupted' (iOS: a call, Siri, an
@@ -70,7 +70,7 @@ export function unlockAudio() {
 
 function onStateChange() {
   if (!ctx || ctx.state !== 'running') return;
-  if (wantedMusic && !current) playMusic(wantedMusic);
+  if (wantedMusic && !current) applyMusic(wantedMusic);
   if (wantedAmbience && !ambience) startAmbience(wantedAmbience, audioData.ambience.beds[wantedAmbience]);
 }
 
@@ -138,28 +138,64 @@ export function vibrate(ms) {
 // wins over the procedural recipe audio.json sfx[name]; with neither it is silent.
 // A file that is not decoded yet plays the recipe (if any) this once, so a
 // sound never arrives late.
+// `name` may be a list of names (a shot or line with several cues): all play at once.
 export function playSfx(name) {
+  if (Array.isArray(name)) {
+    name.forEach(playSfx);
+    return;
+  }
+  audioLog({ ev: 'sfx', name });
   if (!ctx || ctx.state !== 'running') return;
   const layers = audioData.sfx[name];
+  const gain = audioData.sfxGain?.[name] ?? 1;
   if (SFX_FILES.has(name)) {
     const buffer = sfxDecoded.get(name);
     if (buffer) {
-      playBuffer(buffer);
+      playBuffer(buffer, gain, name);
       return;
     }
     const pending = loadSfx(name);
-    if (layers) playLayers(layers, sfxBus);
-    else pending.then((b) => b && ctx && ctx.state === 'running' && playBuffer(b));
+    if (layers && layers.length) playLayers(layers, sfxBus);
+    else pending.then((b) => b && ctx && ctx.state === 'running' && playBuffer(b, gain, name));
     return;
   }
   if (layers) playLayers(layers, sfxBus);
 }
 
-function playBuffer(buffer) {
+// File SFX that are playing: {name, source, gain} (stopAllSfx fades them out).
+const activeSfx = new Set();
+
+function playBuffer(buffer, gain = 1, name = null) {
   const source = ctx.createBufferSource();
   source.buffer = buffer;
-  source.connect(sfxBus);
+  const g = ctx.createGain();
+  g.gain.value = gain;
+  source.connect(g);
+  g.connect(sfxBus);
+  const rec = { name, source, gain: g };
+  activeSfx.add(rec);
+  source.onended = () => activeSfx.delete(rec);
   source.start();
+}
+
+// Fades out the playing file SFX over fadeMs and stops them (a skipped cutscene, a scene that
+// ends, a long cue at the next shot). `names` limits it to those cues (audio.json sfxLong has the
+// long ones); without it every file SFX goes. Procedural SFX are short and left alone.
+export function stopAllSfx(fadeMs = 400, names = null) {
+  audioLog({ ev: 'stopSfx', names, fadeMs });
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  for (const rec of [...activeSfx]) {
+    if (names && !names.includes(rec.name)) continue;
+    activeSfx.delete(rec);
+    rec.gain.gain.setValueAtTime(rec.gain.gain.value, t);
+    rec.gain.gain.linearRampToValueAtTime(0, t + fadeMs / 1000);
+    try {
+      rec.source.stop(t + fadeMs / 1000 + 0.05);
+    } catch (err) {
+      // already ended
+    }
+  }
 }
 
 // Decodes (once) the file of an SFX; resolves null when it cannot be had.
@@ -388,22 +424,76 @@ function getNoise() {
 
 // ---------- Music ----------
 
+// Keys: a music key is a file (public/assets/audio/music/<key>.mp3), a procedural track
+// of that name (data/music.json), or an alias (audio.json music.aliases, one hop) for
+// another key. A track loops unless audio.json music.loop[key] is false. One-shots
+// (playOneShot) duck the music under them. Which scene plays what is data too
+// (music.scenes, music.placement); the scenes call these functions.
+
+const mcfg = audioData.music;
+let oneShot = null; // {key, id, resume, stop(fadeSec)} — a jingle / stinger / cue over the music
+let quietUntil = 0; // performance.now() before which no new music starts (musicSilence)
+let pendingPlay = null; // timer of a playMusic held back by musicSilence
+let duckLevel = 1; // the gain a resume one-shot holds the music at (a track still loading starts at it)
+
+// Dev / QA only: window.__audio (scripts/qa/lib.mjs) collects every music request,
+// so a headless run can assert the play/stop sequence. Nothing happens in the game.
+function audioLog(entry) {
+  try {
+    const hook = window.__audio;
+    if (hook) (hook.log || (hook.log = [])).push({ t: Math.round(performance.now()), ...entry });
+  } catch (err) {
+    // no window / blocked: skip
+  }
+}
+
+// alias -> the key it stands for (one hop).
+export function resolveMusicKey(key) {
+  return (key && mcfg.aliases[key]) || key;
+}
+
+const isLoop = (key) => mcfg.loop[key] !== false;
+
 // The track for a scene key (audio.json music.scenes), if any.
 export function playSceneMusic(sceneKey) {
-  const key = audioData.music.scenes[sceneKey];
+  const key = mcfg.scenes[sceneKey];
   if (key) playMusic(key);
   // The scene's ambience bed (audio.json music.ambience), none by default.
-  if (sceneKey in audioData.music.ambience) playAmbience(audioData.music.ambience[sceneKey]);
+  if (sceneKey in mcfg.ambience) playAmbience(mcfg.ambience[sceneKey]);
 }
 
 // Crossfades to the track `key` (null = fade to silence). Asking for the
-// track that is already playing does nothing.
+// track that is already playing does nothing (a ducked one comes back up).
 export function playMusic(key) {
-  wantedMusic = key;
-  if (!ctx) return;
-  if (current && current.key === key) return;
+  const id = resolveMusicKey(key);
+  audioLog(key ? { ev: 'play', key, id, same: !!(current && current.id === id && !current.ended) } : { ev: 'stop', key: wantedMusic });
+  applyMusic(key);
+}
 
-  const fade = audioData.music.crossfadeMs / 1000;
+// playMusic without the log: also what the unlock / a held-back request calls to (re)start the wanted track.
+function applyMusic(key) {
+  const id = resolveMusicKey(key);
+  wantedMusic = key;
+  if (pendingPlay) {
+    clearTimeout(pendingPlay);
+    pendingPlay = null;
+  }
+  // musicSilence: a quiet gap is under way, the track starts when it is over.
+  const wait = quietUntil - performance.now();
+  if (key && wait > 0) {
+    pendingPlay = setTimeout(() => {
+      pendingPlay = null;
+      if (wantedMusic === key) applyMusic(key);
+    }, wait);
+    return;
+  }
+  if (!ctx) return;
+  const fade = mcfg.crossfadeMs / 1000;
+  if (oneShot) endOneShot(fade);
+  if (current && current.id === id && !current.ended) {
+    current.setDuck(1, mcfg.oneShot.duckMs / 1000);
+    return;
+  }
   if (current) {
     current.stop(fade);
     current = null;
@@ -413,47 +503,161 @@ export function playMusic(key) {
   musicState.warm = false;
   if (!key) return;
 
-  if (FILES.has(key)) startFile(key, fade);
-  else startProcedural(key, fade);
+  if (FILES.has(id)) startFile(key, id, fade);
+  else startProcedural(key, id, fade);
+}
+
+// Fade to silence and keep it quiet for `ms`: whatever playMusic asks for in that
+// window starts when it is over (the gap after the Keepsake line).
+export function musicSilence(ms) {
+  audioLog({ ev: 'silence', ms });
+  playMusic(null);
+  quietUntil = performance.now() + ms;
+}
+
+// A jingle, stinger or cue (key: a file with loop false, or a procedural oneShot track) over
+// the music. resume true: the music ducks to `duck` (over music.oneShot.duckMs) and comes back
+// when the one-shot ends. resume false: the music fades out and stays silent afterwards.
+export function playOneShot(key, { duck = mcfg.oneShot.duck, resume = true } = {}) {
+  const id = resolveMusicKey(key);
+  audioLog({ ev: 'oneshot', key, id, duck, resume });
+  const fade = mcfg.crossfadeMs / 1000;
+  if (oneShot) endOneShot(fade);
+  const rec = { key, id, resume, stop: null };
+  oneShot = rec;
+  if (!resume) wantedMusic = null;
+  if (!ctx) return;
+
+  if (resume) duckLevel = duck;
+  if (current) {
+    if (resume) current.setDuck(duck, mcfg.oneShot.duckMs / 1000);
+    else {
+      current.stop(fade);
+      current = null;
+    }
+  }
+  const done = () => {
+    if (oneShot !== rec) return;
+    oneShot = null;
+    duckLevel = 1;
+    audioLog({ ev: 'oneshot_end', key });
+    if (resume && current) current.setDuck(1, mcfg.oneShot.restoreMs / 1000);
+  };
+  if (FILES.has(id)) {
+    loadBuffer(id).then((buffer) => {
+      if (oneShot !== rec) return;
+      if (!buffer) {
+        done();
+        return;
+      }
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      const gain = ctx.createGain();
+      source.connect(gain);
+      gain.connect(musicBus);
+      source.onended = done;
+      source.start();
+      rec.stop = (f) => {
+        const t = ctx.currentTime;
+        gain.gain.setValueAtTime(gain.gain.value, t);
+        gain.gain.linearRampToValueAtTime(0, t + f);
+        try {
+          source.stop(t + f + 0.05);
+        } catch (err) {
+          // already ended
+        }
+      };
+    });
+  } else if (hasTrack(id)) {
+    if (!musicEngine) musicEngine = new MusicEngine(ctx, musicBus);
+    const track = musicEngine.play(id, 0.05);
+    track.onEnd = done;
+    rec.stop = (f) => musicEngine.stop(track, f);
+  } else {
+    done();
+  }
+}
+
+// Cuts the running one-shot (fading over fadeSec); the ducked music is not restored here.
+function endOneShot(fadeSec) {
+  const rec = oneShot;
+  if (!rec) return;
+  oneShot = null;
+  duckLevel = 1;
+  audioLog({ ev: 'oneshot_stop', key: rec.key });
+  if (rec.stop) rec.stop(fadeSec);
 }
 
 // Procedural track from data/music.json (silence if the key has none).
-function startProcedural(key, fade) {
-  if (!hasTrack(key)) return;
+function startProcedural(key, id, fade) {
+  if (!hasTrack(id)) return;
   if (!musicEngine) musicEngine = new MusicEngine(ctx, musicBus);
-  const track = musicEngine.play(key, fade);
+  const track = musicEngine.play(id, fade);
   track.setIntensity(musicState.intensity);
   track.setWarm(musicState.warm);
-  current = { key, track, stop: (f) => musicEngine.stop(track, f) };
+  const rec = { key, id, ended: false, track, setDuck: (level, sec) => track.setDuck(level, sec), duckValue: () => track.duckGain.gain.value, stop: (f) => musicEngine.stop(track, f) };
+  track.onEnd = () => {
+    rec.ended = true;
+  };
+  current = rec;
+  if (duckLevel !== 1) rec.setDuck(duckLevel, 0.05);
 }
 
-function startFile(key, fade) {
-  loadBuffer(key).then((buffer) => {
-    if (wantedMusic !== key || (current && current.key === key)) return;
+function startFile(key, id, fade) {
+  loadBuffer(id).then((buffer) => {
+    if (wantedMusic !== key || (current && current.id === id && !current.ended)) return;
     // Listed but unreadable (bad file): use the generated track instead.
     if (!buffer) {
-      startProcedural(key, fade);
+      startProcedural(key, id, fade);
       return;
     }
     const source = ctx.createBufferSource();
     source.buffer = buffer;
-    source.loop = true;
+    // A loop is the whole file, or music.loopPoints[key] = [startSec, endSec] (an encoder gap trimmed off).
+    source.loop = isLoop(key);
+    if (source.loop) {
+      const [from, to] = mcfg.loopPoints?.[key] || [0, buffer.duration];
+      source.loopStart = from;
+      source.loopEnd = to;
+    }
     const gain = ctx.createGain();
+    const duckNode = ctx.createGain();
     const now = ctx.currentTime;
     gain.gain.setValueAtTime(0, now);
     gain.gain.linearRampToValueAtTime(1, now + fade);
     source.connect(gain);
-    gain.connect(musicBus);
+    gain.connect(duckNode);
+    duckNode.connect(musicBus);
     source.start(now);
-    current = {
+    const rec = {
       key,
+      id,
+      ended: false,
+      source,
+      startedAt: now,
+      duckValue: () => duckNode.gain.value,
+      setDuck: (level, sec) => {
+        const t = ctx.currentTime;
+        duckNode.gain.cancelScheduledValues(t);
+        duckNode.gain.setValueAtTime(duckNode.gain.value, t);
+        duckNode.gain.linearRampToValueAtTime(level, t + sec);
+      },
       stop: (f) => {
         const t = ctx.currentTime;
         gain.gain.setValueAtTime(gain.gain.value, t);
         gain.gain.linearRampToValueAtTime(0, t + f);
-        source.stop(t + f + 0.05);
+        try {
+          source.stop(t + f + 0.05);
+        } catch (err) {
+          // already ended
+        }
       },
     };
+    source.onended = () => {
+      rec.ended = true;
+    };
+    current = rec;
+    if (duckLevel !== 1) rec.setDuck(duckLevel, 0.05);
   });
 }
 
@@ -480,6 +684,9 @@ export function musicStatus() {
   const track = current && current.track;
   return {
     key: current ? current.key : null,
+    id: current ? current.id : null,
+    oneShot: oneShot ? oneShot.key : null,
+    duck: current ? current.duckValue() : null,
     procedural: !!track,
     intensity: musicState.intensity,
     warm: musicState.warm,
@@ -488,6 +695,9 @@ export function musicStatus() {
     audioTime: ctx ? ctx.currentTime : 0,
     state: ctx ? ctx.state : 'none',
     ambience: ambience ? ambience.key : null,
+    sfxPlaying: activeSfx.size,
+    file: current && current.source ? { loop: current.source.loop, loopStart: current.source.loopStart, loopEnd: current.source.loopEnd, duration: current.source.buffer.duration, elapsed: ctx.currentTime - current.startedAt, ended: current.ended } : null,
+    resident: [...buffers.keys()].filter((k) => !k.startsWith('sfx/')),
   };
 }
 
@@ -514,11 +724,36 @@ function fetchBytes(key, source = audioData.music) {
   return bytes.get(key);
 }
 
-// Downloads every music track (audio.json scenes + battles) in the
-// background, one after another, so a track is ready when its scene starts.
-// Decoding waits for playMusic (it needs the unlocked AudioContext).
-export async function prefetchMusic(keys = audioData.music.prefetch) {
-  for (const key of keys) if (FILES.has(key)) await fetchBytes(key);
+// Downloads music files in the background, one after another (decoding waits for
+// playMusic: it needs the unlocked AudioContext). With music.prefetchPolicy
+// "next-step" the default is only music.bootPrefetch (the title); the chapter asks
+// for each step's tracks itself (systems/MusicPlan.js prefetchMusicFor). Aliases
+// resolve to their files; keys without a file (procedural) are skipped.
+export async function prefetchMusic(keys) {
+  const list = keys ?? (mcfg.prefetchPolicy === 'next-step' ? mcfg.bootPrefetch : mcfg.prefetch);
+  audioLog({ ev: 'prefetch', keys: list });
+  for (const key of list) {
+    const id = resolveMusicKey(key);
+    if (FILES.has(id)) await fetchBytes(id);
+  }
+}
+
+// Frees the decoded audio (about 20-25 MB per minute of stereo) and the downloaded bytes
+// of every music file that is not in `keys`, music.bootPrefetch or playing now. A file
+// asked for again later is fetched again (the HTTP cache has it) and decoded on demand.
+export function keepMusic(keys) {
+  const keep = new Set([...mcfg.bootPrefetch, ...keys].map(resolveMusicKey));
+  if (current) keep.add(current.id);
+  if (oneShot) keep.add(oneShot.id);
+  const dropped = [];
+  for (const cache of [buffers, bytes]) {
+    for (const id of [...cache.keys()]) {
+      if (id.startsWith('sfx/') || keep.has(id)) continue;
+      cache.delete(id);
+      if (!dropped.includes(id)) dropped.push(id);
+    }
+  }
+  audioLog({ ev: 'keep', keys: [...keep], dropped });
 }
 
 // Safari's decodeAudioData still wants callbacks. A file that isn't audio

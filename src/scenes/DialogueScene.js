@@ -4,12 +4,15 @@ import environments from '../data/environments.json';
 import { addPauseButton } from '../systems/PauseButton.js';
 import ui from '../data/ui.json';
 import voices from '../data/voices.json';
-import { playAmbience, playBlip, playSceneMusic, playSfx } from '../systems/Audio.js';
+import audioData from '../data/audio.json';
+import { musicSilence, playAmbience, playBlip, playMusic, playOneShot, playSfx } from '../systems/Audio.js';
+import { dialogueTrack } from '../systems/MusicPlan.js';
 import * as Fx from '../systems/Fx.js';
 import { manifestDef, whenReady } from '../systems/Assets.js';
 import { mirrorEdges, rect as viewRect } from '../systems/View.js';
 
 const cfg = ui.dialogue;
+const placement = audioData.music.placement;
 
 // Voice by speaker, else by "_" + style (letter/narration), else "_default".
 // A key that maps to null is deliberately silent.
@@ -47,6 +50,11 @@ export default class DialogueScene extends Phaser.Scene {
     this.bgKey = data.bg;
     this.overlay = !!data.overlay;
     this.onDone = data.onDone;
+    // Music (audio.json music.placement): a step's track is set in build(); dialogueSwitch swaps to
+    // a one-shot when its speaker first talks; the Keepsake overlay goes silent after a given line.
+    this.musicSwitch = data.overlay ? null : placement.dialogueSwitch?.[data.id] || null;
+    this.musicSwitched = false;
+    this.silenceAfter = data.overlay && data.id === placement.keepsakeDialogue ? placement.keepsakeSilenceAfterLine : null;
     this.lines = dialogue[data.id] || [];
     if (!dialogue[data.id]) console.warn(`dialogue "${data.id}" not found`);
   }
@@ -61,7 +69,8 @@ export default class DialogueScene extends Phaser.Scene {
       const v = viewRect();
       this.add.rectangle(v.x, v.y, v.w, v.h, Number(cfg.overlayDim.color), cfg.overlayDim.alpha).setOrigin(0);
     } else {
-      playSceneMusic('Dialogue');
+      const track = dialogueTrack(this.dialogueId);
+      if (track !== undefined) playMusic(track);
       this.buildBackground();
     }
 
@@ -282,6 +291,7 @@ export default class DialogueScene extends Phaser.Scene {
   }
 
   advance() {
+    if (this.silenceAfter !== null && this.index === this.silenceAfter) musicSilence(placement.keepsakeSilenceMs);
     this.index += 1;
     const line = this.lines[this.index];
     if (!line) {
@@ -304,6 +314,12 @@ export default class DialogueScene extends Phaser.Scene {
     this.drawNextMark(style.textColor);
 
     const speaker = style.showName ? line.speaker : null;
+    const sw = this.musicSwitch;
+    if (sw && !this.musicSwitched && speaker === sw.speaker) {
+      this.musicSwitched = true;
+      if (sw.oneShot) playOneShot(sw.key, { resume: sw.resume });
+      else playMusic(sw.key);
+    }
     // Story sounds: a style's sfx (the letter unfolding), a speaker's (the glitch of a forgotten name).
     const sfx = line.sfx !== undefined ? line.sfx : cfg.nameSfx[speaker] || style.sfx;
     if (sfx) playSfx(sfx);

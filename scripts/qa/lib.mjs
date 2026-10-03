@@ -92,6 +92,9 @@ export const INIT = {
   blockedStorage: `(() => { const deny = () => { throw new DOMException('The operation is insecure.', 'SecurityError'); }; Object.defineProperty(window, 'localStorage', { configurable: true, get: deny }); Object.defineProperty(window, 'sessionStorage', { configurable: true, get: deny }); })()`,
   // The AudioContext never leaves 'suspended' (autoplay lock that no gesture lifts).
   audioLocked: `(() => { const Base = window.AudioContext; class Locked extends Base { get state() { return 'suspended'; } resume() { return new Promise(() => {}); } } window.AudioContext = Locked; window.webkitAudioContext = Locked; })()`,
+  // window.__audio.log collects every music request of the game (Audio.js audioLog): play, stop, oneshot,
+  // oneshot_end, silence, prefetch, keep, sfx. Without the analyser this is all that window.__audio holds.
+  audioLog: `(() => { window.__audio = window.__audio || { ctxs: [] }; window.__audio.log = window.__audio.log || []; })()`,
   // Taps the destination bus through an AnalyserNode so a headless run can measure the actual output level.
   analyser: `(() => {
     const Base = window.AudioContext;

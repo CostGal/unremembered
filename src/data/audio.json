@@ -2,11 +2,14 @@
   "music": {
     "dir": "assets/audio/music/",
     "ext": ".mp3",
-    "crossfadeMs": 500,
-    "scenes": { "Title": "title", "Menu": "title", "Cutscene": "cutscene", "Dialogue": "cutscene", "End": "ending" },
+    "crossfadeMs": 600,
+    "oneShot": { "duck": 0.3, "duckMs": 200, "restoreMs": 400 },
+    "scenes": { "Title": "title", "Menu": "title", "End": "ending" },
     "ambience": { "Title": null, "Menu": null, "Cutscene": null, "Dialogue": null, "End": null },
     "prefetch": ["title", "cutscene", "battle", "boss", "ending"],
     "prefetchPolicy": "next-step",
+    "loopPoints": {},
+    "bootPrefetch": ["title"],
     "crossfadeRangeMs": [
       500,
       800
@@ -53,7 +56,7 @@
     },
     "placement": {
       "_doc": [
-        "Where each track plays (data for the wiring item; nothing reads this yet). A null track = silence.",
+        "Where each track plays (read by systems/MusicPlan.js, CutsceneScene, DialogueScene, RewardScene, BattleScene). A null track = silence.",
         "cutscene_origin ranges are 0-based INDICES into cutscene_origin.json shots[] in the FINAL order, i.e. after the wiring item inserts the new shot with bg cs_hush_mid at index 22 (between cs_hush_1 and cs_hush_2). Today's file has 32 entries and cs_hush_2 at index 22; with the insertion it has 33 and cs_hush_2 is index 23. Match by bg when in doubt (startBg).",
         "Kostas's story numbering (1-based, STORY.md) maps: golden 1-6, war 7-11, fall 12-18, hush 19-23 (incl. hush_1 and hush_mid), silence = the cs_hush_2 shot (his 24), forgotten 25-30 = from 'When the light returned' to the end of the cutscene.",
         "Crossfades 500-800 ms (crossfadeRangeMs). Prefetch only the next step's tracks (prefetchPolicy next-step) and decode on demand."
@@ -98,7 +101,7 @@
             "from": 24,
             "to": 32,
             "track": "cs_forgotten",
-            "startBg": "cs_city_red_tower",
+            "startBg": "cs_hush_2 (shot 'When the light returned')",
             "note": "from 'When the light returned' to the end of the cutscene"
           }
         ],
@@ -142,14 +145,15 @@
         "after_duel": "warm",
         "before_gate": "street",
         "after_b1": "rest_sad",
-        "records_office": {
-          "track": "records_office",
-          "switchTo": "quill_intro",
-          "onFirstLineOf": "Quill",
-          "then": "boss"
-        },
+        "records_office": "records_office",
         "ending": "ending"
       },
+      "dialogueSwitch": {
+        "records_office": { "speaker": "Quill", "key": "quill_intro", "oneShot": true, "resume": false }
+      },
+      "keepsakeDialogue": "keepsake_burn",
+      "keepsakeSilenceAfterLine": 4,
+      "keepsakeSilenceMs": 1500,
       "step": {
         "reward_rest": {
           "oneShot": "memory_return",
@@ -176,7 +180,8 @@
       "overlay": {
         "keepsake_burn": {
           "track": "keepsake",
-          "duckBattle": true
+          "duck": 0.25,
+          "resume": false
         },
         "recollection": {
           "afterLine": "I'm forgetting you again…",
@@ -194,7 +199,7 @@
           "oneShot": "memory_return"
         },
         "retry": {
-          "track": "gameover"
+          "oneShot": "gameover"
         },
         "end": {
           "track": "ending"
@@ -210,6 +215,9 @@
     }
   },
   "sfxFiles": { "dir": "assets/audio/sfx/", "ext": ".mp3" },
+  "sfxGain": { "sfx_crowd_murmur": 0.45 },
+  "sfxLong": ["sfx_crowd_cheer", "sfx_crowd_murmur", "sfx_scream_crowd", "sfx_war_horn", "sfx_bell_toll", "sfx_red_surge", "sfx_crystal_resonance", "sfx_stone_crumble"],
+  "sfxFadeMs": 400,
   "pause": { "musicDuck": 0.35 },
   "master": { "threshold": -6, "knee": 8, "ratio": 10, "attack": 0.004, "release": 0.18 },
   "blip": { "minGapMs": 35, "attackMs": 2 },

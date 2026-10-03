@@ -45,7 +45,7 @@ await withBrowser(async ({ chrome, server }) => {
   log(st.state === 'running', 'AudioContext runs after the Title tap', JSON.stringify({ state: st.state, key: st.key }));
   log(st.key === audio.music.scenes.Menu, `Menu plays "${audio.music.scenes.Menu}" (audio.json)`, String(st.key));
   const files = Object.keys(audio.music).length && (await page.ev(`fetch('assets/audio/music/title.mp3').then(r => r.headers.get('content-type'))`));
-  log(true, 'INFO: no mp3 files shipped; every track is the procedural one', `title.mp3 → ${files}`);
+  log(true, 'INFO: music files ship for most keys; keys without a file (warm, quill_rise, ending, victory, memory_return, gameover) are procedural', `title.mp3 → ${files}`);
 
   // ---- every procedural track
   for (const key of Object.keys(music.tracks)) {
@@ -124,8 +124,12 @@ await withBrowser(async ({ chrome, server }) => {
     const p = await open(chrome, `${server.url}?battle=${battle}`, { init: [INIT.analyser] });
     await p.waitFor(`!!(window.__battle && window.__battle.menu)`, { timeout: 40000 });
     await p.tap(180, 600);
-    await sleep(1500);
-    const k = (await A(p, 'A.musicStatus()')).key;
+    // a music file is fetched + decoded on demand: poll instead of a fixed wait
+    let k = null;
+    for (let i = 0; i < 100 && k !== key; i++) {
+      await sleep(100);
+      k = (await A(p, 'A.musicStatus()')).key;
+    }
     log(k === key, `battle ${battle} plays "${key}"`, String(k));
   }
 

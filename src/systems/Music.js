@@ -108,6 +108,7 @@ export class MusicEngine {
       if (track.dead(now)) {
         track.dispose();
         this.tracks.delete(track);
+        if (track.ended && track.onEnd) track.onEnd();
         continue;
       }
       track.update(now);
@@ -196,9 +197,12 @@ class Track {
     this.stepSec = 60 / def.bpm / 4;
     this.barSec = this.stepSec * STEPS;
 
+    // out = the track's own fade; duck sits after it (Audio.playOneShot ducks the music under a one-shot).
     this.out = this.ctx.createGain();
     this.out.gain.value = 0;
-    this.out.connect(engine.bus);
+    this.duckGain = this.ctx.createGain();
+    this.out.connect(this.duckGain);
+    this.duckGain.connect(engine.bus);
 
     // Per-layer: a bus (level) with reverb / delay sends, and the pad voice.
     this.layers = data.layers.map((l) => {
@@ -237,6 +241,9 @@ class Track {
     this.barFilter = 1;
     this.lastUpdate = 0;
     this.endAt = Infinity;
+    this.oneShot = !!data.def.oneShot; // plays its form once, then ends by itself (onEnd)
+    this.ended = false;
+    this.onEnd = null;
     this.stopped = false;
     this.forceRepad = false;
     this.trace = null; // tests: [] collects {t, bar, layer, midi, chord} for every note fired
@@ -260,6 +267,27 @@ class Track {
     // The scheduler stops now; notes already queued ring out under the fade.
     this.endAt = now + fadeSec + cfg.lookaheadMs / 1000 + 0.1;
     this.stopped = true;
+  }
+
+  // Gain to `level` over `sec` (1 = no duck), on top of the track's own fade.
+  setDuck(level, sec = 0.2) {
+    const now = this.ctx.currentTime;
+    const g = this.duckGain.gain;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(g.value, now);
+    g.linearRampToValueAtTime(level, now + sec);
+  }
+
+  // A one-shot has played its last step: it fades out after `at` (audio time) over the tail
+  // and the engine calls onEnd once it is gone.
+  finishOneShot(at) {
+    const tail = cfg.oneShotTailSec;
+    this.ended = true;
+    this.stopped = true;
+    this.out.gain.cancelScheduledValues(at);
+    this.out.gain.setValueAtTime(this.data.def.gain, at);
+    this.out.gain.linearRampToValueAtTime(0, at + tail);
+    this.endAt = at + tail + 0.1;
   }
 
   dead(now) {
@@ -312,6 +340,10 @@ class Track {
       if (this.step >= STEPS) {
         this.step = 0;
         this.barIndex = (this.barIndex + 1) % this.data.bars.length;
+        if (this.oneShot && this.barIndex === 0) {
+          this.finishOneShot(this.nextTime + this.stepSec);
+          return;
+        }
       }
       this.nextTime += this.stepSec;
     }

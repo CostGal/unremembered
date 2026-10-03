@@ -152,7 +152,12 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   const sfxKeys = new Set([...Object.keys(data.audio?.sfx || {}), ...(data.sfxFileKeys || [])]);
   const checkSfx = (at, sfx) => {
     if (sfx === undefined || sfx === null) return;
-    if (typeof sfx !== 'string') err(`${at}: sfx must be a string or null`);
+    // A name, or a list of names that all play at once.
+    if (Array.isArray(sfx)) {
+      sfx.forEach((one) => checkSfx(at, one));
+      return;
+    }
+    if (typeof sfx !== 'string') err(`${at}: sfx must be a string, a list of strings or null`);
     else if (data.audio && !sfxKeys.has(sfx)) err(`${at}: sfx "${sfx}" is not in audio.json sfx and has no file in public/assets/audio/sfx/`);
   };
   if (data.audio?.sfxFiles && !(typeof data.audio.sfxFiles.dir === 'string' && typeof data.audio.sfxFiles.ext === 'string')) err('audio.json sfxFiles: dir and ext are required');
@@ -596,6 +601,18 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
         if (v !== undefined && !(Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === 'number' && n >= 0 && n <= 1))) err(`${at}: surgeAt must be [x, y], each 0-1 of the picture`);
       }
       if ((shot.redTint !== undefined || shot.whenArt?.redTint !== undefined) && ![...(shot.fx || []), ...(shot.whenArt?.fx || [])].includes('red_tint')) warn(`${at}: redTint is set but the shot has no red_tint fx`);
+      for (const [field, v] of [['view', shot.view], ['bgView', shot.bgView], ['bg2View', shot.bg2View], ['crossfadeTo.view', shot.crossfadeTo?.view]]) {
+        if (v === undefined) continue;
+        const focus = v?.focus;
+        if (!(Array.isArray(focus) && focus.length === 2 && focus.every((n) => typeof n === 'number' && n >= 0 && n <= 1))) err(`${at}: ${field}.focus must be [x, y], each 0-1 of the picture`);
+        if (v.zoom !== undefined && !(typeof v.zoom === 'number' && v.zoom > 0)) err(`${at}: ${field}.zoom must be a positive number`);
+      }
+      if (shot.crossfadeTo !== undefined) {
+        const c = shot.crossfadeTo;
+        if (!c || !anyAsset[c.bg]) err(`${at}: crossfadeTo.bg "${c?.bg}" is not in assets.json`);
+        else if (!(typeof c.atPct === 'number' && c.atPct >= 0 && c.atPct < 1) || !(typeof c.ms === 'number' && c.ms > 0)) err(`${at}: crossfadeTo needs atPct (0-1) and ms (> 0)`);
+        if (shot.split && shot.split !== 'none') err(`${at}: crossfadeTo does not work with a split`);
+      }
       if (shot.move && !SHOT_MOVES.includes(shot.move)) err(`${at}: unknown move "${shot.move}"`);
       if (shot.split && !SPLITS.includes(shot.split)) err(`${at}: unknown split "${shot.split}"`);
       if (beds && shot.ambience && !beds[shot.ambience]) err(`${at}: ambience "${shot.ambience}" is not in audio.json ambience.beds`);
@@ -638,13 +655,120 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
         if (def.warmScale && !music.scales[def.warmScale]) err(`${at}: unknown warmScale "${def.warmScale}"`);
         const compiled = compileTrack(music, key);
         const bars = compiled.bars.length;
-        if (bars < 32 || bars > 64) warn(`${at}: ${bars} bars (aim for 32–64)`);
+        if (def.oneShot) {
+          if (bars > 16) warn(`${at}: a one-shot of ${bars} bars is long`);
+        } else if (bars < 32 || bars > 64) warn(`${at}: ${bars} bars (aim for 32–64)`);
       } catch (e) {
         err(`${at}: ${e.message}`);
       }
     }
     for (const [key, battle] of Object.entries(battles)) {
-      if (battle.music && !music.tracks[battle.music]) warn(`battles.${key}: music "${battle.music}" has no procedural track (needs the .mp3 or silence)`);
+      if (battle.music && !music.tracks[battle.music] && !(data.musicFileKeys || []).includes(battle.music) && !data.audio?.music?.aliases?.[battle.music]) warn(`battles.${key}: music "${battle.music}" has no procedural track (needs the .mp3 or silence)`);
+    }
+  }
+
+  // Music wiring (audio.json music.aliases / loop / procedural / placement): every key a scene can
+  // ask for resolves to a file or a procedural track, one-shots do not loop, the cutscene ranges
+  // cover the shots, and the hooks point at lines and speakers that exist.
+  const am = data.audio?.music;
+  if (am && music) {
+    const files = new Set(data.musicFileKeys || []);
+    const known = (key) => files.has(key) || !!music.tracks?.[key];
+    const resolves = (key) => known(am.aliases?.[key] || key);
+    const need = (at, key, { oneShot = false } = {}) => {
+      if (key === null || key === undefined) return;
+      if (typeof key !== 'string') err(`${at}: a music key must be a string or null`);
+      else if (!resolves(key)) err(`${at}: music "${key}" has no file in public/assets/audio/music/, no procedural track in music.json and no alias`);
+      else if (oneShot && am.loop?.[key] !== false) err(`${at}: "${key}" plays as a one-shot, so audio.json music.loop.${key} must be false`);
+    };
+    for (const [alias, target] of Object.entries(am.aliases || {})) {
+      if (!known(target)) err(`audio.json music.aliases.${alias}: target "${target}" has no file and no procedural track`);
+      if (known(alias)) warn(`audio.json music.aliases.${alias}: a file or track of that name exists too (the alias wins)`);
+    }
+    for (const key of am.procedural || []) if (!music.tracks?.[key]) err(`audio.json music.procedural: "${key}" has no track in music.json`);
+    for (const key of Object.keys(am.loop || {})) if (!resolves(key) && !(am.procedural || []).includes(key)) warn(`audio.json music.loop.${key}: not a known music key`);
+    for (const key of files) if (!(key in (am.loop || {}))) warn(`audio.json music.loop: no loop flag for the file "${key}" (it loops)`);
+    for (const [k, v] of Object.entries(music.tracks || {})) if (v.oneShot && am.loop?.[k] !== false) err(`music.json ${k} is a oneShot track, so audio.json music.loop.${k} must be false`);
+    for (const key of am.bootPrefetch || []) need('audio.json music.bootPrefetch', key);
+    for (const [key, pts] of Object.entries(am.loopPoints || {})) {
+      if (!(Array.isArray(pts) && pts.length === 2 && pts[0] >= 0 && pts[1] > pts[0])) err(`audio.json music.loopPoints.${key}: must be [startSec, endSec]`);
+      if (am.loop?.[key] === false) err(`audio.json music.loopPoints.${key}: the track does not loop`);
+    }
+    for (const name of data.audio.sfxLong || []) if (!sfxKeys.has(name)) err(`audio.json sfxLong: "${name}" is not an sfx`);
+    for (const [scene, key] of Object.entries(am.scenes || {})) need(`audio.json music.scenes.${scene}`, key);
+    if (am.prefetchPolicy !== undefined && !['next-step', 'all'].includes(am.prefetchPolicy)) err('audio.json music.prefetchPolicy must be "next-step" or "all"');
+    const pl = am.placement;
+    if (pl) {
+      for (const [scene, key] of Object.entries(pl.scenes || {})) need(`placement.scenes.${scene}`, key);
+      for (const [id, key] of Object.entries(pl.dialogue || {})) {
+        if (!dialogue[id]) err(`placement.dialogue.${id}: no dialogue "${id}"`);
+        need(`placement.dialogue.${id}`, key);
+      }
+      for (const [id, sw] of Object.entries(pl.dialogueSwitch || {})) {
+        const at = `placement.dialogueSwitch.${id}`;
+        need(at, sw.key, { oneShot: !!sw.oneShot });
+        if (!dialogue[id]) err(`${at}: no dialogue "${id}"`);
+        else if (!dialogue[id].some((line) => line.speaker === sw.speaker)) err(`${at}: no line of "${id}" is spoken by "${sw.speaker}"`);
+      }
+      for (const [id, st] of Object.entries(pl.step || {})) {
+        if (!chapter1.some((step) => step.id === id)) err(`placement.step.${id}: no chapter step "${id}"`);
+        need(`placement.step.${id}.oneShot`, st.oneShot, { oneShot: true });
+        need(`placement.step.${id}.over`, st.over?.track);
+      }
+      for (const [id, def] of Object.entries(pl.overlay || {})) {
+        need(`placement.overlay.${id}`, def.track, { oneShot: def.resume === false || def.resume === true });
+      }
+      for (const [id, ev] of Object.entries(pl.events || {})) {
+        need(`placement.events.${id}`, ev.oneShot, { oneShot: true });
+        need(`placement.events.${id}`, ev.track);
+      }
+      if (pl.keepsakeDialogue !== undefined) {
+        const lines = dialogue[pl.keepsakeDialogue];
+        if (!lines) err(`placement.keepsakeDialogue: no dialogue "${pl.keepsakeDialogue}"`);
+        else if (!Number.isInteger(pl.keepsakeSilenceAfterLine) || pl.keepsakeSilenceAfterLine < 0 || pl.keepsakeSilenceAfterLine >= lines.length) err(`placement.keepsakeSilenceAfterLine: must be a line index of "${pl.keepsakeDialogue}" (0-${lines.length - 1})`);
+        if (!(pl.keepsakeSilenceMs >= 0)) err('placement.keepsakeSilenceMs: must be a number of ms');
+      }
+      for (const [id, bp] of Object.entries(pl.battle || {})) {
+        const battle = battles[id];
+        if (!battle) {
+          err(`placement.battle.${id}: no battle "${id}"`);
+          continue;
+        }
+        const stages = typeof bp === 'string' ? [bp] : [bp.stage1, bp.stage2];
+        need(`placement.battle.${id}`, stages[0]);
+        if (battle.music !== stages[0]) err(`placement.battle.${id}: music "${stages[0]}" differs from battles.${id}.music "${battle.music}"`);
+        if (typeof bp !== 'string') {
+          need(`placement.battle.${id}.stageChange`, bp.stageChange?.oneShot, { oneShot: true });
+          const boss = (battle.enemies || []).map((e) => enemies[e]).find((e) => e?.stages);
+          const music2 = boss?.stages?.[1]?.music;
+          if (bp.stage2 && music2 !== bp.stage2) err(`placement.battle.${id}: stage2 "${bp.stage2}" differs from the enemy's stages[1].music "${music2}"`);
+        }
+      }
+      for (const [id, battle] of Object.entries(battles)) {
+        need(`battles.${id}.music`, battle.music);
+        if (battle.music && !(id in (pl.battle || {}))) warn(`placement.battle: no entry for battle "${id}"`);
+      }
+      for (const [id, enemy] of Object.entries(enemies)) (enemy.stages || []).forEach((stage, i) => need(`enemies.${id}.stages[${i}].music`, stage.music));
+      for (const [name, note] of Object.entries(pl.sfxCues || {})) if (!sfxKeys.has(name)) err(`placement.sfxCues.${name}: not in audio.json sfx (${note})`);
+      // Cutscene ranges: shot indexes, contiguous from 0 to the last shot.
+      for (const [key, plan] of Object.entries(pl)) {
+        const m = /^cutscene_(.+)$/.exec(key);
+        if (!m) continue;
+        const shots = cutscenes[m[1]]?.shots;
+        if (!shots) {
+          err(`placement.${key}: no cutscene "${m[1]}"`);
+          continue;
+        }
+        let next = 0;
+        (plan.ranges || []).forEach((r, i) => {
+          const at = `placement.${key}.ranges[${i}]`;
+          need(at, r.track);
+          if (r.from !== next) err(`${at}: starts at shot ${r.from}, expected ${next} (ranges must be contiguous from 0)`);
+          if (!(r.to >= r.from)) err(`${at}: to ${r.to} is before from ${r.from}`);
+          next = r.to + 1;
+        });
+        if (next !== shots.length) err(`placement.${key}: ranges end at shot ${next - 1}, the cutscene has ${shots.length} shots (0-${shots.length - 1})`);
+      }
     }
   }
 

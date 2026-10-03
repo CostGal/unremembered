@@ -14,6 +14,7 @@
     "lookaheadMs": 600,
     "tickMs": 40,
     "maxVoices": 22,
+    "oneShotTailSec": 1.2,
     "humanizeMs": 5,
     "snapAvoidNotes": true,
     "gain": 0.9,
@@ -346,6 +347,152 @@
         "outro": { "bars": 4, "chords": ["I", "I", "IM7", "IM7"], "filter": [0.9, 0.6], "use": { "pad": true, "sub": "subHold", "motif": "meEnd", "chime": "chB" } }
       },
       "form": ["intro", "A", "B", "C", "outro"]
+    },
+
+    "warm": {
+      "_doc": "after_duel: a gentle major loop (audio.json music.procedural). Same voices as the ending, other key and tempo.",
+      "bpm": 72,
+      "root": "G",
+      "scale": "major",
+      "warmScale": "major",
+      "gain": 0.9,
+      "layers": {
+        "pad": { "inst": "pad", "oct": 3, "voicing": "r 5 T", "params": { "attack": 1.6, "release": 2, "cutoff": 900, "gain": 0.03 } },
+        "sub": { "inst": "sub", "oct": 2, "mode": "chord", "params": { "gain": 0.16 } },
+        "arp": { "inst": "pluck", "oct": 4, "mode": "chord", "params": { "gain": 0.04 } },
+        "motif": { "inst": "musicbox", "oct": 5, "mode": "scale" }
+      },
+      "patterns": {
+        "subHold": ["r . . . . . . . . . . . . . . ."],
+        "arpSlow": ["r~ . 5~ . T~ . 5~ . r~ . 5~ . T~ . 5~ ."],
+        "w1": [
+          "3 . . . 5 . . . 1' . . . 5 . 3 .",
+          "2 . . . 5 . . . 7 . . . 5 . 2 .",
+          "3 . . . 6 . . . 1' . . . 6 . 3 .",
+          "4 . . . 6 . . . 1' . . . 6 . 4 ."
+        ],
+        "w2": [
+          "6 . . . 1' . . . 3' . . . 1' . 6 .",
+          "6 . . . 4' . . . 1' . . . 6 . 4 .",
+          "5 . . . 1' . . . 3' . . . 5' . 3' .",
+          "7 . . . 2' . . . 4' . . . 2' . 7 ."
+        ]
+      },
+      "sections": {
+        "A": { "bars": 8, "chords": ["I", "V", "vi", "IV", "I", "V", "vi", "IV"], "filter": [0.85, 1.0], "use": { "pad": true, "sub": "subHold", "arp": "arpSlow", "motif": "w1" } },
+        "B": { "bars": 8, "chords": ["vi", "IV", "I", "V", "vi", "IV", "I", "V"], "filter": [1.0, 1.2], "use": { "pad": true, "sub": "subHold", "arp": "arpSlow", "motif": "w2" } }
+      },
+      "form": ["A", "B", "A", "B"]
+    },
+
+    "quill_rise": {
+      "_doc": "Stinger (oneShot): Quill's Ledger opens, stage 2. About 4 s; ends by itself.",
+      "oneShot": true,
+      "bpm": 120,
+      "root": "D",
+      "scale": "harmonicMinor",
+      "warmScale": "harmonicMinor",
+      "gain": 1.2,
+      "layers": {
+        "drone": { "inst": "drone", "oct": 2, "voicing": "r 5", "params": { "attack": 0.4, "release": 1.2, "cutoff": 420, "gain": 0.06 } },
+        "boom": { "inst": "boom", "mode": "drum" },
+        "swell": { "inst": "swell", "mode": "drum", "params": { "dur": 3, "from": 180, "to": 3600, "gain": 0.09 } },
+        "chime": { "inst": "bell", "oct": 5, "mode": "scale", "params": { "gain": 0.06, "decay": 2.4 } }
+      },
+      "patterns": {
+        "boomHit": ["X . . . . . . . x . . . . . . .", "X . . . . . . . . . . . . . . ."],
+        "swellRise": ["x . . . . . . . . . . . . . . .", "-"],
+        "chim": ["1' . . . . . . . . . . . 7 . . .", "5' . . . . . . . 2'' . . . . . . ."]
+      },
+      "sections": {
+        "hit": { "bars": 2, "chords": ["i", "bII"], "filter": [0.8, 1.4], "use": { "drone": true, "boom": "boomHit", "swell": "swellRise", "chime": "chim" } }
+      },
+      "form": ["hit"]
+    },
+
+    "victory": {
+      "_doc": "Jingle (oneShot) over the result card, about 6 s.",
+      "oneShot": true,
+      "bpm": 168,
+      "root": "C",
+      "scale": "major",
+      "warmScale": "major",
+      "gain": 1.1,
+      "layers": {
+        "pad": { "inst": "pad", "oct": 3, "voicing": "r 5 T", "params": { "attack": 0.12, "release": 1.2, "cutoff": 1100, "gain": 0.035 } },
+        "sub": { "inst": "sub", "oct": 2, "mode": "chord", "params": { "gain": 0.16 } },
+        "lead": { "inst": "lead", "oct": 4, "mode": "scale", "params": { "gain": 0.07, "decay": 0.42 } },
+        "bell": { "inst": "bell", "oct": 5, "mode": "scale", "params": { "gain": 0.05, "decay": 1.8 } }
+      },
+      "patterns": {
+        "subHold": ["r . . . . . . . . . . . . . . ."],
+        "leadV": [
+          "1 . . 3 . . 5 . 1' . . . . . . .",
+          "4 . . 6 . . 1' . 4' . . . . . . .",
+          "5 . . 7 . . 2' . 5' . . . . . . .",
+          "1' . . . . . . . 3' . . . 5' . . ."
+        ],
+        "bellV": ["-", "-", "-", "1'' . . . . . . . . . . . . . . ."]
+      },
+      "sections": {
+        "fan": { "bars": 4, "chords": ["I", "IV", "V", "I"], "filter": [1.0, 1.2], "use": { "pad": true, "sub": "subHold", "lead": "leadV", "bell": "bellV" } }
+      },
+      "form": ["fan"]
+    },
+
+    "memory_return": {
+      "_doc": "Jingle (oneShot) for the Recall card and the rest scene, about 9 s: a minor memory that turns warm.",
+      "oneShot": true,
+      "bpm": 80,
+      "root": "A",
+      "scale": "minor",
+      "warmScale": "major",
+      "gain": 0.95,
+      "layers": {
+        "pad": { "inst": "pad", "oct": 3, "voicing": "r 5 T", "params": { "attack": 0.9, "release": 2, "cutoff": 900, "gain": 0.03 } },
+        "sub": { "inst": "sub", "oct": 2, "mode": "chord", "params": { "gain": 0.14 } },
+        "motif": { "inst": "musicbox", "oct": 5, "mode": "scale" },
+        "chime": { "inst": "bell", "oct": 6, "mode": "scale", "params": { "gain": 0.04 } }
+      },
+      "patterns": {
+        "subHold": ["r . . . . . . . . . . . . . . ."],
+        "mem": [
+          "5 . . . 3 . . . 1' . . . 3' . 5 .",
+          "6 . . . 1' . . . 3' . . . 5' . 3' .",
+          "3 . . . . . . . 1' . . . . . . ."
+        ],
+        "memChime": ["-", ". . . . . . . . 5' . . . . . . .", "1'' . . . . . . . . . . . . . . ."]
+      },
+      "sections": {
+        "m": { "bars": 3, "chords": ["i", "bVI", "i"], "filter": [0.8, 1.1], "use": { "pad": true, "sub": "subHold", "motif": "mem", "chime": "memChime" } }
+      },
+      "form": ["m"]
+    },
+
+    "gameover": {
+      "_doc": "Jingle (oneShot) for the Retry screen, about 5 s: bells falling into a minor chord.",
+      "oneShot": true,
+      "bpm": 90,
+      "root": "D",
+      "scale": "minor",
+      "warmScale": "minor",
+      "gain": 1.0,
+      "layers": {
+        "pad": { "inst": "drone", "oct": 3, "voicing": "r 5", "params": { "attack": 0.5, "release": 1.8, "cutoff": 500, "gain": 0.05 } },
+        "boom": { "inst": "boom", "mode": "drum" },
+        "bell": { "inst": "bell", "oct": 4, "mode": "scale", "params": { "gain": 0.07, "decay": 2.4 } }
+      },
+      "patterns": {
+        "boomA": ["x . . . . . . . . . . . . . . .", "-"],
+        "fall": [
+          "5' . . . . . 3' . . . . . 1' . . .",
+          "4 . . . 6 . . . 1 . . . . . . ."
+        ]
+      },
+      "sections": {
+        "g": { "bars": 2, "chords": ["i", "iv"], "filter": [0.7, 0.5], "use": { "pad": true, "boom": "boomA", "bell": "fall" } }
+      },
+      "form": ["g"]
     }
   }
 }

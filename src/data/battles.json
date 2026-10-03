@@ -10,7 +10,7 @@
     "redRings": false,
     "statuses": false,
     "nala": false,
-    "music": "battle",
+    "music": "battle_duel",
     "lockedTechniques": { "blast": "blastUnlocked" },
     "events": [
       { "id": "duel_refuse", "when": { "playerHits": 1 }, "dialogue": "duel_refuse" },
@@ -43,12 +43,12 @@
     "env": "street_rain",
     "enemies": ["blank", "hollow"],
     "nala": true,
-    "music": "battle",
+    "music": "battle_hollow",
     "events": [
       { "id": "b2_start", "when": "battleStart", "dialogue": "b2_start" },
       { "id": "b2_immune", "when": "firstImmune", "dialogue": "b2_immune" }
     ]
   },
-  "b3_gate": { "bg": "bg_office_gate", "platform": "platform_street", "env": "street_rain", "enemies": ["hollow_warden", "hollow"], "formation": "gate", "nala": true, "music": "battle" },
+  "b3_gate": { "bg": "bg_office_gate", "platform": "platform_street", "env": "street_rain", "enemies": ["hollow_warden", "hollow"], "formation": "gate", "nala": true, "music": "battle_gate" },
   "boss_clerk": { "bg": "records_office", "platform": "platform_office", "env": "records_office", "enemies": ["clerk"], "nala": true, "music": "boss", "recollection": true, "initiative": "enemy" }
 }
