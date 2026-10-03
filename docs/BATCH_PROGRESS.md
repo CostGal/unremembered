@@ -7,6 +7,7 @@ Order: 0 setup · 1 UI quick wins · 2 art+SFX slots · 3 Nala bundle · 4 Echo 
 | item | status | commit | checks |
 |---|---|---|---|
 | 0 setup | done | (this commit) | npm ci ok; baseline validate 0/0, build ok, sim 100 % every battle / chapter 16.9 min non-gamer, judge-unit pass |
+| 1 UI quick wins | done | 5794e16 | validate 0/0, build ok, sim unchanged (16.9 min), judge-unit pass, mobile-check 36/36, frontend QA 22/22; logo punch 1.08, viewport refit, audio unlock on pointerdown+touchend+onstatechange, difficulty Back, Credits inert + POST GAME JAM pill, End "Will be revealed post game jam", README |
 
 ---
 
