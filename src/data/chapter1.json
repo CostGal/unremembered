@@ -1,18 +1,73 @@
 [
-  { "type": "cutscene", "id": "origin" },
-  { "type": "dialogue", "id": "wake", "bg": "bg_abandoned_home_fpv" },
-  { "type": "dialogue", "id": "letter", "bg": "bg_letter_fpv" },
-  { "type": "dialogue", "id": "meet_dov", "bg": "street_rain" },
-  { "type": "battle", "id": "b0_duel" },
-  { "type": "dialogue", "id": "after_duel", "bg": "street_rain" },
-  { "type": "battle", "id": "b1_forgotten" },
-  { "type": "dialogue", "id": "after_b1", "bg": "rest_panel_1" },
-  { "type": "reward", "id": "reward_rest" },
-  { "type": "battle", "id": "b2_first_hollow" },
-  { "type": "dialogue", "id": "before_gate", "bg": "street_rain" },
-  { "type": "battle", "id": "b3_gate" },
-  { "type": "dialogue", "id": "records_office", "bg": "records_office" },
-  { "type": "battle", "id": "boss_clerk" },
-  { "type": "dialogue", "id": "ending", "bg": "records_office" },
-  { "type": "end" }
+  {
+    "type": "cutscene",
+    "id": "origin"
+  },
+  {
+    "type": "dialogue",
+    "id": "wake",
+    "bg": "bg_abandoned_home_fpv"
+  },
+  {
+    "type": "dialogue",
+    "id": "letter",
+    "bg": "bg_letter_fpv"
+  },
+  {
+    "type": "dialogue",
+    "id": "meet_dov",
+    "bg": "street_rain"
+  },
+  {
+    "type": "battle",
+    "id": "b0_duel"
+  },
+  {
+    "type": "dialogue",
+    "id": "after_duel",
+    "bg": "street_rain"
+  },
+  {
+    "type": "battle",
+    "id": "b1_forgotten"
+  },
+  {
+    "type": "dialogue",
+    "id": "after_b1",
+    "bg": "rest_panel_1"
+  },
+  {
+    "type": "reward",
+    "id": "reward_rest"
+  },
+  {
+    "type": "battle",
+    "id": "b2_first_hollow"
+  },
+  {
+    "type": "dialogue",
+    "id": "before_gate",
+    "bg": "street_rain"
+  },
+  {
+    "type": "battle",
+    "id": "b3_gate"
+  },
+  {
+    "type": "dialogue",
+    "id": "records_office",
+    "bg": "records_office_room"
+  },
+  {
+    "type": "battle",
+    "id": "boss_clerk"
+  },
+  {
+    "type": "dialogue",
+    "id": "ending",
+    "bg": "records_office_room"
+  },
+  {
+    "type": "end"
+  }
 ]
