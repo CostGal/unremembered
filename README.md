@@ -18,4 +18,13 @@ The full credits are revealed post game jam.
 
 ## Music
 
-All music and SFX are procedural (Web Audio), no third-party audio files.
+Music: Eric Skiff — Resistor Anthems (CC BY 4.0) · xDeviruchi — 8-Bit Fantasy & Adventure (CC BY-SA 4.0) · Juhani Junkala (CC0) · other artists: full credits post-jam.
+
+| Artist | License | Tracks |
+|---|---|---|
+| Eric Skiff, *Resistor Anthems* | CC BY 4.0 | `battle_duel`, `cs_forgotten`, `keepsake`, `meet_dov` |
+| xDeviruchi, *8-Bit Fantasy & Adventure* | CC BY-SA 4.0 | `cs_golden`, `cs_hush`, `cs_war` |
+| Juhani Junkala | CC0 | `title`, `battle`, `battle_hollow` |
+| TODO (author and license to be confirmed) | TODO | `boss`, `battle_gate`, `cs_fall`, `recollection`, `rest_sad` |
+
+The tracks are trimmed, looped and loudness-normalised copies (see `docs/ASSETS_INBOX.md`); tracks without a file (warm, quill_rise, ending, victory, memory_return, gameover) are procedural (Web Audio). Sound effects are CC0 or procedural: no credit needed.

@@ -1,23 +1,74 @@
 {
   "sprites": {
-    "rhea_body": { "file": "sprites/rhea_body.png", "w": 128, "h": 128, "faces": "left", "scale": 1 },
+    "rhea_body": {
+      "file": "sprites/rhea_body.png",
+      "w": 128,
+      "h": 128,
+      "faces": "left",
+      "scale": 1
+    },
     "rhea_arm": {
       "file": "sprites/rhea_arm.png",
       "w": 128,
       "h": 128,
       "faces": "left",
       "scale": 1,
-      "pivot": [56, 65]
+      "pivot": [
+        56,
+        65
+      ]
     },
-    "dov": { "file": "sprites/dov.png", "w": 128, "h": 128, "faces": "left", "scale": 1 },
-    "blank": { "file": "sprites/blank.png", "w": 128, "h": 128, "faces": "right", "scale": 1 },
-    "hollow": { "file": "sprites/hollow.png", "w": 128, "h": 128, "faces": "left", "scale": 1 },
-    "clerk": { "file": "sprites/clerk.png", "w": 256, "h": 256, "faces": "right", "scale": 1 },
-    "nala": { "file": "sprites/nala.png", "w": 64, "h": 64, "faces": "right", "scale": 1 }
+    "dov": {
+      "file": "sprites/dov.png",
+      "w": 128,
+      "h": 128,
+      "faces": "left",
+      "scale": 1
+    },
+    "blank": {
+      "file": "sprites/blank.png",
+      "w": 128,
+      "h": 128,
+      "faces": "right",
+      "scale": 1
+    },
+    "hollow": {
+      "file": "sprites/hollow.png",
+      "w": 128,
+      "h": 128,
+      "faces": "left",
+      "scale": 1
+    },
+    "clerk": {
+      "file": "sprites/clerk.png",
+      "w": 256,
+      "h": 256,
+      "faces": "right",
+      "scale": 1
+    },
+    "nala": {
+      "file": "sprites/nala.png",
+      "w": 64,
+      "h": 64,
+      "faces": "right",
+      "scale": 1
+    }
   },
   "portraits": {
-    "rhea_neutral": { "file": "portraits/rhea_neutral.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
-    "rhea_serious": { "file": "portraits/rhea_serious.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
+    "rhea_neutral": {
+      "file": "portraits/rhea_neutral.png",
+      "w": 299,
+      "h": 400,
+      "faces": "right",
+      "scale": 1
+    },
+    "rhea_serious": {
+      "file": "portraits/rhea_serious.png",
+      "w": 299,
+      "h": 400,
+      "faces": "right",
+      "scale": 1
+    },
     "rhea_confused": {
       "file": "portraits/rhea_confused.png",
       "w": 299,
@@ -32,16 +83,83 @@
       "faces": "right",
       "scale": 1
     },
-    "rhea_angry": { "file": "portraits/rhea_angry.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
-    "rhea_pained": { "file": "portraits/rhea_pained.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
-    "rhea_sad": { "file": "portraits/rhea_sad.png", "w": 299, "h": 400, "faces": "right", "scale": 1 },
-    "dov_neutral": { "file": "portraits/dov_neutral.png", "w": 299, "h": 400, "displayHeight": 310, "faces": "left", "scale": 1 },
-    "dov_warm": { "file": "portraits/dov_warm.png", "w": 299, "h": 400, "displayHeight": 310, "faces": "left", "scale": 1 },
-    "dov_worried": { "file": "portraits/dov_worried.png", "w": 299, "h": 400, "displayHeight": 310, "faces": "left", "scale": 1 },
-    "dov_fierce": { "file": "portraits/dov_fierce.png", "w": 299, "h": 400, "displayHeight": 310, "faces": "left", "scale": 1 },
-    "dov_sad": { "file": "portraits/dov_sad.png", "w": 299, "h": 400, "displayHeight": 310, "faces": "left", "scale": 1 },
-    "clerk_cold": { "file": "portraits/clerk_cold.png", "w": 299, "h": 400, "displayHeight": 380, "faces": "left", "scale": 1 },
-    "clerk_smug": { "file": "portraits/clerk_smug.png", "w": 299, "h": 400, "displayHeight": 380, "faces": "left", "scale": 1 },
+    "rhea_angry": {
+      "file": "portraits/rhea_angry.png",
+      "w": 299,
+      "h": 400,
+      "faces": "right",
+      "scale": 1
+    },
+    "rhea_pained": {
+      "file": "portraits/rhea_pained.png",
+      "w": 299,
+      "h": 400,
+      "faces": "right",
+      "scale": 1
+    },
+    "rhea_sad": {
+      "file": "portraits/rhea_sad.png",
+      "w": 299,
+      "h": 400,
+      "faces": "right",
+      "scale": 1
+    },
+    "dov_neutral": {
+      "file": "portraits/dov_neutral.png",
+      "w": 299,
+      "h": 400,
+      "displayHeight": 310,
+      "faces": "left",
+      "scale": 1
+    },
+    "dov_warm": {
+      "file": "portraits/dov_warm.png",
+      "w": 299,
+      "h": 400,
+      "displayHeight": 310,
+      "faces": "left",
+      "scale": 1
+    },
+    "dov_worried": {
+      "file": "portraits/dov_worried.png",
+      "w": 299,
+      "h": 400,
+      "displayHeight": 310,
+      "faces": "left",
+      "scale": 1
+    },
+    "dov_fierce": {
+      "file": "portraits/dov_fierce.png",
+      "w": 299,
+      "h": 400,
+      "displayHeight": 310,
+      "faces": "left",
+      "scale": 1
+    },
+    "dov_sad": {
+      "file": "portraits/dov_sad.png",
+      "w": 299,
+      "h": 400,
+      "displayHeight": 310,
+      "faces": "left",
+      "scale": 1
+    },
+    "clerk_cold": {
+      "file": "portraits/clerk_cold.png",
+      "w": 299,
+      "h": 400,
+      "displayHeight": 380,
+      "faces": "left",
+      "scale": 1
+    },
+    "clerk_smug": {
+      "file": "portraits/clerk_smug.png",
+      "w": 299,
+      "h": 400,
+      "displayHeight": 380,
+      "faces": "left",
+      "scale": 1
+    },
     "clerk_furious": {
       "file": "portraits/clerk_furious.png",
       "w": 299,
@@ -58,106 +176,650 @@
       "faces": "left",
       "scale": 1
     },
-    "nala_calm": { "file": "portraits/nala_calm.png", "w": 264, "h": 310, "displayHeight": 225, "faces": "right", "scale": 1 },
-    "nala_alert": { "file": "portraits/nala_alert.png", "w": 264, "h": 310, "displayHeight": 225, "faces": "right", "scale": 1 },
-    "nala_hissing": { "file": "portraits/nala_hissing.png", "w": 264, "h": 310, "displayHeight": 225, "faces": "right", "scale": 1 },
-    "nala_affectionate": { "file": "portraits/nala_affectionate.png", "w": 264, "h": 310, "displayHeight": 225, "faces": "right", "scale": 1 },
-    "nala_hiss": { "alias": "nala_hissing" },
-    "nala_meow": { "file": "portraits/nala_meow.png", "w": 264, "h": 310, "displayHeight": 225, "faces": "right", "scale": 1, "fallback": "nala_alert" },
-    "dov_pet_nala": { "file": "portraits/dov_pet_nala.png", "w": 299, "h": 400, "displayHeight": 310, "faces": "left", "scale": 1, "fallback": "dov_warm" },
-    "rhea_cutin_power": { "file": "portraits/rhea_cutin_power.png", "w": 720, "h": 240, "faces": "right", "scale": 1, "fallback": "rhea_determined" },
-    "rhea_cutin_tears": { "file": "portraits/rhea_cutin_tears.png", "w": 720, "h": 240, "faces": "right", "scale": 1, "fallback": "rhea_sad" }
+    "nala_calm": {
+      "file": "portraits/nala_calm.png",
+      "w": 264,
+      "h": 310,
+      "displayHeight": 225,
+      "faces": "right",
+      "scale": 1
+    },
+    "nala_alert": {
+      "file": "portraits/nala_alert.png",
+      "w": 264,
+      "h": 310,
+      "displayHeight": 225,
+      "faces": "right",
+      "scale": 1
+    },
+    "nala_hissing": {
+      "file": "portraits/nala_hissing.png",
+      "w": 264,
+      "h": 310,
+      "displayHeight": 225,
+      "faces": "right",
+      "scale": 1
+    },
+    "nala_affectionate": {
+      "file": "portraits/nala_affectionate.png",
+      "w": 264,
+      "h": 310,
+      "displayHeight": 225,
+      "faces": "right",
+      "scale": 1
+    },
+    "nala_hiss": {
+      "alias": "nala_hissing"
+    },
+    "nala_meow": {
+      "file": "portraits/nala_meow.png",
+      "w": 264,
+      "h": 310,
+      "displayHeight": 225,
+      "faces": "right",
+      "scale": 1
+    },
+    "dov_pet_nala": {
+      "file": "portraits/dov_pet_nala.png",
+      "w": 299,
+      "h": 400,
+      "displayHeight": 310,
+      "faces": "left",
+      "scale": 1
+    },
+    "rhea_cutin_power": {
+      "file": "portraits/rhea_cutin_power.png",
+      "w": 720,
+      "h": 240,
+      "faces": "right",
+      "scale": 1
+    },
+    "rhea_cutin_tears": {
+      "file": "portraits/rhea_cutin_tears.png",
+      "w": 720,
+      "h": 240,
+      "faces": "right",
+      "scale": 1
+    }
   },
   "backgrounds": {
-    "street_rain": { "file": "bg/street_rain.png", "w": 360, "h": 360, "desaturate": 0.6 },
-    "records_office": { "file": "bg/records_office.png", "w": 360, "h": 360, "desaturate": 0.6, "ambient": { "fog": { "speedPx": 30, "alpha": 0.14, "color": "0xe0c9a0" }, "glowPoints": [{ "x": 0.5, "y": 0.14, "r": 26, "color": "0x3fd0c9", "alpha": [0.18, 0.5], "pulseMs": 2600 }, { "x": 0.1, "y": 0.18, "r": 22, "color": "0xe8a24a", "alpha": [0.2, 0.55], "pulseMs": 1900 }, { "x": 0.86, "y": 0.27, "r": 22, "color": "0xe8a24a", "alpha": [0.2, 0.55], "pulseMs": 2300 }] } },
-    "memory_city": { "file": "bg/memory_city.png", "w": 360, "h": 360 },
-    "bg_abandoned_home_fpv": { "file": "bg/bg_abandoned_home_fpv.jpg", "w": 720, "h": 1280, "cover": true, "placeholder": { "tint": "0x1c1a26", "label": "Abandoned home, seen from the floor, door open, rain light", "shape": "room" } },
-    "bg_letter_fpv": { "file": "bg/bg_letter_fpv.jpg", "w": 720, "h": 1280, "cover": true, "placeholder": { "tint": "0x2a2620", "label": "Looking down at her hands holding the letter", "shape": "band" } },
-    "rest_panel_1": { "file": "bg/rest_panel_1.jpg", "w": 720, "h": 1280, "cover": true, "placeholder": { "tint": "0x1d2630", "label": "Rhea and Dov sitting; Nala walking towards them", "shape": "room" } },
-    "rest_panel_2": { "file": "bg/rest_panel_2.jpg", "w": 720, "h": 1280, "cover": true, "placeholder": { "tint": "0x1f2433", "label": "Dov trying to be strong, Rhea sad; Nala climbing on Rhea", "shape": "room" } },
-    "rest_panel_3": { "file": "bg/rest_panel_3.jpg", "w": 720, "h": 1280, "cover": true, "placeholder": { "tint": "0x2a2230", "label": "Dov close, the embrace; Nala on Rhea's lap", "shape": "room" } },
-    "bg_street_far": {
-      "file": "bg/bg_street_far.jpg", "w": 720, "h": 1280, "optional": true, "filter": "linear", "displayScale": 0.5, "desaturate": 0.6,
+    "street_rain": {
+      "file": "bg/street_rain.png",
+      "w": 360,
+      "h": 360
+    },
+    "records_office": {
+      "file": "bg/records_office.jpg",
+      "w": 720,
+      "h": 1280,
+      "filter": "linear",
+      "displayScale": 0.5,
+      "desaturate": 0.6,
       "ambient": {
-        "fog": { "speedPx": 40, "alpha": 0.18, "color": "0xaebbd6" },
+        "fog": {
+          "speedPx": 4,
+          "alpha": 0.1,
+          "color": "0xc8b090"
+        },
         "glowPoints": [
-          { "x": 0.5, "y": 0.27, "r": 18, "color": "0xe8a24a", "alpha": [0.25, 0.7], "pulseMs": 2400 },
-          { "x": 0.21, "y": 0.33, "r": 20, "color": "0x3fd0c9", "alpha": [0.2, 0.55], "pulseMs": 1800 },
-          { "x": 0.86, "y": 0.33, "r": 20, "color": "0x3fd0c9", "alpha": [0.2, 0.55], "pulseMs": 2100 }
+          {
+            "x": 0.114,
+            "y": 0.184,
+            "r": 18,
+            "color": "0xf0a040",
+            "alpha": [
+              0.3,
+              0.65
+            ],
+            "pulseMs": 1600
+          },
+          {
+            "x": 0.875,
+            "y": 0.194,
+            "r": 18,
+            "color": "0xf0a040",
+            "alpha": [
+              0.3,
+              0.65
+            ],
+            "pulseMs": 1900
+          },
+          {
+            "x": 0.861,
+            "y": 0.266,
+            "r": 20,
+            "color": "0xf0a040",
+            "alpha": [
+              0.25,
+              0.6
+            ],
+            "pulseMs": 1400
+          },
+          {
+            "x": 0.5,
+            "y": 0.125,
+            "r": 18,
+            "color": "0x3fd0c9",
+            "alpha": [
+              0.2,
+              0.55
+            ],
+            "pulseMs": 2200
+          },
+          {
+            "x": 0.264,
+            "y": 0.27,
+            "r": 14,
+            "color": "0x3fd0c9",
+            "alpha": [
+              0.2,
+              0.5
+            ],
+            "pulseMs": 2500
+          },
+          {
+            "x": 0.746,
+            "y": 0.27,
+            "r": 14,
+            "color": "0x3fd0c9",
+            "alpha": [
+              0.2,
+              0.5
+            ],
+            "pulseMs": 2700
+          }
+        ]
+      }
+    },
+    "memory_city": {
+      "file": "bg/memory_city.png",
+      "w": 360,
+      "h": 360
+    },
+    "bg_abandoned_home_fpv": {
+      "file": "bg/bg_abandoned_home_fpv.jpg",
+      "w": 720,
+      "h": 1280,
+      "cover": true
+    },
+    "bg_letter_fpv": {
+      "file": "bg/bg_letter_fpv.jpg",
+      "w": 720,
+      "h": 1280,
+      "cover": true
+    },
+    "rest_panel_1": {
+      "file": "bg/rest_panel_1.jpg",
+      "w": 720,
+      "h": 1280,
+      "cover": true
+    },
+    "rest_panel_2": {
+      "file": "bg/rest_panel_2.jpg",
+      "w": 720,
+      "h": 1280,
+      "cover": true
+    },
+    "rest_panel_3": {
+      "file": "bg/rest_panel_3.jpg",
+      "w": 720,
+      "h": 1280,
+      "cover": true
+    },
+    "bg_street_far": {
+      "file": "bg/bg_street_far.jpg",
+      "w": 720,
+      "h": 1280,
+      "filter": "linear",
+      "displayScale": 0.5,
+      "desaturate": 0.6,
+      "ambient": {
+        "fog": {
+          "speedPx": 6,
+          "alpha": 0.18,
+          "color": "0x8fa0c8"
+        },
+        "glowPoints": [
+          {
+            "x": 0.5,
+            "y": 0.271,
+            "r": 16,
+            "color": "0xf0a040",
+            "alpha": [
+              0.25,
+              0.6
+            ],
+            "pulseMs": 1800
+          },
+          {
+            "x": 0.21,
+            "y": 0.332,
+            "r": 20,
+            "color": "0x3fd0c9",
+            "alpha": [
+              0.2,
+              0.5
+            ],
+            "pulseMs": 2300
+          },
+          {
+            "x": 0.745,
+            "y": 0.285,
+            "r": 14,
+            "color": "0x3fd0c9",
+            "alpha": [
+              0.2,
+              0.5
+            ],
+            "pulseMs": 2000
+          },
+          {
+            "x": 0.58,
+            "y": 0.36,
+            "r": 12,
+            "color": "0x3fd0c9",
+            "alpha": [
+              0.15,
+              0.45
+            ],
+            "pulseMs": 2700
+          }
         ]
       }
     },
     "bg_street_mid": {
-      "file": "bg/bg_street_mid.jpg", "w": 720, "h": 1280, "optional": true, "filter": "linear", "displayScale": 0.5, "desaturate": 0.6,
+      "file": "bg/bg_street_mid.jpg",
+      "w": 720,
+      "h": 1280,
+      "filter": "linear",
+      "displayScale": 0.5,
+      "desaturate": 0.6,
       "ambient": {
-        "fog": { "speedPx": 36, "alpha": 0.18, "color": "0xaebbd6" },
+        "fog": {
+          "speedPx": 6,
+          "alpha": 0.18,
+          "color": "0x8fa0c8"
+        },
         "glowPoints": [
-          { "x": 0.5, "y": 0.12, "r": 24, "color": "0x3fd0c9", "alpha": [0.25, 0.65], "pulseMs": 2500 },
-          { "x": 0.5, "y": 0.33, "r": 20, "color": "0x3fd0c9", "alpha": [0.2, 0.55], "pulseMs": 2000 },
-          { "x": 0.2, "y": 0.33, "r": 18, "color": "0x3fd0c9", "alpha": [0.2, 0.5], "pulseMs": 1700 }
+          {
+            "x": 0.5,
+            "y": 0.137,
+            "r": 24,
+            "color": "0x3fd0c9",
+            "alpha": [
+              0.2,
+              0.55
+            ],
+            "pulseMs": 2100
+          },
+          {
+            "x": 0.5,
+            "y": 0.334,
+            "r": 22,
+            "color": "0x3fd0c9",
+            "alpha": [
+              0.2,
+              0.5
+            ],
+            "pulseMs": 1700
+          },
+          {
+            "x": 0.21,
+            "y": 0.324,
+            "r": 18,
+            "color": "0x3fd0c9",
+            "alpha": [
+              0.2,
+              0.5
+            ],
+            "pulseMs": 2400
+          },
+          {
+            "x": 0.745,
+            "y": 0.285,
+            "r": 14,
+            "color": "0x3fd0c9",
+            "alpha": [
+              0.2,
+              0.5
+            ],
+            "pulseMs": 1900
+          },
+          {
+            "x": 0.7,
+            "y": 0.19,
+            "r": 10,
+            "color": "0x3fd0c9",
+            "alpha": [
+              0.12,
+              0.4
+            ],
+            "pulseMs": 2900
+          }
         ]
       }
     },
     "bg_office_gate": {
-      "file": "bg/bg_office_gate.jpg", "w": 720, "h": 1280, "optional": true, "filter": "linear", "displayScale": 0.5, "desaturate": 0.6,
+      "file": "bg/bg_office_gate.jpg",
+      "w": 720,
+      "h": 1280,
+      "filter": "linear",
+      "displayScale": 0.5,
+      "desaturate": 0.6,
       "ambient": {
-        "fog": { "speedPx": 30, "alpha": 0.16, "color": "0xb8c4d8" },
+        "fog": {
+          "speedPx": 5,
+          "alpha": 0.16,
+          "color": "0x8fa0c8"
+        },
         "glowPoints": [
-          { "x": 0.26, "y": 0.31, "r": 24, "color": "0x3fd0c9", "alpha": [0.25, 0.65], "pulseMs": 2300 },
-          { "x": 0.74, "y": 0.31, "r": 24, "color": "0x3fd0c9", "alpha": [0.25, 0.65], "pulseMs": 2700 },
-          { "x": 0.16, "y": 0.31, "r": 16, "color": "0xe8a24a", "alpha": [0.2, 0.6], "pulseMs": 1600 },
-          { "x": 0.84, "y": 0.33, "r": 16, "color": "0xe8a24a", "alpha": [0.2, 0.6], "pulseMs": 1900 }
+          {
+            "x": 0.153,
+            "y": 0.332,
+            "r": 20,
+            "color": "0xf0a040",
+            "alpha": [
+              0.3,
+              0.65
+            ],
+            "pulseMs": 1500
+          },
+          {
+            "x": 0.847,
+            "y": 0.332,
+            "r": 20,
+            "color": "0xf0a040",
+            "alpha": [
+              0.3,
+              0.65
+            ],
+            "pulseMs": 1700
+          },
+          {
+            "x": 0.257,
+            "y": 0.297,
+            "r": 24,
+            "color": "0x3fd0c9",
+            "alpha": [
+              0.15,
+              0.4
+            ],
+            "pulseMs": 2600
+          },
+          {
+            "x": 0.743,
+            "y": 0.297,
+            "r": 24,
+            "color": "0x3fd0c9",
+            "alpha": [
+              0.15,
+              0.4
+            ],
+            "pulseMs": 2800
+          },
+          {
+            "x": 0.5,
+            "y": 0.137,
+            "r": 14,
+            "color": "0x3fd0c9",
+            "alpha": [
+              0.1,
+              0.35
+            ],
+            "pulseMs": 3200
+          }
         ]
       }
     },
-    "platform_street": { "file": "bg/platform_street.png", "w": 720, "h": 220, "optional": true, "filter": "linear", "displayScale": 0.5 },
-    "platform_office": { "file": "bg/platform_office.png", "w": 720, "h": 220, "optional": true, "filter": "linear", "displayScale": 0.5 }
+    "platform_street": {
+      "file": "bg/platform_street.png",
+      "w": 720,
+      "h": 220,
+      "filter": "linear",
+      "displayScale": 0.5
+    },
+    "platform_office": {
+      "file": "bg/platform_office.png",
+      "w": 720,
+      "h": 220,
+      "filter": "linear",
+      "displayScale": 0.5
+    },
+    "records_office_room": {
+      "file": "bg/records_office.jpg",
+      "w": 720,
+      "h": 1280,
+      "cover": true
+    }
   },
   "ui": {
-    "logo": { "file": "ui/logo.png", "w": 720, "h": 207, "optional": true },
-    "title_bg": { "file": "ui/title_bg.jpg", "w": 720, "h": 1280, "optional": true },
-    "ui_badge_postjam": { "file": "ui/ui_badge_postjam.png", "w": 160, "h": 40, "optional": true }
+    "logo": {
+      "file": "ui/logo.png",
+      "w": 720,
+      "h": 207,
+      "optional": true
+    },
+    "title_bg": {
+      "file": "ui/title_bg.jpg",
+      "w": 720,
+      "h": 1280,
+      "optional": true
+    },
+    "ui_badge_postjam": {
+      "file": "ui/ui_badge_postjam.png",
+      "w": 160,
+      "h": 40,
+      "optional": true
+    }
   },
   "cutscene": {
-    "city": { "file": "cutscene/city.jpg", "w": 720, "h": 1280 },
-    "reliquary": { "file": "cutscene/reliquary.jpg", "w": 720, "h": 1280 },
-    "battlefield": { "file": "cutscene/battlefield.jpg", "w": 720, "h": 1280 },
-    "council": { "file": "cutscene/council.jpg", "w": 720, "h": 1280 },
-    "statue": { "file": "cutscene/statue.jpg", "w": 720, "h": 1280 },
-    "exile_close": { "file": "cutscene/exile_close.jpg", "w": 720, "h": 1280 },
-    "aurelian_king": { "file": "cutscene/aurelian_king.png", "w": 624, "h": 900 },
-    "aurelian_king_kneel": { "file": "cutscene/aurelian_king_kneel.png", "w": 598, "h": 760 },
-    "aurelian_exile": { "file": "cutscene/aurelian_exile.png", "w": 516, "h": 900 },
-    "aurelian_exile_kneel": { "file": "cutscene/aurelian_exile_kneel.png", "w": 587, "h": 760 },
-    "cs_aurelian_build": { "file": "cutscene/cs_aurelian_build.jpg", "w": 720, "h": 1280, "placeholder": { "tint": "0x1f2a3a", "label": "Young Aurelian building the Reliquary, smiling", "shape": "figure" } },
-    "cs_aurelian_cheered": { "file": "cutscene/cs_aurelian_cheered.jpg", "w": 720, "h": 1280, "placeholder": { "tint": "0x3a2e1a", "label": "Young Aurelian cheered by the court and crowd as the lanterns light up", "shape": "figure" } },
-    "cs_aurelian_war": { "file": "cutscene/cs_aurelian_war.jpg", "w": 720, "h": 1280, "placeholder": { "tint": "0x2a2224", "label": "Older Aurelian in armor, leading on the battlefield", "shape": "figure" } },
-    "cs_aurelian_engine_war": { "file": "cutscene/cs_aurelian_engine_war.jpg", "w": 720, "h": 1280, "placeholder": { "tint": "0x1e2230", "label": "Aurelian at the war-engine, kneeling among the fallen", "shape": "figure" } },
-    "cs_council_trial": { "file": "cutscene/cs_council_trial.jpg", "w": 720, "h": 1280, "placeholder": { "tint": "0x241a2e", "label": "Council chamber, Aurelian standing in the middle", "shape": "room" } },
-    "cs_statue": { "file": "cutscene/cs_statue.jpg", "w": 720, "h": 1280, "placeholder": { "tint": "0x22262e", "label": "Statue in Aurelian's likeness", "shape": "figure" } },
-    "cs_exile_ruins": { "file": "cutscene/cs_exile_ruins.jpg", "w": 720, "h": 1280, "placeholder": { "tint": "0x1a2030", "label": "The exile in the ruins", "shape": "street" } },
-    "cs_castle_daughter": { "file": "cutscene/cs_castle_daughter.jpg", "w": 720, "h": 1280, "placeholder": { "tint": "0x15121f", "label": "Aurelian in shadow in the castle, watching his daughter", "shape": "figure" } },
-    "cs_reliquary_red": { "file": "cutscene/cs_reliquary_red.jpg", "w": 720, "h": 1280, "placeholder": { "tint": "0x3a1418", "label": "His hands on the Reliquary as it turns red", "shape": "room" } },
-    "cs_hush_1": { "file": "cutscene/cs_hush_1.jpg", "w": 720, "h": 1280, "placeholder": { "tint": "0x2a1018", "label": "The Hush: lights dying, a red wave from the tower, screaming silhouettes", "shape": "none" } },
-    "cs_hush_2": { "file": "cutscene/cs_hush_2.jpg", "w": 720, "h": 1280, "placeholder": { "tint": "0x050507", "label": "The Hush: silence", "shape": "none" } },
-    "cs_city_red_tower": { "file": "cutscene/cs_city_red_tower.jpg", "w": 720, "h": 1280, "placeholder": { "tint": "0x2e1218", "label": "Veyra with the tower glowing red", "shape": "street" } },
-    "cs_forgotten": { "file": "cutscene/cs_forgotten.jpg", "w": 720, "h": 1280, "placeholder": { "tint": "0x1a2230", "label": "Forgotten in the street; people walk past without seeing them", "shape": "street" } },
-    "cs_hollows": { "file": "cutscene/cs_hollows.jpg", "w": 720, "h": 1280, "placeholder": { "tint": "0x1b1a2e", "label": "Hollows rising from memory dust", "shape": "street" } },
-    "cs_echo_learning": { "file": "cutscene/cs_echo_learning.jpg", "w": 720, "h": 1280, "placeholder": { "tint": "0x10282c", "label": "Ordinary people learning Echo, a teal glow in their hands", "shape": "figure" } },
-    "cs_echo_called": { "file": "cutscene/cs_echo_called.jpg", "w": 720, "h": 1280, "placeholder": { "tint": "0x0f2a2e", "label": "Close-up: a hand burning a memory into teal fire", "shape": "band" } }
+    "city": {
+      "file": "cutscene/city.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "reliquary": {
+      "file": "cutscene/reliquary.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "battlefield": {
+      "file": "cutscene/battlefield.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "council": {
+      "file": "cutscene/council.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "statue": {
+      "file": "cutscene/statue.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "exile_close": {
+      "file": "cutscene/exile_close.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "aurelian_king": {
+      "file": "cutscene/aurelian_king.png",
+      "w": 624,
+      "h": 900
+    },
+    "aurelian_king_kneel": {
+      "file": "cutscene/aurelian_king_kneel.png",
+      "w": 598,
+      "h": 760
+    },
+    "aurelian_exile": {
+      "file": "cutscene/aurelian_exile.png",
+      "w": 516,
+      "h": 900
+    },
+    "aurelian_exile_kneel": {
+      "file": "cutscene/aurelian_exile_kneel.png",
+      "w": 587,
+      "h": 760
+    },
+    "cs_aurelian_build": {
+      "file": "cutscene/cs_aurelian_build.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "cs_aurelian_cheered": {
+      "file": "cutscene/cs_aurelian_cheered.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "cs_aurelian_war": {
+      "file": "cutscene/cs_aurelian_war.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "cs_aurelian_engine_war": {
+      "file": "cutscene/cs_aurelian_engine_war.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "cs_council_trial": {
+      "file": "cutscene/cs_council_trial.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "cs_statue": {
+      "file": "cutscene/cs_statue.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "cs_exile_ruins": {
+      "file": "cutscene/cs_exile_ruins.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "cs_castle_daughter": {
+      "file": "cutscene/cs_castle_daughter.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "cs_reliquary_red": {
+      "file": "cutscene/cs_reliquary_red.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "cs_hush_1": {
+      "file": "cutscene/cs_hush_1.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "cs_hush_2": {
+      "file": "cutscene/cs_hush_2.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "cs_city_red_tower": {
+      "file": "cutscene/cs_city_red_tower.jpg",
+      "w": 720,
+      "h": 1280,
+      "placeholder": {
+        "tint": "0x2e1218",
+        "label": "Veyra with the tower glowing red",
+        "shape": "street"
+      }
+    },
+    "cs_forgotten": {
+      "file": "cutscene/cs_forgotten.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "cs_hollows": {
+      "file": "cutscene/cs_hollows.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "cs_echo_learning": {
+      "file": "cutscene/cs_echo_learning.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "cs_echo_called": {
+      "file": "cutscene/cs_echo_called.jpg",
+      "w": 720,
+      "h": 1280
+    },
+    "cs_statue_2": {
+      "file": "cutscene/cs_statue_2.jpg",
+      "w": 720,
+      "h": 1280,
+      "view": {
+        "focus": [
+          0.5,
+          0.4
+        ]
+      }
+    },
+    "cs_hush_mid": {
+      "file": "cutscene/cs_hush_mid.jpg",
+      "w": 720,
+      "h": 1280
+    }
   },
   "loading": {
-    "background": ["ui", "cutscene", "sprites", "backgrounds", "portraits", "sheets"],
-    "deps": { "sheets": ["sprites"] },
-    "scenes": {
-      "Title": ["ui"], "Menu": ["ui"], "Settings": ["ui"], "End": ["ui"], "Reward": ["ui"],
-      "Cutscene": ["cutscene", "sprites", "backgrounds"],
-      "Dialogue": ["portraits", "backgrounds"],
-      "Battle": ["sprites", "backgrounds", "sheets"],
-      "AnimTest": ["sprites", "backgrounds", "sheets"]
+    "background": [
+      "ui",
+      "cutscene",
+      "sprites",
+      "backgrounds",
+      "portraits",
+      "sheets"
+    ],
+    "deps": {
+      "sheets": [
+        "sprites"
+      ]
     },
-    "linear": ["ui", "portraits", "cutscene"],
+    "scenes": {
+      "Title": [
+        "ui"
+      ],
+      "Menu": [
+        "ui"
+      ],
+      "Settings": [
+        "ui"
+      ],
+      "End": [
+        "ui"
+      ],
+      "Reward": [
+        "ui"
+      ],
+      "Cutscene": [
+        "cutscene",
+        "sprites",
+        "backgrounds"
+      ],
+      "Dialogue": [
+        "portraits",
+        "backgrounds"
+      ],
+      "Battle": [
+        "sprites",
+        "backgrounds",
+        "sheets"
+      ],
+      "AnimTest": [
+        "sprites",
+        "backgrounds",
+        "sheets"
+      ]
+    },
+    "linear": [
+      "ui",
+      "portraits",
+      "cutscene"
+    ],
     "placeholder": {
       "maxPixels": 230400,
       "font": "\"Play\", sans-serif",

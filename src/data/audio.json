@@ -5,7 +5,209 @@
     "crossfadeMs": 500,
     "scenes": { "Title": "title", "Menu": "title", "Cutscene": "cutscene", "Dialogue": "cutscene", "End": "ending" },
     "ambience": { "Title": null, "Menu": null, "Cutscene": null, "Dialogue": null, "End": null },
-    "prefetch": ["title", "cutscene", "battle", "boss", "ending"]
+    "prefetch": ["title", "cutscene", "battle", "boss", "ending"],
+    "prefetchPolicy": "next-step",
+    "crossfadeRangeMs": [
+      500,
+      800
+    ],
+    "aliases": {
+      "street": "cs_forgotten",
+      "records_office": "cs_hush",
+      "boss_enraged": "boss"
+    },
+    "procedural": [
+      "warm",
+      "quill_rise",
+      "ending",
+      "victory",
+      "memory_return",
+      "gameover"
+    ],
+    "loop": {
+      "title": true,
+      "battle_duel": true,
+      "battle": true,
+      "battle_hollow": true,
+      "battle_gate": true,
+      "boss": true,
+      "cs_golden": true,
+      "cs_war": true,
+      "cs_fall": true,
+      "cs_hush": true,
+      "cs_forgotten": true,
+      "meet_dov": true,
+      "rest_sad": true,
+      "street": true,
+      "records_office": true,
+      "boss_enraged": true,
+      "warm": true,
+      "ending": true,
+      "keepsake": false,
+      "recollection": false,
+      "quill_intro": false,
+      "quill_rise": false,
+      "victory": false,
+      "memory_return": false,
+      "gameover": false
+    },
+    "placement": {
+      "_doc": [
+        "Where each track plays (data for the wiring item; nothing reads this yet). A null track = silence.",
+        "cutscene_origin ranges are 0-based INDICES into cutscene_origin.json shots[] in the FINAL order, i.e. after the wiring item inserts the new shot with bg cs_hush_mid at index 22 (between cs_hush_1 and cs_hush_2). Today's file has 32 entries and cs_hush_2 at index 22; with the insertion it has 33 and cs_hush_2 is index 23. Match by bg when in doubt (startBg).",
+        "Kostas's story numbering (1-based, STORY.md) maps: golden 1-6, war 7-11, fall 12-18, hush 19-23 (incl. hush_1 and hush_mid), silence = the cs_hush_2 shot (his 24), forgotten 25-30 = from 'When the light returned' to the end of the cutscene.",
+        "Crossfades 500-800 ms (crossfadeRangeMs). Prefetch only the next step's tracks (prefetchPolicy next-step) and decode on demand."
+      ],
+      "scenes": {
+        "Title": "title",
+        "Menu": "title",
+        "End": "ending"
+      },
+      "cutscene_origin": {
+        "ranges": [
+          {
+            "from": 0,
+            "to": 5,
+            "track": "cs_golden"
+          },
+          {
+            "from": 6,
+            "to": 10,
+            "track": "cs_war"
+          },
+          {
+            "from": 11,
+            "to": 17,
+            "track": "cs_fall"
+          },
+          {
+            "from": 18,
+            "to": 22,
+            "track": "cs_hush",
+            "startBg": "(shot 'He did not come back for his throne', bg reliquary)",
+            "note": "ends with the cs_hush_mid shot"
+          },
+          {
+            "from": 23,
+            "to": 23,
+            "track": null,
+            "startBg": "cs_hush_2",
+            "note": "SILENCE: stop the music (500 ms fade) on this shot"
+          },
+          {
+            "from": 24,
+            "to": 32,
+            "track": "cs_forgotten",
+            "startBg": "cs_city_red_tower",
+            "note": "from 'When the light returned' to the end of the cutscene"
+          }
+        ],
+        "currentOrderWithoutHushMid": [
+          {
+            "from": 0,
+            "to": 5,
+            "track": "cs_golden"
+          },
+          {
+            "from": 6,
+            "to": 10,
+            "track": "cs_war"
+          },
+          {
+            "from": 11,
+            "to": 17,
+            "track": "cs_fall"
+          },
+          {
+            "from": 18,
+            "to": 21,
+            "track": "cs_hush"
+          },
+          {
+            "from": 22,
+            "to": 22,
+            "track": null
+          },
+          {
+            "from": 23,
+            "to": 31,
+            "track": "cs_forgotten"
+          }
+        ]
+      },
+      "dialogue": {
+        "wake": null,
+        "letter": null,
+        "meet_dov": "meet_dov",
+        "after_duel": "warm",
+        "before_gate": "street",
+        "after_b1": "rest_sad",
+        "records_office": {
+          "track": "records_office",
+          "switchTo": "quill_intro",
+          "onFirstLineOf": "Quill",
+          "then": "boss"
+        },
+        "ending": "ending"
+      },
+      "step": {
+        "reward_rest": {
+          "oneShot": "memory_return",
+          "over": {
+            "track": "rest_sad",
+            "duck": 0.35
+          }
+        }
+      },
+      "battle": {
+        "b0_duel": "battle_duel",
+        "b1_forgotten": "battle",
+        "b2_first_hollow": "battle_hollow",
+        "b3_gate": "battle_gate",
+        "boss_clerk": {
+          "stage1": "boss",
+          "stageChange": {
+            "stop": true,
+            "oneShot": "quill_rise"
+          },
+          "stage2": "boss_enraged"
+        }
+      },
+      "overlay": {
+        "keepsake_burn": {
+          "track": "keepsake",
+          "duckBattle": true
+        },
+        "recollection": {
+          "afterLine": "I'm forgetting you again…",
+          "silenceMs": 1500,
+          "track": "recollection",
+          "from": "cutin",
+          "until": "recollectionEnd"
+        }
+      },
+      "events": {
+        "battleWin": {
+          "oneShot": "victory"
+        },
+        "recallCard": {
+          "oneShot": "memory_return"
+        },
+        "retry": {
+          "track": "gameover"
+        },
+        "end": {
+          "track": "ending"
+        }
+      },
+      "sfxCues": {
+        "sfx_war_horn": "cutscene_origin shot 7 (story numbering) = 'Then came the Long War'",
+        "sfx_crystal_resonance": "shot 8 = 'To end it, he taught the engine...'",
+        "sfx_crowd_murmur": "shots 9-10 = the council (low bed under the music)",
+        "sfx_bell_toll": "shot 11 = 'His sentence was his own weapon: the Unwriting'",
+        "sfx_stone_crumble": "shot 13 -> 14 = the statue falls"
+      }
+    }
   },
   "sfxFiles": { "dir": "assets/audio/sfx/", "ext": ".mp3" },
   "pause": { "musicDuck": 0.35 },
@@ -153,6 +355,11 @@
     "sfx_red_surge": [
       {"type": "osc", "wave": "sine", "from": 110, "to": 440, "ms": 900, "gain": 0.25},
       {"type": "noise", "ms": 900, "gain": 0.15, "filterHz": 1800, "attackMs": 500}
-    ]
+    ],
+    "sfx_war_horn": [],
+    "sfx_crystal_resonance": [],
+    "sfx_crowd_murmur": [],
+    "sfx_bell_toll": [],
+    "sfx_stone_crumble": []
   }
 }
