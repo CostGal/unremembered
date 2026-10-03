@@ -54,6 +54,7 @@
     "anims": ["cast"],
     "amount": 25,
     "canRevive": true,
+    "targetPrompt": "Who does {hero} anchor?",
     "levels": {
       "1": { "amount": 20, "canRevive": false },
       "3": { "amount": 25, "canRevive": true, "clearStatuses": true }

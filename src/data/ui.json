@@ -148,6 +148,25 @@
     "lockedSlot": { "text": "? ? ?", "color": "#5a5f73" },
     "targetTint": "0xfff066"
   },
+  "target": {
+    "prompt": "Choose a target",
+    "heroPrompt": "Who do you help?",
+    "backText": "Back",
+    "showNumbers": false,
+    "promptY": 446,
+    "promptFontSize": 12,
+    "grid": { "cols": [94, 266], "rows": [482, 548], "cardW": 156, "backFullW": 328 },
+    "button": { "h": 56, "fontSize": 14, "pad": 14, "nameY": 4, "noteGap": 2, "noteFontSize": 11, "textColor": "#f1efe8", "numberColor": "#c8ccd8", "depth": 0 },
+    "hpBar": { "y": 0, "h": 8, "midPct": 0.5, "lowPct": 0.25, "colors": { "bg": "0x2a2e3d", "full": "0x5fcf86", "mid": "0xe0b040", "low": "0xd8505a" } },
+    "tag": { "fontSize": 10, "h": 14, "padX": 3, "gap": 3, "fill": "0x0b0d14", "strokeAlpha": 1 },
+    "badge": { "size": 14, "gap": 4, "fontSize": 10, "fill": "0x3fd0c9", "stroke": "0x0b0d14", "color": "#0b0d14" },
+    "text": { "immune": "IMMUNE to {tech}", "downed": "DOWNED", "broken": "BRK", "charging": "CHG" },
+    "tagColors": { "broken": "#f0c060", "charging": "#d8505a" },
+    "immuneColor": "#9db4c8",
+    "downedColor": "#d8505a",
+    "noteColor": "#9db4c8",
+    "highlight": { "color": "0x3fd0c9", "alpha": [0.3, 0.7], "pulseMs": 520, "glowW": 0.9, "glowH": 14, "glowOffsetY": 2, "focusScale": 1.35, "chipGap": 12, "chipFontSize": 12, "chipColor": "#3fd0c9" }
+  },
   "animtest": {
     "character": "rhea",
     "battle": "b1_forgotten",

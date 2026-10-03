@@ -641,8 +641,8 @@ await withBrowser(async ({ chrome, server }) => {
     // targeting with two enemies: tap an enemy sprite; Back cancels
     await page.tap(...slots.strike);
     await sleep(400);
-    const prompt = await page.ev(`window.__battle.menu.items.map(i => i.slot + ':' + i.value)`);
-    log(prompt.length === 1 && /back/.test(prompt[0]), '2 enemies: Strike asks for a target (Back only)', prompt.join(' '));
+    const prompt = await page.ev(`window.__battle.menu.items.map(i => i.slot)`);
+    log(prompt.join() === 'target,target,back', '2 enemies: Strike asks for a target (two cards + Back)', prompt.join(' '));
     await page.shot(join(out, 'targeting_2_enemies.png'));
     await page.tap(...slots.back);
     await sleep(400);
@@ -665,6 +665,60 @@ await withBrowser(async ({ chrome, server }) => {
     await sleep(2200);
     log(heroNow === 'dov', 'Dov Strike works', heroNow);
     log(page.errors.length === 0, 'no console errors in commands', page.errors.slice(0, 2).join(' | '));
+  }
+
+  // ============ F-targeting: the target cards (ui.json target) ============
+  if (want('targeting')) {
+    // Two Forgotten: a card each (name, HP bar), tapping the SECOND card hits that enemy only.
+    let page = await battle(chrome, server, 'b1_forgotten', { extra: '&level=2' });
+    await waitMenu(page);
+    await page.ev(`window.__battle.tutorialSlow = false`);
+    await page.tap(...slots.strike);
+    await sleep(500);
+    const cards = await page.ev(`window.__battle.menu.items.filter(i => i.slot === 'target').map(i => ({ x: i.x, y: i.y, name: i.label, ex: i.value.container.x }))`);
+    log(cards.length === 2 && cards[0].ex < cards[1].ex && cards[0].x < cards[1].x, 'target menu lists 2 enemies left to right', JSON.stringify(cards));
+    await page.shot(join(out, 'target_b1_forgotten.png'));
+    const hp0 = await page.ev(`window.__battle.enemies.map(e => e.hp)`);
+    const order = await page.ev(`window.__battle.menu.items.filter(i => i.slot === 'target').map(i => window.__battle.enemies.indexOf(i.value))`);
+    await page.tap(cards[1].x, cards[1].y);
+    await sleep(2400);
+    const hp1 = await page.ev(`window.__battle.enemies.map(e => e.hp)`);
+    const hit = order[1];
+    log(hp1[hit] < hp0[hit] && hp1[1 - hit] === hp0[1 - hit], 'tapping the second card hits that enemy only', `${hp0} -> ${hp1}, card 2 = enemy ${hit}`);
+    log(page.errors.length === 0, 'no console errors in targeting (enemies)', page.errors.slice(0, 2).join(' | '));
+
+    // Gate: Warden + Hollow. Strike marks the Hollow IMMUNE, a technique does not.
+    page = await battle(chrome, server, 'b3_gate', { extra: '&level=3' });
+    await waitMenuThroughDialogue(page);
+    await page.ev(`window.__battle.tutorialSlow = false`);
+    await page.tap(...slots.strike);
+    await sleep(500);
+    const immune = await page.ev(`window.__battle.menu.items.filter(i => i.slot === 'target').map(i => !!i.value.def.immune?.includes('strike'))`);
+    log(immune.length === 2 && immune.every(Boolean), 'gate: both candidates are strike-immune Hollows', immune.join());
+    const texts = await page.ev(`(() => { const out = []; const walk = (l) => l.forEach((o) => { if (o.list) walk(o.list); if (o.type === 'Text') out.push(o.text); }); walk(window.__battle.menu.buttons.map(b => b.container)); return out; })()`);
+    log(texts.some((t) => /IMMUNE to Strike/.test(t)), 'Strike on a Hollow: card shows "IMMUNE to Strike"', texts.filter((t) => /IMMUNE/.test(t)).join('|'));
+    await page.shot(join(out, 'target_b3_gate_strike.png'));
+    log(page.errors.length === 0, 'no console errors in targeting (gate)', page.errors.slice(0, 2).join(' | '));
+
+    // Anchor (Dov): the hero cards, driven through pickHero like the real turn does.
+    page = await battle(chrome, server, 'b1_forgotten', { extra: '&level=3' });
+    await waitMenu(page);
+    await page.ev(`(() => { const B = window.__battle; B.tutorialSlow = false; B.hideCommandMenu(); B.activeHero = B.heroes[1]; B.heroes[0].hp = 0; B.heroes[1].hp = 40; B.refreshHud();
+      window.__pick = 'pending'; B.pickHero(B.techOf(B.heroes[1], 'anchor')).then((t) => { window.__pick = t ? t.type : null; }); })()`);
+    await sleep(500);
+    const heroCards = await page.ev(`window.__battle.menu.items.filter(i => i.slot === 'target').map(i => ({ x: i.x, y: i.y, kind: i.kind, id: i.value.type }))`);
+    log(heroCards.length === 2 && heroCards.every((c) => c.kind === 'hero'), 'Anchor target menu lists the heroes (the downed one too, Recall 3 revives)', JSON.stringify(heroCards));
+    const heroTexts = await page.ev(`(() => { const out = []; const walk = (l) => l.forEach((o) => { if (o.list) walk(o.list); if (o.type === 'Text') out.push(o.text); }); walk(window.__battle.menu.buttons.map(b => b.container)); walk([window.__battle.menu.promptText]); return out; })()`);
+    log(heroTexts.includes('DOWNED') && heroTexts.some((t) => /40\/\d+/.test(t)) && heroTexts.includes('Who does Dov anchor?'), 'hero cards show DOWNED, HP numbers and the prompt', heroTexts.join('|'));
+    await page.shot(join(out, 'target_anchor_heroes.png'));
+    await page.tap(heroCards[0].x, heroCards[0].y);
+    await sleep(300);
+    log((await page.ev(`window.__pick`)) === 'rhea', 'tapping the first hero card picks that hero (the downed Rhea)');
+    // Recall 1: Anchor cannot revive, so the downed hero is no candidate and the only living one is picked without asking.
+    await page.ev(`(() => { const B = window.__battle; window.__pick = 'pending'; B.pickHero({ ...B.techOf(B.heroes[1], 'anchor'), canRevive: false }).then((t) => { window.__pick = t ? t.type : null; }); })()`);
+    await sleep(300);
+    log((await page.ev(`window.__pick`)) === 'dov', 'no revive: the downed hero is no candidate, one valid hero is auto-picked');
+    log(page.errors.length === 0, 'no console errors in targeting (anchor)', page.errors.slice(0, 2).join(' | '));
   }
 });
 

@@ -797,7 +797,7 @@ export default class BattleScene extends Phaser.Scene {
       const pick = await picking;
 
       if (pick === 'strike') {
-        const target = await this.pickEnemy();
+        const target = await this.pickEnemy('strike');
         if (target) return { kind: 'strike', techId: 'strike', target };
         continue;
       }
@@ -810,8 +810,15 @@ export default class BattleScene extends Phaser.Scene {
 
       const techId = await this.menu.show(this.techniqueItems(hero));
       if (!techId) continue;
-      if (this.techOf(hero, techId).target !== 'enemy') return { kind: 'technique', techId };
-      const target = await this.pickEnemy();
+      const tech = this.techOf(hero, techId);
+      // Anchor: pick who gets it (Back returns to the technique list).
+      if (tech.type === 'heal') {
+        const ally = await this.pickHero(tech);
+        if (ally) return { kind: 'technique', techId, target: ally };
+        continue;
+      }
+      if (tech.target !== 'enemy') return { kind: 'technique', techId };
+      const target = await this.pickEnemy(techId);
       if (target) return { kind: 'technique', techId, target };
     }
   }
@@ -873,27 +880,74 @@ export default class BattleScene extends Phaser.Scene {
     return this.heroes.some((h) => (h.hp > 0 && h.hp < h.maxHp) || (h.hp <= 0 && tech.canRevive));
   }
 
-  // One living enemy = automatic. Otherwise tap a highlighted enemy, or Back (→ null).
-  pickEnemy() {
+  // One living enemy = automatic. Otherwise the target cards (name, HP bar, status) in the command
+  // area, or a tap on a highlighted sprite; Back → null. techId = the pending action (a Strike on
+  // a Hollow gets its IMMUNE tag).
+  pickEnemy(techId = null) {
     const living = this.enemies.filter((e) => e.hp > 0);
     if (living.length <= 1) return Promise.resolve(living[0] || null);
+    living.sort((a, b) => a.container.x - b.container.x);
+    return this.pickTarget(living, { kind: 'enemy', techId });
+  }
 
-    const markers = [];
-    for (const enemy of living) {
-      enemy.body.setTint(Number(ui.commands.targetTint));
-      enemy.body.setInteractive({ useHandCursor: true });
-      enemy.body.once('pointerdown', () => this.menu.choose(enemy));
-      const top = enemy.label ? enemy.label.y - enemy.label.height : enemy.container.y - enemy.height / 2;
-      markers.push(this.pointer(enemy.container.x, top - ui.targetMarker.gapY, ui.targetMarker));
-    }
+  // Dov's Anchor: who gets it. A level that can't revive offers only the living; a single valid
+  // hero is picked without asking (the sim and a one-hero party take this path too).
+  pickHero(tech) {
+    const candidates = this.heroes.filter((h) => h.hp > 0 || tech.canRevive);
+    if (candidates.length <= 1) return Promise.resolve(candidates[0] || null);
+    const hero = this.activeHero;
+    const prompt = (tech.targetPrompt || ui.target.heroPrompt).replace('{hero}', hero?.name ?? '');
+    return this.pickTarget(candidates, { kind: 'hero', prompt });
+  }
 
-    const back = [{ slot: 'back', label: ui.commands.labels.back, value: null }];
-    return this.menu.show(back, ui.commands.prompt.text).then((target) => {
-      markers.forEach((m) => m.destroy());
-      for (const enemy of living) {
-        Fx.restoreTint(enemy.body);
-        enemy.body.off('pointerdown');
-        enemy.body.disableInteractive();
+  // ui.json target: cards for `candidates` + the same sprites highlighted and tappable
+  // (tint for enemies, a bobbing marker, a pulsing glow under the feet; the card under the
+  // finger lights its sprite up). Resolves with the chosen entity or null (Back).
+  pickTarget(candidates, { kind, techId = null, prompt = null }) {
+    const cfg = ui.target;
+    const hl = cfg.highlight;
+    const techName = techId ? this.techOf(this.activeHero, techId)?.name ?? '' : '';
+    const names = candidates.map((c) => c.name);
+    const badges = candidates.map((c) => (names.filter((n) => n === c.name).length > 1 ? String(names.slice(0, candidates.indexOf(c)).filter((n) => n === c.name).length + 1) : null));
+
+    const fx = [];
+    candidates.forEach((entity, i) => {
+      if (kind === 'enemy') entity.body.setTint(Number(ui.commands.targetTint));
+      entity.body.setInteractive({ useHandCursor: true });
+      entity.body.once('pointerdown', () => this.menu.choose(entity));
+      const top = entity.label ? entity.label.y - entity.label.height : entity.container.y - entity.height / 2;
+      const marker = this.pointer(entity.container.x, top - ui.targetMarker.gapY, ui.targetMarker);
+      const glow = this.add
+        .ellipse(entity.container.x, entity.feetY - hl.glowOffsetY, entity.height * hl.glowW, hl.glowH, Number(hl.color), hl.alpha[0])
+        .setDepth(entity.container.depth - 1);
+      const pulse = this.tweens.add({ targets: glow, alpha: hl.alpha[1], duration: hl.pulseMs, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      const chip = badges[i]
+        ? this.add.text(entity.container.x, marker.y - ui.targetMarker.size - hl.chipGap, badges[i], { fontFamily: ui.font, fontSize: `${hl.chipFontSize}px`, color: hl.chipColor, stroke: '#0b0d14', strokeThickness: 3 }).setOrigin(0.5).setDepth(ui.targetMarker.depth)
+        : null;
+      fx.push({ entity, marker, glow, pulse, chip });
+    });
+
+    // The card under the finger: its sprite's marker grows, its glow stays bright.
+    let focus = null;
+    const setFocus = (entity) => {
+      focus = entity;
+      for (const f of fx) {
+        const on = f.entity === entity;
+        f.marker.setScale(on ? hl.focusScale : 1);
+        f.pulse.timeScale = on ? 0.4 : 1;
+        f.glow.setScale(on ? hl.focusScale : 1);
+      }
+    };
+
+    return this.menu.showTargets(candidates, { kind, prompt: prompt ?? cfg.prompt, techId, techName, badges, onFocus: setFocus }).then((target) => {
+      for (const f of fx) {
+        f.marker.destroy();
+        f.pulse.stop();
+        f.glow.destroy();
+        f.chip?.destroy();
+        if (kind === 'enemy') Fx.restoreTint(f.entity.body);
+        f.entity.body.off('pointerdown');
+        f.entity.body.disableInteractive();
       }
       return target;
     });
@@ -1983,7 +2037,7 @@ export default class BattleScene extends Phaser.Scene {
     const tech = this.techOf(hero, techId);
     if (tech.type === 'blast') await this.playBlast(hero, target, tech, techId);
     else if (tech.type === 'counterStance') await this.startStance(hero, tech);
-    else if (tech.type === 'heal') await this.playHeal(hero, tech);
+    else if (tech.type === 'heal') await this.playHeal(hero, tech, target);
     else if (tech.type === 'brace') await this.playBrace(hero, tech);
     else if (tech.type === 'quake') await this.playQuake(hero, tech, techId);
   }
@@ -2130,12 +2184,14 @@ export default class BattleScene extends Phaser.Scene {
     if (hero.hp > 0) hero.body.play(animKey(hero.type, 'idle'));
   }
 
-  // Anchor: heals the hero who needs it most — a downed ally first (if the
-  // technique can revive), then the lowest HP share. The heal lands on the
-  // move's impact frame.
-  async playHeal(hero, tech) {
+  // Anchor: heals the hero chosen on the target cards. With no choice (one valid hero, the sim):
+  // the one who needs it most, a downed ally first (if the technique can revive), then the
+  // lowest HP share. The heal lands on the move's impact frame.
+  async playHeal(hero, tech, chosen = null) {
+    // The hero picked on the target cards; without one (a single valid hero, the sim) the
+    // automatic choice.
     const candidates = this.heroes.filter((h) => h.hp > 0 || tech.canRevive);
-    const target = candidates.sort((a, b) => (a.hp > 0) - (b.hp > 0) || a.hp / a.maxHp - b.hp / b.maxHp)[0];
+    const target = chosen && candidates.includes(chosen) ? chosen : candidates.sort((a, b) => (a.hp > 0) - (b.hp > 0) || a.hp / a.maxHp - b.hp / b.maxHp)[0];
     if (!target) return;
 
     await this.playMove(hero, tech.anims || ['cast'], () => {

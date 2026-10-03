@@ -1,5 +1,6 @@
 import ui from '../data/ui.json';
 import { makeGlassButton } from './Button.js';
+import { describeTarget, layoutTargets, makeTargetCard } from './TargetMenu.js';
 
 // The command buttons in the lower screen (2×2 grid, slots from ui.json).
 // show(items) draws one button per item and resolves with the tapped item's
@@ -45,6 +46,32 @@ export default class CommandMenu {
     });
   }
 
+  // Target select (ui.json target): a card per candidate (name, HP bar, status tags) plus Back.
+  // Resolves with the tapped candidate, or null (Back). opts: {kind: 'enemy'|'hero', prompt, techId, techName, onFocus}.
+  // Candidates sharing a name get a number chip (opts.badges[i]). The dev/bot hook reads `items`:
+  // each card is {slot: 'target', value: entity, x, y, kind}.
+  showTargets(candidates, opts = {}) {
+    this.hide();
+    const cfg = ui.target;
+    this.promptText.setText(opts.prompt ?? cfg.prompt).setY(cfg.promptY).setFontSize(cfg.promptFontSize).setVisible(true);
+
+    return new Promise((resolve) => {
+      this.pending = resolve;
+      const lay = layoutTargets(candidates.length);
+      this.items = candidates.map((c, i) => ({ slot: 'target', value: c, label: c.name, x: lay.cards[i].x, y: lay.cards[i].y, kind: opts.kind }));
+      this.items.push({ slot: 'back', value: null, label: cfg.backText });
+      this.buttons = candidates.map((c, i) => {
+        const card = makeTargetCard(this.scene, lay.cards[i], describeTarget(this.scene, c, opts), opts.badges?.[i], () => this.choose(c));
+        card.container.setDepth(this.cfg.button.depth || 0);
+        card.rect.on('pointerover', () => opts.onFocus?.(c));
+        card.rect.on('pointerout', () => opts.onFocus?.(null));
+        return card;
+      });
+      const back = this.makeButton({ slot: 'back', label: cfg.backText, value: null, pos: lay.back }, () => this.choose(null));
+      this.buttons.push(back);
+    });
+  }
+
   // Resolves the open menu from outside (e.g. an enemy sprite was tapped).
   choose(value) {
     const resolve = this.pending;
@@ -61,6 +88,8 @@ export default class CommandMenu {
     }
     this.buttons = [];
     this.promptText.setVisible(false);
+    // showTargets moves the prompt: put it back where the command menu keeps it.
+    this.promptText.setY(this.cfg.prompt.y).setFontSize(this.cfg.prompt.fontSize);
   }
 
   // A glass button (ui.glass). variant: item.variant, else normal / disabled.
@@ -68,8 +97,8 @@ export default class CommandMenu {
   // Recollection teaser).
   makeButton(item, onTap) {
     const b = this.cfg.button;
-    const [x, y] = this.cfg.slots[item.slot];
-    const w = this.cfg.slotWidths?.[item.slot] ?? b.w;
+    const [x, y] = item.pos ? [item.pos.x, item.pos.y] : this.cfg.slots[item.slot];
+    const w = item.pos?.w ?? this.cfg.slotWidths?.[item.slot] ?? b.w;
     const enabled = item.enabled !== false;
     const variant = item.variant || (enabled ? 'normal' : 'disabled');
     const button = makeGlassButton(this.scene, x, y, { w, h: b.h, fontSize: b.fontSize }, ui.glass, variant, item.label, onTap);

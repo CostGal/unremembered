@@ -7,7 +7,9 @@
 // touch tap on Title opens the Menu, tap targets (>= 56 px tall, >= 16 px
 // from the edges), app switch mid-battle pauses and resumes with state intact,
 // landscape shows the overlay and pauses, portrait hides it again.
-import { loadPlaywright, setHidden, sleep, startServer } from './lib/harness.mjs';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { loadPlaywright, root, setHidden, sleep, startServer } from './lib/harness.mjs';
 
 const DEVICES = {
   // Viewport = the screen minus Instagram's in-app browser bars (approx.).
@@ -15,6 +17,9 @@ const DEVICES = {
   'iPhone SE (Instagram)': { viewport: { width: 375, height: 548 }, deviceScaleFactor: 2, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 340.0.0' },
   'Pixel 5 (Instagram)': { viewport: { width: 393, height: 727 }, deviceScaleFactor: 2.75, ua: 'Mozilla/5.0 (Linux; Android 14; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36 Instagram 340.0.0' },
 };
+const slots = JSON.parse(readFileSync(join(root, 'src/data/ui.json'), 'utf8')).commands.slots;
+const STRIKE_SLOT = slots.strike;
+const BACK_SLOT = slots.back;
 const MIN_H = 56;
 const EDGE = 16;
 
@@ -114,6 +119,15 @@ async function runDevice(browser, url, name, d) {
   await page.waitForFunction(() => window.__battle?.menu?.items?.length, null, { timeout: 20000 });
   await sleep(400);
   checkTargets(name, 'Battle commands', await targets(page, 'Battle'));
+
+  // The target cards (Strike with two enemies): same tap-target rule.
+  const [sx, sy] = await toPage(page, ...STRIKE_SLOT);
+  await page.touchscreen.tap(sx, sy);
+  await sleep(600);
+  checkTargets(name, 'Battle target cards', await targets(page, 'Battle'));
+  const [bx, by] = await toPage(page, ...BACK_SLOT);
+  await page.touchscreen.tap(bx, by);
+  await sleep(500);
 
   const hpBefore = await page.evaluate(() => window.__battle.heroes.map((h) => h.hp).join(','));
   await setHidden(page, true);

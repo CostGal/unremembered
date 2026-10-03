@@ -34,7 +34,8 @@ export function probe(page) {
         over: !!b.battleOver,
         pending: !!b.menu.pending,
         pause: b.tutorialPause ? `${b.tutorialPause.id}:${b.tutorialPause.step}` : null, // a tutorial pause is up: any tap continues
-        items: (b.menu.items || []).map((i) => ({ slot: i.slot, value: i.value && typeof i.value === 'object' ? 'enemy' : i.value, enabled: i.enabled !== false })),
+        // A target card (slot 'target') carries the candidate's id and where its button is.
+        items: (b.menu.items || []).map((i) => ({ slot: i.slot, value: i.value && typeof i.value === 'object' ? (i.kind === 'hero' ? 'hero' : 'enemy') : i.value, enabled: i.enabled !== false, id: i.value?.id, x: i.x, y: i.y, kind: i.kind })),
         rings: [...(b.qteRings || [])].map((r) => r.impactAt),
         redRings: [...(b.qteRings || [])].filter((r) => r.unparryable).map((r) => r.impactAt),
         nala: b.nala ? { watching: !!b.nala.ring, used: b.nala.used, x: b.nala.container.x, y: b.nala.container.y } : null,
@@ -164,13 +165,15 @@ export class Bot {
       this.events.push('retry');
       return { slot: 'retry' };
     }
-    // Target prompt (only Back on screen): the weakest living enemy (for a
-    // Strike, the weakest one it can hurt: Hollows are immune).
-    if (items.length === 1 && values[0] === null) {
-      const living = b.enemies
-        .filter((e) => e.hp > 0)
-        .sort((a, c) => (this.striking ? a.strikeImmune - c.strikeImmune : 0) || a.hp - c.hp);
-      return living[0] ? { x: living[0].x, y: living[0].y } : { slot: 'back' };
+    // Target prompt (cards + Back): tap a card. Enemies: the weakest one (for a Strike, the
+    // weakest it can hurt: Hollows are immune). Heroes (Anchor): a downed one, else the lowest HP share.
+    const cards = items.filter((i) => i.slot === 'target');
+    if (cards.length) {
+      const pool = cards.map((c) => ({ c, ...(c.kind === 'hero' ? b.heroes : b.enemies).find((e) => e.id === c.id) }));
+      pool.sort(cards[0].kind === 'hero'
+        ? (a, z) => (a.hp > 0) - (z.hp > 0) || a.hp / a.maxHp - z.hp / z.maxHp
+        : (a, z) => (this.striking ? a.strikeImmune - z.strikeImmune : 0) || a.hp - z.hp);
+      return { x: pool[0].c.x, y: pool[0].c.y };
     }
     if (values.includes('ultimate')) return { slot: 'ultimate' };
 
