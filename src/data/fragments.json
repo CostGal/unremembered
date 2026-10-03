@@ -102,30 +102,6 @@
       "bandaged_fists"
     ]
   },
-  "scenes": {
-    "after_duel": {
-      "id": "old_ticket",
-      "at": [
-        0.3,
-        0.55
-      ],
-      "lines": [
-        0,
-        3
-      ]
-    },
-    "records_office": {
-      "id": "worn_glove",
-      "at": [
-        0.5,
-        0.55
-      ],
-      "lines": [
-        0,
-        2
-      ]
-    }
-  },
   "pickupSpot": {
     "depth": 880,
     "color": "0x3fd0c9",
@@ -285,5 +261,30 @@
       "flavor": "The last page. It burns, and you remember.",
       "effects": {}
     }
-  }
+  },
+  "scenes_disabled": {
+    "after_duel": {
+      "id": "old_ticket",
+      "at": [
+        0.3,
+        0.55
+      ],
+      "lines": [
+        0,
+        3
+      ]
+    },
+    "records_office": {
+      "id": "worn_glove",
+      "at": [
+        0.5,
+        0.55
+      ],
+      "lines": [
+        0,
+        2
+      ]
+    }
+  },
+  "_pickupsNote": "Kostas 21:40: scene pickups are off for now; rename scenes_disabled back to scenes to re-enable (MemorySpot.js, sim, Validate read `scenes`)."
 }

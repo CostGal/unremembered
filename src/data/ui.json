@@ -939,7 +939,18 @@
         }
       }
     },
-    "background": "#000000"
+    "background": "#000000",
+    "autoAdvance": false,
+    "nextHint": {
+      "text": "Tap to continue",
+      "x": 180,
+      "y": 606,
+      "fontSize": 13,
+      "color": "#8a8fa3",
+      "delayMs": 400,
+      "pulseAlpha": 0.35,
+      "pulseMs": 700
+    }
   },
   "title": {
     "art": {
@@ -1681,14 +1692,23 @@
       "inMs": 140,
       "settleMs": 120,
       "outMs": 180,
-      "dim": { "color": "0x000000", "alpha": 0.6 },
+      "dim": {
+        "color": "0x000000",
+        "alpha": 0.6
+      },
       "x": 180,
       "y": 165,
       "portraitH": 310,
       "scale": 0.6,
       "startScale": 0.4,
       "punch": 1.18,
-      "text": { "gapY": 16, "fontSize": 20, "color": "#e8883a", "stroke": "#0b0d14", "strokeThickness": 4 }
+      "text": {
+        "gapY": 16,
+        "fontSize": 20,
+        "color": "#e8883a",
+        "stroke": "#0b0d14",
+        "strokeThickness": 4
+      }
     }
   }
 }

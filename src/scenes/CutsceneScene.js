@@ -193,6 +193,8 @@ export default class CutsceneScene extends Phaser.Scene {
   playShot(rawShot) {
     const shot = this.resolveShot(rawShot);
     if (this.shotTimer) this.shotTimer.remove();
+    this.shotTimer = null;
+    this.hideNextHint();
     this.tweens.killTweensOf(this.shotLayer.list);
     this.shotLayer.removeAll(true);
     this.clearFx();
@@ -240,10 +242,37 @@ export default class CutsceneScene extends Phaser.Scene {
       this.completeText();
       return;
     }
-    this.shotTimer = this.time.delayedCall(duration, () => {
-      if (this.typing) this.completeText();
-      this.nextShot();
-    });
+    // Kostas (3/10 evening): shots wait for a tap once their text is up, so nobody runs out of
+    // reading time (ui.json cutscene.autoAdvance false). Textless shots (the black holds) still
+    // advance by themselves after their duration.
+    const auto = cfg.autoAdvance !== false || !(shot.text || '').length;
+    if (auto) {
+      this.shotTimer = this.time.delayedCall(duration, () => {
+        if (this.typing) this.completeText();
+        this.nextShot();
+      });
+    } else if (!this.typing) this.showNextHint();
+  }
+
+  // The small "Tap to continue" cue under the text panel (ui.json cutscene.nextHint).
+  showNextHint() {
+    const h = cfg.nextHint;
+    if (!h || this.preview || this.done) return;
+    this.hideNextHint();
+    this.nextHint = this.add
+      .text(h.x ?? 180, h.y ?? 600, h.text, { fontFamily: ui.font, fontSize: `${h.fontSize}px`, color: h.color })
+      .setOrigin(0.5)
+      .setDepth(cfg.depth.text)
+      .setAlpha(0);
+    this.tweens.add({ targets: this.nextHint, alpha: { from: 0, to: 1 }, delay: h.delayMs ?? 300, duration: 250 });
+    this.nextHintPulse = this.tweens.add({ targets: this.nextHint, alpha: h.pulseAlpha ?? 0.35, delay: (h.delayMs ?? 300) + 250, duration: h.pulseMs ?? 700, yoyo: true, repeat: -1 });
+  }
+
+  hideNextHint() {
+    if (this.nextHintPulse) this.nextHintPulse.remove();
+    if (this.nextHint) this.nextHint.destroy();
+    this.nextHintPulse = null;
+    this.nextHint = null;
   }
 
   // The music of the current shot (placement ranges): a changed track crossfades in; the next
@@ -526,6 +555,7 @@ export default class CutsceneScene extends Phaser.Scene {
     this.typeEvent = null;
     this.text.setText(this.fullText);
     this.typing = false;
+    if (cfg.autoAdvance === false && this.fullText && !this.shotTimer) this.showNextHint();
   }
 
   finish() {
