@@ -23,6 +23,9 @@ jobs:
           node-version: 20
       - run: npm ci
       - run: npm run build
+      # The trailer rides along on Pages (served as video/mp4 so it embeds anywhere);
+      # the game never loads it, so the download budget is unchanged.
+      - run: mkdir -p dist/trailer && cp _art/trailer/*.mp4 _art/trailer/cover.jpg dist/trailer/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
