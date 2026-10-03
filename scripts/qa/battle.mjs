@@ -321,7 +321,7 @@ await withBrowser(async ({ chrome, server }) => {
     await sleep(500);
     await page.ev(`(() => { window.__done = null; window.__stub([0, 0.0]); window.__battle.enemyTurn(window.__battle.enemies[1]).then(() => { window.__done = true; }); })()`);
     await sleep(500);
-    log(!(await B(page, '!!B.nala.ring')), 'Nala: once per battle (no glow on the next Hollow)');
+    log(!(await B(page, '!!B.nala.ring')), 'Nala: her save is once per round (no glow on the next Hollow in the same round)');
     await page.waitFor(`window.__done === true`, { timeout: 8000 });
     // Blank: never reacts
     // b2_first_hollow: enemy 0 is a Blank, enemy 1 a Hollow.
@@ -721,7 +721,7 @@ await withBrowser(async ({ chrome, server }) => {
     await page.tap(180, 320);
     await page.waitFor(`!window.__battle.tutorialPause`, { timeout: 5000 });
     await page.tap(...slots.strike);
-    await sleep(500);
+    await page.waitFor(`window.__battle.menu.items.some((i) => i.slot === 'target')`, { timeout: 15000 });
     await B(page, `B.menu.choose(B.enemies[0])`); // two Forgotten: the target menu
     await page.waitFor(`window.__battle.counters.playerHits > 0`, { timeout: 15000 });
     await sleep(600);
@@ -765,6 +765,126 @@ await withBrowser(async ({ chrome, server }) => {
     log(!(await B(p2, `B.tutorialPause`)), 'red_ring: shown once per run (a second red ring starts at once)');
     await p2.waitFor(`window.__done !== null`, { timeout: 8000 });
     log(!p2.errors.length && !page.errors.length, 'break_intro / red_ring: no page errors', JSON.stringify([...page.errors, ...p2.errors]));
+  }
+
+  // ============ F-b3: Nala's glow (Echo Strikes), cooldown, the save once per round ============
+  if (want('b3')) {
+    const page = await battle(chrome, server, 'b3_gate', { extra: '&level=3&pauses=all' });
+    await waitMenu(page);
+    // Durable heroes (the rings are not played), and a collector of every visible text (pops are short-lived).
+    await page.ev(`(() => { const B = window.__battle; B.heroes.forEach((h) => { h.maxHp = h.hp = 999; }); B.refreshHud(); window.__seen = new Set(); (function f() { B.children.list.forEach((o) => { if (o.type === 'Text' && o.visible) window.__seen.add(o.text); }); requestAnimationFrame(f); })(); })()`);
+    const nalaPos = () => page.ev(`(() => { const b = window.__battle.nala.image.getBounds(); return { x: b.centerX, y: b.centerY }; })()`);
+    const strikeAt = async (idx) => {
+      await page.waitFor(`window.__battle.playerInput && !!(window.__battle.menu && window.__battle.menu.pending) && window.__battle.menu.items.some((i) => i.slot === 'strike')`, { timeout: 60000 });
+      await page.tap(...slots.strike);
+      await page.waitFor(`window.__battle.menu.items.some((i) => i.slot === 'target')`, { timeout: 15000 });
+      await B(page, `B.menu.choose(B.enemies[${idx}])`);
+    };
+    // Taps through dialogue / tutorial pauses until a hero's menu is up; logs which ones passed.
+    const settle = async (log2 = {}) => {
+      const end = Date.now() + 90000;
+      while (Date.now() < end) {
+        if (await page.ev(`!!(window.__battle.menu && window.__battle.menu.pending)`)) return;
+        const sc = await page.scenes();
+        const pid = await B(page, `B.tutorialPause ? B.tutorialPause.id : null`);
+        if (pid) {
+          (log2.pauses ||= []).push(`${pid}:${await B(page, 'B.tutorialPause.step')}`);
+          if (pid === 'nala_glow' && !log2.pauseTexts) {
+            await sleep(500);
+            log2.pauseTexts = await pauseTexts2(page);
+            log2.pauseStatuses = await B(page, `B.heroes.map((h) => Object.keys(h.statuses))`);
+          }
+          await page.tap(180, 320);
+        } else if (sc.includes('Dialogue')) {
+          const did = await page.ev(`(window.__game.scene.getScene('Dialogue') || {}).dialogueId`);
+          if (!(log2.dialogues ||= []).includes(did)) log2.dialogues.push(did);
+          await page.tap(180, 560);
+        }
+        await sleep(250);
+      }
+      throw new Error('settle: timeout');
+    };
+    // The save: tap Nala while a Hollow's ring is up.
+    const saveWithNala = async () => {
+      await page.waitFor(`!!(window.__battle.nala && window.__battle.nala.ring) || window.__battle.battleOver`, { timeout: 90000 }).catch(async (e) => {
+        await page.shot(join(out, 'b3_timeout.png'));
+        throw new Error(e.message + ' | ' + JSON.stringify(await B(page, `({ turns: B.stats.turns, active: B.activeHero && B.activeHero.type, pause: B.tutorialPause && B.tutorialPause.id, menu: !!(B.menu && B.menu.pending), used: B.nala.used, left: B.nala.usesLeft, hp: B.heroes.map((h) => h.hp), ehp: B.enemies.map((x) => x.hp), rings: B.qteRings && B.qteRings.size, errors: ${JSON.stringify(page.errors.slice(0, 2))} })`)) + ' ' + JSON.stringify(await page.scenes()));
+      });
+      if (await B(page, 'B.battleOver')) throw new Error('battle over while waiting for a Hollow ring: ' + JSON.stringify(page.errors.slice(0, 3)));
+      const np = await nalaPos();
+      await page.tap(np.x, np.y);
+      await page.waitFor(`!window.__battle.nala.ring`, { timeout: 5000 });
+    };
+
+    // Round 1: both heroes Strike a Hollow, both IMMUNE.
+    const hp0 = await B(page, `B.enemies.map((e) => e.hp)`);
+    await strikeAt(1);
+    await waitMenu(page, 60000);
+    const r1a = await B(page, `({ imm: B.counters.hollowImmuneThisRound, dmg: B.counters.hollowDamageThisRound, ready: B.nalaGlowReady() })`);
+    await strikeAt(0);
+    // The enemy phase: the first Hollow ring, Nala saves (#1).
+    await saveWithNala();
+    const save1 = await B(page, `({ used: B.nala.used, left: B.nala.usesLeft, round: B.stats.turns, imm: B.counters.hollowImmuneThisRound, dmg: B.counters.hollowDamageThisRound })`);
+    log(r1a.imm === 1 && save1.imm === 2 && save1.dmg === 0 && JSON.stringify(await B(page, `B.enemies.map((e) => e.hp)`)) === JSON.stringify(hp0), 'b3: round 1, both Strikes pass through the Hollows (IMMUNE), nothing lands', JSON.stringify({ r1a, save1 }));
+    log(save1.used && save1.left === 0 && save1.round === 1, 'b3: Nala saves in round 1 (tap on the Hollow ring)', JSON.stringify(save1));
+    // Wait for the event: dialogue, glow, pause, then Rhea's menu.
+    const ev1 = {};
+    await settle(ev1);
+    const post = await B(page, `({ round: B.stats.turns, fired: [...B.firedEvents], st: B.heroes.map((h) => Object.keys(h.statuses).map((k) => k + ':' + h.statuses[k].turns)), nala: { on: B.nala.glowOn, cd: B.nala.glowCd, left: B.nala.usesLeft, used: B.nala.used }, counter: B.nala.counter.text, counterVisible: B.nala.counter.visible, quiet: B.counters.noHollowDamageRounds, seen: [...window.__seen] })`);
+    log(post.fired.includes('b3_nala_glow') && ev1.dialogues?.includes('b3_nala_glow') && ev1.pauses?.some((x) => x.startsWith('nala_glow')) && post.quiet === 1, 'b3: after round 1 with nothing landed the event fires: dialogue b3_nala_glow, then the nala_glow pause', JSON.stringify({ ev1, quiet: post.quiet, fired: post.fired }));
+    log(ev1.pauses.filter((x) => x.startsWith('nala_glow')).length === 2 && ev1.pauseTexts?.includes('Nala lends her Echo: this round your Strikes can wound Hollows.') && (ev1.pauseStatuses || []).every((l) => l.includes('echo_strike')), 'b3: the pause runs after the glow (2 steps, step 1 text, both heroes already have echo_strike)', JSON.stringify({ p: ev1.pauses, t: ev1.pauseTexts, s: ev1.pauseStatuses }));
+    log(post.round === 2 && post.st.every((l) => l.length === 1 && l[0] === 'echo_strike:1'), 'b3: the next round, both heroes have Echo Strike (1 turn)', JSON.stringify(post.st));
+    log(post.seen.includes('ECHO STRIKE'), 'b3: the glow pops ECHO STRIKE over the heroes', '');
+    log(post.nala.on && post.nala.cd === 3 && post.counterVisible && post.counter === 'Glow in 3' && post.nala.left === 1 && !post.nala.used, 'b3: the Glow is on a 3-round cooldown ("Glow in 3" under Nala); her save is back (once per round)', JSON.stringify(post.nala) + ' ' + post.counter);
+    const badge = await page.ev(`window.__battle.hud.rows.map((r) => r.badgeSig)`);
+    log(badge.every((b) => /echo_strike:1/.test(b)), 'b3: HUD badge "E1" on both heroes', JSON.stringify(badge));
+    await page.shot(join(out, 'b3_glow_badges.png'));
+    // Round 2: Rhea's Strike on a Hollow now wounds it (ECHO STRIKE text), and the menu's card is no longer "IMMUNE".
+    await page.tap(...slots.strike);
+    await page.waitFor(`window.__battle.menu.items.some((i) => i.slot === 'target')`, { timeout: 15000 });
+    await sleep(300);
+    const cardTexts = await page.ev(`(() => { const out = []; const walk = (l) => l.forEach((o) => { if (o.list) walk(o.list); if (o.type === 'Text') out.push(o.text); }); walk(window.__battle.menu.buttons.map(b => b.container)); return out; })()`);
+    log(!cardTexts.some((t) => /IMMUNE/.test(t)), 'b3: with Echo Strike the target cards drop the "IMMUNE to Strike" note', cardTexts.join('|'));
+    const hpR = await B(page, `B.enemies.map((e) => e.hp)`);
+    await page.ev(`window.__seen.clear()`);
+    await B(page, `B.menu.choose(B.enemies[1])`);
+    await page.waitFor(`window.__battle.counters.hollowDamageThisRound > 0`, { timeout: 15000 });
+    const hpR2 = await B(page, `B.enemies.map((e) => e.hp)`);
+    log(hpR2[1] < hpR[1], "b3: Rhea's Echo Strike damages the Hollow", `${hpR} -> ${hpR2}`);
+    await strikeAt(1);
+    await page.waitFor(`window.__battle.stats.turns === 2 && !window.__battle.activeHero || window.__battle.nala.ring`, { timeout: 60000 }).catch(() => {});
+    const seen2 = await page.ev(`[...window.__seen]`);
+    log(seen2.includes('ECHO STRIKE'), 'b3: "ECHO STRIKE" pops over the striking hero', String(seen2.includes('ECHO STRIKE')));
+    // Round 2's enemy phase: the second save (usesLeft was reset at the round start).
+    await saveWithNala();
+    const save2 = await B(page, `({ used: B.nala.used, left: B.nala.usesLeft, round: B.stats.turns })`);
+    log(save2.used && save2.left === 0 && save2.round === 2, 'b3: Nala saves again in round 2 (twice across two rounds)', JSON.stringify(save2));
+    await settle({});
+    // Round 3: Echo Strike is spent, the cooldown ticks, a tap on Nala does nothing yet.
+    const r3 = await B(page, `({ round: B.stats.turns, st: B.heroes.map((h) => Object.keys(h.statuses).length), cd: B.nala.glowCd, counter: B.nala.counter.text, ready: B.nalaGlowReady(), pulse: !!B.nala.readyTween })`);
+    log(r3.round === 3 && r3.st.every((n) => n === 0) && r3.cd === 2 && r3.counter === 'Glow in 2' && !r3.ready && !r3.pulse, 'b3: round 3, no Echo Strike left, "Glow in 2", no pulse', JSON.stringify(r3));
+    const np3 = await nalaPos();
+    await page.tap(np3.x, np3.y);
+    await sleep(600);
+    const r3b = await B(page, `({ st: B.heroes.map((h) => Object.keys(h.statuses).length), cd: B.nala.glowCd })`);
+    log(r3b.st.every((n) => n === 0) && r3b.cd === 2, 'b3: tapping Nala on cooldown does nothing', JSON.stringify(r3b));
+    // Ready again: she pulses (teal) and a tap on her during the player's turn calls the glow.
+    await B(page, `(B.nala.glowCd = 0, B.nalaRefreshGlow())`);
+    await sleep(300);
+    const rdy = await B(page, `({ ready: B.nalaGlowReady(), pulse: !!B.nala.readyTween, tint: B.nala.readyGlow.tintTopLeft, alpha: B.nala.readyGlow.alpha, counter: B.nala.counter.text })`);
+    log(rdy.ready && rdy.pulse && rdy.counter === 'Glow ready' && rdy.tint === 0x3fd0c9, 'b3: cooldown over, Nala pulses teal and the counter reads "Glow ready"', JSON.stringify(rdy));
+    await page.shot(join(out, 'b3_glow_ready.png'));
+    await page.tap(np3.x, np3.y);
+    await page.waitFor(`window.__battle.heroes.every((h) => h.statuses.echo_strike)`, { timeout: 8000 });
+    const re = await B(page, `({ cd: B.nala.glowCd, counter: B.nala.counter.text, menu: !!B.menu.pending, ready: B.nalaGlowReady() })`);
+    log(re.cd === 3 && re.counter === 'Glow in 3' && re.menu && !re.ready, 'b3: tapping her on the player turn re-triggers the glow (cooldown 3 again, the menu stays up)', JSON.stringify(re));
+    const hpT = await B(page, `B.enemies.map((e) => e.hp)`);
+    await page.tap(...slots.strike);
+    await page.waitFor(`window.__battle.menu.items.some((i) => i.slot === 'target')`, { timeout: 15000 });
+    await B(page, `B.menu.choose(B.enemies[0])`);
+    await page.waitFor(`window.__battle.counters.hollowDamageThisRound > 0`, { timeout: 15000 });
+    log((await B(page, `B.enemies[0].hp`)) < hpT[0], 'b3: the re-triggered glow lets the Strike wound the Warden', `${hpT[0]} -> ${await B(page, 'B.enemies[0].hp')}`);
+    log(!page.errors.length, 'b3: no page errors', JSON.stringify(page.errors.slice(0, 3)));
   }
 
   // ============ F-down: Anchor revive, both down → lose → Retry snapshot ============

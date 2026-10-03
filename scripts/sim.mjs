@@ -188,7 +188,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
     const def = D.tutorial.pauses[id];
     return n + (def && (battle.tutorial || def.always) ? (def.steps || [0]).length : 0);
   }, 0);
-  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0) + pauseSteps * (T.pauseMs?.[profileName] ?? 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, memoryCasts: 0, memoryFails: 0, memoryGrade: null, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaUsed: !battle.nala, stance: null, brace: null, pending: [], firedCharge: new Set(), flags: [], playerHits: 0, parrySuccess: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0) + pauseSteps * (T.pauseMs?.[profileName] ?? 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, memoryCasts: 0, memoryFails: 0, memoryGrade: null, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaSaves: battle.nala ? 1 + mem('nalaExtraUses') : 0, glowOn: false, glowCd: 0, glows: 0, hollowDamage: 0, hollowImmune: 0, quietRounds: 0, stance: null, brace: null, pending: [], firedCharge: new Set(), flags: [], playerHits: 0, parrySuccess: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   // Echo is per hero (each has their own reserve).
   // A difficulty with echoMult < 1 earns Echo more slowly (the fraction carries over); raw skips it (the Keepsake).
   const gain = (hero, n, raw = false) => {
@@ -201,7 +201,8 @@ function simulateBattle(battleId, profileName, mode, rnd) {
   };
   const rhea = heroes.find((h) => h.id === 'rhea'); // may be absent (battles.json party)
   const living = (list) => list.filter((e) => e.hp > 0);
-  const immune = (enemy, techId) => !!enemy.def.immune?.includes(techId);
+  // A hero with Echo Strike (Nala's Glow) wounds a Strike-immune Hollow, like BattleScene.isImmune.
+  const immune = (enemy, techId, hero = null) => !!enemy.def.immune?.includes(techId) && !(techId === 'strike' && hero?.echoStrike);
 
   // Perfect chain (qte.json chain): +stepPct% per step on every player hit; the
   // fraction rounds by chance, as in BattleScene.chainDamage.
@@ -225,7 +226,10 @@ function simulateBattle(battleId, profileName, mode, rnd) {
     const floorHp = enemy.def.stages?.[enemy.phase]?.floorHp;
     if (floorHp !== undefined && enemy.recollectionUnlocked && enemy.hp - dmg < floorHp) dmg = Math.max(0, enemy.hp - floorHp);
     // playerHits (battle events): a Strike / attack technique that dealt damage.
-    if (st.playerAction && dmg > 0) st.actionLanded = true;
+    if (st.playerAction && dmg > 0) {
+      st.actionLanded = true;
+      if (enemy.def.hollow) st.hollowDamage += 1;
+    }
     enemy.hp = Math.max(0, enemy.hp - dmg);
     if (enemy.hp <= 0) enemy.charge = null;
     // `stages`: 0 HP ends a stage that has onZero (the enemy rises in afterTurn); the stage's
@@ -408,7 +412,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
   const firedEvents = new Set();
   const checkEvents = () => {
     if (!battle.events?.length || st.interrupted || !living(heroes).length) return;
-    const ctx = { round: st.rounds, playerHits: st.playerHits, parries: st.parrySuccess, immuneSeen: st.immuneSeen, enemies: enemies.map((e) => ({ hp: e.hp, maxHp: e.max })) };
+    const ctx = { round: st.rounds, playerHits: st.playerHits, parries: st.parrySuccess, immuneSeen: st.immuneSeen, noHollowDamageRounds: st.quietRounds, enemies: enemies.map((e) => ({ hp: e.hp, maxHp: e.max })) };
     for (const ev of dueEvents(battle.events, firedEvents, ctx)) {
       firedEvents.add(ev.id);
       // Same order as BattleScene.checkEvents: PRE actions (nalaJumpIn: a time cost), dialogue, banner, the rest.
@@ -424,8 +428,33 @@ function simulateBattle(battleId, profileName, mode, rnd) {
           return;
         }
         if (a?.setFlag && !st.flags.includes(a.setFlag)) st.flags.push(a.setFlag);
+        if (a === 'nalaGlow') castGlow(true);
       }
+      // BattleScene.checkEvents: the event's tutorial pause comes last (always-pauses cost a tap per step).
+      const pause = ev.pause && D.tutorial.pauses[ev.pause];
+      if (pause && (battle.tutorial || pause.always)) st.ms += (pause.steps || [0]).length * (T.pauseMs?.[profileName] ?? 0);
     }
+  };
+  // Nala's Glow (allies.json nala): every living hero gets Echo Strike for their next turn, the Glow goes on cooldown.
+  const castGlow = (unlock = false) => {
+    if (unlock) st.glowOn = true;
+    st.glowCd = D.allies.nala.glowCooldownRounds;
+    st.glows += 1;
+    st.ms += T.nalaGlowMs;
+    for (const h of living(heroes)) h.echoStrike = true;
+  };
+  // BattleScene.roundStart: a finished round updates the quiet-round count, the cooldown ticks, Nala's save
+  // comes back, then the events that wait for a finished round fire (ctx.round = the round that just ended).
+  const roundStart = () => {
+    if (st.rounds > 0) {
+      if (st.hollowDamage > 0) st.quietRounds = 0;
+      else if (st.hollowImmune > 0) st.quietRounds += 1;
+      st.hollowDamage = 0;
+      st.hollowImmune = 0;
+      if (st.glowCd > 0) st.glowCd -= 1;
+    }
+    if (battle.nala) st.nalaSaves = 1 + mem('nalaExtraUses');
+    if (st.rounds > 0) checkEvents();
   };
   // An interrupted battle counts as a win (XP is given) without a grade.
   const interrupted = () => ({ ...st, win: true, interrupted: true, grade: null });
@@ -436,10 +465,13 @@ function simulateBattle(battleId, profileName, mode, rnd) {
     playerTurnInner(hero);
     st.playerAction = false;
     if (st.actionLanded) st.playerHits += 1;
-    // Statuses tick after the hero's own turn.
+    // Statuses tick after the hero's own turn (Echo Strike lasts one turn).
+    hero.echoStrike = false;
     if (hero.redacted && --hero.redacted.turns <= 0) hero.redacted = null;
   };
   const playerTurnInner = (hero) => {
+    // Policy: the scripted player taps Nala for the Glow whenever it is ready, at the start of the first hero's turn.
+    if (st.glowOn && st.glowCd <= 0 && hero === living(heroes)[0] && rnd() < D.sim.policy.nalaGlowChance[profileName]) castGlow();
     st.ms += think + (living(enemies).length > 1 ? D.sim.timing.targetMs : 0);
     if (st.stance?.hero === hero) st.stance = null;
     // The present makes new sparks: characters.json turnEcho at the start of the turn.
@@ -447,8 +479,8 @@ function simulateBattle(battleId, profileName, mode, rnd) {
     const targets = living(enemies).sort((a, b) => a.hp - b.hp);
     // Techniques go to the weakest Strike-immune enemy (Hollow) first; Strike
     // goes to the weakest enemy it can hurt (or passes through if there is none).
-    const target = targets.find((e) => immune(e, 'strike')) || targets[0];
-    const strikeTarget = targets.find((e) => !immune(e, 'strike'));
+    const target = targets.find((e) => immune(e, 'strike', hero)) || targets[0];
+    const strikeTarget = targets.find((e) => !immune(e, 'strike', hero));
     const down = heroes.find((h) => h.hp <= 0);
     const hurt = heroes.filter((h) => h.hp > 0 && h.hp < h.max * D.sim.policy.anchorBelow);
 
@@ -537,7 +569,10 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       }
       hitEnemy(strikeTarget, isCrit ? Math.round(base * D.crit.hero.mult) : base, 'strike', isCrit);
       gain(hero, tech.strike.echoOnHit);
-    } else st.immuneSeen = true;
+    } else {
+      st.immuneSeen = true;
+      if (targets.some((e) => e.def.hollow)) st.hollowImmune += 1;
+    }
     st.ms += T.dashMs * 2 + sheetMs(hero.id, 'attack', T.attackMs);
   };
 
@@ -615,9 +650,9 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       const tele = hit.telegraphMs;
       const ringMs = feint ? feint.atPct * tele + feint.pauseMs + ((1 - feint.atPct) * tele) / (feint.resumeSpeed ?? 1) : tele;
       st.ms += ringMs / slow + T.hitResolveMs;
-      // Nala cancels the first Hollow attack (the scripted player always taps her).
-      if (!st.nalaUsed && enemy.def.hollow && rnd() < D.sim.policy.nalaTapChance[profileName]) {
-        st.nalaUsed = true;
+      // Nala cancels a Hollow's attack, once per round (the scripted player taps her with nalaTapChance).
+      if (st.nalaSaves > 0 && enemy.def.hollow && rnd() < D.sim.policy.nalaTapChance[profileName]) {
+        st.nalaSaves -= 1;
         break;
       }
       // A swipe is a dodge: its own results (no counter, no Echo) and not a parry for Return to Sender.
@@ -696,6 +731,8 @@ function simulateBattle(battleId, profileName, mode, rnd) {
   };
   const order = battle.initiative === 'enemy' ? [enemyPhase, heroPhase] : [heroPhase, enemyPhase];
   while (true) {
+    roundStart();
+    if (st.interrupted) return interrupted();
     st.rounds += 1;
     if (st.rounds > 200) return { ...st, win: false, stuck: true };
     for (const phase of order) {
@@ -749,6 +786,7 @@ for (const mode of MODES) {
         profile: profileName,
         win: wins.length / RUNS,
         rounds: avg((r) => r.rounds),
+        glows: avg((r) => r.glows || 0),
         minutes: avg((r) => r.ms) / 60000,
         p10: q(0.1) / 60000,
         p90: q(0.9) / 60000,

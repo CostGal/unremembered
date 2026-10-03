@@ -449,6 +449,27 @@
       "transition": "close"
     }
   ],
+  "b3_nala_glow": [
+    {
+      "speaker": "Nala",
+      "style": "narration",
+      "text": "Nala's fur lights up. She lets out a long, low meow.",
+      "portrait": "nala_meow",
+      "sfx": "sfx_meow"
+    },
+    {
+      "speaker": null,
+      "style": "narration",
+      "text": "The glow runs up Rhea's arm, then Dov's.",
+      "portrait": null
+    },
+    {
+      "speaker": "Dov",
+      "style": "normal",
+      "text": "She's lending us her Echo. Hit them, now!",
+      "portrait": "dov_fierce"
+    }
+  ],
   "b2_start": [
     {
       "speaker": null,

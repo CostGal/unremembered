@@ -122,7 +122,9 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       else eventIds.add(ev.id);
       for (const m of whenErrors(ev.when)) err(`${at}: ${m}`);
       if (ev.dialogue !== undefined && !dialogue[ev.dialogue]) err(`${at}: no dialogue "${ev.dialogue}" in dialogue.json`);
-      if (!thenValid(ev.then)) err(`${at}: then must be an action or a list of actions: "continue", "endBattle", "nalaJumpIn" or {"setFlag": "<name>"}`);
+      if (!thenValid(ev.then)) err(`${at}: then must be an action or a list of actions: "continue", "endBattle", "nalaJumpIn", "nalaGlow" or {"setFlag": "<name>"}`);
+      if (thenSplit(ev.then).post.includes('nalaGlow') && !battle.nala) err(`${at}: then "nalaGlow" needs a battle with "nala": true`);
+      if (ev.pause !== undefined && !tutorial?.pauses?.[ev.pause]) err(`${at}: pause "${ev.pause}" is not in tutorial.json pauses`);
       if (ev.banner !== undefined && !ui.tutorial?.hints?.[ev.banner]) err(`${at}: banner "${ev.banner}" is not in ui.tutorial.hints`);
     });
     // pauses: {battleStart: id, enemyAttack: {"1": id, ...}} -> tutorial.json pauses.
@@ -583,6 +585,31 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       if (typeof h.text !== 'string' || !(h.ms > 0)) err(`allies.${id}.hissCutIn: needs text and ms`);
       const f = ui.cutIn?.flash;
       if (!f || ![f.ms, f.inMs, f.outMs, f.scale, f.startScale, f.punch].every((v) => typeof v === 'number' && v > 0) || h.ms < f.inMs + f.outMs) err(`ui.cutIn.flash: ms/inMs/outMs/scale/startScale/punch are required (and hissCutIn.ms must cover inMs + outMs)`);
+    }
+  }
+  // Nala's Glow (allies.nala): the status it grants, its strike text, the cooldown and the counter / cast looks.
+  const nalaDef = allies.nala;
+  if (nalaDef) {
+    const at = 'allies.nala';
+    const st = data.statuses?.[nalaDef.glowStatus];
+    if (!st) err(`${at}.glowStatus: "${nalaDef.glowStatus}" is not in statuses.json`);
+    else {
+      if (st.effect !== 'echoStrike') err(`statuses.${nalaDef.glowStatus}: effect must be "echoStrike" (the Glow's status)`);
+      if (!(Number.isInteger(st.turns) && st.turns >= 1)) err(`statuses.${nalaDef.glowStatus}.turns: must be a whole number >= 1`);
+      for (const k of ['short', 'color', 'applyText']) if (typeof st[k] !== 'string' || !st[k]) err(`statuses.${nalaDef.glowStatus}.${k}: required (the HUD badge and the pop text)`);
+    }
+    if (typeof nalaDef.glowStrikeText !== 'string' || !nalaDef.glowStrikeText || typeof nalaDef.glowStrikeColor !== 'string') err(`${at}: glowStrikeText and glowStrikeColor are required`);
+    if (!(Number.isInteger(nalaDef.glowCooldownRounds) && nalaDef.glowCooldownRounds >= 0)) err(`${at}.glowCooldownRounds: must be a whole number >= 0`);
+    const gc = nalaDef.glowCast;
+    if (!gc || ![gc.alertMs, gc.travelMs, gc.staggerMs, gc.radius].every((v) => typeof v === 'number' && v >= 0) || !(gc.radius > 0) || !gc.burst || ![gc.fromColor, gc.toColor].every((v) => Number.isFinite(Number(v)))) err(`${at}.glowCast: alertMs, travelMs, staggerMs, radius, fromColor, toColor and burst are required`);
+    const gr = nalaDef.glowReady;
+    if (!gr || ![gr.radius, gr.alphaMin, gr.alphaMax, gr.pulseMs].every((v) => typeof v === 'number') || !Number.isFinite(Number(gr.color))) err(`${at}.glowReady: color, radius, alphaMin, alphaMax and pulseMs are required`);
+    const gk = nalaDef.counter;
+    if (!gk || typeof gk.cooldownText !== 'string' || !gk.cooldownText.includes('{n}') || typeof gk.readyText !== 'string' || !(gk.fontSize > 0)) err(`${at}.counter: readyText, cooldownText (with {n}) and fontSize are required`);
+    // Every battle that ends a round-quiet event needs Hollow-immune Strikes to be meaningful: warn when the key is used without one.
+    for (const [bid, b] of Object.entries(battles)) {
+      const usesQuiet = (b.events || []).some((ev) => JSON.stringify(ev.when).includes('noHollowDamageRounds'));
+      if (usesQuiet && !(b.enemies || []).some((k) => enemies[k]?.hollow && enemies[k]?.immune?.includes('strike'))) warn(`battles.${bid}: a noHollowDamageRounds event but no Strike-immune Hollow in the battle`);
     }
   }
   if (Object.values(enemies).some((e) => e.stages)) {

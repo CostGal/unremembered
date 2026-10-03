@@ -61,7 +61,7 @@
   },
   "pool": {
     "half_loaf": { "name": "Half a Loaf", "text": "Anchor heals 10 more", "short": "H", "color": "#e0a040", "source": "reward", "flavor": "Dov split it with you. It was the last of it.", "effects": { "anchorBonus": 10 } },
-    "nalas_bell": { "name": "Nala's Bell", "text": "Nala can save you twice per battle", "short": "B", "color": "#e8883a", "source": "reward", "flavor": "It still rings, faintly. She comes when it does.", "effects": { "nalaExtraUses": 1 } },
+    "nalas_bell": { "name": "Nala's Bell", "text": "Nala can save you twice per round", "short": "B", "color": "#e8883a", "source": "reward", "flavor": "It still rings, faintly. She comes when it does.", "effects": { "nalaExtraUses": 1 } },
     "bandaged_fists": { "name": "Bandaged Fists", "text": "PERFECT counter hits 3 harder", "short": "F", "color": "#d96a5a", "source": "reward", "flavor": "Wrapped so many times the cloth went grey.", "effects": { "counterBonus": 3 } },
     "old_ticket": { "name": "Old Ticket", "text": "Start each battle with 2 Echo", "short": "T", "color": "#3fd0c9", "source": "scene", "flavor": "A ride to somewhere you meant to go.", "effects": { "startEcho": 2 } },
     "worn_glove": { "name": "Worn Glove", "text": "PERFECT window +20ms", "short": "G", "color": "#f0c060", "source": "scene", "flavor": "Worn to the shape of a hand that was never yours.", "effects": { "perfectWindowMs": 20 } },

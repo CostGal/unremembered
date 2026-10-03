@@ -50,6 +50,9 @@
       { "id": "b2_immune", "when": "firstImmune", "dialogue": "b2_immune" }
     ]
   },
-  "b3_gate": { "bg": "bg_office_gate", "platform": "platform_street", "env": "street_rain", "enemies": ["hollow_warden", "hollow"], "formation": "gate", "nala": true, "music": "battle_gate" },
+  "b3_gate": { "bg": "bg_office_gate", "platform": "platform_street", "env": "street_rain", "enemies": ["hollow_warden", "hollow"], "formation": "gate", "nala": true, "music": "battle_gate",
+    "events": [
+      { "id": "b3_nala_glow", "when": { "all": [{ "round": 1 }, { "noHollowDamageRounds": 1 }] }, "dialogue": "b3_nala_glow", "then": ["nalaGlow"], "pause": "nala_glow" }
+    ] },
   "boss_clerk": { "bg": "records_office", "platform": "platform_office", "env": "records_office", "enemies": ["clerk"], "nala": true, "music": "boss", "recollection": true, "initiative": "enemy" }
 }

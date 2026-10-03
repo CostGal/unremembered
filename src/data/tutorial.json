@@ -90,7 +90,7 @@
     },
     "nala_glow": {
       "steps": [
-        { "text": "Nala lends her Echo: this round your Strikes can wound Hollows.", "targets": ["nala"] },
+        { "text": "Nala lends her Echo: this round your Strikes can wound Hollows.", "targets": ["nala", "hud.hp.rhea", "hud.hp.dov"] },
         { "text": "Tap her when she glows to call it again.", "targets": ["nala"], "indicator": "tap" }
       ],
       "always": true

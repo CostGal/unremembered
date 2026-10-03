@@ -19,7 +19,7 @@ export default class BattleStateMachine {
 
     const phases = initiative === 'enemy' ? [this.enemyPhase, this.heroPhase] : [this.heroPhase, this.enemyPhase];
     while (true) {
-      if (this.hooks.roundStart) this.hooks.roundStart();
+      if (this.hooks.roundStart) await this.hooks.roundStart();
       for (const phase of phases) {
         const result = await phase.call(this, phase === this.heroPhase ? heroes : enemies);
         if (result) return result;

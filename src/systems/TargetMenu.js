@@ -31,7 +31,7 @@ export function describeTarget(scene, entity, { kind, techId = null, techName = 
     }
     if (entity.broken) tags.push({ text: cfg.text.broken, color: cfg.tagColors.broken });
     if (entity.charge) tags.push({ text: cfg.text.charging, color: cfg.tagColors.charging });
-    if (techId && entity.def.immune?.includes(techId)) {
+    if (techId && scene.isImmune(entity, techId, scene.activeHero)) {
       note = cfg.text.immune.replace('{tech}', techName);
       noteColor = cfg.immuneColor;
     }

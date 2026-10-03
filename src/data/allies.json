@@ -11,7 +11,12 @@
     },
     "promptText": "Nala senses a Hollow! Tap her!",
     "hissText": "Nala hisses!",
-    "hissCutIn": { "portrait": "nala_hissing", "text": "Nala hisses!", "ms": 700, "sfx": "sfx_hiss" },
+    "hissCutIn": {
+      "portrait": "nala_hissing",
+      "text": "Nala hisses!",
+      "ms": 700,
+      "sfx": "sfx_hiss"
+    },
     "cancelText": "Cancelled",
     "hissColor": "#e8883a",
     "shake": 3,
@@ -34,6 +39,48 @@
         "lifeMs": 320,
         "size": 2
       }
+    },
+    "glowStatus": "echo_strike",
+    "glowStrikeText": "ECHO STRIKE",
+    "glowStrikeColor": "#3fd0c9",
+    "glowCooldownRounds": 3,
+    "glowCast": {
+      "alertMs": 450,
+      "travelMs": 420,
+      "staggerMs": 220,
+      "radius": 20,
+      "fromColor": "0xe8883a",
+      "toColor": "0x3fd0c9",
+      "depth": 880,
+      "popText": "Echo!",
+      "popColor": "#3fd0c9",
+      "burst": {
+        "count": 12,
+        "color": "0x3fd0c9",
+        "speed": [
+          30,
+          80
+        ],
+        "lifeMs": 380,
+        "size": 2
+      }
+    },
+    "glowReady": {
+      "color": "0x3fd0c9",
+      "radius": 30,
+      "alphaMin": 0.08,
+      "alphaMax": 0.4,
+      "pulseMs": 900
+    },
+    "counter": {
+      "readyText": "Glow ready",
+      "cooldownText": "Glow in {n}",
+      "fontSize": 9,
+      "color": "#3fd0c9",
+      "coolColor": "#8d93a5",
+      "offsetY": 4,
+      "stroke": "#0b0d14",
+      "strokeThickness": 3
     }
   }
 }

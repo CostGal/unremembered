@@ -121,7 +121,9 @@ export default class BattleScene extends Phaser.Scene {
     // `when` reads. playerHits counts landed player actions (playerAction/actionLanded).
     this.flags = new Set();
     this.firedEvents = new Set();
-    this.counters = { playerHits: 0, parries: 0, immuneSeen: false };
+    // hollowDamageThisRound / hollowImmuneThisRound / noHollowDamageRounds: the Nala glow event ({noHollowDamageRounds: n}).
+    this.counters = { playerHits: 0, parries: 0, immuneSeen: false, hollowDamageThisRound: 0, hollowImmuneThisRound: 0, noHollowDamageRounds: 0 };
+    this.playerInput = false;
     this.playerAction = false;
     this.actionLanded = false;
     this.timeScale = 1;
@@ -223,7 +225,7 @@ export default class BattleScene extends Phaser.Scene {
       // A stage end (enemies.json stages onZero) is not a defeat: the enemy rises into its next stage.
       allEnemiesDown: () => this.enemies.every((e) => e.hp <= 0 && !e.rising),
       allHeroesDown: () => this.heroes.every((h) => h.hp <= 0),
-      roundStart: () => (this.stats.turns += 1),
+      roundStart: () => this.roundStart(),
       // A rewind re-enters the Recollection right after the intro (cut-in and minigame again).
       resume: this.initData.rewind ? () => this.resumeRecollection() : null,
       playerTurn: (hero) => this.playerTurn(hero),
@@ -337,23 +339,169 @@ export default class BattleScene extends Phaser.Scene {
     const animSet = this.animationSets.nala;
     const anims = animSet?.animations?.idle ? animSet.animations : null;
     const image = anims ? playLoop(this.add.sprite(0, 0, animKey('nala', 'idle')), 'nala', 'idle') : this.add.image(0, 0, 'nala');
-    container.add([glow, image]);
+    // The Glow's ready pulse (teal, softer than the orange Hollow alert) and its cooldown counter under her feet.
+    const ready = def.glowReady;
+    const readyGlow = this.add.image(0, 0, Fx.glowTexture(this, ready.radius)).setBlendMode(Phaser.BlendModes.ADD).setTint(Number(ready.color)).setAlpha(0);
+    container.add([glow, readyGlow, image]);
     this.addShadow(container, sprite.w || 128, sprite.h);
     const faces = anims ? animSet.facing || 'left' : sprite.faces || 'right';
     container.setScale(faces !== 'right' ? -1 : 1, 1);
     this.checkLayout('nala', feetY, sprite.h);
     // body / type / hp make her look like an entity to loopWithInOut (alert_in -> alert -> alert_out).
-    this.nala = { container, image, glow, anims, def, used: false, usesLeft: 1 + effectTotal(this.fragments, 'nalaExtraUses'), ring: null, body: image, type: 'nala', hp: 1, busy: false, alertLoop: null };
+    const c = def.counter;
+    const counter = this.add
+      .text(x, feetY + c.offsetY, '', { fontFamily: ui.font, fontSize: `${c.fontSize}px`, color: c.color, stroke: c.stroke, strokeThickness: c.strokeThickness })
+      .setOrigin(0.5, 0)
+      .setDepth(layout.labelDepth)
+      .setVisible(false);
+    // usesLeft: the saves she has this round (reset every round, see roundStart). glowOn: the Glow is unlocked
+    // (battle event nalaGlow); glowCd: rounds until it is ready again.
+    this.nala = { container, image, glow, readyGlow, counter, anims, def, used: false, usesLeft: this.nalaSaves(), glowOn: false, glowCd: 0, glowCasting: false, ring: null, body: image, type: 'nala', hp: 1, busy: false, alertLoop: null };
     if (!anims || anims.idle.placeholder) this.idleBob(container);
 
     image.setInteractive({ useHandCursor: true });
-    image.on('pointerdown', () => this.nalaHiss());
+    image.on('pointerdown', () => this.nalaTap());
+  }
+
+  // Her saves per round: 1, +1 per Nala's Bell (fragments.json nalaExtraUses).
+  nalaSaves() {
+    return 1 + effectTotal(this.fragments, 'nalaExtraUses');
+  }
+
+  // Tap on Nala: during a Hollow's telegraph it is the save, on the player's turn it calls the Glow.
+  nalaTap() {
+    const nala = this.nala;
+    if (!nala || this.battleOver) return;
+    if (nala.ring) this.nalaHiss();
+    else if (this.nalaGlowReady()) this.nalaGlowCast();
+  }
+
+  // The Glow can be called now: unlocked, off cooldown, a hero is choosing and nothing else holds Nala.
+  nalaGlowReady() {
+    const nala = this.nala;
+    return !!nala && nala.glowOn && nala.glowCd <= 0 && !nala.glowCasting && !nala.ring && this.playerInput && !this.battleOver;
+  }
+
+  // The pulse and the counter under her: "Glow ready" (teal pulse, only while a hero is choosing) or "Glow in N".
+  nalaRefreshGlow() {
+    const nala = this.nala;
+    if (!nala) return;
+    const c = nala.def.counter;
+    const ready = nala.glowOn && nala.glowCd <= 0 && !nala.glowCasting;
+    nala.counter.setVisible(nala.glowOn);
+    nala.counter.setText(nala.glowCd > 0 ? c.cooldownText.replace('{n}', nala.glowCd) : c.readyText).setColor(nala.glowCd > 0 ? c.coolColor : c.color);
+    const pulse = ready && this.playerInput && !nala.ring;
+    if (pulse && !nala.readyTween) {
+      const g = nala.def.glowReady;
+      nala.readyTween = this.tweens.add({ targets: nala.readyGlow, alpha: { from: g.alphaMin, to: g.alphaMax }, duration: g.pulseMs, yoyo: true, repeat: -1 });
+    } else if (!pulse && nala.readyTween) {
+      nala.readyTween.stop();
+      nala.readyTween = null;
+      nala.readyGlow.setAlpha(0);
+    }
+  }
+
+  // Nala lends the party her Echo. Unlocked by the event (unlock = true) or called by a tap once ready. She plays
+  // alert, an orange light travels to each living hero and turns teal there (allies.json nala.glowCast), the hero
+  // gets the Echo Strike status (their next turn's Strike can wound Hollows) and the Glow starts its cooldown.
+  async nalaGlowCast(unlock = false) {
+    const nala = this.nala;
+    if (!nala || nala.glowCasting) return;
+    const def = nala.def;
+    const cast = def.glowCast;
+    if (unlock) nala.glowOn = true;
+    nala.glowCasting = true;
+    nala.glowCd = def.glowCooldownRounds;
+    this.nalaRefreshGlow();
+    playSfx('echo');
+    const wasBusy = nala.busy;
+    nala.busy = true;
+    const loop = !wasBusy && hasSheet(nala.anims, 'alert') ? this.loopWithInOut(nala, 'alert') : null;
+    if (!loop) trace('fallback:alert:nala');
+    await this.wait(cast.alertMs);
+    const from = { x: nala.container.x, y: nala.container.y };
+    const living = this.heroes.filter((h) => h.hp > 0);
+    await Promise.all(
+      living.map(
+        (hero, i) =>
+          new Promise((resolve) => {
+            this.time.delayedCall(i * cast.staggerMs, () => {
+              const orb = this.add.image(from.x, from.y, Fx.glowTexture(this, cast.radius)).setBlendMode(Phaser.BlendModes.ADD).setTint(Number(cast.fromColor)).setDepth(cast.depth);
+              const a = Phaser.Display.Color.ValueToColor(Number(cast.fromColor));
+              const b = Phaser.Display.Color.ValueToColor(Number(cast.toColor));
+              const t = { v: 0 };
+              const tx = hero.container.x;
+              const ty = hero.container.y - hero.height / 2;
+              this.tweens.add({
+                targets: t,
+                v: 1,
+                duration: cast.travelMs,
+                ease: 'Sine.easeInOut',
+                onUpdate: () => {
+                  const k = Phaser.Display.Color.Interpolate.ColorWithColor(a, b, 1, t.v);
+                  orb.setTint(Phaser.Display.Color.GetColor(k.r, k.g, k.b));
+                  orb.setPosition(from.x + (tx - from.x) * t.v, from.y + (ty - from.y) * t.v - Math.sin(t.v * Math.PI) * 18);
+                },
+                onComplete: () => {
+                  Fx.sparks(this, tx, ty, cast.burst.count, cast.burst, cast.depth + 1);
+                  this.grantEchoStrike(hero);
+                  this.tweens.add({ targets: orb, alpha: 0, scale: 1.8, duration: 200, onComplete: () => orb.destroy() });
+                  resolve();
+                },
+              });
+            });
+          })
+      )
+    );
+    if (loop) await loop.stop();
+    nala.busy = wasBusy;
+    if (!wasBusy && !nala.ring) playLoop(nala.image, 'nala', 'idle');
+    nala.glowCasting = false;
+    this.nalaRefreshGlow();
+  }
+
+  // The Echo Strike status (statuses.json echo_strike): 1 turn of the hero's own, ticked after it like the others.
+  grantEchoStrike(hero) {
+    const id = this.nala.def.glowStatus;
+    const def = statuses[id];
+    if (!def || hero.hp <= 0) return;
+    hero.statuses[id] = { turns: def.turns };
+    Fx.popText(this, hero.container.x, hero.container.y, def.applyText, def.color, qte.text);
+    this.refreshHud();
+  }
+
+  // A hero whose Strikes can wound a Strike-immune Hollow (statuses.json effect echoStrike).
+  echoStrikes(hero) {
+    return !!hero && Object.keys(hero.statuses || {}).some((id) => statuses[id]?.effect === 'echoStrike');
+  }
+
+  // A round has finished (not called before round 1): the Nala bookkeeping, then the events that wait for a
+  // finished round ({noHollowDamageRounds}); BattleEvents' {round: n} reads the round that just ended here.
+  async roundStart() {
+    const finished = this.stats.turns;
+    const c = this.counters;
+    const nala = this.nala;
+    if (finished > 0) {
+      if (c.hollowDamageThisRound > 0) c.noHollowDamageRounds = 0;
+      else if (c.hollowImmuneThisRound > 0) c.noHollowDamageRounds += 1;
+      c.hollowDamageThisRound = 0;
+      c.hollowImmuneThisRound = 0;
+      if (nala && nala.glowCd > 0) nala.glowCd -= 1;
+    }
+    // Her save is once per round.
+    if (nala) {
+      nala.usesLeft = this.nalaSaves();
+      nala.used = false;
+      this.nalaRefreshGlow();
+    }
+    if (finished > 0) await this.checkEvents();
+    this.stats.turns += 1;
   }
 
   // Called when an enemy starts a telegraph. Returns true if Nala is watching it.
   nalaWatch(enemy, ring) {
     const nala = this.nala;
-    if (!nala || nala.used || !enemy.def.hollow) return false;
+    if (!nala || nala.used || nala.glowCasting || !enemy.def.hollow) return false;
     nala.ring = ring;
     nala.enemy = enemy;
     const g = nala.def.glow;
@@ -361,6 +509,7 @@ export default class BattleScene extends Phaser.Scene {
     if (hasSheet(nala.anims, 'alert') && !nala.busy) nala.alertLoop = this.loopWithInOut(nala, 'alert');
     else trace('fallback:alert:nala');
     this.tapHint.setText(nala.def.promptText);
+    this.nalaRefreshGlow();
     return true;
   }
 
@@ -375,6 +524,7 @@ export default class BattleScene extends Phaser.Scene {
     nala.alertLoop = null;
     if (loop) loop.stop().then(() => !nala.busy && this.nala === nala && playLoop(nala.image, 'nala', 'idle'));
     this.tapHint.setText(qte.hint.text);
+    this.nalaRefreshGlow();
   }
 
   // Jump-in arc (systems/Nala.js), in scene coordinates. Defaults: from 90px
@@ -1156,7 +1306,7 @@ export default class BattleScene extends Phaser.Scene {
     // The lower screen is the tap zone of every ring; it bleeds past the screen edges.
     const z = tutorialData.style.tapZone;
     t.tapzone = { x: v.x - z.bleed, y: z.y, w: v.w + z.bleed * 2, h: v.h - z.y + z.bleed, pad: 0 };
-    t.nala = () => (this.nala ? this.entityRect(this.nala.container, 56, 56, this.nala.container.y + 28) : null);
+    t.nala = () => (this.nala ? this.entityRect(this.nala, 56, 56, this.nala.container.y + 28) : null);
     t.enemy = () => {
       const e = this.enemies.find((x) => x.hp > 0) || this.enemies[0];
       return e ? this.entityRect(e) : null;
@@ -1227,6 +1377,8 @@ export default class BattleScene extends Phaser.Scene {
     this.gainEcho(hero, hero.def.turnEcho || 0);
 
     this.showActiveHero(hero);
+    this.playerInput = true;
+    this.nalaRefreshGlow();
     // The opening pause explains Strike and Techniques itself: no banner on top of it.
     const opening = this.pauseOnFirstMenu && TutorialPause.wouldShow(this, this.pauseOnFirstMenu);
     if (!opening) this.hints.show('strike');
@@ -1235,6 +1387,8 @@ export default class BattleScene extends Phaser.Scene {
     const action = await this.chooseAction(hero);
     this.hints.done('strike');
     this.hints.done('techniques');
+    this.playerInput = false;
+    this.nalaRefreshGlow();
     this.showActiveHero(null);
     this.hideCommandMenu();
 
@@ -1801,6 +1955,7 @@ export default class BattleScene extends Phaser.Scene {
       playerHits: this.counters.playerHits,
       parries: this.counters.parries,
       immuneSeen: this.counters.immuneSeen,
+      noHollowDamageRounds: this.counters.noHollowDamageRounds,
       enemies: this.enemies.map((e) => ({ hp: e.hp, maxHp: e.maxHp })),
     };
     for (const event of dueEvents(events, this.firedEvents, ctx)) {
@@ -1827,6 +1982,8 @@ export default class BattleScene extends Phaser.Scene {
         }
         await this.runEventAction(action);
       }
+      // After the dialogue, the banner and the actions: a tutorial pause that explains what just happened.
+      if (event.pause) await this.runPause(event.pause);
     }
   }
 
@@ -1834,6 +1991,7 @@ export default class BattleScene extends Phaser.Scene {
   async runEventAction(action) {
     if (action?.setFlag) this.flags.add(action.setFlag);
     else if (action === 'nalaJumpIn') await this.eventNalaJumpIn();
+    else if (action === 'nalaGlow') await this.nalaGlowCast(true);
   }
 
   // Nala leaps in from the left edge and lands between the heroes and the enemies. A battle
@@ -2228,6 +2386,7 @@ export default class BattleScene extends Phaser.Scene {
       chain: this.chain,
       maxChain: this.maxChain,
       nalaUsed: this.nala ? this.nala.used : null,
+      nalaGlow: this.nala ? { on: this.nala.glowOn, cd: this.nala.glowCd } : null,
     };
   }
 
@@ -2260,6 +2419,11 @@ export default class BattleScene extends Phaser.Scene {
     this.chain = snap.chain;
     this.maxChain = snap.maxChain;
     if (this.nala && snap.nalaUsed) this.nala.used = true;
+    if (this.nala && snap.nalaGlow) {
+      this.nala.glowOn = snap.nalaGlow.on;
+      this.nala.glowCd = snap.nalaGlow.cd;
+      this.nalaRefreshGlow();
+    }
     this.refreshHud();
   }
 
@@ -2840,15 +3004,18 @@ export default class BattleScene extends Phaser.Scene {
 
     // A Strike deals its damage once, on the first impact frame.
     // crit.json hero: a chance to hit harder (never against an immune target).
-    const isCrit = Math.random() < crit.hero.chance && !this.isImmune(target, 'strike');
+    const immune = this.isImmune(target, 'strike', hero);
+    const isCrit = Math.random() < crit.hero.chance && !immune;
     const base = Phaser.Math.Between(hero.strike[0], hero.strike[1]);
     const dmg = isCrit ? Math.round(base * crit.hero.mult) : base;
     let parry = null;
     await this.playAttackAnim(hero, (i) => {
       if (i !== 0) return;
-      if (this.isImmune(target, 'strike')) this.passThrough(target);
+      if (immune) this.passThrough(target);
       else if (this.rollParry(target, 'strike')) parry = this.popDefend(target, 'parry');
       else {
+        // Nala's Echo: the Strike wounds a Hollow it would have passed through.
+        if (target.def.immune?.includes('strike')) Fx.popText(this, hero.container.x, hero.container.y, allies.nala.glowStrikeText, allies.nala.glowStrikeColor, qte.text);
         this.applyHit(target, dmg, undefined, { poiseSource: 'strike', type: isCrit ? 'crit' : null, crit: isCrit });
         if (isCrit) Fx.popText(this, target.container.x, target.container.y, crit.text, crit.color, qte.text);
         this.gainEcho(hero, techniques.strike.echoOnHit);
@@ -2927,13 +3094,16 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   // enemies.json "immune": ["strike"] (Hollows): steel passes through like smoke.
-  isImmune(target, techId) {
-    return !!target.def.immune?.includes(techId);
+  // `hero` (optional): a hero with the Echo Strike status (Nala's Glow) wounds a Strike-immune target.
+  isImmune(target, techId, hero = null) {
+    if (!target.def.immune?.includes(techId)) return false;
+    return !(techId === 'strike' && this.echoStrikes(hero));
   }
 
   // An immune hit: no damage, no Echo, no poise. The body flickers and "IMMUNE" pops up.
   passThrough(target) {
     this.counters.immuneSeen = true;
+    if (target.def.hollow) this.counters.hollowImmuneThisRound += 1;
     const s = techniques.strike;
     Fx.flash(this, [target.body, ...Object.values(target.parts).map((p) => p.img)], 60);
     Fx.popText(this, target.container.x, target.container.y, s.immuneText, s.immuneColor, qte.text);
@@ -3039,7 +3209,10 @@ export default class BattleScene extends Phaser.Scene {
     playSfx('hit');
 
     if (target.isHero) this.stats.damageTaken += Math.min(dmg, target.hp);
-    else if (this.playerAction && dmg > 0) this.actionLanded = true;
+    else if (this.playerAction && dmg > 0) {
+      this.actionLanded = true;
+      if (target.def.hollow) this.counters.hollowDamageThisRound += 1;
+    }
     target.hp = Math.max(0, target.hp - dmg);
     this.updateLabel(target);
     if (target.isHero) this.refreshHud();
@@ -3094,9 +3267,11 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   // Returns true if there was anything to clear.
+  // statuses.json `cleansable: false` (Echo Strike) stays.
   clearStatuses(hero) {
-    if (!Object.keys(hero.statuses).length) return false;
-    hero.statuses = {};
+    const ids = Object.keys(hero.statuses).filter((id) => statuses[id].cleansable !== false);
+    if (!ids.length) return false;
+    for (const id of ids) delete hero.statuses[id];
     this.refreshHud();
     return true;
   }
