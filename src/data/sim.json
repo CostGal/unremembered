@@ -12,6 +12,7 @@
     "anchorBelow": 0.4,
     "returnToSenderChance": 0.5,
     "braceOnArchive": true,
+    "dodgeChance": { "non-gamer": 0.35, "average": 0.2, "good": 0.1 },
     "nalaTapChance": { "non-gamer": 0.7, "average": 0.85, "good": 0.95 }
   },
   "timing": {

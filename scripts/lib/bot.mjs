@@ -2,8 +2,11 @@
 // build (window.__game), taps with the real mouse (so hit areas and input
 // timing are exercised) and plays Title -> Menu -> chapter -> End.
 //
-// Parry rings are tapped per `profile` ({PERFECT, GOOD, MISS} weights; GOOD
-// taps land late inside the GOOD window, MISS doesn't tap). Menu choices follow
+// Parry rings are answered per `profile` ({PERFECT, GOOD, MISS} weights; GOOD
+// touches land late inside the GOOD window, MISS doesn't touch). A white ring is
+// swiped (a dodge, judged on the easier dodge windows) with sim.json
+// policy.dodgeChance[profile name] (opts.dodgeChance overrides, default 0.2),
+// else tapped; a red ring is always swiped (the normal windows). Menu choices follow
 // a rotation that uses every technique the hero can afford.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,6 +14,7 @@ import { root, sleep, swipe, tap } from './harness.mjs';
 
 const ui = JSON.parse(readFileSync(join(root, 'src/data/ui.json'), 'utf8'));
 const qte = JSON.parse(readFileSync(join(root, 'src/data/qte.json'), 'utf8'));
+const simPolicy = JSON.parse(readFileSync(join(root, 'src/data/sim.json'), 'utf8')).policy;
 const slots = ui.commands.slots;
 const TAP_ZONE = [180, 590];
 
@@ -65,6 +69,7 @@ export class Bot {
   constructor(page, opts = {}) {
     this.page = page;
     this.profile = opts.profile || { PERFECT: 0.4, GOOD: 0.3, MISS: 0.3 };
+    this.dodgeChance = opts.dodgeChance ?? simPolicy.dodgeChance?.[opts.profileName] ?? 0.2;
     this.useNala = opts.useNala ?? true;
     this.rotation = opts.rotation || null;
     this.alwaysAnchor = !!opts.alwaysAnchor;
@@ -118,10 +123,14 @@ export class Bot {
       const result = pickWeighted(this.profile);
       this.results[result] += 1;
       if (result === 'MISS') continue;
-      const offset = result === 'PERFECT' ? 0 : (qte.windows.perfectMs + qte.windows.goodMs) / 2;
+      // A red ring can only be answered with a swipe (normal windows); a white one is swiped
+      // (dodge windows) dodgeChance of the time, else tapped (parry windows).
+      const red = b.redRings.includes(impactAt);
+      const dodge = !red && Math.random() < this.dodgeChance;
+      const w = dodge ? qte.dodge.windows : qte.windows;
+      const offset = result === 'PERFECT' ? 0 : (w.perfectMs + w.goodMs) / 2;
       const delay = impactAt + offset - st.now - 6;
-      // A red ring can only be answered with a swipe.
-      const act = b.redRings.includes(impactAt) ? swipe : tap;
+      const act = red || dodge ? swipe : tap;
       setTimeout(() => act(this.page, ...TAP_ZONE).catch(() => {}), Math.max(0, delay));
     }
     if (b.rings.length) return;

@@ -16,7 +16,8 @@ const chapter = JSON.parse(readFileSync(join(root, 'src/data/chapter1.json'), 'u
 const args = process.argv.slice(2);
 const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
 const PROFILES = { average: { PERFECT: 0.3, GOOD: 0.45, MISS: 0.25 }, good: { PERFECT: 0.55, GOOD: 0.35, MISS: 0.1 } };
-const profile = PROFILES[args.includes('--profile') ? args[args.indexOf('--profile') + 1] : 'good'];
+const profileName = args.includes('--profile') ? args[args.indexOf('--profile') + 1] : 'good';
+const profile = PROFILES[profileName];
 const STALL_MS = 20000;
 // --story: Story Mode on (and the difficulty question already answered).
 const settings = args.includes('--story') ? { difficulty: 'story', storyMode: true, difficultyChosen: true } : null;
@@ -26,7 +27,7 @@ const expected = chapter.filter((s) => s.type !== 'end').map((s) => `${s.type}:$
 
 async function playthrough(browser, url, label) {
   const page = await openPage(browser, url, { settings });
-  const bot = new Bot(page, { profile });
+  const bot = new Bot(page, { profile, profileName });
   const seen = [];
   const t0 = Date.now();
   let sawEnd = false;

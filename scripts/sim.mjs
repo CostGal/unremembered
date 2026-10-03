@@ -97,12 +97,14 @@ function solveProfile({ PERFECT, GOOD }) {
   return best;
 }
 
-function qteOdds(profile, windowMult) {
-  const w = D.qte.windows;
-  const p = (1 - profile.lapse) * inWindow(w.perfectMs * windowMult, profile.bias, profile.sigma);
-  const pg = (1 - profile.lapse) * inWindow(w.goodMs * windowMult, profile.bias, profile.sigma);
+// Odds of PERFECT/GOOD/MISS for a window pair {perfectMs, goodMs} (the parry windows or the
+// easier dodge windows), widened or narrowed by mult (Story Mode, the tutorial slow-mo).
+function qteOddsFor(profile, w, mult) {
+  const p = (1 - profile.lapse) * inWindow(w.perfectMs * mult, profile.bias, profile.sigma);
+  const pg = (1 - profile.lapse) * inWindow(w.goodMs * mult, profile.bias, profile.sigma);
   return { PERFECT: p, GOOD: pg - p, MISS: 1 - pg };
 }
+const qteOdds = (profile, windowMult) => qteOddsFor(profile, D.qte.windows, windowMult);
 
 function roll(odds, rnd) {
   const r = rnd();
@@ -215,14 +217,23 @@ function simulateBattle(battleId, profileName, story, rnd) {
   // enemies.json defend + qte.json enemyDefendChance (story 0): mirrors BattleScene.rollDefendAs.
   const defendChance = qte.difficulties[story ? 'story' : 'normal'].enemyDefendChance;
   const defends = (enemy, kind, techId) => !!enemy.def.defend?.[kind]?.includes(techId) && enemy.hp > 0 && !enemy.broken && !enemy.charge && rnd() < defendChance;
+  // How the scripted player answers one enemy ring: a red ring always with a swipe (normal
+  // windows), a white ring with a swipe (the easier dodge windows) policy.dodgeChance of the
+  // time, else a tap (parry windows). The tutorial slow-mo teaches the tap, so no swipes there.
+  const dodgeChance = D.sim.policy.dodgeChance?.[profileName] ?? 0.2;
+  const answerRing = (unparryable) => {
+    const swipes = unparryable || (!st.tutorialSlow && rnd() < dodgeChance);
+    const windows = swipes && !unparryable ? D.qte.dodge.windows : D.qte.windows;
+    return { res: roll(qteOddsFor(profile, windows, windowMult()), rnd), dodged: swipes };
+  };
   // A parried Strike is answered with a ring on the hero (reparry): judged like any enemy hit,
   // a PERFECT earns the usual counter (applyHit on the enemy, so no parry roll, not a counted player hit).
   const reparry = (hero, enemy) => {
     const rp = enemy.def.defend.reparry;
     st.ms += rp.telegraphMs + T.hitResolveMs + (rp.melee ? T.meleeMs : 0);
-    const res = roll(qteOdds(profile, windowMult()), rnd);
+    const { res, dodged } = answerRing(false);
     st.qtes[res] += 1;
-    const cfg = qte.results[res];
+    const cfg = dodged ? { ...qte.results[res], ...qte.dodge.results[res] } : qte.results[res];
     if (cfg.chain !== 0) {
       if (res === 'PERFECT') st.chain += 1;
       else if (res === 'MISS') st.chain = 0;
@@ -232,7 +243,7 @@ function simulateBattle(battleId, profileName, story, rnd) {
     const dmg = Math.round(rp.dmg * cfg.damageMult * dmgTakenMult);
     st.damageTaken += Math.min(dmg, hero.hp);
     hero.hp = Math.max(0, hero.hp - dmg);
-    if (res === 'PERFECT' && enemy.hp > 0) {
+    if (res === 'PERFECT' && !dodged && enemy.hp > 0) {
       const was = st.playerAction;
       st.playerAction = false;
       hitEnemy(enemy, cfg.counterDmg, 'counter');
@@ -462,13 +473,9 @@ function simulateBattle(battleId, profileName, story, rnd) {
         st.nalaUsed = true;
         break;
       }
-      const res = roll(qteOdds(profile, windowMult()), rnd);
+      // A swipe is a dodge: its own results (no counter, no Echo) and not a parry for Return to Sender.
+      const { res, dodged } = answerRing(!!hit.unparryable);
       st.qtes[res] += 1;
-      // A red ring (unparryable) is answered with a swipe: same odds, but a dodge
-      // has its own results (no counter, less Echo) and isn't a parry for Return to Sender.
-      // qte.json swipeDodge (every ring accepts a swipe): the scripted player still
-      // TAPS parryable rings (model: no swipe on white rings), so the flag changes nothing here.
-      const dodged = !!hit.unparryable;
       const cfg = dodged ? { ...qte.results[res], ...qte.dodge.results[res] } : qte.results[res];
       if (cfg.chain !== 0) {
         if (res === 'PERFECT') st.chain += 1;

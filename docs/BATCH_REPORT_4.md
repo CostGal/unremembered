@@ -22,7 +22,8 @@ Merge order in the morning: **#161 first, then #162** (or merge #162 into #161's
 | #136 Quill parry/dodge | `b40d3c3` | safe |
 | #138 displayScale data + portraits | `88e14f1` | data + CLAUDE.md; safe |
 | #140 platform / drift / shadows | `39297fb` | safe |
-| #133 swipe dodge (flag off) | `4ed950a` | safe; flag is off anyway |
+| #133 swipe dodge (flag off) | `4ed950a` | superseded by #163; revert #163 first if ever |
+| #163 swipe dodge for real (Kostas, 01:10 Sat) | last commit on the branch | the one code path for rings: tap = parry, swipe = dodge; reverting restores the #133 flag-off state |
 
 ## Decisions (logged as they were made)
 1. **Branching:** no pushes to main; PR per phase (Addendum 2). Reason: nothing half-done can deploy while Kostas sleeps.
@@ -68,7 +69,8 @@ Merge order in the morning: **#161 first, then #162** (or merge #162 into #161's
 | #136 | Quill parries Strike (reparry ring 350 ms / 22) and dodges Blast/Tremor; Story 0 % | sim boss non-gamer 99.98 % |
 | #138 | integer `displayScale` data, portraits 310/380 | art list below |
 | #140 | platform layer (procedural gradient band until the PNGs exist), bg drift ±4 / ±2 px, soft shadows under every fighter and Nala | art list below |
-| #133 | `qte.swipeDodge` false by default; flag-off path verified unchanged (timing lab, playtest, mobile-check); flag-on: swipe = dodge with 180/300 windows, tap = parry | not exposed in Settings (data flag only) |
+| #163 swipe dodge for real | one input model on every ring: tap = parry (90/200), swipe = dodge (180/300 on white rings, parry windows on red; no Echo, no counter); `dodge.swipe` 32 px / 180 ms, judgement at touch-down, feedback ≈1 ms after finger-up; `dodge` sheet or a 10 px sidestep; hint "Tap to parry · swipe to dodge" + one-time banner after the slow-mo lesson (order in the duel: strike → techniques → echo → dodge); sim/bot swipe a share of white rings (`sim.json policy.dodgeChance`) | checks: validate 0/0, build ok, judge-unit pass, battle lab 33/33, input test all OK, playtest real 342 s / 0 retries, mobile-check 36/36; sim every battle 100 %, chapter 16.9 / 13.4 / 11.3 min |
+| #133 (superseded by #163: the flag is gone, swipe = dodge on every ring) | `qte.swipeDodge` false by default; flag-off path verified unchanged (timing lab, playtest, mobile-check); flag-on: swipe = dodge with 180/300 windows, tap = parry | not exposed in Settings (data flag only) |
 
 ## Sim (normal, 2000 runs per cell, Phase 2 head)
 | Battle | non-gamer rounds / min / win | average | good |

@@ -568,6 +568,7 @@
       "chain": { "text": "Chain PERFECTs for bonus damage", "always": true },
       "break": { "text": "Empty its golden line to BREAK it", "always": true },
       "status": { "text": "Statuses fade. Anchor clears them", "always": true },
+      "dodge": { "text": "Swipe to dodge: safer, but no Echo", "always": true },
       "recollection": { "text": "Recollection is ready. Make him relive it.", "always": true }
     }
   },
