@@ -85,9 +85,11 @@
     "nala": {
       "frame_size": [64, 64],
       "animations": {
-        "idle": { "frames": 8, "loop": true },
-        "alert": { "frames": 4, "loop": true },
-        "hiss": { "frames": 6, "impactFrames": [3] }
+        "idle": { "frames": 16, "loop": true },
+        "alert_in": { "frames": 4, "loop": false },
+        "alert": { "frames": 8, "loop": true },
+        "alert_out": { "frames": 4, "loop": false },
+        "hiss": { "frames": 9, "loop": false, "holdFrame": 3, "impactFrames": [5] }
       }
     }
   }

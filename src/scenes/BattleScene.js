@@ -21,6 +21,7 @@ import { clampX, mirrorEdges, rect as viewRect } from '../systems/View.js';
 import { difficultyDef } from '../systems/Difficulty.js';
 import CommandMenu from '../systems/CommandMenu.js';
 import Hud from '../systems/Hud.js';
+import { nalaJumpIn } from '../systems/Nala.js';
 import PoiseBar from '../systems/PoiseBar.js';
 import ResultCard from '../systems/ResultCard.js';
 import TutorialHints from '../systems/TutorialHints.js';
@@ -337,7 +338,8 @@ export default class BattleScene extends Phaser.Scene {
     const faces = anims ? animSet.facing || 'left' : sprite.faces || 'right';
     container.setScale(faces !== 'right' ? -1 : 1, 1);
     this.checkLayout('nala', feetY, sprite.h);
-    this.nala = { container, image, glow, anims, def, used: false, usesLeft: 1 + effectTotal(this.fragments, 'nalaExtraUses'), ring: null };
+    // body / type / hp make her look like an entity to loopWithInOut (alert_in -> alert -> alert_out).
+    this.nala = { container, image, glow, anims, def, used: false, usesLeft: 1 + effectTotal(this.fragments, 'nalaExtraUses'), ring: null, body: image, type: 'nala', hp: 1, busy: false, alertLoop: null };
     if (!anims || anims.idle.placeholder) this.idleBob(container);
 
     image.setInteractive({ useHandCursor: true });
@@ -352,7 +354,7 @@ export default class BattleScene extends Phaser.Scene {
     nala.enemy = enemy;
     const g = nala.def.glow;
     nala.glowTween = this.tweens.add({ targets: nala.glow, alpha: { from: g.alphaMin, to: g.alphaMax }, duration: g.pulseMs, yoyo: true, repeat: -1 });
-    if (hasSheet(nala.anims, 'alert')) playLoop(nala.image, 'nala', 'alert');
+    if (hasSheet(nala.anims, 'alert') && !nala.busy) nala.alertLoop = this.loopWithInOut(nala, 'alert');
     else trace('fallback:alert:nala');
     this.tapHint.setText(nala.def.promptText);
     return true;
@@ -364,8 +366,21 @@ export default class BattleScene extends Phaser.Scene {
     nala.ring = null;
     if (nala.glowTween) nala.glowTween.stop();
     nala.glow.setAlpha(0);
-    if (hasSheet(nala.anims, 'alert')) nala.image.play(animKey('nala', 'idle'));
+    // alert_out, then back to idle (unless the hiss or a jump took the sprite over).
+    const loop = nala.alertLoop;
+    nala.alertLoop = null;
+    if (loop) loop.stop().then(() => !nala.busy && this.nala === nala && playLoop(nala.image, 'nala', 'idle'));
     this.tapHint.setText(qte.hint.text);
+  }
+
+  // Jump-in arc (systems/Nala.js), in scene coordinates. Defaults: from 90px
+  // to the left of where she stands, same height. Dev: __battle.nalaJumpIn().
+  nalaJumpIn(fromX, fromY, toX, toY, ms) {
+    const c = this.nala?.container;
+    if (!c) return Promise.resolve();
+    toX ??= c.x;
+    toY ??= c.y;
+    return nalaJumpIn(this, fromX ?? toX - 90, fromY ?? toY, toX, toY, ms);
   }
 
   nalaHiss() {
@@ -374,15 +389,27 @@ export default class BattleScene extends Phaser.Scene {
     nala.usesLeft -= 1;
     nala.used = nala.usesLeft <= 0;
     const { ring, enemy, def } = nala;
+    // The hiss takes over from the alert loop directly (no alert_out).
+    nala.alertLoop?.cancel();
+    nala.alertLoop = null;
+    nala.busy = true;
     this.nalaStopWatching();
     ring.cancel();
 
     Fx.popText(this, nala.container.x, nala.container.y, def.hissText, def.hissColor, qte.text);
     Fx.popText(this, enemy.container.x, enemy.container.y, def.cancelText, def.hissColor, qte.text);
-    Fx.shake(this, def.shake, def.shakeMs);
     if (hasSheet(nala.anims, 'hiss')) {
-      playOnce(nala.image, 'nala', 'hiss', nala.anims.hiss).then(() => nala.image.play(animKey('nala', 'idle')));
+      // holdFrame: the pose is held for hissHoldMs; impactFrames: the shake lands.
+      playOnce(nala.image, 'nala', 'hiss', nala.anims.hiss, {
+        onHold: (resume) => this.time.delayedCall(def.hissHoldMs, resume),
+        onImpact: () => Fx.shake(this, def.shake, def.shakeMs),
+      }).then(() => {
+        nala.busy = false;
+        playLoop(nala.image, 'nala', 'idle');
+      });
     } else {
+      nala.busy = false;
+      Fx.shake(this, def.shake, def.shakeMs);
       this.tweens.add({ targets: nala.container, scaleY: nala.container.scaleY * def.hopSquash, duration: def.hopMs, yoyo: true });
     }
   }
@@ -1662,6 +1689,10 @@ export default class BattleScene extends Phaser.Scene {
       if (!stopped && entity.hp > 0) playLoop(entity.body, entity.type, name);
     });
     return {
+      // Drops the loop without playing <name>_out (something else takes over the sprite).
+      cancel: () => {
+        stopped = true;
+      },
       stop: async () => {
         stopped = true;
         await started;

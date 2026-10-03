@@ -287,11 +287,18 @@ await withBrowser(async ({ chrome, server }) => {
     await page.ev(`(() => { const B = window.__battle; B.heroes.forEach(h => { h.hp = h.maxHp; }); window.__results.length = 0; window.__done = null; window.__stub([0, 0.0]); B.enemyTurn(B.enemies[0]).then(() => { window.__done = true; }); })()`);
     await page.waitFor(`window.__battle.nala && window.__battle.nala.ring`, { timeout: 5000 });
     const nx = await page.ev(`({ x: window.__battle.nala.container.x, y: window.__battle.nala.container.y })`);
+    await sleep(500);
+    const watchInfo = await page.ev(`(() => { const n = window.__battle.nala; return { texture: n.image.texture.key, placeholder: !!n.anims?.idle?.placeholder, anim: n.image.anims.currentAnim?.key, flip: n.container.scaleX < 0, bob: window.__battle.tweens.getTweensOf(n.container).length, trace: Object.keys(window.__animTrace || {}).filter((k) => k.includes('nala')) }; })()`);
+    log(!watchInfo.placeholder && watchInfo.anim === 'nala_alert' && watchInfo.trace.includes('play:nala_alert_in') && watchInfo.bob === 0, 'Nala: drawn from the sheet; watching plays alert_in -> alert loop, code bob off', JSON.stringify(watchInfo));
+    log(watchInfo.flip, 'Nala: sheet faces left, container flipped so she looks at the enemies');
     await page.shot(join(out, 'nala_glow.png'));
     await page.tap(nx.x, nx.y);
     await page.waitFor(`window.__done === true`, { timeout: 6000 });
     const res = await page.ev(`({ results: window.__results.length, used: window.__battle.nala.used, hp: window.__battle.heroes.map(h => h.hp), max: window.__battle.heroes.map(h => h.maxHp) })`);
     log(res.used && res.results === 0 && res.hp.every((h, i) => h === res.max[i]), 'Nala: tapping her during a Hollow telegraph cancels the attack (no damage, no judgement)', JSON.stringify(res));
+    await sleep(1000);
+    const hissInfo = await page.ev(`({ anim: window.__battle.nala.image.anims.currentAnim?.key, trace: Object.keys(window.__animTrace || {}).filter((k) => k.includes('nala')) })`);
+    log(['play:nala_hiss', 'hold:nala_hiss', 'impact:nala_hiss'].every((k) => hissInfo.trace.includes(k)) && hissInfo.anim === 'nala_idle', 'Nala: hiss plays once with its hold + impact frames, then back to idle', JSON.stringify(hissInfo));
     // second Hollow attack: Nala is spent -> no glow
     await sleep(500);
     await page.ev(`(() => { window.__done = null; window.__stub([0, 0.0]); window.__battle.enemyTurn(window.__battle.enemies[1]).then(() => { window.__done = true; }); })()`);
@@ -311,6 +318,18 @@ await withBrowser(async ({ chrome, server }) => {
     await sleep(600);
     log(hollowWatch === 'hollow' && (await B(pb, '!!B.nala.ring')), 'Nala: glows for the Hollow in the same battle', hollowWatch);
     await pb.waitFor(`window.__done === true`, { timeout: 8000 });
+    await sleep(900);
+    const outInfo = await pb.ev(`({ anim: window.__battle.nala.image.anims.currentAnim?.key, trace: Object.keys(window.__animTrace || {}).filter((k) => k.includes('nala')) })`);
+    log(outInfo.trace.includes('play:nala_alert_out') && outInfo.anim === 'nala_idle', 'Nala: an unanswered telegraph ends with alert_out -> idle', JSON.stringify(outInfo));
+    // Jump-in arc (dev hook for the duel ending)
+    const j0 = await pb.ev(`({ x: window.__battle.nala.container.x, y: window.__battle.nala.container.y })`);
+    await pb.ev(`window.__jump = null; window.__apex = 1e9; window.__battle.nalaJumpIn().then(() => { window.__jump = true; }); (function f() { window.__apex = Math.min(window.__apex, window.__battle.nala.container.y); if (!window.__jump) requestAnimationFrame(f); })();`);
+    await sleep(260);
+    await pb.shot(join(out, 'nala_jump_mid.png'));
+    await pb.waitFor(`window.__jump === true`, { timeout: 3000 });
+    await sleep(700);
+    const j1 = await pb.ev(`({ x: window.__battle.nala.container.x, y: window.__battle.nala.container.y, sx: window.__battle.nala.container.scaleX, sy: window.__battle.nala.container.scaleY, apex: window.__apex, anim: window.__battle.nala.image.anims.currentAnim?.key, trace: Object.keys(window.__animTrace || {}).includes('nala:jumpIn') })`);
+    log(Math.abs(j1.x - j0.x) < 0.5 && Math.abs(j1.y - j0.y) < 0.5 && j0.y - j1.apex > 60 && j1.sx < 0 && j1.sy === 1 && j1.anim === 'nala_idle' && j1.trace, 'Nala: jumpIn() arcs ~70px over the ground, lands where she stood (flip kept), back to idle', JSON.stringify({ j0, j1 }));
   }
 
   // ============ F-down: Anchor revive, both down → lose → Retry snapshot ============

@@ -2,7 +2,13 @@
   "nala": {
     "name": "Nala",
     "body": "nala",
-    "glow": { "radius": 36, "color": "0xe8883a", "alphaMin": 0.25, "alphaMax": 0.8, "pulseMs": 260 },
+    "glow": {
+      "radius": 36,
+      "color": "0xe8883a",
+      "alphaMin": 0.25,
+      "alphaMax": 0.8,
+      "pulseMs": 260
+    },
     "promptText": "Nala senses a Hollow! Tap her!",
     "hissText": "Nala hisses!",
     "cancelText": "Cancelled",
@@ -10,6 +16,23 @@
     "shake": 3,
     "shakeMs": 160,
     "hopSquash": 0.8,
-    "hopMs": 90
+    "hopMs": 90,
+    "hissHoldMs": 140,
+    "jump": {
+      "ms": 520,
+      "height": 70,
+      "squash": 0.8,
+      "squashMs": 90,
+      "dust": {
+        "count": 10,
+        "color": "0xe8883a",
+        "speed": [
+          20,
+          60
+        ],
+        "lifeMs": 320,
+        "size": 2
+      }
+    }
   }
 }
