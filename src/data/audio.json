@@ -79,8 +79,8 @@
     "placement": {
       "_doc": [
         "Where each track plays (read by systems/MusicPlan.js, CutsceneScene, DialogueScene, RewardScene, BattleScene). A null track = silence.",
-        "cutscene_origin ranges are 0-based INDICES into cutscene_origin.json shots[] in the FINAL order, i.e. after the wiring item inserts the new shot with bg cs_hush_mid at index 22 (between cs_hush_1 and cs_hush_2). Today's file has 32 entries and cs_hush_2 at index 22; with the insertion it has 33 and cs_hush_2 is index 23. Match by bg when in doubt (startBg).",
-        "Kostas's story numbering (1-based, STORY.md) maps: golden 1-6, war 7-11, fall 12-18, hush 19-23 (incl. hush_1 and hush_mid), silence = the cs_hush_2 shot (his 24), forgotten 25-30 = from 'When the light returned' to the end of the cutscene.",
+        "cutscene_origin ranges are 0-based INDICES into cutscene_origin.json shots[] (16 shots since the opening trim of 3/10: 14 with text + the cs_hush_mid and cs_hush_2 holds at 11 and 12). Match by bg when in doubt (startBg).",
+        "Story numbering (1-based, STORY.md cutscene table) maps: golden 1-4 (to 'twenty years of war'), fall 5-12 (council to the hush_mid hold), silence = the black cs_hush_2 hold (13), forgotten 14-16 = from 'When the light returned' to the end of the cutscene.",
         "Crossfades 500-800 ms (crossfadeRangeMs). Prefetch only the next step's tracks (prefetchPolicy next-step) and decode on demand.",
         "Option A (17:15): six changes in the opening instead of ten; crossfades 1.2 s; music.gain 0.9 = all music -10 % under the Settings volume.",
         "A dialogue entry may be {track, crossfadeMs}: the fade for that change (wake: a long fade out of the cutscene track into meet_dov)."
@@ -94,26 +94,26 @@
         "ranges": [
           {
             "from": 0,
-            "to": 7,
+            "to": 3,
             "track": "cutscene",
             "note": "Kostas 17:30: the original chill procedural track for the opening shots"
           },
           {
-            "from": 8,
-            "to": 22,
+            "from": 4,
+            "to": 11,
             "track": "cs_fall",
-            "note": "from the council (shot 9) through the Unwriting, the exile and the Hush; no cs_hush in between"
+            "note": "from the council (shot 5) through the Unwriting, the exile and the Hush; no cs_hush in between"
           },
           {
-            "from": 23,
-            "to": 23,
+            "from": 12,
+            "to": 12,
             "track": null,
             "startBg": "cs_hush_2",
             "note": "SILENCE on the black shot"
           },
           {
-            "from": 24,
-            "to": 32,
+            "from": 13,
+            "to": 15,
             "track": "cs_forgotten",
             "note": "'A hundred years later' to the end of the cutscene"
           }
@@ -191,11 +191,11 @@
         }
       },
       "sfxCues": {
-        "sfx_war_horn": "cutscene_origin shot 7 (story numbering) = 'Then came the Long War'",
-        "sfx_crystal_resonance": "shot 8 = 'To end it, he taught the engine...'",
-        "sfx_crowd_murmur": "shots 9-10 = the council (low bed under the music)",
-        "sfx_bell_toll": "shot 11 = 'His sentence was his own weapon: the Unwriting'",
-        "sfx_stone_crumble": "shot 13 -> 14 = the statue falls"
+        "sfx_war_horn": "cutscene_origin shot 4 (story numbering) = 'Then came twenty years of war' (with the resonance)",
+        "sfx_crystal_resonance": "shot 4, same shot: '...he taught the engine...'",
+        "sfx_crowd_murmur": "shot 5 = the council (low bed under the music)",
+        "sfx_bell_toll": "shot 6 = 'His sentence was his own weapon'",
+        "sfx_stone_crumble": "shot 7 = the statue falls"
       }
     },
     "gain": 0.72

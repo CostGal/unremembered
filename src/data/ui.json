@@ -656,7 +656,7 @@
     "enemyFadeMs": 500
   },
   "dialogue": {
-    "charsPerSec": 40,
+    "charsPerSec": 55,
     "nextMark": {
       "w": 10,
       "h": 7
