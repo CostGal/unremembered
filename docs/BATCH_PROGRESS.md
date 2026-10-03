@@ -2,6 +2,7 @@
 
 Orchestrator log, one line per item. Spec: `docs/V3_SPEC.md`; plan decisions: `docs/BATCH_REPORT_5.md` (written at the end).
 Branching: each item on `batch5/<item>` off `main`, one Sonnet subagent at a time, gate (validate · build · sim · judge-unit · labs), fast-forward merge and **push to main** (deploys). `git pull origin main` before every merge so Kostas's uploads ride along.
+**Kostas 14:20:** two lanes (A battle: 7 → 8 → 9 → 13 → 14 → 15 → 16; B story/visual in a worktree: 11 → 12 → 10), plus an on-demand assets lane that integrates uploads. Cuts: 17 dialogue editor → Post-jam; Blast L5 aim minigame → Post-jam (Brace rework stays in 15); memory scene pickups → Post-jam (16 keeps the single reward screen + enemy drops). Feel stays B. Target: everything merged ≈ 19:00.
 Order: 0 setup · 1 UI quick wins · 2 art+SFX slots · 3 Nala bundle · 4 Echo rules + progression + duel flow · 5 tutorial pauses · 6 target select UI · 7 Quill v3 · 8 Recollection minigame + rewind + cut-in · 9 Feel B · 10 battle backgrounds · 11 opening FPV + rest scene · 12 Red Reliquary + Hush · 13 battle rules small + crush · 14 b3 Nala glow · 15 Brace A + Blast L5 · 16 Memory returns B · 17 dialogue editor · 18 close-out.
 
 | item | status | commit | checks |
