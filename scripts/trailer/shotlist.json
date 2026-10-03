@@ -36,7 +36,7 @@
     {
       "id": "cs_hush",
       "kind": "cutscene",
-      "url": "?cutscene=origin&shot=22",
+      "url": "?cutscene=origin&shot=11",
       "seed": 1,
       "stop": {
         "marker": "typed",
@@ -55,7 +55,7 @@
     {
       "id": "cs_hollows",
       "kind": "cutscene",
-      "url": "?cutscene=origin&shot=28",
+      "url": "?cutscene=origin&shot=15",
       "seed": 2,
       "stop": {
         "marker": "typed",
@@ -75,13 +75,13 @@
       "kind": "dialogue",
       "url": "?step=2",
       "seed": 3,
-      "line": 3,
+      "line": 1,
       "stop": {
         "marker": "typed",
         "after": 1300
       },
       "cut": {
-        "from": "line:3",
+        "from": "line:1",
         "before": 100,
         "until": {
           "from": "typed",
