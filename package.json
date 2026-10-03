@@ -15,7 +15,8 @@
     "cutscene-check": "node scripts/cutscene-check.mjs",
     "mobile-check": "node scripts/mobile-check.mjs",
     "music-check": "node scripts/music-check.mjs",
-    "music-perf": "node scripts/music-perf.mjs"
+    "music-perf": "node scripts/music-perf.mjs",
+    "trailer": "node scripts/trailer.mjs"
   },
   "dependencies": {
     "phaser": "^3.90.0"
