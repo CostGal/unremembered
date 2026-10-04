@@ -7,6 +7,11 @@ Newest first. Versioning rules: `CLAUDE.md` > Versioning.
 - The team levels up as it wins (Rhea learns the Recollection at level 10), picks a buff after every fight and rests at a campfire every 4 fights (full heal plus a team upgrade).
 - New enemy groups for the Arena: Quill with a Forgotten, two Quills, three Warden Hollows and more.
 
+## 0.3.2 — 2026-10-04
+- Credits: the champion's record is now 8:59 (Unforgettable).
+- Music loops for real: each pass of a track is scheduled to start on the exact sample the previous one ends, instead of relying on the browser's loop flag (which went silent after the first pass in desktop Chrome on the jam site).
+- Music diagnostics: `unrememberedMusic()` in the browser console shows what the music is doing, its live level and its last events.
+
 ## 0.3.1 — 2026-10-04
 - Unforgettable: the Forgotten's parry, dodge and red-ring timing windows are a bit wider (PERFECT 56 ms, GOOD 172 ms instead of 45 / 150).
 - Blast can no longer be dodged by Quill, and Rhea now reaches Recall 5 after the gate battle, so the Blast aim minigame is live in the boss fight.

@@ -330,7 +330,7 @@ Behaviour:
 - **Unlock** on the Title tap. Pause all audio when `document.visibilityState === 'hidden'`, resume on visible.
 - iOS mutes Web Audio when the silent switch is on → the Title screen shows the small line "🔈 Turn off silent mode for sound".
 - **SFX are procedural** in `Audio.js`: short oscillator/noise envelopes for hit, perfect, good, miss, menu tick, echo gain, ultimate. No files needed.
-- **Music:** a file in `public/assets/audio/music/<key>.mp3` plays looped with a 500ms crossfade. If there is no file for a key, a **procedural track** from `src/data/music.json` plays instead (Web Audio, `systems/Music.js`; no files needed). `setMusicIntensity(0..1)` (boss phase 2) and `setMusicWarm(bool)` (Recollection) shape it. Keep total audio under 6 MB.
+- **Music:** a file in `public/assets/audio/music/<key>.mp3` plays looped with a 500ms crossfade. Looping never uses `source.loop`: each pass is its own source scheduled to start on the sample the previous pass ends (`Audio.js startFile`, `LOOP_LOOKAHEAD_SEC`), because a looping source was seen to go silent after one pass in desktop Chrome. Field check: `unrememberedMusic()` in the browser console (state, live level, last events). QA: `node scripts/qa/music-loop.mjs`. If there is no file for a key, a **procedural track** from `src/data/music.json` plays instead (Web Audio, `systems/Music.js`; no files needed). `setMusicIntensity(0..1)` (boss phase 2) and `setMusicWarm(bool)` (Recollection) shape it. Keep total audio under 6 MB.
 - **Settings:** Music volume, SFX volume, Story Mode. Persist to localStorage.
 
 ## Performance budget
