@@ -12,6 +12,7 @@ import { isRealTexture, whenReady } from '../systems/Assets.js';
 import { glassPanel, keyArtBackdrop } from '../systems/Backdrop.js';
 import * as Fx from '../systems/Fx.js';
 import { rect as viewRect } from '../systems/View.js';
+import { popFocusLayer, pushFocusLayer } from '../systems/Focus.js';
 import { addVersionLabel } from '../systems/Version.js';
 
 const cfg = ui.menu;
@@ -127,6 +128,8 @@ export default class MenuScene extends Phaser.Scene {
     const d = cfg.difficulty;
     const v = viewRect();
     const blocker = this.add.rectangle(v.x, v.y, v.w, v.h, Number(d.dim.color), d.dim.alpha).setOrigin(0).setInteractive();
+    // Keyboard / controller: only the panel's buttons take the focus; back closes it.
+    pushFocusLayer(this, { back: () => this.closeDifficulty() });
     // A tap on the dim, outside the panel, closes it.
     blocker.on('pointerdown', (pointer) => {
       const inside = Math.abs(pointer.worldX - 180) <= d.box.w / 2 && Math.abs(pointer.worldY - d.box.y) <= d.box.h / 2;
@@ -144,7 +147,7 @@ export default class MenuScene extends Phaser.Scene {
     const buttons = difficultyIds().map((id, i) => {
       // The current choice is marked.
       const variant = id === settings.difficulty ? 'current' : 'normal';
-      const button = makeGlassButton(this, 180, d.firstY + i * d.spacing, d.button, ui.glass, variant, difficultyDef({ difficulty: id }).pick, () => pick(id));
+      const button = makeGlassButton(this, 180, d.firstY + i * d.spacing, d.button, ui.glass, variant, difficultyDef({ difficulty: id }).pick, () => pick(id), { focusDefault: id === settings.difficulty });
       return button.container;
     });
     const hint = addText(this, 180, d.hint.y, d.hint.text, d.hint);
@@ -157,5 +160,6 @@ export default class MenuScene extends Phaser.Scene {
     if (!this.panel) return;
     for (const o of this.panel) o.destroy();
     this.panel = null;
+    popFocusLayer(this);
   }
 }

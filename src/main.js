@@ -12,11 +12,13 @@ import AnimTestScene from './scenes/AnimTestScene.js';
 import PauseScene from './scenes/PauseScene.js';
 import LoaderScene from './scenes/LoaderScene.js';
 import RewardScene from './scenes/RewardScene.js';
+import ControlsScene from './scenes/ControlsScene.js';
 import ArenaTeamScene from './scenes/ArenaTeamScene.js';
 import ArenaEndScene from './scenes/ArenaEndScene.js';
 import { installAudioUnlock, musicDiagnostics } from './systems/Audio.js';
 import { devParam } from './systems/DevParams.js';
 import { VIEW, install as installView } from './systems/View.js';
+import { installInput } from './systems/Input.js';
 import { installJamClock } from './systems/JamReport.js';
 
 const config = {
@@ -32,11 +34,13 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, PreloadScene, TitleScene, MenuScene, SettingsScene, CutsceneScene, BattleScene, DialogueScene, EndScene, AnimTestScene, PauseScene, LoaderScene, RewardScene, ArenaTeamScene, ArenaEndScene],
+  scene: [BootScene, PreloadScene, TitleScene, MenuScene, SettingsScene, CutsceneScene, BattleScene, DialogueScene, EndScene, AnimTestScene, PauseScene, LoaderScene, RewardScene, ArenaTeamScene, ArenaEndScene, ControlsScene],
 };
 
 const game = new Phaser.Game(config);
 installView(game);
+// Keyboard and controller actions (systems/Input.js, data/input.json).
+installInput(game);
 // Game-jam site reporting: the active-time clock of a run (systems/JamReport.js).
 installJamClock(game);
 if (import.meta.env.DEV) window.__game = game;
@@ -44,7 +48,8 @@ if (import.meta.env.DEV) window.__game = game;
 // Held sideways (the "Rotate your phone" overlay in index.html shows on this
 // query): treat it like leaving the app, so a battle pauses instead of running
 // a ring nobody can see. The Pause scene's "Tap to continue" waits on return.
-const sideways = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+// Touch screens only (pointer: coarse): a short desktop window is not a phone.
+const sideways = window.matchMedia('(orientation: landscape) and (max-height: 500px) and (pointer: coarse)');
 const onSideways = () => {
   if (sideways.matches) game.events.emit(Phaser.Core.Events.HIDDEN);
 };

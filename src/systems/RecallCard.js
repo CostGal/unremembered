@@ -7,6 +7,8 @@ import tutorial from '../data/tutorial.json';
 import * as TutorialPause from './TutorialPause.js';
 import { learnSteps } from './MoveHelp.js';
 import { growth, levelFor, levelUps, maxLevel, techLevelOf, techniqueAt, xpForLevel } from './Recall.js';
+import { onAction } from './Input.js';
+import { tx } from './Prompts.js';
 
 const color = (hex) => Number(hex);
 const fill = (str, vars) => str.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
@@ -38,15 +40,20 @@ export default class RecallCard {
   show() {
     return new Promise((resolve) => {
       this.build();
+      let offConfirm = () => {};
       const onTap = () => {
         if (this.phase === 'filling') this.finish();
         else if (this.phase === 'ready') {
           this.scene.input.off('pointerdown', onTap);
+          offConfirm();
           resolve();
         }
       };
       // The tap that closed the result card must not also skip this one.
-      this.after(this.cfg.card.inputDelayMs, () => this.scene.input.on('pointerdown', onTap));
+      this.after(this.cfg.card.inputDelayMs, () => {
+        this.scene.input.on('pointerdown', onTap);
+        offConfirm = onAction(this.scene, 'confirm', onTap);
+      });
       this.scene.events.once('shutdown', () => this.scene.input.off('pointerdown', onTap));
     });
   }
@@ -163,7 +170,7 @@ export default class RecallCard {
     }
     for (const hero of this.heroes) {
       for (const id of up.learned[hero.type] || []) {
-        lines.push({ text: fill(t.remembers, { hero: hero.name, tech: techniques[id]?.name || id }), learn: true, flavor: this.cfg.flavor[id], pauseKey: id });
+        lines.push({ text: fill(t.remembers, { hero: hero.name, tech: techniques[id]?.name || id }), learn: true, flavor: tx({ text: this.cfg.flavor[id], textButtons: this.cfg.flavorButtons?.[id] }), pauseKey: id });
       }
     }
     for (const hero of this.heroes) {
@@ -268,7 +275,7 @@ export default class RecallCard {
       await this.learnPauses();
       this.phase = 'ready';
       const go = this.scene.add
-        .text(180, b.hintY, b.continueText, { fontFamily: ui.font, fontSize: `${b.hintFontSize}px`, color: b.hintColor })
+        .text(180, b.hintY, tx(b, 'continueText'), { fontFamily: ui.font, fontSize: `${b.hintFontSize}px`, color: b.hintColor })
         .setOrigin(0.5)
         .setDepth(this.cfg.card.depth + 1);
       this.scene.tweens.add({ targets: go, alpha: b.hintPulseAlpha, duration: b.hintPulseMs, yoyo: true, repeat: -1 });

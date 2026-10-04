@@ -152,8 +152,9 @@
         user-select: none;
         -webkit-user-select: none;
       }
-      /* Phones held sideways (short landscape screens); desktops are unaffected. */
-      @media (orientation: landscape) and (max-height: 500px) {
+      /* Phones held sideways (short landscape touch screens); desktops are unaffected,
+         even in a short window. Same query as src/main.js. */
+      @media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
         #rotate {
           display: flex;
         }

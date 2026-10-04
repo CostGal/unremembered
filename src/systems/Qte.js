@@ -2,6 +2,10 @@
 // The first counted tap anywhere is judged on |tap - T| (CLAUDE.md > Parry QTE).
 // Ring and judgement both run on performance.now(), so dropped frames never
 // shift T or the tap time.
+// Keyboard / controller (systems/Input.js): the parry action (X / Space) is a tap,
+// the dodge action (Circle / Shift) a swipe that settles at once, judged on the
+// press's own timestamp by the same rules.
+import { onAction } from './Input.js';
 
 // dtMs = tap - T. Returns 'PERFECT' | 'GOOD' | 'MISS', or null for a tap that is
 // too early to count (no penalty).
@@ -62,6 +66,7 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
   let radiusNow = ring.startRadius; // current ring radius (QA reads it)
   let cancel = () => {};
   let interrupt = () => {};
+  let pressKey = () => false;
   const promise = new Promise((resolve) => {
     let judged = null;
     let impacted = false;
@@ -77,6 +82,20 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
       judged = { result, dtMs, input: 'tap' };
       if (swipe) judged.pending = { pointer, at: performance.now() };
       pointer.qteUsedAt = pointer.downTime;
+    };
+
+    // A button press (routeKeys): the gesture is known at once. Returns true when this ring took it.
+    pressKey = (time, input) => {
+      if (judged || noInput || finished) return false;
+      if (input === 'swipe' && !swipe) return false; // dodge only answers enemy attacks
+      const dtMs = time - impactAt;
+      let result = judge(dtMs, windows);
+      if (!result) return false;
+      if (input === 'tap' && unparryable) result = 'MISS';
+      else if (input === 'swipe' && dodge) result = judge(dtMs, dodge) ?? result;
+      judged = { result, dtMs, input };
+      resolveIfDue(performance.now());
+      return true;
     };
 
     // The gesture is a swipe or a tap: from here the judgement can resolve.
@@ -173,9 +192,26 @@ export function runRing(scene, { x, y, telegraphMs, feint, windows, ring, swipe 
     onUpdate();
   });
 
-  const handle = { promise, impactAt, startAt: start, telegraphMs, unparryable, radius: () => radiusNow, cancel: () => cancel(), interrupt: () => interrupt() };
+  const handle = { promise, impactAt, startAt: start, telegraphMs, unparryable, radius: () => radiusNow, cancel: () => cancel(), interrupt: () => interrupt(), press: (time, input) => pressKey(time, input) };
   liveRings(scene).add(handle);
+  routeKeys(scene);
   return handle;
+}
+
+// One subscription per scene: a parry / dodge press goes to the oldest live ring that takes it (like a tap,
+// it counts for one ring only). Presses with no ring up fall through to the scene's other listeners.
+function routeKeys(scene) {
+  if (scene.qteKeys) return;
+  scene.qteKeys = true;
+  const route = (input) => (e) => {
+    for (const ring of liveRings(scene)) if (ring.press(e.time, input)) return true;
+    return false;
+  };
+  onAction(scene, 'parry', route('tap'));
+  onAction(scene, 'dodge', route('swipe'));
+  scene.events.once('shutdown', () => {
+    scene.qteKeys = false;
+  });
 }
 
 // Stops every ring still running in the scene with result 'INTERRUPTED'.

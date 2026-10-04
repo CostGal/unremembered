@@ -31,6 +31,15 @@ A 2D turn-based RPG with real-time parry QTEs. It started as a 1-week game jam d
 - `index.html` viewport: `width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover`.
 - CSS on html/body/canvas: `touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; overscroll-behavior:none;` height `100dvh`. Block `contextmenu`.
 - Tap targets ≥ 56px tall, ≥ 16px from screen edges.
+- **Keyboard + controller (post-jam, issues #172–#177):** `systems/Input.js` turns keys and PS5 DualSense buttons (Gamepad API, Standard layout) into actions from `data/input.json`. Controller: **Cross = a tap anywhere** (confirm, next line, cards, and the parry on the enemy's turn), Circle = dodge / back, Square = Strike (and the Recollection mash), R2 = Technique, Triangle = Nala, Options = pause, d-pad / left stick = move the focus and pick targets. Keyboard: Enter confirm, Space parry, Shift dodge, J Strike, K Technique, F mash, N Nala, Esc back, P pause, arrows / WASD.
+  - Scenes subscribe with `onAction(scene, action, fn)`; presses carry the event's (or pad's) timestamp, so QTEs judge the press, not the frame.
+  - `systems/Focus.js`: every `makeButton` / `makeGlassButton` is reachable with the directions; confirm presses it like a tap. The teal focus ring shows only after a key or button press. Modals push a layer (`pushFocusLayer`).
+  - QTE rings take parry (tap) and dodge (swipe) presses with the touch rules; the Recollection beats are hold Cross, the arrow's direction, mash Square. Tutorial pauses swallow every action; guided ones take confirm or the spotlit target's action.
+  - **Prompts** (`systems/Prompts.js`): `promptDevice()` is touch / keyboard / gamepad (the last device; a mouse counts as the controller when one is connected). A data text with `text` may carry `textButtons` with `{action}` placeholders (`"{parry} to parry"`); `tx(obj, field)` picks and fills it with the bound key or button (`input.json labels`), so a rebind changes every prompt. Tutorial steps with `button` show that button instead of the tap / swipe gesture.
+  - **Ring buttons** (`ui.json prompts.ring`): on keys / controller every enemy attack shows the parry and dodge buttons over the attacked hero's head, dim while the ring shrinks and lit once the press window opens; a red ring shows only dodge.
+  - **Settings > Controls** (`scenes/ControlsScene.js`, `input.json rebind`): rebinds the keyboard and the controller, one row per action group (controller: Cross = parry + confirm, Circle = dodge + back, Square = strike + mash). A key another row used moves off it; directions stay fixed; Reset restores the defaults. Saved in `settings.bindings`.
+  - **Arena:** the team select's cards and filled slots take the focus (confirm picks / drops, back = Menu); buffs, campfire, End run, the Ultimate button and the run summary are ordinary focusable buttons. Arena texts with a touch gesture carry `textButtons` / `flavorButtons`.
+  - The rotate overlay is touch-only (`pointer: coarse`). QA: `node scripts/qa/keyboard.mjs`, `node scripts/qa/controller.mjs`.
 
 ## File structure
 ```

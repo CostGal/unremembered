@@ -1,8 +1,10 @@
 import ui from '../data/ui.json';
 import { playSfx } from './Audio.js';
+import { registerFocusable } from './Focus.js';
 
 // A plain menu button in the battle-button style (ui.json commands.button).
-// size = {w, h, fontSize}. Returns {container, text}.
+// size = {w, h, fontSize}. Returns {container, rect, text, focus}. Every button
+// can also be reached with the keyboard / controller (systems/Focus.js).
 export function makeButton(scene, x, y, size, label, onTap) {
   const b = ui.commands.button;
   const container = scene.add.container(x, y);
@@ -12,8 +14,10 @@ export function makeButton(scene, x, y, size, label, onTap) {
     .setOrigin(0.5);
   container.add([rect, text]);
   rect.setInteractive({ useHandCursor: true });
-  rect.on('pointerdown', () => pressButton(scene, container, rect, b, onTap));
-  return { container, rect, text };
+  const press = () => pressButton(scene, container, rect, b, onTap);
+  rect.on('pointerdown', press);
+  const focus = registerFocusable(scene, { container, rect, activate: press, enabled: () => rect.input?.enabled !== false });
+  return { container, rect, text, focus };
 }
 
 // Press feedback: tick, the button dips and lights up for a beat, then
@@ -47,10 +51,12 @@ export function pressButton(scene, container, rect, b, onTap, paint = null) {
 // A rounded translucent "glass" panel button (Menu). size = {w, h, fontSize};
 // glass = ui.json menu.glass; variant = a key of glass.variants. The hit area is
 // an invisible Rectangle the size of the button. Returns {container, rect,
-// text, body, setVariant}; body holds what is drawn, so an entrance can move
+// text, body, focus, setVariant}; body holds what is drawn, so an entrance can move
 // it while the hit area stays put.
 // opts.instant: onTap runs on the tap itself and the dip is only a visual
 // (rows that change a value in place, e.g. Settings; rapid taps all count).
+// opts.focusDefault: this button takes the keyboard / controller focus first.
+// The result's `focus` (systems/Focus.js) takes onFocus / onBlur callbacks.
 export function makeGlassButton(scene, x, y, size, glass, variant, label, onTap, opts = {}) {
   const container = scene.add.container(x, y);
   const body = scene.add.container(0, 0);
@@ -83,11 +89,18 @@ export function makeGlassButton(scene, x, y, size, glass, variant, label, onTap,
   paint(false);
 
   rect.setInteractive({ useHandCursor: true });
+  const focusable = (activate, enabled) =>
+    registerFocusable(scene, { container, rect, activate, enabled, focusDefault: !!opts.focusDefault });
   if (opts.hold) {
     attachHold(scene, container, rect, glass, paint, onTap, opts.hold);
-    return { container, rect, text, body, setVariant: (name) => { v = glass.variants[name]; paint(false); } };
+    // Keyboard / controller: the press is a short tap (the help card is touch-only for now).
+    const focus = focusable(
+      () => opts.hold.enabled !== false && pressButton(scene, container, rect, glass, onTap, paint),
+      () => opts.hold.enabled !== false && rect.input?.enabled !== false,
+    );
+    return { container, rect, text, body, focus, setVariant: (name) => { v = glass.variants[name]; paint(false); } };
   }
-  rect.on('pointerdown', () => {
+  const press = () => {
     if (!opts.instant) {
       pressButton(scene, container, rect, glass, onTap, paint);
       return;
@@ -105,12 +118,14 @@ export function makeGlassButton(scene, x, y, size, glass, variant, label, onTap,
       ease: 'Quad.easeOut',
       onComplete: () => rect.active && paint(false),
     });
-  });
+  };
+  rect.on('pointerdown', press);
+  const focus = focusable(press, () => rect.input?.enabled !== false);
   const setVariant = (name) => {
     v = glass.variants[name];
     paint(false);
   };
-  return { container, rect, text, body, setVariant };
+  return { container, rect, text, body, focus, setVariant };
 }
 
 // A button that tells a short tap from a long press (opts.hold = {ms, moveTol, enabled, onHold(), onRelease()}).

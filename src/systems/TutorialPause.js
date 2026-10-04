@@ -3,6 +3,9 @@ import tutorial from '../data/tutorial.json';
 import ui from '../data/ui.json';
 import { devParam } from './DevParams.js';
 import { rect as viewRect } from './View.js';
+import { onAction } from './Input.js';
+import input from '../data/input.json';
+import { badge, tx, usesButtons } from './Prompts.js';
 
 // Tutorial pauses (src/data/tutorial.json): the scene freezes, everything is
 // dimmed except the spotlight targets, a short text box explains them and a
@@ -128,6 +131,26 @@ class Pause {
       this.pressed = false;
       this.next();
     });
+    // Keyboard / controller: the pause swallows every action, like the dim swallows taps. Confirm steps on;
+    // a guided pause takes confirm or its target's own action and then does what the tap would have done.
+    this.offConfirm = onAction(
+      scene,
+      input.actions,
+      (e) => {
+        if (this.done || performance.now() - this.shownAt < cfg.minDismissMs) return true;
+        if (!this.guided) {
+          if (e.action === 'confirm') this.next();
+          return true;
+        }
+        const answer = this.keyAnswer(e.action);
+        if (answer) {
+          this.finish();
+          answer();
+        }
+        return true;
+      },
+      { priority: cfg.inputPriority },
+    );
     this.holes = scene.make.graphics({ add: false });
     this.mask = this.holes.createGeometryMask();
     this.mask.setInvertAlpha(true);
@@ -161,6 +184,23 @@ class Pause {
     this.scene.tutorialPause.step = this.index;
     this.clearStep();
     this.build();
+  }
+
+  // A guided pause answered with a key: what its spotlit target does for `action`, or null.
+  // cmd.<slot>: confirm or that slot's shortcut (input.json commandShortcuts) presses the button;
+  // nala (input.json tutorialTargets): confirm or her action is the tap on her.
+  keyAnswer(action) {
+    const scene = this.scene;
+    const target = (this.steps[this.index]?.targets || [])[0];
+    if (!target) return null;
+    if (target.startsWith('cmd.')) {
+      const slot = target.slice(4);
+      const ok = action === 'confirm' || input.commandShortcuts[action] === slot;
+      return ok ? () => scene.menu?.pressSlot(slot) : null;
+    }
+    const own = input.tutorialTargets[target];
+    if (own && (action === 'confirm' || action === own)) return () => scene.nalaTap?.();
+    return null;
   }
 
   // A point inside a spotlight of a guided pause that is ready for the tap.
@@ -215,7 +255,9 @@ class Pause {
     });
 
     this.buildBox(step, cuts);
-    if (step.indicator && cuts.length) this.buildIndicator(step.indicator, cuts[cuts.length - 1]);
+    // Keys / controller: the step's button (tutorial.json `button`) instead of the tap / swipe gesture.
+    if (step.button && cuts.length && usesButtons()) this.buildButtonIndicator(step.button, cuts[cuts.length - 1]);
+    else if (step.indicator && cuts.length) this.buildIndicator(step.indicator, cuts[cuts.length - 1]);
     this.stepObjects.forEach((obj) => obj.setAlpha(0));
   }
 
@@ -243,14 +285,14 @@ class Pause {
   buildBox(step, cuts) {
     const scene = this.scene;
     const b = cfg.box;
-    const body = this.flags.short && step.textIfShort ? step.textIfShort : step.text;
+    const body = this.flags.short && step.textIfShort ? tx(step, 'textIfShort') : tx(step);
     const text = this.add(
       scene.add
         .text(b.x, 0, body, { fontFamily: ui.font, fontSize: `${b.fontSize}px`, color: b.color, align: 'center', wordWrap: { width: b.wrap }, lineSpacing: b.lineSpacing })
         .setOrigin(0.5, 0)
     );
     // A guided step ends with the tap on the spotlight, not with "Tap to continue".
-    const hint = this.add(scene.add.text(b.x, 0, this.guided ? '' : b.hint.text, { fontFamily: ui.font, fontSize: `${b.hint.fontSize}px`, color: b.hint.color }).setOrigin(0.5, 0));
+    const hint = this.add(scene.add.text(b.x, 0, this.guided ? '' : tx(b.hint), { fontFamily: ui.font, fontSize: `${b.hint.fontSize}px`, color: b.hint.color }).setOrigin(0.5, 0));
     const h = b.padY + text.height + (this.guided ? 0 : b.hint.gap + hint.height) + b.padY;
 
     // Box position: tutorial.json boxY (a centre y) or "auto": just above the spotlight, else just below it.
@@ -284,6 +326,18 @@ class Pause {
   }
 
   // A pulsing ring ("tap") or a finger dot with a trail sliding right ("swipe") at the centre of the cut-out.
+  // The bound key / button for `action`, pulsing at the spotlight's centre (tutorial.json style.buttonIndicator).
+  buildButtonIndicator(action, cut) {
+    const t = cfg.buttonIndicator;
+    // On the spotlight's right edge, so the spotlit button's own label stays readable.
+    const b = this.add(badge(this.scene, 0, cut.y + cut.h / 2, action, { size: t.size }));
+    b.setX(cut.x + cut.w - t.insetX - (b.badgeWidth ?? t.size) / 2);
+    b.setDepth(cfg.depth + 3);
+    this.anim.push((now) => {
+      b.setScale(1 + t.pulse * (0.5 + 0.5 * Math.sin((now / t.pulseMs) * Math.PI * 2)));
+    });
+  }
+
   buildIndicator(kind, cut) {
     const g = this.add(this.scene.add.graphics());
     g.setDepth(cfg.depth + 3);
@@ -329,6 +383,7 @@ class Pause {
     scene.events.off('update', this.onUpdate);
     scene.events.off('shutdown', this.onShutdown);
     if (this.onPointer) scene.input.off('pointerdown', this.onPointer);
+    this.offConfirm?.();
     scene.tweens.timeScale = this.saved.tweens;
     scene.anims.globalTimeScale = this.saved.anims;
     scene.time.timeScale = this.saved.time;

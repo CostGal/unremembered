@@ -1,6 +1,8 @@
 import fragments from '../data/fragments.json';
 import ui from '../data/ui.json';
 import { playSfx } from './Audio.js';
+import { onAction } from './Input.js';
+import { tx } from './Prompts.js';
 
 const color = (hex) => Number(hex);
 const cfg = fragments.dropCard;
@@ -21,15 +23,18 @@ export default class DropCard {
       this.build();
       playSfx(cfg.sfx);
       let ready = false;
+      let offConfirm = null;
       const onTap = () => {
         if (!ready) return;
         this.scene.input.off('pointerdown', onTap);
+        offConfirm();
         this.hide().then(resolve);
       };
       this.scene.time.delayedCall(cfg.inputDelayMs, () => {
         ready = true;
       });
       this.scene.input.on('pointerdown', onTap);
+      offConfirm = onAction(this.scene, 'confirm', onTap);
       this.scene.events.once('shutdown', () => this.scene.input.off('pointerdown', onTap));
     });
   }
@@ -66,7 +71,7 @@ export default class DropCard {
     this.text(cfg.name, def.name);
     this.text(cfg.flavor, def.flavor, wrap(cfg.flavor));
     this.text(cfg.effect, def.text, wrap(cfg.effect));
-    this.text(cfg.hint, cfg.hint.text);
+    this.text(cfg.hint, tx(cfg.hint));
     scene.tweens.add({ targets: this.items, alpha: 1, duration: cfg.fadeMs });
     scene.tweens.add({ targets: [box, letter], scale: { from: 1.4, to: 1 }, duration: cfg.fadeMs * 1.5, ease: 'Back.easeOut' });
   }

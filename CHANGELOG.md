@@ -2,6 +2,11 @@
 
 Newest first. Versioning rules: `CLAUDE.md` > Versioning.
 
+## 0.5.0 — 2026-10-04
+- Keyboard and PS5 controller: the whole game plays without touch. Cross = a tap (and the parry), Circle = dodge / back, Square = Strike, R2 = Technique, Triangle = Nala, d-pad or left stick moves a teal highlight through menus and targets, Options pauses. A short desktop window no longer shows "Rotate your phone".
+- Button prompts: tutorials, hints and the Recollection (hold Cross, the arrow's way, mash Square) name the key or button you play with, and every enemy attack shows the parry and dodge buttons over the hero (only dodge on a red ring).
+- Settings > Controls rebinds the keyboard and the controller.
+
 ## 0.4.0 — 2026-10-04
 - New mode: the Arena (Menu > Arena). Pick two heroes and a support, then fight an endless line of ever stronger enemies with no story in between. HP carries over from fight to fight.
 - The team levels up as it wins (Rhea learns the Recollection at level 10), picks a buff after every fight and rests at a campfire every 4 fights (full heal plus a team upgrade).

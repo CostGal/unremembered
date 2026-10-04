@@ -2,6 +2,7 @@ import levels from '../data/levels.json';
 import techniques from '../data/techniques.json';
 import ui from '../data/ui.json';
 import { techniqueAt } from './Recall.js';
+import { fill as fillButtons, usesButtons } from './Prompts.js';
 
 // Text for a move's help: the long-press card in the command menu and the
 // "you remember a new move" pauses on the Recall card. All of it is data:
@@ -44,10 +45,13 @@ export function helpCard(id, level = 1) {
 }
 
 // The pause steps for a move the party just remembered or upgraded: the strings, or null when there are none.
+// On keys / controller, help.stepsButtons / help.upgradesButtons (same shape, {action} placeholders) win.
 export function learnSteps(id, level, upgrade) {
   const help = techniques[id]?.help;
-  const list = upgrade ? help?.upgrades?.[String(level)] : help?.steps;
+  const pick = (field) => (upgrade ? help?.[field]?.[String(level)] : help?.[field]);
+  const buttons = usesButtons() ? pick(upgrade ? 'upgradesButtons' : 'stepsButtons') : null;
+  const list = buttons?.length ? buttons : pick(upgrade ? 'upgrades' : 'steps');
   if (!list?.length) return null;
   const vars = varsOf(techniqueAt(id, level, techniques));
-  return list.map((s) => fill(s, vars));
+  return list.map((s) => fillButtons(fill(s, vars)));
 }

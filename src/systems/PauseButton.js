@@ -1,12 +1,13 @@
 import ui from '../data/ui.json';
 import { playSfx, setAudioPaused } from './Audio.js';
+import { onAction } from './Input.js';
 
 const cfg = ui.pauseButton;
 
 // The ⏸ button (top-left corner, drawn in code) for Battle, Dialogue and
 // Cutscene. Its tap stops there: it never reaches the scene's own
-// pointerdown (a parry, "next line", hold-to-skip). onPause defaults to
-// pauseScene(scene).
+// pointerdown (a parry, "next line", hold-to-skip). The pause action
+// (systems/Input.js) presses it too. onPause defaults to pauseScene(scene).
 export function addPauseButton(scene, onPause = () => pauseScene(scene)) {
   const container = scene.add.container(cfg.x, cfg.y).setDepth(cfg.depth);
   const g = scene.add.graphics();
@@ -22,6 +23,12 @@ export function addPauseButton(scene, onPause = () => pauseScene(scene)) {
     event.stopPropagation();
     playSfx('menu');
     onPause();
+  });
+  // The pause action (P / Options) presses it too.
+  onAction(scene, 'pause', () => {
+    playSfx('menu');
+    onPause();
+    return true;
   });
   return container;
 }

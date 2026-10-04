@@ -35,6 +35,8 @@ import TutorialHints from '../systems/TutorialHints.js';
 import tutorialData from '../data/tutorial.json';
 import * as TutorialPause from '../systems/TutorialPause.js';
 import { addPauseButton, pauseScene } from '../systems/PauseButton.js';
+import { onAction } from '../systems/Input.js';
+import { ringPrompt, tx } from '../systems/Prompts.js';
 import * as Qte from '../systems/Qte.js';
 import { devInt, devParam } from '../systems/DevParams.js';
 import { impact, impactLab, prewarmImpact } from '../systems/Impact.js';
@@ -420,6 +422,8 @@ export default class BattleScene extends Phaser.Scene {
 
     image.setInteractive({ useHandCursor: true });
     image.on('pointerdown', () => this.nalaTap());
+    // Keyboard / controller: the nala action (Triangle / N) is the tap on her.
+    onAction(this, 'nala', () => this.nalaTap());
   }
 
   // Her saves per battle: 1, +1 per Nala's Bell (fragments.json nalaExtraUses).
@@ -563,7 +567,7 @@ export default class BattleScene extends Phaser.Scene {
     nala.glowTween = this.tweens.add({ targets: nala.glow, alpha: { from: g.alphaMin, to: g.alphaMax }, duration: g.pulseMs, yoyo: true, repeat: -1 });
     if (hasSheet(nala.anims, 'alert') && !nala.busy) nala.alertLoop = this.loopWithInOut(nala, 'alert');
     else trace('fallback:alert:nala');
-    this.tapHint.setText(nala.def.promptText);
+    this.tapHint.setText(tx(nala.def, 'promptText'));
     this.nalaRefreshGlow();
     return true;
   }
@@ -584,7 +588,7 @@ export default class BattleScene extends Phaser.Scene {
     const loop = nala.alertLoop;
     nala.alertLoop = null;
     if (loop) loop.stop().then(() => !nala.busy && this.nala === nala && playLoop(nala.image, 'nala', 'idle'));
-    this.tapHint.setText(qte.hint.text);
+    this.tapHint.setText(tx(qte.hint));
     this.nalaRefreshGlow();
   }
 
@@ -1811,14 +1815,14 @@ export default class BattleScene extends Phaser.Scene {
     // battles.json pauses.nalaWatch: the first time Nala senses a Hollow, a guided pause (tap her) before the ring
     // exists. Resolves true when the tap went through to her: the save fires as soon as the ring is up.
     let nalaSave = this.nalaCanWatch(enemy) && (await this.runPause(this.battleDef.pauses?.nalaWatch));
-    this.tapHint.setText(hit.unparryable ? red.hint : qte.hint.text);
+    this.tapHint.setText(hit.unparryable ? tx(red, 'hint') : tx(qte.hint));
     // The second gesture (ui.json tutorial.hints.dodge) is taught on the first white ring after the
     // slow-mo tap lesson, in whichever battle that is; it shows once and waits if another banner is up.
     if (!this.tutorialSlow && !hit.unparryable) this.hints.show('dodge');
     while (true) {
       const slow = (this.tutorialSlow && !hit.firstSlow) || lesson ? qte.tutorial.timeScale : 1;
       this.setTimeScale(slow);
-      if ((this.tutorialSlow || lesson) && !(lesson && redPaused)) this.showTutorialPrompt(true, lesson ? red.lesson.text : qte.tutorial.prompt.text);
+      if ((this.tutorialSlow || lesson) && !(lesson && redPaused)) this.showTutorialPrompt(true, lesson ? tx(red.lesson) : tx(qte.tutorial.prompt));
 
       // This enemy's own window factors (enemies.json difficulty.<id>.windowMult / perfectWindowMult).
       const [eGood, ePerfect] = enemyWindowMults(enemy.def);
@@ -1826,22 +1830,28 @@ export default class BattleScene extends Phaser.Scene {
       const windows = ownWindows(hit.firstSlow ? Qte.scaledWindows(this.parryWindows(), hit.firstSlow) : this.parryWindows());
       const x = target.container.x;
       const y = target.container.y + qte.ring.offsetY;
+      const ringWindows = slow === 1 ? windows : Qte.scaledWindows(windows, 1 / slow);
+      const ringDodge = slow === 1 ? ownWindows(this.dodgeWindows()) : Qte.scaledWindows(ownWindows(this.dodgeWindows()), 1 / slow);
       ring = Qte.runRing(this, {
         x,
         y,
         telegraphMs: hit.telegraphMs / slow,
         feint: hit.feint ? { ...hit.feint, pauseMs: hit.feint.pauseMs / slow } : null,
-        windows: slow === 1 ? windows : Qte.scaledWindows(windows, 1 / slow),
+        windows: ringWindows,
         ring: hit.unparryable ? { ...qte.ring, color: red.ringColor, targetColor: red.targetColor } : qte.ring,
         swipe: qte.dodge.swipe,
         unparryable: hit.unparryable,
         // Every ring takes both gestures: a tap parries, a swipe dodges (Qte.runRing).
-        dodgeWindows: slow === 1 ? ownWindows(this.dodgeWindows()) : Qte.scaledWindows(ownWindows(this.dodgeWindows()), 1 / slow),
+        dodgeWindows: ringDodge,
         // No tap by T: the hit visibly lands now, the judgement (a late GOOD
         // or a MISS) follows when the window closes.
         onImpact: () => target.hp > 0 && this.playHurt(target),
       });
       const icon = hit.unparryable ? this.showUnparryableIcon(x, y) : null;
+      // Keys / controller: the parry and dodge buttons beside the hero, lit once the press window opens.
+      const openMs = hit.unparryable ? ringWindows.goodMs : Math.max(ringWindows.goodMs, ringDodge.goodMs);
+      const prompt = ringPrompt(this, { x, top: target.container.y - target.height / 2, unparryable: hit.unparryable, impactAt: ring.impactAt, openMs });
+      this.ringPromptLive = prompt; // QA reads it
       // The attack's own sound as it winds up (enemies.json hit.sfx), e.g. the Clerk's ledger pages.
       if (hit.sfx && k === 0) playSfx(hit.sfx);
       const watched = this.nalaWatch(enemy, ring);
@@ -1856,6 +1866,9 @@ export default class BattleScene extends Phaser.Scene {
 
       ({ result, input } = await ring.promise);
       icon?.destroy();
+      if (prompt && input) prompt.press(input);
+      if (prompt) this.time.delayedCall(qte.ring.fadeMs ?? 150, () => prompt.destroy());
+      this.ringPromptLive = null;
       if (watched) this.nalaStopWatching();
       this.setTimeScale(1);
       this.showTutorialPrompt(false);
@@ -1884,7 +1897,7 @@ export default class BattleScene extends Phaser.Scene {
       dodgeLesson.runs += 1;
       if (input === 'swipe' && result !== 'MISS') dodgeLesson.learned = true;
     }
-    this.tapHint.setText(qte.hint.text);
+    this.tapHint.setText(tx(qte.hint));
     this.trackParryAssist(result);
     await this.applyParryResult(result, enemy, target, hit, input);
     await attackDone;
@@ -1898,7 +1911,7 @@ export default class BattleScene extends Phaser.Scene {
     this.time.timeScale = scale;
   }
 
-  showTutorialPrompt(on, text = qte.tutorial.prompt.text) {
+  showTutorialPrompt(on, text = tx(qte.tutorial.prompt)) {
     if (!this.tutorialPrompt) {
       const p = qte.tutorial.prompt;
       this.tutorialPrompt = this.add
@@ -2496,6 +2509,8 @@ export default class BattleScene extends Phaser.Scene {
       Fx.popText(this, heroes[0].container.x, heroes[0].container.y, ne.text, ne.color, qte.text);
     };
     this.input.on('pointerdown', shout);
+    // A parry / dodge press answers nothing either: the same shout.
+    const offKeys = [onAction(this, ['parry', 'dodge'], shout)];
     this.tapHint.setText(ne.text).setVisible(true);
     const restoreDepth = this.bringInFront(enemy, heroes[0]);
     try {
@@ -2524,7 +2539,8 @@ export default class BattleScene extends Phaser.Scene {
       }
     } finally {
       this.input.off('pointerdown', shout);
-      this.tapHint.setText(qte.hint.text).setVisible(false);
+      offKeys.forEach((off) => off());
+      this.tapHint.setText(tx(qte.hint)).setVisible(false);
       restoreDepth();
     }
   }

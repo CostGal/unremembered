@@ -1,5 +1,20 @@
 {
   "font": "\"Play\", sans-serif",
+  "focus": {
+    "color": "0x3fd0c9",
+    "width": 2,
+    "pad": 4,
+    "radius": 12,
+    "alpha": 1,
+    "pulseAlpha": 0.45,
+    "pulseMs": 520,
+    "depthAbove": 1
+  },
+  "prompts": {
+    "_about": "Button prompts (systems/Prompts.js). badge: one drawn button. ring: the parry / dodge buttons beside the hero a ring closes on (keys and buttons only): dim while the ring shrinks, lit once the press window opens (openMs before T = the widest good window).",
+    "badge": { "size": 26, "fontSize": 11, "textColor": "#f1efe8", "fill": "0x0b0d14", "fillAlpha": 0.85, "strokeColor": "0xf1efe8", "stroke": 1.5, "radius": 6, "padX": 6, "shapeScale": 0.24, "shapeWidth": 2.5 },
+    "ring": { "dx": 21, "aboveTop": 4, "depth": 60, "dimAlpha": 0.3, "litAlpha": 1, "popScale": 1.35, "pressScale": 1.6, "popMs": 160 }
+  },
   "view": {
     "designW": 360,
     "designH": 640,
@@ -653,6 +668,7 @@
     "errorText": "The memory slips…",
     "interruptedText": "",
     "continueText": "Tap to continue",
+    "continueTextButtons": "{confirm} to continue",
     "retryText": "Retry",
     "retryRecollectionText": "Try again",
     "retryStageText": "Retry from here",
@@ -886,6 +902,7 @@
     },
     "skipHint": {
       "text": "Hold to skip",
+      "textButtons": "Hold {confirm} to skip",
       "fontSize": 12,
       "color": "#8a8fa3",
       "pad": 16,
@@ -1025,6 +1042,7 @@
     "autoAdvance": false,
     "nextHint": {
       "text": "Tap to continue",
+      "textButtons": "{confirm} to continue",
       "x": 180,
       "y": 606,
       "fontSize": 13,
@@ -1119,6 +1137,7 @@
     },
     "tap": {
       "text": "Tap to start",
+      "textButtons": "Press {confirm} to start",
       "y": 420,
       "fontSize": 20,
       "color": "#f1efe8",
@@ -1423,12 +1442,12 @@
   "settings": {
     "title": {
       "text": "Settings",
-      "y": 92,
+      "y": 80,
       "fontSize": 26,
       "color": "#f1efe8"
     },
-    "firstY": 166,
-    "spacing": 66,
+    "firstY": 150,
+    "spacing": 62,
     "button": {
       "w": 300,
       "h": 58,
@@ -1447,16 +1466,35 @@
       "difficulty": "Difficulty: {v}",
       "font": "Font: {v}",
       "language": "Language: {v}",
+      "controls": "Controls",
       "back": "Back"
     },
     "hint": {
       "text": "{hint}",
-      "y": 490,
+      "y": 512,
       "fontSize": 12,
       "color": "#8a8fa3",
       "wrap": 300
     },
-    "backY": 546
+    "backY": 568
+  },
+  "controls": {
+    "_about": "The Controls screen (scenes/ControlsScene.js, opened from Settings > Controls): rebinds keys and controller buttons (input.json rebind). A row binds all its actions to the one key or button pressed; a key another row used moves off it.",
+    "title": { "text": "Controls", "y": 64, "fontSize": 26, "color": "#f1efe8" },
+    "device": { "y": 122, "w": 300, "h": 56, "fontSize": 16, "text": "<  {device}  >", "names": { "keyboard": "Keyboard", "gamepad": "Controller" } },
+    "grid": { "cols": [94, 266], "firstY": 196, "spacing": 64, "w": 156, "h": 56, "fontSize": 13, "labelPadX": 18, "badgePadX": 8, "badgeSize": 26 },
+    "hint": { "y": 506, "fontSize": 12, "color": "#8a8fa3", "wrap": 320 },
+    "hints": {
+      "idle": "Pick a row, then press the new key or button.",
+      "capture": { "keyboard": "Press a key for {action}… (Esc cancels)", "gamepad": "Press a button for {action}… (Options cancels)" },
+      "taken": "That one moves the cursor: pick another.",
+      "saved": "{action}: {key}",
+      "reset": "Back to the default controls."
+    },
+    "joiner": " / ",
+    "reset": { "x": 94, "y": 578, "w": 156, "h": 56, "fontSize": 15, "text": "Reset" },
+    "back": { "x": 266, "y": 578, "w": 156, "h": 56, "fontSize": 15, "text": "Back" },
+    "cancelTapDelayMs": 250
   },
   "end": {
     "title": {
@@ -1496,6 +1534,7 @@
     },
     "hint": {
       "text": "Tap to return to the menu",
+      "textButtons": "{confirm}: back to the menu",
       "y": 566,
       "fontSize": 14,
       "color": "#8a8fa3",
@@ -1527,6 +1566,7 @@
     },
     "tap": {
       "text": "Tap to continue",
+      "textButtons": "{confirm} to continue",
       "y": 320,
       "fontSize": 18,
       "color": "#3fd0c9",
@@ -1669,7 +1709,8 @@
     },
     "hints": {
       "strike": {
-        "text": "Tap Strike to attack"
+        "text": "Tap Strike to attack",
+        "textButtons": "Press {strike} to Strike"
       },
       "echo": {
         "text": "PERFECT parries charge Echo"
@@ -1691,6 +1732,7 @@
       },
       "dodge": {
         "text": "Swipe to dodge: safer, but no Echo",
+        "textButtons": "{dodge} to dodge: safer, but no Echo",
         "always": true
       },
       "blast_unlocked": {

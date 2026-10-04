@@ -8,6 +8,7 @@ import { saveSettings } from '../systems/Settings.js';
 import { difficultyDef, difficultyIds, normalizeDifficulty } from '../systems/Difficulty.js';
 import { activeFontDef, applyFont, fontIds, fontLabel, loadFont, restyleScene } from '../systems/Fonts.js';
 import { LANGUAGES, applyLanguage, langDef } from '../systems/Lang.js';
+import { setFocusBack } from '../systems/Focus.js';
 
 const cfg = ui.settings;
 
@@ -44,7 +45,8 @@ export default class SettingsScene extends Phaser.Scene {
     const depth = ui.keyArt.uiDepth;
     addText(this, 180, cfg.title.y, cfg.title.text, cfg.title).setDepth(depth);
 
-    const rows = ['musicVolume', 'sfxVolume', 'difficulty', 'font', 'language'];
+    // Controls opens its own screen (scenes/ControlsScene.js); the other rows cycle a value in place.
+    const rows = ['musicVolume', 'sfxVolume', 'difficulty', 'font', 'language', 'controls'];
     this.buttons = rows.map((key, i) =>
       makeGlassButton(this, 180, cfg.firstY + i * cfg.spacing, cfg.button, ui.glass, 'normal', '', () => this.change(key), { instant: true })
     );
@@ -55,11 +57,18 @@ export default class SettingsScene extends Phaser.Scene {
     this.hint = addText(this, 180, cfg.hint.y, '', cfg.hint).setDepth(depth);
     this.refresh();
 
-    makeGlassButton(this, 180, cfg.backY, cfg.button, ui.glass, 'secondary', cfg.labels.back, () => this.back()).container.setDepth(depth);
+    const backButton = makeGlassButton(this, 180, cfg.backY, cfg.button, ui.glass, 'secondary', cfg.labels.back, () => this.back());
+    backButton.container.setDepth(depth);
+    // Keyboard / controller: back presses Back.
+    setFocusBack(this, () => backButton.focus.activate());
   }
 
   change(key) {
     const s = this.settings;
+    if (key === 'controls') {
+      this.scene.start('Controls', { fromPause: this.fromPause });
+      return;
+    }
     if (key === 'difficulty') {
       const ids = difficultyIds();
       s.difficulty = ids[(ids.indexOf(s.difficulty) + 1) % ids.length];
@@ -94,6 +103,10 @@ export default class SettingsScene extends Phaser.Scene {
   refresh() {
     const l = cfg.labels;
     for (const b of this.buttons) {
+      if (b.key === 'controls') {
+        b.text.setText(l.controls);
+        continue;
+      }
       const v = this.settings[b.key];
       const shown =
         b.key === 'difficulty'

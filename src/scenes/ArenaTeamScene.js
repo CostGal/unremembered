@@ -10,6 +10,8 @@ import { glassPanel, keyArtBackdrop } from '../systems/Backdrop.js';
 import { difficultyDef } from '../systems/Difficulty.js';
 import { animKey, playLoop } from '../systems/SpriteAnims.js';
 import ArenaRunner from '../systems/ArenaRunner.js';
+import { registerFocusable, setFocusBack } from '../systems/Focus.js';
+import { tx } from '../systems/Prompts.js';
 
 const L = arena.ui.team;
 const T = arena.text.team;
@@ -69,6 +71,8 @@ export default class ArenaTeamScene extends Phaser.Scene {
     this.begin = makeGlassButton(this, b.beginX, b.y, { w: b.beginW, h: b.h, fontSize: b.fontSize }, ui.glass, 'disabled', T.begin, () => this.tryBegin());
     back.container.setDepth(depth);
     this.begin.container.setDepth(depth);
+    // Keyboard / controller: back (Circle / Esc) is Back.
+    setFocusBack(this, () => back.focus.activate());
     this.refresh();
   }
 
@@ -93,11 +97,14 @@ export default class ArenaTeamScene extends Phaser.Scene {
     const hit = this.add.rectangle(0, 0, s.w, s.h, 0x000000, 0).setInteractive({ useHandCursor: true });
     box.add(hit);
     const slot = { kind, x, y, box, label, plus, name, sprite: null, id: null, mask: mask.createGeometryMask() };
-    hit.on('pointerdown', () => {
+    const take = () => {
       if (!slot.id) return;
       playSfx('menu');
       this.remove(kind, slot.id);
-    });
+    };
+    hit.on('pointerdown', take);
+    // Keyboard / controller: a filled slot takes the focus; confirm takes that character out.
+    registerFocusable(this, { container: box, rect: hit, activate: take, enabled: () => !!slot.id });
     return slot;
   }
 
@@ -131,7 +138,7 @@ export default class ArenaTeamScene extends Phaser.Scene {
     container.add(this.add.text(left + c.roleRight, c.roleDy, entry.role, { fontFamily: ui.font, fontSize: `${c.roleFontSize}px`, color: c.roleColor }).setOrigin(1, 0.5));
     const stats = kind === 'hero'
       ? fill(T.stats, { hp: info.hp, s0: info.strike[0], s1: info.strike[1], echo: info.echoMax ?? arena.levels.echoMax[entry.id]?.at(-1) ?? '' })
-      : entry.text;
+      : tx(entry);
     const statsText = this.add.text(nx, c.statsDy, stats, { fontFamily: ui.font, fontSize: `${c.statsFontSize}px`, color: c.statsColor, wordWrap: { width: c.wrap } }).setOrigin(0, kind === 'hero' ? 0.5 : 0.15);
     container.add(statsText);
     if (entry.path) container.add(this.add.text(nx, c.pathDy, entry.path, { fontFamily: ui.font, fontSize: `${c.pathFontSize}px`, color: c.pathColor }).setOrigin(0, 0.5));
@@ -140,6 +147,8 @@ export default class ArenaTeamScene extends Phaser.Scene {
     const hit = this.add.rectangle(0, 0, c.w, c.h, 0x000000, 0).setInteractive({ useHandCursor: true });
     container.add(hit);
     hit.on('pointerdown', () => this.toggle(kind, entry.id));
+    // Keyboard / controller: the card takes the focus; confirm picks or drops that character.
+    registerFocusable(this, { container, rect: hit, activate: () => this.toggle(kind, entry.id) });
     this.paintCard(card, false);
     return card;
   }

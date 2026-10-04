@@ -26,7 +26,8 @@
         "name": "Nala",
         "role": "Support · Hollow sense",
         "color": "#e8883a",
-        "text": "Tap her while a Hollow winds up to cancel its attack. Her Glow lets Strikes hit Hollows."
+        "text": "Tap her while a Hollow winds up to cancel its attack. Her Glow lets Strikes hit Hollows.",
+        "textButtons": "Press {nala} while a Hollow winds up to cancel its attack. Her Glow lets Strikes hit Hollows."
       },
       { "id": null, "locked": true }
     ]
@@ -131,6 +132,9 @@
       "anchor": "The night they took Mom, he held his sister until morning.",
       "brace": "His shoulder against the dock gates while the river rose.",
       "recollection": "Burn a memory around the enemy. Fill her Echo, then tap Recollection."
+    },
+    "flavorButtons": {
+      "recollection": "Burn a memory around the enemy. Fill her Echo, then pick Recollection."
     },
     "text": {
       "title": "Stronger",

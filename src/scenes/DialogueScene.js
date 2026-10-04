@@ -11,6 +11,7 @@ import * as Fx from '../systems/Fx.js';
 import { manifestDef, whenReady } from '../systems/Assets.js';
 import { mirrorEdges, rect as viewRect } from '../systems/View.js';
 import MemorySpot from '../systems/MemorySpot.js';
+import { onAction } from '../systems/Input.js';
 
 const cfg = ui.dialogue;
 const placement = audioData.music.placement;
@@ -102,6 +103,8 @@ export default class DialogueScene extends Phaser.Scene {
     // A memory spot (fragments.json scenes) swallows the tap that lands on it.
     this.spot = this.overlay ? null : new MemorySpot(this, this.dialogueId);
     this.input.on('pointerdown', (pointer, over) => this.onTap(over));
+    // Keyboard / controller: confirm is the tap (never on a memory spot).
+    onAction(this, 'confirm', () => this.onTap([]));
     // The previous dialogue ended with a "close" transition: open from black.
     if (this.fadeIn && !this.overlay) {
       const v = viewRect();

@@ -7,6 +7,7 @@
     "pad": 8,
     "radius": 10,
     "minDismissMs": 300,
+    "inputPriority": 10,
     "tapZone": { "y": 440, "bleed": 12 },
     "fadeMs": 160,
     "outline": { "color": "0x3fd0c9", "width": 2, "alphaMin": 0.45, "alphaMax": 1, "pulseMs": 900 },
@@ -15,9 +16,10 @@
       "edgeMin": 60, "edgeMax": 610,
       "fill": "0x0b0d14", "alpha": 0.96, "stroke": "0x3fd0c9", "radius": 12,
       "fontSize": 17, "wrap": 300, "color": "#f1efe8", "lineSpacing": 2,
-      "hint": { "text": "Tap to continue", "fontSize": 13, "color": "#8a8fa3", "gap": 8, "alphaMin": 0.35, "pulseMs": 700 },
+      "hint": { "text": "Tap to continue", "textButtons": "{confirm} to continue", "fontSize": 13, "color": "#8a8fa3", "gap": 8, "alphaMin": 0.35, "pulseMs": 700 },
       "steps": { "fontSize": 12, "color": "#7fc4bf" }
     },
+    "buttonIndicator": { "size": 34, "insetX": 10, "pulse": 0.18, "pulseMs": 700 },
     "tapIndicator": { "color": "0xf1efe8", "r0": 12, "r1": 34, "ms": 800, "width": 3 },
     "swipeIndicator": { "color": "0xf1efe8", "dotR": 11, "travel": 120, "ms": 1100, "pauseMs": 350, "trail": 6, "trailMs": 28 }
   },
@@ -30,29 +32,35 @@
     "battle_start": {
       "steps": [
         { "text": "Echo: +1 every turn, +1 per Strike, +2 per PERFECT parry.", "targets": ["hud.echo"] },
-        { "text": "Strike: free, always available.", "targets": ["cmd.strike"], "indicator": "tap" }
+        { "text": "Strike: free, always available.", "textButtons": "Strike ({strike}): free, always available.", "targets": ["cmd.strike"], "indicator": "tap", "button": "strike" }
       ]
     },
     "parry": {
       "text": "Dov attacks! Tap anywhere when the ring closes on Rhea.",
+      "textButtons": "Dov attacks! Press {parry} when the ring closes on Rhea.",
       "targets": ["hero", "tapzone"],
-      "indicator": "tap"
+      "indicator": "tap",
+      "button": "parry"
     },
     "dodge": {
       "text": "Or swipe to dodge: safer, but a dodge earns no Echo and no counter.",
+      "textButtons": "Or press {dodge} to dodge: safer, but a dodge earns no Echo and no counter.",
       "targets": ["tapzone"],
       "indicator": "swipe",
+      "button": "dodge",
       "skipHints": ["dodge"]
     },
     "technique_guided": {
       "mode": "guided",
       "text": "Tap Technique.",
+      "textButtons": "Press {technique} for Technique.",
       "targets": ["cmd.technique"],
-      "indicator": "tap"
+      "indicator": "tap",
+      "button": "technique"
     },
     "blast_explain": {
       "steps": [
-        { "text": "Blast: your first Technique. 2 Echo, 2 bolts of pure memory. Hold it to read more.", "targets": ["cmd.blast"] },
+        { "text": "Blast: your first Technique. 2 Echo, 2 bolts of pure memory. Hold it to read more.", "textButtons": "Blast: your first Technique. 2 Echo, 2 bolts of pure memory.", "targets": ["cmd.blast"] },
         {
           "text": "Techniques spend the Echo your Strikes and PERFECT parries earn. When Echo runs out, Strike.",
           "textIfShort": "Techniques spend the Echo your Strikes and PERFECT parries earn. When Echo runs out, Strike. (Strike once more to afford it.)",
@@ -71,8 +79,8 @@
     "red_ring": {
       "always": true,
       "steps": [
-        { "text": "A RED ring can't be parried. Swipe anywhere to dodge it.", "targets": ["enemy", "tapzone"], "indicator": "swipe" },
-        { "text": "A PERFECT dodge takes nothing. Late takes half. A tap takes it all.", "targets": ["tapzone"] }
+        { "text": "A RED ring can't be parried. Swipe anywhere to dodge it.", "textButtons": "A RED ring can't be parried. Press {dodge} to dodge it.", "targets": ["enemy", "tapzone"], "indicator": "swipe", "button": "dodge" },
+        { "text": "A PERFECT dodge takes nothing. Late takes half. A tap takes it all.", "textButtons": "A PERFECT dodge takes nothing. Late takes half. A parry ({parry}) takes it all.", "targets": ["tapzone"] }
       ]
     },
     "leveling": {
@@ -85,35 +93,37 @@
     "crush": {
       "always": true,
       "steps": [
-        { "text": "A heavy blow: it can't be parried. Swipe when the ring closes.", "targets": ["tapzone"], "indicator": "swipe" },
-        { "text": "A PERFECT dodge takes nothing. Late takes half. A tap takes it all.", "targets": ["tapzone"] }
+        { "text": "A heavy blow: it can't be parried. Swipe when the ring closes.", "textButtons": "A heavy blow: it can't be parried. Press {dodge} when the ring closes.", "targets": ["tapzone"], "indicator": "swipe", "button": "dodge" },
+        { "text": "A PERFECT dodge takes nothing. Late takes half. A tap takes it all.", "textButtons": "A PERFECT dodge takes nothing. Late takes half. A parry ({parry}) takes it all.", "targets": ["tapzone"] }
       ]
     },
     "feint": {
       "always": true,
       "steps": [
         { "text": "Strong enemies sometimes feint: the ring stops, then rushes.", "targets": ["enemy", "tapzone"] },
-        { "text": "Wait for it to close. Tap on the close, not the stop.", "targets": ["tapzone"], "indicator": "tap" }
+        { "text": "Wait for it to close. Tap on the close, not the stop.", "textButtons": "Wait for it to close. Press {parry} on the close, not the stop.", "targets": ["tapzone"], "indicator": "tap", "button": "parry" }
       ]
     },
     "enemy_parry": {
       "always": true,
       "steps": [
         { "text": "Strong enemies parry too. When he blocks your Strike, a ring comes back at you.", "targets": ["enemy"] },
-        { "text": "Parry it like any other. Tremor he can dodge, but Blast always hits.", "targets": ["enemy", "tapzone"], "indicator": "tap" }
+        { "text": "Parry it like any other. Tremor he can dodge, but Blast always hits.", "textButtons": "Parry it with {parry} like any other. Tremor he can dodge, but Blast always hits.", "targets": ["enemy", "tapzone"], "indicator": "tap", "button": "parry" }
       ]
     },
     "nala_save": {
       "mode": "guided",
       "always": true,
       "text": "Nala senses a Hollow. Tap her to stop the attack!",
+      "textButtons": "Nala senses a Hollow. Press {nala} to stop the attack!",
       "targets": ["nala"],
-      "indicator": "tap"
+      "indicator": "tap",
+      "button": "nala"
     },
     "nala_glow": {
       "steps": [
         { "text": "Nala lends her Echo: this round your Strikes can wound Hollows.", "targets": ["nala", "hud.hp.rhea", "hud.hp.dov"] },
-        { "text": "Tap her when she glows to call it again.", "targets": ["nala"], "indicator": "tap" }
+        { "text": "Tap her when she glows to call it again.", "textButtons": "Press {nala} when she glows to call it again.", "targets": ["nala"], "indicator": "tap", "button": "nala" }
       ],
       "always": true
     }

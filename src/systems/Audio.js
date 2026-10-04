@@ -79,8 +79,8 @@ function onStateChange() {
   if (wantedAmbience && !ambience) startAmbience(wantedAmbience, audioData.ambience.beds[wantedAmbience]);
 }
 
-// Document-level gesture hooks (called once from main.js): every pointerdown
-// and touchend (capture, passive, so nothing can stop them) creates/resumes
+// Document-level gesture hooks (called once from main.js): every pointerdown,
+// keydown and touchend (capture, passive, so nothing can stop them) creates/resumes
 // the context. iOS counts touchend (not always pointerdown) as the gesture
 // that may start audio; 'interrupted' (iOS: a call, Siri) is resumed too.
 let listening = false;
@@ -94,6 +94,9 @@ export function installAudioUnlock() {
   };
   document.addEventListener('pointerdown', handler, opts);
   document.addEventListener('touchend', handler, opts);
+  // A key press is a user gesture too (desktop). A controller button is not, in
+  // most browsers: the Title's first press still needs a key, a click or a tap.
+  document.addEventListener('keydown', handler, opts);
 }
 
 export function getAudioContext() {

@@ -2,6 +2,7 @@ import ui from '../data/ui.json';
 import { playSfx } from './Audio.js';
 import * as Fx from './Fx.js';
 import { rect as viewRect } from './View.js';
+import { onAction } from './Input.js';
 
 const MAX_STEP_MS = 250;
 
@@ -139,12 +140,14 @@ export default class CutIn {
       let last = performance.now();
       let shown = 0;
       let done = false;
+      let offConfirm = null;
       label.setText('');
       const finish = () => {
         if (done) return;
         done = true;
         scene.events.off('update', tick);
         scene.input.off('pointerdown', onTap);
+        offConfirm?.();
         scene.events.off('shutdown', finish);
         if (label.active) label.setText(full);
         resolve();
@@ -172,6 +175,7 @@ export default class CutIn {
       };
       scene.events.on('update', tick);
       scene.input.on('pointerdown', onTap);
+      offConfirm = onAction(scene, 'confirm', onTap);
       scene.events.once('shutdown', finish);
     });
   }

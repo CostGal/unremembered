@@ -30,6 +30,9 @@
         "3": ["Blast now crits: a crit fires one extra bolt."],
         "4": ["More bolts, more crits: a crit fires one extra bolt."],
         "5": ["Aim it: tap when the gold ring closes for +15% crit."]
+      },
+      "upgradesButtons": {
+        "5": ["Aim it: press {parry} when the gold ring closes for +15% crit."]
       }
     }
   },

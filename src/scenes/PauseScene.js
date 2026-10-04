@@ -4,11 +4,14 @@ import ui from '../data/ui.json';
 import { setAudioPaused, unlockAudio } from '../systems/Audio.js';
 import { addText, makeGlassButton } from '../systems/Button.js';
 import { glassPanel } from '../systems/Backdrop.js';
+import { onAction } from '../systems/Input.js';
+import input from '../data/input.json';
+import { tx } from '../systems/Prompts.js';
 
 const cfg = ui.pause;
 
 // Over a paused scene. Two modes:
-// - background (the app went away): one tap anywhere calls data.onContinue.
+// - background (the app went away): one tap anywhere (or confirm / pause) calls data.onContinue.
 // - menu (the ⏸ button, systems/PauseButton.js): Resume | Settings | Quit to
 //   Menu (asks first). Settings opens over it and comes back here.
 export default class PauseScene extends Phaser.Scene {
@@ -19,6 +22,8 @@ export default class PauseScene extends Phaser.Scene {
   init(data) {
     this.onContinue = data.onContinue;
     this.menu = !!data.menu;
+    this.left = false;
+    this.confirming = false;
   }
 
   create() {
@@ -29,14 +34,21 @@ export default class PauseScene extends Phaser.Scene {
       return;
     }
     addText(this, 180, cfg.title.y, cfg.title.text, cfg.title);
-    const tap = addText(this, 180, cfg.tap.y, cfg.tap.text, cfg.tap);
+    const tap = addText(this, 180, cfg.tap.y, tx(cfg.tap), cfg.tap);
     this.tweens.add({ targets: tap, alpha: cfg.tap.pulseAlpha, duration: cfg.tap.pulseMs, yoyo: true, repeat: -1 });
 
     // The tap that brings the app back (if any) must not count as "continue".
     this.time.delayedCall(cfg.inputDelayMs, () => {
-      this.input.once('pointerdown', () => {
+      const go = () => {
+        if (this.left) return;
+        this.left = true;
         unlockAudio();
         this.continue();
+      };
+      this.input.once('pointerdown', go);
+      onAction(this, input.pause.continueActions, () => {
+        go();
+        return true;
       });
     });
   }
@@ -53,6 +65,12 @@ export default class PauseScene extends Phaser.Scene {
     m.items.forEach((item, i) => {
       const b = makeGlassButton(this, 180, m.firstY + i * m.spacing, m.button, ui.glass, item.variant, item.label, () => this.choose(item.id));
       this.page.push(b.container);
+    });
+    // Pause / Back on the keyboard or controller: Resume.
+    onAction(this, input.pause.resumeActions, () => {
+      if (this.confirming) this.cancelQuit?.();
+      else this.continue();
+      return true;
     });
   }
 
@@ -71,14 +89,28 @@ export default class PauseScene extends Phaser.Scene {
 
   confirmQuit() {
     const c = cfg.menu.confirm;
+    this.confirming = true;
     for (const o of this.page) o.setVisible(false);
     const p = cfg.menu.panel;
     const parts = [glassPanel(this, 180, p.y, p.w, p.h, p), addText(this, 180, cfg.menu.titleY, c.title, cfg.title), addText(this, 180, c.textY, c.text, c.textStyle)];
     const yes = makeGlassButton(this, 180, c.yes.y, cfg.menu.button, ui.glass, c.yes.variant, c.yes.label, () => this.quit());
-    const no = makeGlassButton(this, 180, c.no.y, cfg.menu.button, ui.glass, c.no.variant, c.no.label, () => {
-      for (const o of [...parts, yes.container, no.container]) o.destroy();
-      for (const o of this.page) o.setVisible(true);
-    });
+    const no = makeGlassButton(
+      this,
+      180,
+      c.no.y,
+      cfg.menu.button,
+      ui.glass,
+      c.no.variant,
+      c.no.label,
+      () => {
+        for (const o of [...parts, yes.container, no.container]) o.destroy();
+        for (const o of this.page) o.setVisible(true);
+        this.confirming = false;
+      },
+      { focusDefault: true },
+    );
+    // Keyboard / controller: back (or pause) is No.
+    this.cancelQuit = () => no.focus.activate();
   }
 
   // Everything of the run stops; the Menu starts fresh.
