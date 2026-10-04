@@ -2,6 +2,7 @@ import ui from '../data/ui.json';
 import { playSfx } from './Audio.js';
 import * as Fx from './Fx.js';
 import { swipeDirection } from './Qte.js';
+import { onAction } from './Input.js';
 
 // "Burn the memory" (recollection.json): the Recollection minigame, three beats
 // with three different gestures, one after the other:
@@ -18,6 +19,9 @@ import { swipeDirection } from './Qte.js';
 // 'PERFECT' | 'GOOD' | 'MISS'; an app switch (scene pause) restarts the beat on
 // resume. scene.recollectionBeat describes the live beat (the playtest bot and
 // QA read it): {kind, index, startAt, ...}.
+// Keyboard / controller (systems/Input.js): hold = hold the parry action (X / Space),
+// swipe = the direction actions (d-pad, left stick, arrows), taps = the mash
+// action (Square / F); each judged on the press's own timestamp.
 //
 // runBeats(scene, {cfg, windowMult, difficulty, swipe, target, onResult, force}) -> [result x3]
 //   difficulty: the difficulty id; beats.taps.taps may be a number or {story, normal, unforgettable} (tapsFor).
@@ -101,14 +105,18 @@ function beat(scene, state, run) {
     const objects = [];
     const listeners = [];
     let done = false;
+    const offs = [];
     const on = (emitter, event, fn) => {
       emitter.on(event, fn);
       listeners.push([emitter, event, fn]);
     };
+    // A keyboard / controller action for this beat only (Input.onAction).
+    const act = (actions, fn, opts) => offs.push(onAction(scene, actions, fn, opts));
     const finish = (result) => {
       if (done) return;
       done = true;
       listeners.forEach(([e, ev, fn]) => e.off(ev, fn));
+      offs.forEach((off) => off());
       objects.forEach((o) => o.destroy());
       resolve(result);
     };
@@ -122,10 +130,10 @@ function beat(scene, state, run) {
     };
     if (state.forced) {
       scene.time.delayedCall(FORCE_MS, () => finish(state.forced));
-      run({ add, on: () => {}, finish: () => {}, start, live: scene.recollectionBeat });
+      run({ add, on: () => {}, act: () => {}, finish: () => {}, start, live: scene.recollectionBeat });
       return;
     }
-    run({ add, on, finish, start, live: scene.recollectionBeat });
+    run({ add, on, act, finish, start, live: scene.recollectionBeat });
   });
 }
 
@@ -200,7 +208,7 @@ const BEATS = {
     const centre = def.holdMs * def.centrePct;
     const perfect = def.perfectMs * mult;
     const good = def.goodMs * mult;
-    return beat(scene, { kind: 'hold', index, forced, holdMs: def.holdMs, centreMs: centre, pressedAt: null }, ({ add, on, finish, start, live }) => {
+    return beat(scene, { kind: 'hold', index, forced, holdMs: def.holdMs, centreMs: centre, pressedAt: null }, ({ add, on, act, finish, start, live }) => {
       const gfx = add(scene.add.graphics().setDepth(cfg.depth));
       const col = cfg.colors;
       let pressed = null;
@@ -227,6 +235,23 @@ const BEATS = {
         live.releasedAfter = held;
         finish(judge(Math.abs(held - centre), perfect, good));
       });
+      // Keyboard / controller: hold the parry action, release in the gold.
+      const KEY = 'key';
+      act('parry', (e) => {
+        if (pressed) return;
+        pressed = { pointer: KEY, at: stamp(e.time) };
+        live.pressedAt = pressed.at;
+      });
+      act(
+        'parry',
+        (e) => {
+          if (!pressed || pressed.pointer !== KEY) return;
+          const held = stamp(e.time) - pressed.at;
+          live.releasedAfter = held;
+          finish(judge(Math.abs(held - centre), perfect, good));
+        },
+        { release: true },
+      );
       on(scene.events, 'update', () => {
         const now = performance.now();
         if (!pressed) {
@@ -245,7 +270,7 @@ const BEATS = {
     const dir = def.directions[Math.floor(Math.random() * def.directions.length)];
     const windowMs = def.swipeMs * mult;
     const perfect = def.perfectMs * mult;
-    return beat(scene, { kind: 'swipe', index, forced, dir, windowMs }, ({ add, on, finish, start }) => {
+    return beat(scene, { kind: 'swipe', index, forced, dir, windowMs }, ({ add, on, act, finish, start }) => {
       const a = def.arrow;
       const gfx = add(scene.add.graphics({ x: a.x, y: a.y }).setDepth(cfg.depth));
       const half = a.length / 2;
@@ -271,6 +296,11 @@ const BEATS = {
         check(pointer);
         fresh.delete(pointer);
       });
+      // Keyboard / controller: press the arrow's direction (d-pad, left stick, arrow keys).
+      act(['up', 'down', 'left', 'right'], (e) => {
+        const t = stamp(e.time) - start;
+        finish(e.action !== dir ? 'MISS' : judge(t, perfect, windowMs));
+      });
       on(scene.events, 'update', () => {
         if (performance.now() - start > windowMs) finish('MISS');
       });
@@ -282,7 +312,7 @@ const BEATS = {
   taps(scene, cfg, def, mult, { index, forced, tapFx, difficulty }) {
     const windowMs = def.tapWindowMs * (def.tapWindowScales ? mult : 1);
     const total = tapsFor(def, difficulty);
-    return beat(scene, { kind: 'taps', index, forced, taps: total, windowMs, count: 0 }, ({ add, on, finish: end, start, live }) => {
+    return beat(scene, { kind: 'taps', index, forced, taps: total, windowMs, count: 0 }, ({ add, on, act, finish: end, start, live }) => {
       const m = def.meter;
       const c = def.counter;
       const col = cfg.colors;
@@ -304,8 +334,8 @@ const BEATS = {
       const bar = add(scene.add.rectangle(m.x - m.w / 2, m.timeBarY, m.w, m.timeBarH, color(col.gold)).setOrigin(0, 0.5).setDepth(cfg.depth));
       let firstAt = null;
       let count = 0;
-      on(scene.input, 'pointerdown', (pointer) => {
-        const t = stamp(pointer.downTime);
+      const tap = (time, x, y) => {
+        const t = stamp(time);
         if (firstAt === null) firstAt = t;
         if (count >= total) return;
         count += 1;
@@ -314,12 +344,15 @@ const BEATS = {
         scene.tweens.killTweensOf(big);
         scene.tweens.add({ targets: big, scale: { from: c.popScale, to: 1 }, duration: c.popMs, ease: 'Back.easeOut' });
         fill.setScale(count / total, 1);
-        tapFx?.tap({ count, total: total, x: pointer.worldX, y: pointer.worldY });
+        tapFx?.tap({ count, total: total, x, y });
         tapFx?.milestone(count, total);
         if (count < total) return;
         const elapsed = t - firstAt;
         finish(elapsed > windowMs ? 'MISS' : windowMs - elapsed >= def.perfectSpareMs ? 'PERFECT' : 'GOOD');
-      });
+      };
+      on(scene.input, 'pointerdown', (pointer) => tap(pointer.downTime, pointer.worldX, pointer.worldY));
+      // Keyboard / controller: mash the mash action (Square / F); the sparks burst at the meter.
+      act('mash', (e) => tap(e.time, m.x, m.y));
       on(scene.events, 'update', () => {
         const now = performance.now();
         if (firstAt === null) {

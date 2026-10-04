@@ -4,6 +4,7 @@ import ui from '../data/ui.json';
 import { devParam } from './DevParams.js';
 import { rect as viewRect } from './View.js';
 import { onAction } from './Input.js';
+import input from '../data/input.json';
 
 // Tutorial pauses (src/data/tutorial.json): the scene freezes, everything is
 // dimmed except the spotlight targets, a short text box explains them and a
@@ -127,13 +128,22 @@ class Pause {
       this.pressed = false;
       this.next();
     });
-    // Keyboard / controller: confirm steps on like a tap on the dim (it never leaks to the battle
-    // under the pause). A guided pause waits for its spotlit button instead.
+    // Keyboard / controller: the pause swallows every action, like the dim swallows taps. Confirm steps on;
+    // a guided pause takes confirm or its target's own action and then does what the tap would have done.
     this.offConfirm = onAction(
       scene,
-      'confirm',
-      () => {
-        if (!this.guided && !this.done && performance.now() - this.shownAt >= cfg.minDismissMs) this.next();
+      input.actions,
+      (e) => {
+        if (this.done || performance.now() - this.shownAt < cfg.minDismissMs) return true;
+        if (!this.guided) {
+          if (e.action === 'confirm') this.next();
+          return true;
+        }
+        const answer = this.keyAnswer(e.action);
+        if (answer) {
+          this.finish();
+          answer();
+        }
         return true;
       },
       { priority: cfg.inputPriority },
@@ -171,6 +181,23 @@ class Pause {
     this.scene.tutorialPause.step = this.index;
     this.clearStep();
     this.build();
+  }
+
+  // A guided pause answered with a key: what its spotlit target does for `action`, or null.
+  // cmd.<slot>: confirm or that slot's shortcut (input.json commandShortcuts) presses the button;
+  // nala (input.json tutorialTargets): confirm or her action is the tap on her.
+  keyAnswer(action) {
+    const scene = this.scene;
+    const target = (this.steps[this.index]?.targets || [])[0];
+    if (!target) return null;
+    if (target.startsWith('cmd.')) {
+      const slot = target.slice(4);
+      const ok = action === 'confirm' || input.commandShortcuts[action] === slot;
+      return ok ? () => scene.menu?.pressSlot(slot) : null;
+    }
+    const own = input.tutorialTargets[target];
+    if (own && (action === 'confirm' || action === own)) return () => scene.nalaTap?.();
+    return null;
   }
 
   // A point inside a spotlight of a guided pause that is ready for the tap.

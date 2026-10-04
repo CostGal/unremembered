@@ -88,7 +88,7 @@ await withBrowser(async ({ server, chrome }) => {
 
   // Battle: P pauses, Esc resumes; the fake controller's Options pauses, Circle (back) resumes.
   {
-    const page = await openFront(chrome, `${server.url}?step=4`, { ...desk, init: [FAKE_PAD] });
+    const page = await openFront(chrome, `${server.url}?step=4&pauses=0`, { ...desk, init: [FAKE_PAD] });
     await waitScene(page, 'Battle');
     await sleep(2500);
     await press(page, 'KeyP');

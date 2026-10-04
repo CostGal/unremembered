@@ -1,5 +1,15 @@
 {
   "font": "\"Play\", sans-serif",
+  "focus": {
+    "color": "0x3fd0c9",
+    "width": 2,
+    "pad": 4,
+    "radius": 12,
+    "alpha": 1,
+    "pulseAlpha": 0.45,
+    "pulseMs": 520,
+    "depthAbove": 1
+  },
   "view": {
     "designW": 360,
     "designH": 640,

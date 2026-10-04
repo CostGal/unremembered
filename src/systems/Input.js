@@ -173,11 +173,22 @@ function dispatch(kind, action, time, device) {
   }
 }
 
-// Event timestamps share the performance.now() clock; one that is far off (an old
+// Key event timestamps share the performance.now() clock; one that is far off (an old
 // browser on another clock) falls back to now.
 function eventTime(t) {
   const now = performance.now();
   return typeof t === 'number' && t > 0 && Math.abs(now - t) <= cfg.maxTimestampSkewMs ? t : now;
+}
+
+// A pad's timestamp is when its state last changed: for a press seen in this poll that is
+// after the previous poll (a slow frame must not make the press late). Anything else
+// (another clock, a stale value) falls back to now.
+const lastPoll = new Map();
+function padTime(pad, now) {
+  const t = pad.timestamp;
+  const prev = lastPoll.get(pad.index) ?? now - cfg.maxTimestampSkewMs;
+  lastPoll.set(pad.index, now);
+  return typeof t === 'number' && t >= prev - cfg.padTimestampSlackMs && t <= now + cfg.padTimestampSlackMs ? Math.min(t, now) : now;
 }
 
 // ---------- Keyboard ----------
@@ -227,8 +238,9 @@ function edge(id, pressed, actions, time) {
 function pollPads() {
   const pads = readPads();
   if (!pads.length) return;
+  const now = performance.now();
   for (const pad of pads) {
-    const time = eventTime(pad.timestamp);
+    const time = padTime(pad, now);
     for (const [index, actions] of buttonToActions) {
       const b = pad.buttons[index];
       if (!b) continue;

@@ -67,8 +67,8 @@ export default class PauseScene extends Phaser.Scene {
     });
     // Pause / Back on the keyboard or controller: Resume.
     onAction(this, input.pause.resumeActions, () => {
-      if (this.confirming) return true;
-      this.continue();
+      if (this.confirming) this.cancelQuit?.();
+      else this.continue();
       return true;
     });
   }
@@ -93,11 +93,23 @@ export default class PauseScene extends Phaser.Scene {
     const p = cfg.menu.panel;
     const parts = [glassPanel(this, 180, p.y, p.w, p.h, p), addText(this, 180, cfg.menu.titleY, c.title, cfg.title), addText(this, 180, c.textY, c.text, c.textStyle)];
     const yes = makeGlassButton(this, 180, c.yes.y, cfg.menu.button, ui.glass, c.yes.variant, c.yes.label, () => this.quit());
-    const no = makeGlassButton(this, 180, c.no.y, cfg.menu.button, ui.glass, c.no.variant, c.no.label, () => {
-      for (const o of [...parts, yes.container, no.container]) o.destroy();
-      for (const o of this.page) o.setVisible(true);
-      this.confirming = false;
-    });
+    const no = makeGlassButton(
+      this,
+      180,
+      c.no.y,
+      cfg.menu.button,
+      ui.glass,
+      c.no.variant,
+      c.no.label,
+      () => {
+        for (const o of [...parts, yes.container, no.container]) o.destroy();
+        for (const o of this.page) o.setVisible(true);
+        this.confirming = false;
+      },
+      { focusDefault: true },
+    );
+    // Keyboard / controller: back (or pause) is No.
+    this.cancelQuit = () => no.focus.activate();
   }
 
   // Everything of the run stops; the Menu starts fresh.

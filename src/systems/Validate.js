@@ -1151,9 +1151,21 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
       });
     }
     for (const key of ['resumeActions', 'continueActions']) for (const a of inp.pause?.[key] || []) if (!actions.has(a)) err(`input.pause.${key}: unknown action "${a}"`);
+    for (const a of Object.keys(inp.commandShortcuts || {})) if (!actions.has(a)) err(`input.commandShortcuts: unknown action "${a}"`);
+    for (const [t, a] of Object.entries(inp.tutorialTargets || {})) if (!actions.has(a)) err(`input.tutorialTargets.${t}: unknown action "${a}"`);
+    // A guided tutorial pause must be answerable with a key: a command slot or a target in tutorialTargets.
+    for (const [pid, def] of Object.entries(tutorial?.pauses || {})) {
+      if (def.mode !== 'guided') continue;
+      const target = (stepsOfPause(def)[0]?.targets || [])[0];
+      if (target && !target.startsWith('cmd.') && !inp.tutorialTargets?.[target]) warn(`tutorial.pauses.${pid}: guided target "${target}" has no key (input.json tutorialTargets)`);
+    }
   }
 
   return { errors, warnings };
+}
+
+function stepsOfPause(def) {
+  return def.steps || [{ targets: def.targets }];
 }
 
 // recollection.json (the minigame "Burn the memory"), the forced no-input attack it falls back on

@@ -35,6 +35,7 @@ import TutorialHints from '../systems/TutorialHints.js';
 import tutorialData from '../data/tutorial.json';
 import * as TutorialPause from '../systems/TutorialPause.js';
 import { addPauseButton, pauseScene } from '../systems/PauseButton.js';
+import { onAction } from '../systems/Input.js';
 import * as Qte from '../systems/Qte.js';
 import { devInt, devParam } from '../systems/DevParams.js';
 import { impact, impactLab, prewarmImpact } from '../systems/Impact.js';
@@ -375,6 +376,8 @@ export default class BattleScene extends Phaser.Scene {
 
     image.setInteractive({ useHandCursor: true });
     image.on('pointerdown', () => this.nalaTap());
+    // Keyboard / controller: the nala action (Triangle / N) is the tap on her.
+    onAction(this, 'nala', () => this.nalaTap());
   }
 
   // Her saves per battle: 1, +1 per Nala's Bell (fragments.json nalaExtraUses).
@@ -2433,6 +2436,8 @@ export default class BattleScene extends Phaser.Scene {
       Fx.popText(this, heroes[0].container.x, heroes[0].container.y, ne.text, ne.color, qte.text);
     };
     this.input.on('pointerdown', shout);
+    // A parry / dodge press answers nothing either: the same shout.
+    const offKeys = [onAction(this, ['parry', 'dodge'], shout)];
     this.tapHint.setText(ne.text).setVisible(true);
     const restoreDepth = this.bringInFront(enemy, heroes[0]);
     try {
@@ -2461,6 +2466,7 @@ export default class BattleScene extends Phaser.Scene {
       }
     } finally {
       this.input.off('pointerdown', shout);
+      offKeys.forEach((off) => off());
       this.tapHint.setText(qte.hint.text).setVisible(false);
       restoreDepth();
     }

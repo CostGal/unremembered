@@ -6,6 +6,7 @@ import { playMusic, playOneShot, playSfx } from '../systems/Audio.js';
 import { drawChoices } from '../systems/Fragments.js';
 import { whenReady } from '../systems/Assets.js';
 import { glassPanel, keyArtBackdrop } from '../systems/Backdrop.js';
+import { registerFocusable } from '../systems/Focus.js';
 
 const cfg = fragments.screen;
 const placement = audioData.music.placement;
@@ -75,6 +76,8 @@ export default class RewardScene extends Phaser.Scene {
 
     rect.setInteractive({ useHandCursor: true });
     rect.on('pointerdown', () => this.pick(id, container));
+    // Keyboard / controller: the cards take the focus; confirm picks.
+    registerFocusable(this, { container, rect, activate: () => this.pick(id, container), enabled: () => !this.picked });
     return { id, container, rect };
   }
 

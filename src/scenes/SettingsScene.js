@@ -8,6 +8,7 @@ import { saveSettings } from '../systems/Settings.js';
 import { difficultyDef, difficultyIds, normalizeDifficulty } from '../systems/Difficulty.js';
 import { activeFontDef, applyFont, fontIds, fontLabel, loadFont, restyleScene } from '../systems/Fonts.js';
 import { LANGUAGES, applyLanguage, langDef } from '../systems/Lang.js';
+import { setFocusBack } from '../systems/Focus.js';
 
 const cfg = ui.settings;
 
@@ -55,7 +56,10 @@ export default class SettingsScene extends Phaser.Scene {
     this.hint = addText(this, 180, cfg.hint.y, '', cfg.hint).setDepth(depth);
     this.refresh();
 
-    makeGlassButton(this, 180, cfg.backY, cfg.button, ui.glass, 'secondary', cfg.labels.back, () => this.back()).container.setDepth(depth);
+    const backButton = makeGlassButton(this, 180, cfg.backY, cfg.button, ui.glass, 'secondary', cfg.labels.back, () => this.back());
+    backButton.container.setDepth(depth);
+    // Keyboard / controller: back presses Back.
+    setFocusBack(this, () => backButton.focus.activate());
   }
 
   change(key) {

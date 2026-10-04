@@ -1,11 +1,16 @@
 import ui from '../data/ui.json';
 import { makeGlassButton } from './Button.js';
 import { describeTarget, layoutTargets, makeTargetCard } from './TargetMenu.js';
+import input from '../data/input.json';
+import { onAction } from './Input.js';
 
 // The command buttons in the lower screen (2×2 grid, slots from ui.json).
 // show(items) draws one button per item and resolves with the tapped item's
 // value. items: [{slot, label, cost?, enabled?, covered?, pulse?, value}]
 // A Back item is just an item whose value is null.
+// Keyboard / controller: the buttons take the focus (systems/Focus.js); while a
+// menu is up, back presses its Back item and the input.json commandShortcuts
+// actions (strike: Square, technique: R2) press the item with that value.
 
 export default class CommandMenu {
   constructor(scene, cfg, font) {
@@ -44,7 +49,21 @@ export default class CommandMenu {
       // What's on screen (read by the headless playtest bot).
       this.items = items;
       this.buttons = items.map((item) => this.makeButton(item, () => this.choose(item.value)));
+      this.listenKeys(items, this.buttons);
     });
+  }
+
+  // While this menu is up: back = its Back item (value null), a shortcut action = the item with that value.
+  listenKeys(items, buttons) {
+    const press = (value) => {
+      const i = items.findIndex((it) => it.value === value);
+      if (i < 0 || items[i].enabled === false) return false;
+      buttons[i].focus.activate();
+      return true;
+    };
+    const offs = [onAction(this.scene, 'back', () => press(null))];
+    for (const [action, value] of Object.entries(input.commandShortcuts)) offs.push(onAction(this.scene, action, () => press(value)));
+    this.offKeys = () => offs.forEach((off) => off());
   }
 
   // Target select (ui.json target): a card per candidate (name, HP bar, status tags) plus Back.
@@ -66,10 +85,14 @@ export default class CommandMenu {
         card.container.setDepth(this.cfg.button.depth || 0);
         card.rect.on('pointerover', () => opts.onFocus?.(c));
         card.rect.on('pointerout', () => opts.onFocus?.(null));
+        // Keyboard / controller focus lights the sprite like the hover does.
+        card.focus.onFocus = () => opts.onFocus?.(c);
+        card.focus.onBlur = () => opts.onFocus?.(null);
         return card;
       });
       const back = this.makeButton({ slot: 'back', label: cfg.backText, value: null, pos: lay.back }, () => this.choose(null));
       this.buttons.push(back);
+      this.listenKeys(this.items, this.buttons);
     });
   }
 
@@ -82,6 +105,8 @@ export default class CommandMenu {
 
   hide() {
     this.hideHelp();
+    this.offKeys?.();
+    this.offKeys = null;
     this.pending = null;
     this.items = [];
     for (const b of this.buttons) {
@@ -195,6 +220,14 @@ export default class CommandMenu {
       pulse = this.scene.tweens.add({ targets: container, scale: b.pulseScale, duration: b.pulseMs, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
 
-    return { container, rect, pulse };
+    return { container, rect, pulse, focus: button.focus };
+  }
+
+  // Presses the button in `slot` (a guided tutorial pause answered with the keyboard / controller).
+  pressSlot(slot) {
+    const i = this.items.findIndex((it) => it.slot === slot);
+    if (i < 0 || this.items[i].enabled === false) return false;
+    this.buttons[i]?.focus.activate();
+    return true;
   }
 }
