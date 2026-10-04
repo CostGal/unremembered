@@ -263,6 +263,30 @@
           "x": 196,
           "feetY": 350
         }
+      ],
+      "_arena": "Arena bundles (arena.json tiers): Quill + one more, two Wardens (drawn at 2x), three Wardens, a Warden + two Hollows. The first slot is the back row.",
+      "pair_boss": [
+        { "x": 292, "feetY": 318 },
+        { "x": 204, "feetY": 352 }
+      ],
+      "pair_large": [
+        { "x": 286, "feetY": 318 },
+        { "x": 200, "feetY": 352 }
+      ],
+      "trio_large": [
+        { "x": 284, "feetY": 300 },
+        { "x": 208, "feetY": 316 },
+        { "x": 252, "feetY": 352 }
+      ],
+      "trio_boss": [
+        { "x": 296, "feetY": 312 },
+        { "x": 210, "feetY": 330 },
+        { "x": 262, "feetY": 356 }
+      ],
+      "trio_warden": [
+        { "x": 284, "feetY": 318 },
+        { "x": 204, "feetY": 302 },
+        { "x": 212, "feetY": 352 }
       ]
     }
   },
@@ -1325,8 +1349,7 @@
       },
       {
         "id": "arena",
-        "label": "Arena 🔒",
-        "locked": true
+        "label": "Arena"
       },
       {
         "id": "settings",

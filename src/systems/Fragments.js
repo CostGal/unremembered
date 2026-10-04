@@ -1,4 +1,5 @@
 import fragments from '../data/fragments.json';
+import arena from '../data/arena.json';
 import { devParam } from './DevParams.js';
 
 // Memories (fragments.json; the code keeps the old "fragments" name): passives
@@ -8,11 +9,20 @@ import { devParam } from './DevParams.js';
 // story (the_page). Effect keys:
 //   startEcho, nalaExtraUses, perfectWindowMs, dovMaxHp, perfectEchoBonus,
 //   anchorBonus, counterBonus (summed)    blastCritChance (the best one wins)
+// Arena buffs and campfire upgrades (arena.json buffs / campfire.upgrades) live in
+// the same list for an Arena run and stack: each copy counts. Their own keys:
+//   maxHpPct, strikeBonus, dmgTakenPct, healAfterFightPct, xpPct (summed)
 
-// The ids owned now. ?fragments=half_loaf,worn_glove adds some for testing.
+// A memory's or an Arena buff's definition: {name, short, color, text, effects}.
+export function fragmentDef(id) {
+  return fragments.pool[id] || arena.buffs[id] || arena.campfire.upgrades[id] || null;
+}
+
+// The ids owned now (an Arena buff once per copy). ?fragments=half_loaf,worn_glove adds some for testing.
 export function ownedFragments(registry) {
-  const dev = (devParam('fragments') || '').split(',').filter((id) => fragments.pool[id]);
-  return [...new Set([...(registry.get('fragments') || []), ...dev])];
+  const kept = registry.get('fragments') || [];
+  const dev = (devParam('fragments') || '').split(',').filter((id) => fragmentDef(id) && !kept.includes(id));
+  return [...kept, ...new Set(dev)];
 }
 
 // The reward step's choices: its pool (`pools[stepId]`) minus what is owned, else
@@ -42,11 +52,11 @@ export function dropsFor(killedTypes, owned, rnd = Math.random) {
 }
 
 export function effectTotal(owned, key) {
-  return owned.reduce((sum, id) => sum + (fragments.pool[id]?.effects[key] || 0), 0);
+  return owned.reduce((sum, id) => sum + (fragmentDef(id)?.effects[key] || 0), 0);
 }
 
 export function effectMax(owned, key) {
-  return owned.reduce((best, id) => Math.max(best, fragments.pool[id]?.effects[key] || 0), 0);
+  return owned.reduce((best, id) => Math.max(best, fragmentDef(id)?.effects[key] || 0), 0);
 }
 
 // Adds a memory to the run's registry list (a no-op when owned). Returns true when it was added.

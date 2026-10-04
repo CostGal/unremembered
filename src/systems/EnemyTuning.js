@@ -64,6 +64,28 @@ export function tuneEnemyDef(def, difficultyId) {
   return out;
 }
 
+// The Arena's per-fight scaling (arena.json scaling, systems/ArenaRunner.js), applied after the
+// difficulty tuning: {hpMult, dmgMult, telegraphMult}, each default 1. Returns a scaled copy.
+export function scaleEnemyDef(def, scale) {
+  if (!def || !scale) return def;
+  const { hpMult = 1, dmgMult = 1, telegraphMult = 1 } = scale;
+  if (hpMult === 1 && dmgMult === 1 && telegraphMult === 1) return def;
+  const out = clone(def);
+  out.hp = Math.round(out.hp * hpMult);
+  const scaleHit = (hit) => {
+    if (typeof hit.telegraphMs === 'number') hit.telegraphMs = Math.round(hit.telegraphMs * telegraphMult);
+    if (typeof hit.dmg === 'number') hit.dmg = Math.round(hit.dmg * dmgMult);
+  };
+  for (const list of attackLists(out)) {
+    for (const a of list) {
+      scaleHit(a);
+      for (const h of a.hits || []) scaleHit(h);
+    }
+  }
+  if (out.defend?.reparry) scaleHit(out.defend.reparry);
+  return out;
+}
+
 // The stage (or phase) the enemy is in, or null for a flat enemy.
 export function currentStage(def, phase) {
   return (def.stages || def.phases)?.[phase || 0] ?? null;

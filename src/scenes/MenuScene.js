@@ -16,7 +16,7 @@ import { addVersionLabel } from '../systems/Version.js';
 
 const cfg = ui.menu;
 
-// New Game | Chapter 2 (locked) | Arena (locked) | Settings | Credits
+// New Game | Chapter 2 (locked) | Arena | Settings | Credits
 export default class MenuScene extends Phaser.Scene {
   constructor() {
     super('Menu');
@@ -114,6 +114,7 @@ export default class MenuScene extends Phaser.Scene {
       return;
     }
     if (item.id === 'new') this.newGame();
+    else if (item.id === 'arena') this.scene.start('ArenaTeam');
     else if (item.id === 'settings') this.scene.start('Settings');
     else if (item.id === 'credits') this.scene.start('End', { credits: true });
   }

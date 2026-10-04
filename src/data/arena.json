@@ -1,0 +1,269 @@
+{
+  "_about": "Arena (systems/ArenaRunner.js): an endless gauntlet, fighting only. Team select (scenes/ArenaTeamScene.js) picks 2 heroes + 1 support from `roster`. HP carries over between fights; the enemies get stronger every fight (`scaling`); the bundle comes from the `tiers` entry whose `fromFight` was reached last (the last tier repeats forever). After every win: the level card (`levels`, separate from levels.json so the story balance is untouched), then pick 1 of 3 `buffs`. After every `campfire.every` wins: the campfire heals everyone (downed heroes too) and offers 1 of 3 `campfire.upgrades`. A team wipe ends the run (scenes/ArenaEndScene.js). Per run only: nothing is saved.",
+
+  "roster": {
+    "heroes": [
+      {
+        "id": "rhea",
+        "portrait": "rhea_determined",
+        "role": "Fast · Damage",
+        "color": "#3fd0c9",
+        "path": "Lv 4 Return to Sender · Lv 10 Recollection"
+      },
+      {
+        "id": "dov",
+        "portrait": "dov_fierce",
+        "role": "Tank · Heals",
+        "color": "#e0a040",
+        "path": "Lv 2 Anchor · Lv 6 Brace"
+      },
+      { "id": null, "locked": true }
+    ],
+    "supports": [
+      {
+        "id": "nala",
+        "portrait": "nala_calm",
+        "name": "Nala",
+        "role": "Support · Hollow sense",
+        "color": "#e8883a",
+        "text": "Tap her while a Hollow winds up to cancel its attack. Her Glow lets Strikes hit Hollows."
+      },
+      { "id": null, "locked": true }
+    ]
+  },
+
+  "heroCount": 2,
+  "supportCount": 1,
+
+  "scaling": {
+    "_about": "Fight n (1-based): enemy HP x (1 + hpPerFight x (n-1)), damage x (1 + dmgPerFight x (n-1)), telegraph x max(telegraphMin, 1 - telegraphPerFight x (n-1)). On top of the chosen difficulty; byDifficulty.<id> overrides any of them (Story's half damage would otherwise never end a run).",
+    "hpPerFight": 0.1,
+    "dmgPerFight": 0.16,
+    "telegraphPerFight": 0.01,
+    "telegraphMin": 0.8,
+    "byDifficulty": {
+      "story": { "dmgPerFight": 0.5 }
+    }
+  },
+
+  "_heal": "Every standing hero heals this share of max HP after each win (before the buffs' healAfterFightPct).",
+  "healAfterFightPct": 15,
+
+  "tiers": [
+    {
+      "fromFight": 1,
+      "stage": "street_far",
+      "bundles": [
+        { "enemies": ["blank", "blank"] },
+        { "enemies": ["blank", "hollow"] },
+        { "enemies": ["hollow"] }
+      ]
+    },
+    {
+      "fromFight": 4,
+      "stage": "street_mid",
+      "bundles": [
+        { "enemies": ["hollow", "hollow"] },
+        { "enemies": ["hollow_warden", "hollow"], "formation": "gate" },
+        { "enemies": ["blank", "blank", "hollow"] },
+        { "enemies": ["blank", "hollow_warden"], "formation": "gate" }
+      ]
+    },
+    {
+      "fromFight": 8,
+      "stage": "office_gate",
+      "bundles": [
+        { "enemies": ["blank", "blank", "blank"] },
+        { "enemies": ["hollow_warden", "hollow_warden"], "formation": "pair_large" },
+        { "enemies": ["clerk_arena"], "music": "boss" },
+        { "enemies": ["hollow", "blank", "hollow"] }
+      ]
+    },
+    {
+      "fromFight": 12,
+      "stage": "records_office",
+      "bundles": [
+        { "enemies": ["clerk_arena", "blank"], "formation": "pair_boss", "music": "boss" },
+        { "enemies": ["clerk_arena", "clerk_arena"], "formation": "pair_boss", "music": "boss" },
+        { "enemies": ["hollow_warden", "hollow_warden", "hollow_warden"], "formation": "trio_large" },
+        { "enemies": ["hollow_warden", "hollow", "hollow"], "formation": "trio_warden" },
+        { "enemies": ["clerk_arena", "hollow"], "formation": "pair_boss", "music": "boss" }
+      ]
+    },
+    {
+      "fromFight": 20,
+      "stage": "records_office",
+      "bundles": [
+        { "enemies": ["clerk_arena", "clerk_arena", "blank"], "formation": "trio_boss", "music": "boss" },
+        { "enemies": ["clerk_arena", "hollow_warden", "hollow"], "formation": "trio_boss", "music": "boss" },
+        { "enemies": ["hollow_warden", "hollow_warden", "hollow_warden"], "formation": "trio_large" },
+        { "enemies": ["clerk_arena", "blank", "blank"], "formation": "trio_boss", "music": "boss" }
+      ]
+    }
+  ],
+
+  "stages": {
+    "street_far": { "bg": "bg_street_far", "platform": "platform_street", "env": "street_rain", "music": "battle" },
+    "street_mid": { "bg": "bg_street_mid", "platform": "platform_street", "env": "street_rain", "music": "battle_hollow" },
+    "office_gate": { "bg": "bg_office_gate", "platform": "platform_street", "env": "street_rain", "music": "battle_gate" },
+    "records_office": { "bg": "records_office", "platform": "platform_office", "env": "records_office", "music": "battle_gate" }
+  },
+
+  "_levels": "Same shape as levels.json (systems/Recall.js reads both). techLevel[level-1] = the techniques.json `levels` key a technique is at (their tables go to 5). learn.rhea.recollection: from that level Rhea can cast the Recollection (the Ultimate button; it needs her Echo full). xpMult: Memories per enemy x this.",
+  "levels": {
+    "xpMult": 1,
+    "xpAt": [0, 30, 70, 120, 180, 250, 330, 420, 510, 600, 700, 820, 950, 1090, 1240, 1400, 1570, 1750, 1940, 2140],
+    "techLevel": [1, 1, 2, 2, 3, 3, 4, 4, 5, 5],
+    "echoMax": {
+      "rhea": [2, 3, 3, 4, 5, 5, 6, 7, 8, 10],
+      "dov": [5]
+    },
+    "growth": {
+      "rhea": { "hp": 4, "strike": 0.5 },
+      "dov": { "hp": 6, "strike": 0.5 }
+    },
+    "learn": {
+      "rhea": { "blast": 1, "return_to_sender": 4, "recollection": 10 },
+      "dov": { "tremor": 1, "anchor": 2, "brace": 6 }
+    },
+    "flavor": {
+      "return_to_sender": "A courier's rule: every letter finds its way home.",
+      "anchor": "The night they took Mom, he held his sister until morning.",
+      "brace": "His shoulder against the dock gates while the river rose.",
+      "recollection": "Burn a memory around the enemy. Fill her Echo, then tap Recollection."
+    },
+    "text": {
+      "title": "Stronger",
+      "memories": "+{n} XP",
+      "level": "Level {n}",
+      "levelUp": "LEVEL {n}",
+      "max": "MAX",
+      "stats": "{hero}  +{hp} HP  +{strike} {strikeName}",
+      "statsHp": "{hero}  +{hp} HP",
+      "remembers": "{hero} learns {tech}",
+      "upgrade": "{tech} grows: {detail}",
+      "hud": "Lv {n}"
+    }
+  },
+
+  "_recollection": "In the Arena the Recollection does not end the fight: by its grade (systems/RecollectionBeats.js) it takes that share of the target's max HP. A slipped memory (3 MISS) only costs the Echo.",
+  "recollection": {
+    "dmgPct": { "FLAWLESS": 0.7, "CLEAN": 0.5, "ROUGH": 0.3 },
+    "sub": { "FLAWLESS": "Every ember burned true.", "CLEAN": "It burns.", "ROUGH": "Enough to hurt." }
+  },
+
+  "_buffs": "After every win: pick 1 of `buffCount` (shown in a random order, never one at its `max` stacks). Effect keys (systems/Fragments.js effectTotal sums every copy): maxHpPct (every hero's max HP +%), strikeBonus (Strike damage +n), dmgTakenPct (damage taken +%, negative = less; the total stops at minDmgTakenPct), healAfterFightPct (after each win, every standing hero heals % of max HP), xpPct (XP +%), and the story memories' keys: startEcho, perfectWindowMs, perfectEchoBonus, counterBonus, anchorBonus, nalaExtraUses, dovMaxHp.",
+  "buffCount": 3,
+  "minDmgTakenPct": -35,
+  "buffs": {
+    "a_thick_coat": { "name": "Thick Coat", "short": "C", "color": "#e0a040", "text": "Every hero: +10% max HP.", "effects": { "maxHpPct": 10 }, "max": 3 },
+    "a_sharp_edge": { "name": "Sharp Edge", "short": "E", "color": "#f1efe8", "text": "Strike hits 1 harder.", "effects": { "strikeBonus": 1 }, "max": 3 },
+    "a_old_ticket": { "name": "Old Ticket", "short": "T", "color": "#3fd0c9", "text": "Every fight starts with +1 Echo.", "effects": { "startEcho": 1 }, "max": 4 },
+    "a_steady_hands": { "name": "Steady Hands", "short": "H", "color": "#f0c060", "text": "PERFECT parries are 10 ms easier.", "effects": { "perfectWindowMs": 10 }, "max": 3 },
+    "a_fists": { "name": "Bandaged Fists", "short": "F", "color": "#e0a040", "text": "PERFECT counters hit 2 harder.", "effects": { "counterBonus": 2 }, "max": 3 },
+    "a_dust": { "name": "Dust Shard", "short": "D", "color": "#3fd0c9", "text": "PERFECT parries give +1 Echo.", "effects": { "perfectEchoBonus": 1 }, "max": 2 },
+    "a_second_wind": { "name": "Second Wind", "short": "W", "color": "#7fd08a", "text": "After each win, heal 10% of max HP.", "effects": { "healAfterFightPct": 10 }, "max": 4 },
+    "a_iron_skin": { "name": "Iron Skin", "short": "I", "color": "#9db4c8", "text": "Take 6% less damage.", "effects": { "dmgTakenPct": -6 }, "max": 3 },
+    "a_half_loaf": { "name": "Half Loaf", "short": "L", "color": "#e0a040", "text": "Anchor heals 6 more.", "effects": { "anchorBonus": 6 }, "max": 3, "needsHero": "dov" },
+    "a_bell": { "name": "Nala's Bell", "short": "B", "color": "#e8883a", "text": "Nala can save you once more per fight.", "effects": { "nalaExtraUses": 1 }, "max": 2, "needsSupport": "nala" }
+  },
+
+  "campfire": {
+    "every": 4,
+    "upgradeCount": 3,
+    "upgrades": {
+      "c_kindled": { "name": "Kindled", "short": "K", "color": "#e8883a", "text": "Every hero: +20% max HP.", "effects": { "maxHpPct": 20 }, "max": 1 },
+      "c_whetstone": { "name": "Whetstone", "short": "W", "color": "#f1efe8", "text": "Strike hits 2 harder.", "effects": { "strikeBonus": 2 }, "max": 2 },
+      "c_ember_echo": { "name": "Ember Echo", "short": "E", "color": "#3fd0c9", "text": "Every fight starts with +3 Echo.", "effects": { "startEcho": 3 }, "max": 2 },
+      "c_hearth": { "name": "Hearth Guard", "short": "G", "color": "#9db4c8", "text": "Take 12% less damage.", "effects": { "dmgTakenPct": -12 }, "max": 1 },
+      "c_banked_fire": { "name": "Banked Fire", "short": "B", "color": "#7fd08a", "text": "After each win, heal 20% of max HP.", "effects": { "healAfterFightPct": 20 }, "max": 2 },
+      "c_bright": { "name": "Bright Memory", "short": "M", "color": "#f0c060", "text": "+30% XP from every fight.", "effects": { "xpPct": 30 }, "max": 2 },
+      "c_warm_hands": { "name": "Warm Hands", "short": "H", "color": "#f0c060", "text": "PERFECT parries are 20 ms easier.", "effects": { "perfectWindowMs": 20 }, "max": 1 }
+    }
+  },
+
+  "text": {
+    "team": {
+      "title": "Arena",
+      "hint": "Choose two heroes and a support.",
+      "heroSlot": "Hero",
+      "supportSlot": "Support",
+      "heroes": "Heroes",
+      "supports": "Support",
+      "stats": "HP {hp} · Strike {s0}–{s1} · Echo {echo}",
+      "locked": "Coming soon",
+      "begin": "Begin",
+      "back": "Back",
+      "difficulty": "Difficulty: {name}",
+      "pickHero": "Pick two heroes",
+      "pickSupport": "Pick a support"
+    },
+    "fight": "Fight {n}",
+    "campfireIn": "Campfire in {n}",
+    "campfireNext": "Campfire after this fight",
+    "buffs": { "title": "Stronger for the next fight", "hint": "Pick one. It stacks." },
+    "campfire": { "title": "The campfire", "hint": "Everyone heals. Pick a team upgrade.", "rested": "Everyone is back to full HP." },
+    "endRun": "End run",
+    "end": {
+      "title": "The memory fades…",
+      "fights": "Fights won: {n}",
+      "best": "Best this session: {n}",
+      "newBest": "New best!",
+      "level": "Team level {n}",
+      "time": "Time {t}",
+      "buffs": "Taken with you",
+      "again": "Fight again",
+      "menu": "Menu"
+    }
+  },
+
+  "ui": {
+    "depth": 20,
+    "team": {
+      "title": { "y": 28, "fontSize": 26, "color": "#3fd0c9" },
+      "hint": { "y": 52, "fontSize": 12, "color": "#b9b5a8" },
+      "difficulty": { "y": 68, "fontSize": 11, "color": "#8a8fa3" },
+      "slots": {
+        "y": 152, "w": 104, "h": 140, "gap": 8, "radius": 10,
+        "fill": "0x0b0d14", "fillAlpha": 0.7, "stroke": "0x5a5f73", "strokeAlpha": 0.6,
+        "labelDy": -58, "labelFontSize": 10, "labelColor": "#8a8fa3",
+        "nameDy": 58, "nameFontSize": 14,
+        "feetDy": 46, "plus": { "fontSize": 30, "color": "#5a5f73" },
+        "popScale": 1.08, "popMs": 160
+      },
+      "section": { "fontSize": 11, "color": "#8a8fa3", "x": 18 },
+      "heroesY": 236,
+      "supportsY": 434,
+      "card": {
+        "w": 328, "h": 56, "spacing": 60, "radius": 10,
+        "fill": "0x111726", "fillAlpha": 0.8, "stroke": "0x5a5f73", "strokeAlpha": 0.45,
+        "pickedFillAlpha": 0.95, "pickedStrokeAlpha": 1,
+        "portrait": 46, "portraitX": 34,
+        "nameX": 66, "nameDy": -15, "nameFontSize": 16,
+        "roleDy": -15, "roleFontSize": 10, "roleColor": "#8a8fa3", "roleRight": 316,
+        "statsDy": 3, "statsFontSize": 11, "statsColor": "#f1efe8",
+        "pathDy": 18, "pathFontSize": 10, "pathColor": "#3fd0c9",
+        "check": { "x": 310, "dy": 6, "fontSize": 18, "text": "✓" },
+        "lockedAlpha": 0.45, "lockedColor": "#e0a040",
+        "wrap": 240
+      },
+      "heroFirstY": 268,
+      "supportFirstY": 464,
+      "buttons": { "y": 592, "backX": 86, "backW": 124, "beginX": 240, "beginW": 196, "h": 56, "fontSize": 17 }
+    },
+    "banner": { "y": 120, "fontSize": 30, "color": "#f1efe8", "subFontSize": 13, "subColor": "#e8883a", "stroke": "#0b0d14", "strokeThickness": 4, "popScale": 1.4, "holdMs": 900, "fadeMs": 350 },
+    "rested": { "y": 500, "fontSize": 14, "color": "#7fd08a" },
+    "hintWrap": 300,
+    "embers": { "count": 14, "color": "0xe8883a", "size": 3, "x": [40, 320], "drift": 24, "y": 600, "rise": 220, "ms": [1600, 2600] },
+    "end": {
+      "titleY": 96, "lineFirstY": 160, "lineGap": 30, "buffsY": 300, "iconSize": 26, "iconGap": 6, "edge": 16,
+      "panel": { "y": 248, "w": 320, "h": 360, "fill": "0x0b0d14", "fillAlpha": 0.82, "stroke": "0x3fd0c9", "strokeAlpha": 0.45, "radius": 12 },
+      "title": { "fontSize": 24, "color": "#f1efe8" },
+      "fights": { "fontSize": 22, "color": "#3fd0c9" },
+      "line": { "fontSize": 14, "color": "#f1efe8", "dim": "#8a8fa3", "best": "#f0c060" },
+      "buffsLabel": { "fontSize": 12, "color": "#8a8fa3", "gap": 30 },
+      "count": { "fontSize": 11, "color": "#f1efe8" },
+      "againY": 520, "menuY": 588, "button": { "w": 240, "h": 56, "fontSize": 17 }
+    }
+  }
+}

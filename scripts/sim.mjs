@@ -10,6 +10,7 @@
 //   npm run sim -- --set enemies.clerk.hp=400 --set characters.rhea.hp=70
 //   npm run sim -- --no-recollection   the player never casts Recollection (sim.json policy.recollection: false)
 //   npm run sim -- --unforgettable     adds the Unforgettable difficulty rows
+//   npm run sim -- --arena             the Arena instead (arena.json): fights won per run, level reached
 //
 // QTE model: a profile is "lapse" (no useful tap at all) + a biased Gaussian
 // timing error (bias, sigma), solved so that the default windows (qte.json)
@@ -20,8 +21,9 @@ import { join } from 'node:path';
 import { root } from './lib/harness.mjs';
 import { dueEvents, thenSplit } from '../src/systems/BattleEvents.js';
 import { computeGrade } from '../src/systems/Grade.js';
-import { chapterXpBefore, echoMaxFor, growth, learned, levelFor, levelUps, techniqueAt } from '../src/systems/Recall.js';
-import { aiPickAttack, aiPickTarget, currentStage, recollectionAtOf, recollectionDue, tuneEnemyDef } from '../src/systems/EnemyTuning.js';
+import { battleXp, chapterXpBefore, echoMaxFor, growth, learned, levelFor, levelUps, techLevelOf, techniqueAt } from '../src/systems/Recall.js';
+import { aiPickAttack, aiPickTarget, currentStage, recollectionAtOf, recollectionDue, scaleEnemyDef, tuneEnemyDef } from '../src/systems/EnemyTuning.js';
+import { arenaBattleDef, arenaLevelCfg, buffDef, drawBuffs, healedLoss, pickBundle, bundleKey } from '../src/systems/Arena.js';
 
 const read = (p) => JSON.parse(readFileSync(join(root, p), 'utf8'));
 const D = {
@@ -45,6 +47,7 @@ const D = {
   recollection: read('src/data/recollection.json'),
   tutorial: read('src/data/tutorial.json'),
   fragments: read('src/data/fragments.json'),
+  arena: read('src/data/arena.json'),
 };
 const animSets = {};
 for (const id of Object.keys({ ...D.characters, ...D.enemies })) {
@@ -145,8 +148,11 @@ function pickWeighted(list, rnd) {
   return list[list.length - 1];
 }
 
-function simulateBattle(battleId, profileName, mode, rnd) {
-  const battle = D.battles[battleId];
+// arena (optional, simulateArenaRun): {battle: the fight's def, owned: buff ids}. The level, scaling
+// and carried wounds come from battle.arena; the result's `heroes` hold the HP left.
+function simulateBattle(battleId, profileName, mode, rnd, arena = null) {
+  const battle = arena ? arena.battle : D.battles[battleId];
+  const levelCfg = arena ? D.arenaLevels : D.levels;
   const profile = D.sim.profilesSolved[profileName];
   const tech = D.techniques;
   const qte = D.qte;
@@ -159,29 +165,35 @@ function simulateBattle(battleId, profileName, mode, rnd) {
 
   // Recall: the level a playthrough reaches by this battle (levels.json).
   const stepIndex = D.chapter.findIndex((step) => step.type === 'battle' && step.id === battleId);
-  const level = levelFor(chapterXpBefore(D.chapter, stepIndex < 0 ? 0 : stepIndex, D.battles, D.enemies), D.levels);
+  const level = arena ? battle.arena.level : levelFor(chapterXpBefore(D.chapter, stepIndex < 0 ? 0 : stepIndex, D.battles, D.enemies), D.levels);
   // Memories (fragments.json) owned by now: the reward picks (sim.json memoryPicks) and the
   // drops of the enemy types killed in earlier battles (once each), and the scene pickups
   // (fragments.json scenes) of the earlier dialogues, each found with policy.scenePickupChance.
-  const owned = [];
+  const owned = arena ? [...arena.owned] : [];
   for (const step of D.chapter.slice(0, stepIndex < 0 ? 0 : stepIndex)) {
     const scene = step.type === 'dialogue' ? D.fragments.scenes?.[step.id] : null;
     if (scene && D.fragments.pool[scene.id] && !owned.includes(scene.id) && rnd() < D.sim.policy.scenePickupChance[profileName]) owned.push(scene.id);
     const gets = step.type === 'reward' ? [D.sim.memoryPicks?.[step.id]] : step.type === 'battle' && !D.battles[step.id].events?.some((e) => e.then === 'endBattle') ? D.battles[step.id].enemies.map((t) => D.fragments.drops[t]?.id) : [];
     for (const id of gets) if (id && D.fragments.pool[id] && !owned.includes(id)) owned.push(id);
   }
-  const mem = (key) => owned.reduce((n, id) => n + (D.fragments.pool[id].effects[key] || 0), 0);
+  const mem = (key) => owned.reduce((n, id) => n + ((D.fragments.pool[id] || buffDef(id, D.arena)).effects[key] || 0), 0);
+  // Arena buffs: +% max HP, a harder Strike, less damage taken; HP carried from the last fight.
+  const hpPct = mem('maxHpPct');
+  const strikeBonus = mem('strikeBonus');
+  const takenMult = 1 + Math.max(D.arena.minDmgTakenPct, mem('dmgTakenPct')) / 100;
   const heroes = (battle.party ?? D.ui.battleLayout.defaultParty).map((id) => {
     const def = D.characters[id];
-    const g = growth(id, level, D.levels);
-    const hp = def.hp + g.hp + (id === 'dov' ? mem('dovMaxHp') : 0);
-    return { id, def, hp, max: hp, strike: [def.strike[0] + g.strike, def.strike[1] + g.strike], techniques: learned(id, level, def.techniques, D.levels), redacted: null, echo: 0, echoMax: echoMaxFor(id, level, D.levels) ?? def.echoMax ?? echoMax };
+    const g = growth(id, level, levelCfg);
+    const max = Math.round((def.hp + g.hp) * (1 + hpPct / 100)) + (id === 'dov' ? mem('dovMaxHp') : 0);
+    const w = battle.arena?.wounds?.[id];
+    const hp = w ? (w.down ? 0 : Math.max(1, max - w.lost)) : max;
+    return { id, def, hp, max, strike: [def.strike[0] + g.strike + strikeBonus, def.strike[1] + g.strike + strikeBonus], techniques: learned(id, level, def.techniques, levelCfg), redacted: null, echo: 0, echoMax: echoMaxFor(id, level, levelCfg) ?? def.echoMax ?? echoMax };
   });
   // enemies.json `stages`: the first stage opens at hpPct % of the HP (the bar shows that stage's own max).
   const fullHp = (def) => Math.round(def.hp * diff.enemyHpMult);
   const startHp = (def) => (def.stages ? Math.round((fullHp(def) * def.stages[0].hpPct) / 100) : fullHp(def));
   // enemies.json difficulty.<id> (EnemyTuning.tuneEnemyDef): the def is tuned once for this mode, as in BattleScene.
-  const tuned = (id) => tuneEnemyDef(D.enemies[id], mode);
+  const tuned = (id) => scaleEnemyDef(tuneEnemyDef(D.enemies[id], mode), battle.arena?.scale);
   const enemies = battle.enemies.map((id, i) => ({ id: `${id}_${i}`, type: id, def: tuned(id), hp: startHp(tuned(id)), max: startHp(tuned(id)), phase: 0, charge: null, poise: D.enemies[id].poise || 0, broken: false, rising: false }));
   // Hero views for EnemyTuning (it reads hp / maxHp / echo).
   const heroViews = () => heroes.map((h) => ({ hp: h.hp, maxHp: h.max, echo: h.echo, ref: h }));
@@ -214,7 +226,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       for (const ids of Object.values(up.upgraded)) for (const id of ids) learnSteps += (D.techniques[id]?.help?.upgrades?.[up.level] || []).length;
     }
   }
-  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0) + (pauseSteps + learnSteps) * (T.pauseMs?.[profileName] ?? 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, memoryCasts: 0, memoryFails: 0, memoryGrade: null, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaSaves: battle.nala ? 1 + mem('nalaExtraUses') : 0, glowOn: false, glowCd: 0, glows: 0, hollowDamage: 0, hollowImmune: 0, quietRounds: 0, stance: null, brace: null, pending: [], firedCharge: new Set(), flags: [], playerHits: 0, parrySuccess: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
+  const st = { ms: T.introMs + (battle.tutorial ? T.tutorialHintsMs : 0) + (pauseSteps + learnSteps) * (T.pauseMs?.[profileName] ?? 0), rounds: 0, recollections: 0, archives: 0, archiveInterrupts: 0, breaks: 0, parries: 0, redactions: 0, damageTaken: 0, keepsake: false, memoryCasts: 0, memoryFails: 0, memoryGrade: null, echoCurve: [], tutorialSlow: !!battle.tutorial, nalaSaves: battle.nala ? 1 + mem('nalaExtraUses') : 0, glowOn: !!battle.nalaGlow, heroes, glowCd: 0, glows: 0, hollowDamage: 0, hollowImmune: 0, quietRounds: 0, stance: null, brace: null, pending: [], firedCharge: new Set(), flags: [], playerHits: 0, parrySuccess: 0, immuneSeen: false, playerAction: false, actionLanded: false, interrupted: false, chain: 0, maxChain: 0, qtes: { PERFECT: 0, GOOD: 0, MISS: 0 } };
   // Echo is per hero (each has their own reserve).
   // A difficulty with echoMult < 1 earns Echo more slowly (the fraction carries over); raw skips it (the Keepsake).
   const gain = (hero, n, raw = false) => {
@@ -350,7 +362,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
     }
     st.maxChain = Math.max(st.maxChain, st.chain);
     gain(hero, cfg.echo + (res === 'PERFECT' && !dodged ? mem('perfectEchoBonus') : 0));
-    const dmg = Math.round(rp.dmg * cfg.damageMult * dmgTakenMult);
+    const dmg = Math.round(rp.dmg * cfg.damageMult * dmgTakenMult * takenMult);
     hurtHero(hero, dmg);
     if (res === 'PERFECT' && !dodged && enemy.hp > 0) {
       const was = st.playerAction;
@@ -385,9 +397,16 @@ function simulateBattle(battleId, profileName, mode, rnd) {
           const perfect = hits.map((h) => h && rnd() < perfectShare);
           st.memoryGrade = perfect.every(Boolean) ? 'FLAWLESS' : hits.every(Boolean) ? 'CLEAN' : 'ROUGH';
           st.ms += T.finisherMs;
+          // The Arena: a share of the target's max HP by grade, no kill (arena.json recollection).
+          if (arena) {
+            hitEnemy(target, Math.round(target.max * D.arena.recollection.dmgPct[st.memoryGrade]), 'ultimate');
+            return;
+          }
           break;
         }
         st.memoryFails += 1;
+        // The Arena has no Try again: a slipped memory only costs the Echo.
+        if (arena) return;
         st.ms += T.memoryFailMs;
         if (st.memoryFails > 50) break;
       }
@@ -537,7 +556,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       return;
     }
     // Techniques as they are at this Recall level (techniques.json `levels`).
-    const tk = (id) => techniqueAt(id, level, tech);
+    const tk = (id) => techniqueAt(id, techLevelOf(level, levelCfg), tech);
     // battles.json lockedTechniques {techId: flag}: unusable until a battle event sets the flag.
     const locked = (id) => !!battle.lockedTechniques?.[id] && !st.flags.includes(battle.lockedTechniques[id]);
     const can = (id) => hero.techniques.includes(id) && !locked(id) && hero.echo >= tk(id).cost && hero.redacted?.tech !== id;
@@ -728,7 +747,7 @@ function simulateBattle(battleId, profileName, mode, rnd) {
       st.maxChain = Math.max(st.maxChain, st.chain);
       gain(target, cfg.echo + (res === 'PERFECT' && !dodged ? mem('perfectEchoBonus') : 0));
       if (res === 'MISS' && hit.onMiss?.echo) gain(target, hit.onMiss.echo);
-      let dmg = Math.round(hit.dmg * cfg.damageMult * dmgTakenMult * (st.brace ? st.brace.damageMult : 1));
+      let dmg = Math.round(hit.dmg * cfg.damageMult * dmgTakenMult * takenMult * (st.brace ? st.brace.damageMult : 1));
       // hit.maxHpPct: at most that share of the hero's max HP (the Archive never one-shots a healthy Dov).
       if (hit.maxHpPct !== undefined) dmg = Math.min(dmg, Math.floor(target.max * hit.maxHpPct));
       // Brace: every hit that lands gives its caster Echo and the attacker poise damage.
@@ -833,6 +852,75 @@ function mulberry32(seed) {
 }
 
 D.sim.profilesSolved = Object.fromEntries(Object.entries(D.sim.profiles).map(([k, v]) => [k, solveProfile(v)]));
+D.arenaLevels = arenaLevelCfg(D.levels, D.arena);
+
+// ---------- Arena (--arena) ----------
+// One run as systems/ArenaRunner.js plays it: fights until the team falls (HP carried, the after-fight
+// heals, a random buff after every win, the campfire every campfire.every wins: full heal + a random
+// upgrade). Team: Rhea + Dov + Nala. Capped at ARENA_CAP fights.
+const ARENA_CAP = 60;
+function simulateArenaRun(profileName, mode, rnd) {
+  const A = D.arena;
+  const team = { heroes: ['rhea', 'dov'], support: 'nala' };
+  const wounds = Object.fromEntries(team.heroes.map((id) => [id, { lost: 0, down: false }]));
+  const owned = [];
+  let xp = 0;
+  let won = 0;
+  let ms = 0;
+  let last = null;
+  let firstUlt = null;
+  let recollections = 0;
+  const mem = (key) => owned.reduce((n, id) => n + (buffDef(id, A)?.effects[key] || 0), 0);
+  while (won < ARENA_CAP) {
+    const n = won + 1;
+    const bundle = pickBundle(n, A, last, rnd);
+    last = bundleKey(bundle);
+    const level = levelFor(xp, D.arenaLevels);
+    const battle = arenaBattleDef(A, { n, bundle, team, level, wounds, campfireIn: 0, difficultyId: mode });
+    if (battle.recollection && firstUlt === null) firstUlt = n;
+    const r = simulateBattle('arena', profileName, mode, rnd, { battle, owned });
+    ms += r.ms;
+    recollections += r.recollections;
+    if (!r.win) break;
+    won += 1;
+    const heal = mem('healAfterFightPct');
+    for (const h of r.heroes) {
+      const w = wounds[h.id];
+      w.down = h.hp <= 0;
+      w.lost = w.down ? h.max : Math.max(0, h.max - h.hp);
+      if (!w.down) w.lost = healedLoss(w.lost, h.max, heal, A);
+    }
+    xp += Math.round(battleXp(bundle.enemies, D.enemies) * A.levels.xpMult * (1 + mem('xpPct') / 100));
+    const pick = drawBuffs(A.buffs, owned, team, A.buffCount, rnd);
+    if (pick.length) owned.push(pick[0]);
+    if (won % A.campfire.every === 0) {
+      for (const w of Object.values(wounds)) Object.assign(w, { lost: 0, down: false });
+      const up = drawBuffs(A.campfire.upgrades, owned, team, A.campfire.upgradeCount, rnd);
+      if (up.length) owned.push(up[0]);
+    }
+  }
+  return { won, level: levelFor(xp, D.arenaLevels), ms, firstUlt, recollections };
+}
+
+if (args.includes('--arena')) {
+  const runs = Number(opt('runs', Math.min(RUNS, 300)));
+  console.log(`Arena: ${runs} runs per row, team Rhea + Dov + Nala, random buff / upgrade picks, cap ${ARENA_CAP} fights`);
+  console.log('mode           profile     fights won: mean  p10  p50  p90   level  min/run  Recollection (runs reaching it, first fight)');
+  for (const mode of MODES) {
+    for (const profileName of Object.keys(D.sim.profiles)) {
+      const rnd = mulberry32(D.sim.seed);
+      const res = [];
+      for (let i = 0; i < runs; i++) res.push(simulateArenaRun(profileName, mode, rnd));
+      const wonSorted = res.map((r) => r.won).sort((a, b) => a - b);
+      const q = (x) => wonSorted[Math.floor(x * (wonSorted.length - 1))];
+      const avg = (f) => res.reduce((t, r) => t + f(r), 0) / res.length;
+      const ult = res.filter((r) => r.firstUlt !== null);
+      const ultFirst = ult.length ? ult.reduce((t, r) => t + r.firstUlt, 0) / ult.length : 0;
+      console.log(`${mode.padEnd(14)} ${profileName.padEnd(11)} ${avg((r) => r.won).toFixed(1).padStart(16)} ${String(q(0.1)).padStart(4)} ${String(q(0.5)).padStart(4)} ${String(q(0.9)).padStart(4)}   ${avg((r) => r.level).toFixed(1).padStart(5)}  ${(avg((r) => r.ms) / 60000).toFixed(1).padStart(7)}  ${((ult.length / res.length) * 100).toFixed(0).padStart(3)}%, fight ${ultFirst.toFixed(1)}`);
+    }
+  }
+  process.exit(0);
+}
 const battleIds = Object.keys(D.battles).filter((id) => (ONLY ? id === ONLY : D.chapter.some((s) => s.id === id)));
 const rows = [];
 for (const mode of MODES) {
