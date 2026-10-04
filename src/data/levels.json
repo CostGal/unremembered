@@ -1,6 +1,6 @@
 {
   "_about": "Recall (leveling). The party shares one pool of Memories (XP): enemies.json xp per enemy, given on a win. xpAt[i] = Memories needed for Recall i+1. Per level past 1, each hero gains growth. learn = the Recall level at which a hero remembers a technique (a technique not listed is always known). echoMax[hero][i] = the hero\u0027s Echo capacity at Recall i+1 (Rhea\u0027s Keepsake can still raise hers). A technique with `levels` in techniques.json grows at those Recall levels.",
-  "xpAt": [0, 60, 110, 190, 300],
+  "xpAt": [0, 60, 110, 190, 195],
   "echoMax": { "rhea": [2, 3, 5, 7, 8], "dov": [5, 5, 5, 5, 5] },
   "growth": {
     "rhea": { "hp": 6, "strike": 1 },

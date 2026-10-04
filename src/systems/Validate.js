@@ -738,10 +738,10 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     const stageIds = new Set((e.stages || []).map((s) => s.id));
     for (const [did, t] of Object.entries(e.difficulty)) {
       if (!qteDifficultyIds(data).includes(did)) err(`${at}.${did}: not a qte.json difficulty id`);
-      for (const k of ['hpMult', 'telegraphMult', 'dmgMult']) if (t[k] !== undefined && !(typeof t[k] === 'number' && t[k] > 0)) err(`${at}.${did}.${k} must be a number > 0`);
+      for (const k of ['hpMult', 'telegraphMult', 'dmgMult', 'windowMult', 'perfectWindowMult']) if (t[k] !== undefined && !(typeof t[k] === 'number' && t[k] > 0)) err(`${at}.${did}.${k} must be a number > 0`);
       for (const aid of Object.keys(t.attacks || {})) if (!attackIds.has(aid)) err(`${at}.${did}.attacks.${aid}: not one of the enemy's attacks`);
       for (const sid of Object.keys(t.stages || {})) if (!stageIds.has(sid)) err(`${at}.${did}.stages.${sid}: not one of the enemy's stage ids`);
-      for (const k of Object.keys(t)) if (!['hpMult', 'telegraphMult', 'dmgMult', 'attacks', 'stages', 'defend', 'ai'].includes(k)) err(`${at}.${did}.${k}: unknown tuning key`);
+      for (const k of Object.keys(t)) if (!['hpMult', 'telegraphMult', 'dmgMult', 'windowMult', 'perfectWindowMult', 'attacks', 'stages', 'defend', 'ai'].includes(k)) err(`${at}.${did}.${k}: unknown tuning key`);
     }
   }
   for (const id of data.qte?.difficulties?.order || []) {

@@ -22,7 +22,7 @@ import { root } from './lib/harness.mjs';
 import { dueEvents, thenSplit } from '../src/systems/BattleEvents.js';
 import { computeGrade } from '../src/systems/Grade.js';
 import { battleXp, chapterXpBefore, echoMaxFor, growth, learned, levelFor, levelUps, techLevelOf, techniqueAt } from '../src/systems/Recall.js';
-import { aiPickAttack, aiPickTarget, currentStage, recollectionAtOf, recollectionDue, scaleEnemyDef, tuneEnemyDef } from '../src/systems/EnemyTuning.js';
+import { aiPickAttack, aiPickTarget, currentStage, enemyWindowMults, recollectionAtOf, recollectionDue, scaleEnemyDef, tuneEnemyDef } from '../src/systems/EnemyTuning.js';
 import { arenaBattleDef, arenaLevelCfg, buffDef, drawBuffs, healedLoss, pickBundle, bundleKey } from '../src/systems/Arena.js';
 
 const read = (p) => JSON.parse(readFileSync(join(root, p), 'utf8'));
@@ -343,10 +343,11 @@ function simulateBattle(battleId, profileName, mode, rnd, arena = null) {
   // windows), a white ring with a swipe (the easier dodge windows) policy.dodgeChance of the
   // time, else a tap (parry windows). The tutorial slow-mo teaches the tap, so no swipes there.
   const dodgeChance = D.sim.policy.dodgeChance?.[profileName] ?? 0.2;
-  const answerRing = (unparryable, hitMult = 0) => {
+  // own = the enemy's window factors [GOOD, PERFECT] (EnemyTuning.enemyWindowMults), as in BattleScene.enemyHit.
+  const answerRing = (unparryable, hitMult = 0, own = [1, 1]) => {
     const swipes = unparryable || (!st.tutorialSlow && rnd() < dodgeChance);
     const windows = swipes && !unparryable ? D.qte.dodge.windows : D.qte.windows;
-    return { res: roll(qteOddsFor(profile, windows, windowMult(hitMult), perfectWindowMult(hitMult)), rnd), dodged: swipes };
+    return { res: roll(qteOddsFor(profile, windows, windowMult(hitMult) * own[0], perfectWindowMult(hitMult) * own[1]), rnd), dodged: swipes };
   };
   // A parried Strike is answered with a ring on the hero (reparry): judged like any enemy hit,
   // a PERFECT earns the usual counter (applyHit on the enemy, so no parry roll, not a counted player hit).
@@ -736,7 +737,7 @@ function simulateBattle(battleId, profileName, mode, rnd, arena = null) {
         break;
       }
       // A swipe is a dodge: its own results (no counter, no Echo) and not a parry for Return to Sender.
-      const { res, dodged } = answerRing(!!hit.unparryable, firstWindowMult);
+      const { res, dodged } = answerRing(!!hit.unparryable, firstWindowMult, enemyWindowMults(enemy.def));
       st.qtes[res] += 1;
       if (!dodged && res !== 'MISS') st.parrySuccess += 1; // battle events {parries: n}
       const cfg = dodged ? { ...qte.results[res], ...qte.dodge.results[res] } : qte.results[res];
