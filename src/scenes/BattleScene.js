@@ -21,7 +21,7 @@ import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
 import { clampX, mirrorEdges, rect as viewRect } from '../systems/View.js';
 import { difficultyDef, difficultyId } from '../systems/Difficulty.js';
-import { aiPickAttack, aiPickTarget, currentStage, recollectionAtOf, recollectionDue, tuneEnemyDef } from '../systems/EnemyTuning.js';
+import { aiPickAttack, aiPickTarget, currentStage, enemyWindowMults, recollectionAtOf, recollectionDue, tuneEnemyDef } from '../systems/EnemyTuning.js';
 import CommandMenu from '../systems/CommandMenu.js';
 import { helpCard, learnSteps } from '../systems/MoveHelp.js';
 import { createBackdrop, createPlatform } from '../systems/BattleBackdrop.js';
@@ -1775,7 +1775,10 @@ export default class BattleScene extends Phaser.Scene {
       this.setTimeScale(slow);
       if ((this.tutorialSlow || lesson) && !(lesson && redPaused)) this.showTutorialPrompt(true, lesson ? red.lesson.text : qte.tutorial.prompt.text);
 
-      const windows = hit.firstSlow ? Qte.scaledWindows(this.parryWindows(), hit.firstSlow) : this.parryWindows();
+      // This enemy's own window factors (enemies.json difficulty.<id>.windowMult / perfectWindowMult).
+      const [eGood, ePerfect] = enemyWindowMults(enemy.def);
+      const ownWindows = (w) => (eGood === 1 && ePerfect === 1 ? w : Qte.scaledWindows(w, eGood, ePerfect));
+      const windows = ownWindows(hit.firstSlow ? Qte.scaledWindows(this.parryWindows(), hit.firstSlow) : this.parryWindows());
       const x = target.container.x;
       const y = target.container.y + qte.ring.offsetY;
       ring = Qte.runRing(this, {
@@ -1788,7 +1791,7 @@ export default class BattleScene extends Phaser.Scene {
         swipe: qte.dodge.swipe,
         unparryable: hit.unparryable,
         // Every ring takes both gestures: a tap parries, a swipe dodges (Qte.runRing).
-        dodgeWindows: slow === 1 ? this.dodgeWindows() : Qte.scaledWindows(this.dodgeWindows(), 1 / slow),
+        dodgeWindows: slow === 1 ? ownWindows(this.dodgeWindows()) : Qte.scaledWindows(ownWindows(this.dodgeWindows()), 1 / slow),
         // No tap by T: the hit visibly lands now, the judgement (a late GOOD
         // or a MISS) follows when the window closes.
         onImpact: () => target.hp > 0 && this.playHurt(target),
