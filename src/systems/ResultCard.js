@@ -6,6 +6,7 @@ import { playSfx } from './Audio.js';
 import * as Fx from './Fx.js';
 import { computeGrade, rankIndex } from './Grade.js';
 import { onAction } from './Input.js';
+import { tx } from './Prompts.js';
 
 // Best rank per battle this session (memory only) and the one-time hint.
 const bestRanks = {};
@@ -184,7 +185,7 @@ export default class ResultCard {
     this.after(grade.continueDelayMs, () => {
       const b = ui.battleEnd;
       const go = scene.add
-        .text(180, b.hintY, b.continueText, { fontFamily: ui.font, fontSize: `${b.hintFontSize}px`, color: b.hintColor })
+        .text(180, b.hintY, tx(b, 'continueText'), { fontFamily: ui.font, fontSize: `${b.hintFontSize}px`, color: b.hintColor })
         .setOrigin(0.5)
         .setDepth(c.depth + 1);
       scene.tweens.add({ targets: go, alpha: b.hintPulseAlpha, duration: b.hintPulseMs, yoyo: true, repeat: -1 });

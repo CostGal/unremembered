@@ -10,6 +10,7 @@ import { onAction } from '../systems/Input.js';
 import * as Fx from '../systems/Fx.js';
 import { addVersionLabel } from '../systems/Version.js';
 import { JAM } from '../systems/Jam.js';
+import { tx } from '../systems/Prompts.js';
 
 const cfg = ui.title;
 
@@ -48,7 +49,7 @@ export default class TitleScene extends Phaser.Scene {
     }
     if (!art) addText(this, 180, cfg.subtitle.y, cfg.subtitle.text, cfg.subtitle);
 
-    const tap = addText(this, 180, layout.tap.y, cfg.tap.text, cfg.tap).setDepth(cfg.art.textDepth);
+    const tap = addText(this, 180, layout.tap.y, tx(cfg.tap), cfg.tap).setDepth(cfg.art.textDepth);
     this.tweens.add({ targets: tap, alpha: cfg.tap.pulseAlpha, duration: cfg.tap.pulseMs, yoyo: true, repeat: -1 });
     this.tapText = tap;
 

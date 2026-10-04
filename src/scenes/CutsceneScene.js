@@ -12,6 +12,7 @@ import { devInt } from '../systems/DevParams.js';
 import { onAction } from '../systems/Input.js';
 import input from '../data/input.json';
 import { VIEW, rect as viewRect } from '../systems/View.js';
+import { tx } from '../systems/Prompts.js';
 
 const cfg = ui.cutscene;
 const CUTSCENES = { origin: cutsceneOrigin };
@@ -103,7 +104,7 @@ export default class CutsceneScene extends Phaser.Scene {
     // (the jam build clears the host page's top-right button this way).
     const leftAligned = cfg.skipHint.align === 'left';
     this.skipHint = this.add
-      .text(leftAligned ? cfg.skipHint.x : 360 - cfg.skipHint.pad, cfg.skipHint.y ?? 640 - cfg.skipHint.pad, cfg.skipHint.text, {
+      .text(leftAligned ? cfg.skipHint.x : 360 - cfg.skipHint.pad, cfg.skipHint.y ?? 640 - cfg.skipHint.pad, tx(cfg.skipHint), {
         fontFamily: ui.font,
         fontSize: `${cfg.skipHint.fontSize}px`,
         color: cfg.skipHint.color,
@@ -273,7 +274,7 @@ export default class CutsceneScene extends Phaser.Scene {
     if (!h || this.preview || this.done) return;
     this.hideNextHint();
     this.nextHint = this.add
-      .text(h.x ?? 180, h.y ?? 600, h.text, { fontFamily: ui.font, fontSize: `${h.fontSize}px`, color: h.color })
+      .text(h.x ?? 180, h.y ?? 600, tx(h), { fontFamily: ui.font, fontSize: `${h.fontSize}px`, color: h.color })
       .setOrigin(0.5)
       .setDepth(cfg.depth.text)
       .setAlpha(0);

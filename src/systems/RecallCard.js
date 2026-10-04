@@ -8,6 +8,7 @@ import * as TutorialPause from './TutorialPause.js';
 import { learnSteps } from './MoveHelp.js';
 import { growth, levelFor, levelUps, maxLevel, techniqueAt, xpForLevel } from './Recall.js';
 import { onAction } from './Input.js';
+import { tx } from './Prompts.js';
 
 const color = (hex) => Number(hex);
 const fill = (str, vars) => str.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
@@ -270,7 +271,7 @@ export default class RecallCard {
       await this.learnPauses();
       this.phase = 'ready';
       const go = this.scene.add
-        .text(180, b.hintY, b.continueText, { fontFamily: ui.font, fontSize: `${b.hintFontSize}px`, color: b.hintColor })
+        .text(180, b.hintY, tx(b, 'continueText'), { fontFamily: ui.font, fontSize: `${b.hintFontSize}px`, color: b.hintColor })
         .setOrigin(0.5)
         .setDepth(levels.card.depth + 1);
       this.scene.tweens.add({ targets: go, alpha: b.hintPulseAlpha, duration: b.hintPulseMs, yoyo: true, repeat: -1 });

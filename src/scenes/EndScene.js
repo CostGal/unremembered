@@ -7,6 +7,7 @@ import { whenReady } from '../systems/Assets.js';
 import { glassPanel, keyArtBackdrop } from '../systems/Backdrop.js';
 import { onAction } from '../systems/Input.js';
 import { reportClear } from '../systems/JamReport.js';
+import { tx } from '../systems/Prompts.js';
 
 const cfg = ui.end;
 
@@ -98,7 +99,7 @@ export default class EndScene extends Phaser.Scene {
     } else this.wasDrag = () => false;
 
     this.time.delayedCall(cfg.hint.delayMs, () => {
-      const hint = addText(this, 180, cfg.hint.y, cfg.hint.text, cfg.hint).setDepth(depth);
+      const hint = addText(this, 180, cfg.hint.y, tx(cfg.hint), cfg.hint).setDepth(depth);
       this.tweens.add({ targets: hint, alpha: cfg.hint.pulseAlpha, duration: cfg.hint.pulseMs, yoyo: true, repeat: -1 });
       // A short tap returns; a drag on the list does not (end of the drag = pointerup).
       this.input.on('pointerup', () => { if (!this.wasDrag()) this.scene.start('Menu'); });

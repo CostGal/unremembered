@@ -77,6 +77,11 @@ export function setFocusBack(scene, back) {
   st.layers[st.layers.length - 1].back = back;
 }
 
+// Puts the focus on a button (its `focus` handle), e.g. the row a screen just rebuilt.
+export function focusOn(scene, entry) {
+  if (scene.__focus && entry) setCurrent(scene, entry);
+}
+
 function shown(o) {
   for (let c = o; c; c = c.parentContainer) if (!c.active || !c.visible) return false;
   return true;

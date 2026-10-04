@@ -3,6 +3,7 @@ import { playSfx } from './Audio.js';
 import * as Fx from './Fx.js';
 import { swipeDirection } from './Qte.js';
 import { onAction } from './Input.js';
+import { tx } from './Prompts.js';
 
 // "Burn the memory" (recollection.json): the Recollection minigame, three beats
 // with three different gestures, one after the other:
@@ -66,7 +67,7 @@ export async function runBeats(scene, { cfg, windowMult = 1, difficulty = 'norma
     const def = cfg.beats[kind];
     counter.setText(c.text.replace('{i}', i + 1).replace('{n}', cfg.order.length));
     scene.tweens.add({ targets: counter, scale: { from: c.popScale, to: 1 }, duration: c.popMs, ease: 'Back.easeOut' });
-    prompt.setText(def.prompt).setVisible(true);
+    prompt.setText(tx(def, 'prompt')).setVisible(true);
     const forced = Array.isArray(force) ? force[i] : force;
     let result;
     do {

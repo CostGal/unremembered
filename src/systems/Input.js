@@ -62,7 +62,8 @@ export function setBindings(saved = null) {
   };
   keyToActions = invert(bindings.keyboard);
   buttonToActions = invert(bindings.gamepad);
-  releaseAll();
+  // A button still held from the rebind (Controls screen) must not count as a new press.
+  releaseAll({ keepPads: true });
 }
 
 export function getBindings() {
@@ -128,6 +129,48 @@ function setDevice(device) {
   for (const fn of deviceListeners) fn(device);
 }
 
+// A controller is connected (prompts show its buttons even before it is used).
+export function hasGamepad() {
+  return readPads().length > 0;
+}
+
+// ---------- Rebinding (scenes/ControlsScene.js) ----------
+
+// The next key (device 'keyboard', a KeyboardEvent.code) or pad button (device 'gamepad', an index) goes to
+// cb instead of the game; the cancel key / button (input.json rebind.cancel) gives cb(null). -> stop().
+let capture = null;
+export function captureNext(device, cb) {
+  releaseAll();
+  capture = { device, cb, primed: false, raw: new Map() };
+  return () => {
+    if (capture?.cb === cb) capture = null;
+  };
+}
+
+function endCapture(value) {
+  const c = capture;
+  capture = null;
+  c?.cb(value);
+}
+
+// Only a press that starts after the capture began counts (the button that opened it may still be down).
+// Every button's state is kept up to date meanwhile (the new binding included), so a button still held
+// when the capture ends never fires as a fresh press.
+function pollCapture(pads) {
+  const c = capture;
+  for (const pad of pads) {
+    pad.buttons.forEach((b, i) => {
+      const id = `${pad.index}:${i}`;
+      const down = b.pressed || b.value > cfg.buttonPressAt;
+      padState.set(id, down);
+      const was = c.raw.get(id);
+      c.raw.set(id, down);
+      if (c.primed && down && !was && capture === c) endCapture(i === cfg.rebind.cancel.gamepad ? null : i);
+    });
+  }
+  c.primed = true;
+}
+
 // ---------- Dispatch ----------
 
 function press(action, source, time, device) {
@@ -144,14 +187,14 @@ function release(action, source, time, device) {
   if (set.size === 0) dispatch('release', action, time, device);
 }
 
-function releaseAll() {
+function releaseAll({ keepPads = false } = {}) {
   const now = performance.now();
   for (const [action, set] of held) {
     if (!set.size) continue;
     set.clear();
     dispatch('release', action, now, lastDevice);
   }
-  padState.clear();
+  if (!keepPads) padState.clear();
 }
 
 function sceneIndex(scene) {
@@ -200,6 +243,11 @@ function typing(e) {
 
 function onKeyDown(e) {
   if (typing(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (capture?.device === 'keyboard') {
+    e.preventDefault();
+    if (!e.repeat) endCapture(e.code === cfg.rebind.cancel.keyboard ? null : e.code);
+    return;
+  }
   const actions = keyToActions.get(e.code);
   if (!actions) return;
   e.preventDefault();
@@ -239,6 +287,10 @@ function pollPads() {
   const pads = readPads();
   if (!pads.length) return;
   const now = performance.now();
+  if (capture?.device === 'gamepad') {
+    pollCapture(pads);
+    return;
+  }
   for (const pad of pads) {
     const time = padTime(pad, now);
     for (const [index, actions] of buttonToActions) {

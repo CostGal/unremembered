@@ -12,6 +12,7 @@ import AnimTestScene from './scenes/AnimTestScene.js';
 import PauseScene from './scenes/PauseScene.js';
 import LoaderScene from './scenes/LoaderScene.js';
 import RewardScene from './scenes/RewardScene.js';
+import ControlsScene from './scenes/ControlsScene.js';
 import { installAudioUnlock } from './systems/Audio.js';
 import { devParam } from './systems/DevParams.js';
 import { VIEW, install as installView } from './systems/View.js';
@@ -31,7 +32,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, PreloadScene, TitleScene, MenuScene, SettingsScene, CutsceneScene, BattleScene, DialogueScene, EndScene, AnimTestScene, PauseScene, LoaderScene, RewardScene],
+  scene: [BootScene, PreloadScene, TitleScene, MenuScene, SettingsScene, CutsceneScene, BattleScene, DialogueScene, EndScene, AnimTestScene, PauseScene, LoaderScene, RewardScene, ControlsScene],
 };
 
 const game = new Phaser.Game(config);

@@ -2,6 +2,7 @@ import fragments from '../data/fragments.json';
 import ui from '../data/ui.json';
 import { playSfx } from './Audio.js';
 import { onAction } from './Input.js';
+import { tx } from './Prompts.js';
 
 const color = (hex) => Number(hex);
 const cfg = fragments.dropCard;
@@ -70,7 +71,7 @@ export default class DropCard {
     this.text(cfg.name, def.name);
     this.text(cfg.flavor, def.flavor, wrap(cfg.flavor));
     this.text(cfg.effect, def.text, wrap(cfg.effect));
-    this.text(cfg.hint, cfg.hint.text);
+    this.text(cfg.hint, tx(cfg.hint));
     scene.tweens.add({ targets: this.items, alpha: 1, duration: cfg.fadeMs });
     scene.tweens.add({ targets: [box, letter], scale: { from: 1.4, to: 1 }, duration: cfg.fadeMs * 1.5, ease: 'Back.easeOut' });
   }

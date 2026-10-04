@@ -52,5 +52,22 @@
   },
   "cutscene": {
     "holdRingAt": [180, 320]
+  },
+  "labels": {
+    "_about": "Button prompts (systems/Prompts.js): a pad button index or a KeyboardEvent.code -> what the prompt shows. Face buttons are drawn as shapes (shapes); a key not listed shows its letter (KeyJ -> J, Digit1 -> 1).",
+    "buttons": { "0": "✕", "1": "○", "2": "□", "3": "△", "4": "L1", "5": "R1", "6": "L2", "7": "R2", "8": "Create", "9": "Options", "10": "L3", "11": "R3", "12": "↑", "13": "↓", "14": "←", "15": "→", "16": "PS" },
+    "shapes": { "0": "cross", "1": "circle", "2": "square", "3": "triangle" },
+    "shapeColors": { "0": "0x7ca6e8", "1": "0xe8707a", "2": "0xd58ad8", "3": "0x5fc79a" },
+    "keys": { "Space": "Space", "ShiftLeft": "Shift", "ShiftRight": "Shift", "Enter": "Enter", "NumpadEnter": "Enter", "Escape": "Esc", "Backspace": "Backspace", "Tab": "Tab", "ControlLeft": "Ctrl", "ControlRight": "Ctrl", "AltLeft": "Alt", "AltRight": "Alt", "ArrowUp": "↑", "ArrowDown": "↓", "ArrowLeft": "←", "ArrowRight": "→" },
+    "actions": { "parry": "Parry", "dodge": "Dodge", "mash": "Mash", "strike": "Strike", "technique": "Technique", "nala": "Nala", "confirm": "Confirm", "back": "Back", "pause": "Pause" }
+  },
+  "rebind": {
+    "_about": "The Controls screen (scenes/ControlsScene.js): one row per entry; a row binds all its actions to the one key or button pressed. On the controller, Cross is a tap (parry + confirm), Circle dodge + back, Square strike + mash, so those share a row.",
+    "rows": {
+      "keyboard": [["parry"], ["dodge"], ["strike"], ["technique"], ["nala"], ["mash"], ["confirm"], ["back"], ["pause"]],
+      "gamepad": [["parry", "confirm"], ["dodge", "back"], ["strike", "mash"], ["technique"], ["nala"], ["pause"]]
+    },
+    "cancel": { "keyboard": "Escape", "gamepad": 9 },
+    "timeoutMs": 6000
   }
 }

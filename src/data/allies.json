@@ -10,6 +10,7 @@
       "pulseMs": 260
     },
     "promptText": "Nala senses a Hollow! Tap her!",
+    "promptTextButtons": "Nala senses a Hollow! Press {nala}!",
     "hissText": "Nala hisses!",
     "hissCutIn": {
       "portrait": "nala_hissing",

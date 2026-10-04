@@ -89,6 +89,7 @@
     },
     "hint": {
       "text": "Tap to continue",
+      "textButtons": "{confirm} to continue",
       "x": 180,
       "y": 364,
       "fontSize": 11,

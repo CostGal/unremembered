@@ -6,6 +6,7 @@ import { addText, makeGlassButton } from '../systems/Button.js';
 import { glassPanel } from '../systems/Backdrop.js';
 import { onAction } from '../systems/Input.js';
 import input from '../data/input.json';
+import { tx } from '../systems/Prompts.js';
 
 const cfg = ui.pause;
 
@@ -33,7 +34,7 @@ export default class PauseScene extends Phaser.Scene {
       return;
     }
     addText(this, 180, cfg.title.y, cfg.title.text, cfg.title);
-    const tap = addText(this, 180, cfg.tap.y, cfg.tap.text, cfg.tap);
+    const tap = addText(this, 180, cfg.tap.y, tx(cfg.tap), cfg.tap);
     this.tweens.add({ targets: tap, alpha: cfg.tap.pulseAlpha, duration: cfg.tap.pulseMs, yoyo: true, repeat: -1 });
 
     // The tap that brings the app back (if any) must not count as "continue".

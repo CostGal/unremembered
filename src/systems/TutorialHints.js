@@ -1,5 +1,6 @@
 import ui from '../data/ui.json';
 import { onAction } from './Input.js';
+import { tx } from './Prompts.js';
 
 const cfg = ui.tutorial;
 // Each hint shows once per session (a Retry doesn't repeat them).
@@ -27,7 +28,7 @@ export default class TutorialHints {
     const b = cfg.banner;
     const scene = this.scene;
     const text = scene.add
-      .text(b.x, b.y, hint.text, { fontFamily: ui.font, fontSize: `${b.fontSize}px`, color: b.color, align: 'center', wordWrap: { width: b.w - 24 } })
+      .text(b.x, b.y, tx(hint), { fontFamily: ui.font, fontSize: `${b.fontSize}px`, color: b.color, align: 'center', wordWrap: { width: b.w - 24 } })
       .setOrigin(0.5)
       .setDepth(b.depth + 1);
     const box = scene.add

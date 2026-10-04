@@ -3,9 +3,9 @@
 Newest first. Versioning rules: `CLAUDE.md` > Versioning.
 
 ## 0.4.0 — 2026-10-04
-- Keyboard and PS5 controller: the whole game plays without touch. Cross = a tap (and the parry), Circle = dodge / back, Square = Strike, R2 = Technique, Triangle = Nala, d-pad or left stick moves a teal highlight through menus and targets, Options pauses.
-- The Recollection on a controller: hold Cross, press the arrow's direction, mash Square. On a keyboard: Space, the arrows, F.
-- A short desktop browser window no longer shows "Rotate your phone".
+- Keyboard and PS5 controller: the whole game plays without touch. Cross = a tap (and the parry), Circle = dodge / back, Square = Strike, R2 = Technique, Triangle = Nala, d-pad or left stick moves a teal highlight through menus and targets, Options pauses. A short desktop window no longer shows "Rotate your phone".
+- Button prompts: tutorials, hints and the Recollection (hold Cross, the arrow's way, mash Square) name the key or button you play with, and every enemy attack shows the parry and dodge buttons over the hero (only dodge on a red ring).
+- Settings > Controls rebinds the keyboard and the controller.
 
 ## 0.3.1 — 2026-10-04
 - Unforgettable: the Forgotten's parry, dodge and red-ring timing windows are a bit wider (PERFECT 56 ms, GOOD 172 ms instead of 45 / 150).

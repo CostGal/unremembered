@@ -13,6 +13,7 @@
   "beats": {
     "hold": {
       "prompt": "HOLD… release in the gold",
+      "promptButtons": "HOLD {parry}… release in the gold",
       "holdMs": 1400,
       "centrePct": 0.7,
       "zonePct": [0.6, 0.8],
@@ -24,6 +25,7 @@
     },
     "swipe": {
       "prompt": "SWIPE the way she points",
+      "promptButtons": "PRESS the way she points",
       "swipeMs": 900,
       "perfectMs": 350,
       "directions": ["up", "down", "left", "right"],
@@ -31,6 +33,7 @@
     },
     "taps": {
       "prompt": "TAP TAP TAP!",
+      "promptButtons": "MASH {mash}!",
       "taps": { "story": 20, "normal": 30, "unforgettable": 40 },
       "tapWindowMs": 5000,
       "tapWindowScales": false,

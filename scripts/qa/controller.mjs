@@ -8,7 +8,7 @@
 //   node scripts/qa/controller.mjs
 import { open, sleep, waitScene, withBrowser } from './lib.mjs';
 
-const BTN = { cross: 0, circle: 1, square: 2, triangle: 3, r2: 7, options: 9, up: 12, down: 13, left: 14, right: 15 };
+const BTN = { cross: 0, circle: 1, square: 2, triangle: 3, r1: 5, r2: 7, options: 9, up: 12, down: 13, left: 14, right: 15 };
 
 // window.__pad.set(i, on) / tap(i, ms): flips a button; the game polls the pad once per frame and takes
 // the press time from pad.timestamp (set here, at the flip).
@@ -34,8 +34,13 @@ const DRIVERS = `(() => {
         seen.add(r);
         // A red ring can't be parried: it always gets Circle (dodge).
         const button = r.unparryable ? 1 : window.__ringButton;
-        r.promise.then((o) => window.__qte.push({ result: o.result, input: o.input, dt: Math.round(o.dtMs ?? -1), red: !!r.unparryable, button }));
-        setTimeout(() => window.__pad.tap(button, 150), Math.max(0, r.impactAt - performance.now()));
+        const p = B.ringPromptLive;
+        const snap = { actions: p ? p.items.map((i) => i.action) : null, dim: p ? +p.items[0].alpha.toFixed(2) : null, hint: B.tapHint.text };
+        r.promise.then((o) => window.__qte.push({ result: o.result, input: o.input, dt: Math.round(o.dtMs ?? -1), red: !!r.unparryable, button, prompt: snap }));
+        setTimeout(() => {
+          snap.lit = p ? +p.items[0].alpha.toFixed(2) : null;
+          window.__pad.tap(button, 150);
+        }, Math.max(0, r.impactAt - performance.now()));
       }
     }
     requestAnimationFrame(loop);
@@ -116,6 +121,8 @@ await withBrowser(async ({ server, chrome }) => {
     const page = await openFront(chrome, server.url, desk);
     await waitScene(page, 'Title');
     await sleep(600);
+    const titleText = await page.ev(`window.__game.scene.getScene('Title').tapText.text`);
+    check('A: the Title asks for the controller button', titleText.includes('✕'), titleText);
     await tap(page, 'cross');
     await waitScene(page, 'Menu', 8000).catch(() => {});
     check('A: Cross on the Title opens the Menu', await active(page, 'Menu'));
@@ -142,6 +149,52 @@ await withBrowser(async ({ server, chrome }) => {
     await waitScene(page, 'Cutscene', 10000).catch(() => {});
     check('A: Cross picks the difficulty and the chapter starts', await active(page, 'Cutscene'));
     check('A: no page errors', page.errors.length === 0, page.errors.join(' | '));
+    await page.cdp.send('Page.close').catch(() => {});
+  }
+
+  // ---------- G: Settings > Controls: rebind Parry / Confirm to R1, then Reset with R1 ----------
+  {
+    const page = await openFront(chrome, server.url, desk);
+    await waitScene(page, 'Title');
+    await sleep(600);
+    await tap(page, 'cross');
+    await waitScene(page, 'Menu', 8000).catch(() => {});
+    await sleep(1800);
+    for (let i = 0; i < 3; i++) await tap(page, 'down');
+    await tap(page, 'cross');
+    await waitScene(page, 'Settings', 5000).catch(() => {});
+    await sleep(500);
+    for (let i = 0; i < 5; i++) await tap(page, 'down');
+    await tap(page, 'cross');
+    await waitScene(page, 'Controls', 5000).catch(() => {});
+    check('G: Settings > Controls opens the Controls screen', await active(page, 'Controls'));
+    await sleep(500);
+    const C = `window.__game.scene.getScene('Controls')`;
+    check('G: it opens on the controller rows', (await page.ev(`${C}.device`)) === 'gamepad');
+    // Focus the first row (Parry / Confirm): down from the device button, then left if needed.
+    await tap(page, 'down');
+    if (!(await page.ev(`${C}.__focus.current === ${C}.rowButtons[0].focus`))) await tap(page, 'left');
+    check('G: the d-pad reaches the Parry / Confirm row', await page.ev(`${C}.__focus.current === ${C}.rowButtons[0].focus`));
+    await tap(page, 'cross');
+    await sleep(200);
+    check('G: Cross starts waiting for a button', await page.ev(`!!${C}.capturing`));
+    await tap(page, 'r1');
+    await sleep(200);
+    const b1 = await page.ev(`JSON.stringify({ parry: window.__input.getBindings().gamepad.parry, confirm: window.__input.getBindings().gamepad.confirm })`);
+    check('G: R1 is now Parry and Confirm', b1 === JSON.stringify({ parry: [5], confirm: [5] }), b1);
+    const saved = await page.ev(`(() => { try { return JSON.parse(localStorage.getItem('unremembered:settings')).bindings.gamepad.parry; } catch (e) { return null; } })()`);
+    check('G: the binding is saved', JSON.stringify(saved) === '[5]', JSON.stringify(saved));
+    // Down to the bottom row, left to Reset, and press it with the new confirm (R1).
+    for (let i = 0; i < 6 && !(await page.ev(`${C}.__focus.current === ${C}.resetButton.focus`)); i++) await tap(page, i < 3 ? 'down' : 'left');
+    check('G: the d-pad reaches Reset', await page.ev(`${C}.__focus.current === ${C}.resetButton.focus`));
+    await tap(page, 'r1');
+    await sleep(400);
+    const b2 = await page.ev(`JSON.stringify(window.__input.getBindings().gamepad.parry)`);
+    check('G: R1 on Reset restores Cross', b2 === '[0]', b2);
+    await tap(page, 'circle');
+    await waitScene(page, 'Settings', 5000).catch(() => {});
+    check('G: Circle goes back to Settings', await active(page, 'Settings'));
+    check('G: no page errors', page.errors.length === 0, page.errors.join(' | '));
     await page.cdp.send('Page.close').catch(() => {});
   }
 
@@ -188,6 +241,11 @@ await withBrowser(async ({ server, chrome }) => {
     check('C: Cross at impact parries a white ring PERFECT', white.length > 0 && white.every((o) => o.result === 'PERFECT' && o.input === 'tap'), JSON.stringify(crossed));
     const red = crossed.filter((o) => o.red);
     if (red.length) check('C: Circle at impact dodges a red ring PERFECT', red.every((o) => o.result === 'PERFECT' && o.input === 'swipe'), JSON.stringify(red));
+    const w = white[0]?.prompt;
+    check('E: a white ring shows ✕ and ○ beside the hero, dim, then lit at the close', !!w && w.actions?.join(',') === 'parry,dodge' && w.dim < 0.5 && w.lit === 1, JSON.stringify(w));
+    check('E: the hint names the buttons', !!w && w.hint.includes('✕') && w.hint.includes('○'), w?.hint);
+    const rp = red[0]?.prompt;
+    if (rp) check('E: a red ring shows only ○', rp.actions?.join(',') === 'dodge' && rp.hint.includes('○'), JSON.stringify(rp));
     const dodged = await attack(BTN.circle);
     check('C: Circle at impact dodges PERFECT', dodged.length > 0 && dodged.every((o) => o.result === 'PERFECT' && o.input === 'swipe'), JSON.stringify(dodged));
     await page.ev('window.__ringButton = null');
