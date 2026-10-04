@@ -111,6 +111,7 @@ New Game → ChapterRunner(chapter1.json) → EndScene → Menu
 ```
 (Story v2: 19 steps, `?step=0..18`; `end` closes the list; step table in `docs/STATUS.md` > Story v2. A dialogue's last line may carry `"transition": "close"`: a 500 ms black close, and the next dialogue opens from black.)
 - **Losing a battle** → "The memory fades…" + a Retry button. Retry restarts the same battle with party HP/Echo restored to the battle-start snapshot. There is no game over screen.
+- **Boss checkpoint** (`enemies.json` `stages[i].checkpoint: true`, Quill's `enraged` stage): rising into that stage records a snapshot. A loss after that shows **Retry** (from the start) and **Retry from here**: the boss back at the start of that stage, the party at full HP with statuses cleared (`battleEvents.json` `stage.checkpoint`), story beats and tutorials not replayed. QA: `node scripts/qa/checkpoint.mjs`.
 
 ## Battle
 ### Layout (360×640)

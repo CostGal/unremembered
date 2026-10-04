@@ -374,6 +374,10 @@
       "quit": [
         266,
         540
+      ],
+      "retryStage": [
+        266,
+        540
       ]
     },
     "slotWidths": {
@@ -627,6 +631,7 @@
     "continueText": "Tap to continue",
     "retryText": "Retry",
     "retryRecollectionText": "Try again",
+    "retryStageText": "Retry from here",
     "quitText": "Quit",
     "textY": 300,
     "fontSize": 28,
