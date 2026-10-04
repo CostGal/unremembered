@@ -7,6 +7,8 @@
 //       "hpMult": 1.2,               hp x (on top of qte.json difficulties.enemyHpMult)
 //       "telegraphMult": 0.8,        every attack / hit telegraphMs x (not the riposte: defend.reparry)
 //       "dmgMult": 1.1,              every attack / hit dmg x (on top of difficulties.damageMult)
+//       "windowMult": 1.2,           this enemy's rings: GOOD windows x (parry, dodge, red-ring swipe),
+//       "perfectWindowMult": 1.33,   PERFECT windows x (default windowMult); on top of the difficulty's
 //       "attacks": {"archive": {"telegraphMs": 320}},   fields merged onto that attack, in every stage / phase
 //                                                        (after the multipliers, so an explicit value wins)
 //       "stages": {"enraged": {"hpMult": 1.5}},          fields merged onto the stage with that id
@@ -39,6 +41,8 @@ export function tuneEnemyDef(def, difficultyId) {
   if (!t) return def;
   const out = clone(def);
   if (t.hpMult !== undefined) out.hp = Math.round(out.hp * t.hpMult);
+  if (t.windowMult !== undefined) out.windowMult = t.windowMult;
+  if (t.perfectWindowMult !== undefined) out.perfectWindowMult = t.perfectWindowMult;
   const scaleHit = (hit) => {
     if (t.telegraphMult !== undefined && typeof hit.telegraphMs === 'number') hit.telegraphMs = Math.round(hit.telegraphMs * t.telegraphMult);
     if (t.dmgMult !== undefined && typeof hit.dmg === 'number') hit.dmg = Math.round(hit.dmg * t.dmgMult);
@@ -138,4 +142,11 @@ export function aiPickAttack(ai, pickable, ctx, rnd) {
     if (attack) return attack;
   }
   return null;
+}
+
+// This enemy's own window factors (difficulty.<id>.windowMult / perfectWindowMult, after tuneEnemyDef):
+// [GOOD factor, PERFECT factor], 1 when unset. BattleScene and the sim multiply its rings' windows by them.
+export function enemyWindowMults(def) {
+  const good = def?.windowMult ?? 1;
+  return [good, def?.perfectWindowMult ?? good];
 }

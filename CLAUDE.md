@@ -140,7 +140,7 @@ WIN → "Victory" → runner.next()      LOSE → Retry
   - ≤ 200ms → **GOOD**: 50% damage, +1 Echo.
   - otherwise → **MISS**: full damage.
   - (These windows are the parry/tap windows.) Touches earlier than T − 350ms are **ignored** (no penalty, but they don't count). Taps in [T − 350, T − 200) count as MISS. No tap at all = MISS.
-- **Difficulty** (`qte.json difficulties`, chosen on New Game; `settings.difficulty`): **Story** windows × 1.5, damage taken × 0.5, enemies never guard · **Normal** as designed, enemies guard 10% · **Unforgettable** GOOD window × 0.75 and PERFECT × 0.5 (`perfectWindowMult`: 45 ms / 150 ms), damage taken × 1.6, enemy HP × 1.35, Echo × 0.5, enemies guard 20%. Per-enemy tuning on top: `enemies.json <id>.difficulty.<difficulty id>` (`EnemyTuning.js`: `hpMult`, `telegraphMult`, `dmgMult`, `attacks.<id>` overrides, `stages.<id>` overrides, `defend`, `ai`).
+- **Difficulty** (`qte.json difficulties`, chosen on New Game; `settings.difficulty`): **Story** windows × 1.5, damage taken × 0.5, enemies never guard · **Normal** as designed, enemies guard 10% · **Unforgettable** GOOD window × 0.75 and PERFECT × 0.5 (`perfectWindowMult`: 45 ms / 150 ms), damage taken × 1.6, enemy HP × 1.35, Echo × 0.5, enemies guard 20%. Per-enemy tuning on top: `enemies.json <id>.difficulty.<difficulty id>` (`EnemyTuning.js`: `hpMult`, `telegraphMult`, `dmgMult`, `windowMult` / `perfectWindowMult` (that enemy's parry, dodge and red-ring windows), `attacks.<id>` overrides, `stages.<id>` overrides, `defend`, `ai`). The Forgotten on Unforgettable: windows × 1.15 / PERFECT × 1.25 (56 ms / 172 ms).
   - **Unforgettable is meant to be lost a few times.** It is for players who beat Normal; first-time non-gamer players should not pick it, and its hint says so. The sim's balance targets (`npm run sim`: non-gamer ≤ 19 min incl. retries, every battle ≥ 99.9% win) hold for **Normal only**; `npm run sim -- --unforgettable` prints its rows for information (reference: good player ~90% per battle, b1 the hardest).
   - Dev/QA: `?difficulty=unforgettable` (or `story` / `normal`) forces the difficulty for one visit, never saved.
 - **Feedback:**
@@ -152,7 +152,7 @@ WIN → "Victory" → runner.next()      LOSE → Retry
 - **Feint** (`feint: {atPct, pauseMs}`): the ring shrinks to `atPct` of its travel, freezes for `pauseMs`, then continues to impact.
 
 ### Echo
-- Per hero, integer 0–cap. The cap follows the Recall level (`levels.json` `echoMax`): Rhea 1 / 3 / 5 / 7 / 8 at Recall 1–5, Dov 5 at every level. The Keepsake raises Rhea's cap to 10 and fills it (every difficulty). HUD pips: `characters.json` `echoPips` (Rhea 10, Dov 5). The striker gets +1 per Strike that lands; the hero who parries gets +2 per PERFECT (GOOD and dodges give 0). Techniques spend their user's Echo according to `techniques.json`.
+- Per hero, integer 0–cap. The cap follows the Recall level (`levels.json` `echoMax`; `xpAt` [0, 60, 110, 190, 195], so the gate battle gives Recall 4 and 5 together and the boss is fought at Recall 5 with the Blast aim ring): Rhea 1 / 3 / 5 / 7 / 8 at Recall 1–5, Dov 5 at every level. The Keepsake raises Rhea's cap to 10 and fills it (every difficulty). HUD pips: `characters.json` `echoPips` (Rhea 10, Dov 5). The striker gets +1 per Strike that lands; the hero who parries gets +2 per PERFECT (GOOD and dodges give 0). Techniques spend their user's Echo according to `techniques.json`.
 
 ### Recollection (ultimate, P0)
 - Needs Echo = 10 and is used by Rhea.
