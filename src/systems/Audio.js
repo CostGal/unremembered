@@ -10,6 +10,7 @@ import { MusicEngine, hasTrack } from './Music.js';
 
 let ctx = null;
 let musicBus = null;
+let musicMeter = null; // AnalyserNode on musicBus (diagnostics)
 let sfxBus = null;
 let volumes = { musicVolume: 1, sfxVolume: 1 };
 let paused = false; // the pause menu is up: music ducks, SFX are silent
@@ -42,6 +43,10 @@ export function unlockAudio() {
     master.connect(ctx.destination);
     musicBus.connect(master);
     sfxBus.connect(master);
+    // Diagnostics only: a level meter on the music bus (musicDiagnostics().level); an analyser outputs nothing.
+    musicMeter = ctx.createAnalyser();
+    musicMeter.fftSize = 2048;
+    musicBus.connect(musicMeter);
     applyVolumes();
     warmSfx();
     document.addEventListener('visibilitychange', onVisibility);
@@ -447,10 +452,18 @@ let pendingStart = null; // {id}: the file track whose decode a start is waiting
 
 // Dev / QA only: window.__audio (scripts/qa/lib.mjs) collects every music request,
 // so a headless run can assert the play/stop sequence. Nothing happens in the game.
+// Every build also keeps the last RECENT_MAX music events (not SFX) for musicDiagnostics().
+const RECENT_MAX = 60;
+const recentMusic = [];
 function audioLog(entry) {
+  const row = { t: Math.round(performance.now()), ...entry };
+  if (!String(entry.ev).startsWith('sfx') && entry.ev !== 'stopSfx') {
+    recentMusic.push(row);
+    if (recentMusic.length > RECENT_MAX) recentMusic.shift();
+  }
   try {
     const hook = window.__audio;
-    if (hook) (hook.log || (hook.log = [])).push({ t: Math.round(performance.now()), ...entry });
+    if (hook) (hook.log || (hook.log = [])).push(row);
   } catch (err) {
     // no window / blocked: skip
   }
@@ -622,7 +635,10 @@ function startProcedural(key, id, fade) {
 // decoded buffer without its silent ends (encoder delay at the start, padding / silence at the end):
 // the first and the last sample above LOOP_FLOOR within LOOP_SCAN_SEC of either end.
 const LOOP_FLOOR = 0.001; // -60 dB
-const LOOP_MIN_TRIM_SEC = 0.005; // a trim shorter than this keeps the whole-buffer loop
+const LOOP_MIN_TRIM_SEC = 0.005; // a trim shorter than this keeps the whole buffer
+const LOOP_LOOKAHEAD_SEC = 1.5; // the next pass is scheduled this far ahead of its start
+const LOOP_TICK_MS = 250; // how often the loop scheduler looks ahead
+const LOOP_MIN_PASS_SEC = 0.25; // a track shorter than this is never looped
 const LOOP_SCAN_SEC = 0.2;
 const loopCache = new WeakMap();
 function loopRange(key, buffer) {
@@ -668,38 +684,37 @@ function startFile(key, id, fade) {
       startProcedural(key, id, fade);
       return;
     }
-    const looping = isLoop(key);
-    // A looping track is one source on a seamless loop (loopRange); a one-shot (music.loop[key] false) plays once.
-    // Loop points are set only when they trim something audible-length (LOOP_MIN_TRIM_SEC); otherwise the
-    // source loops the whole buffer (loopStart = loopEnd = 0), the path every browser handles.
-    const makeSource = () => {
-      const s = ctx.createBufferSource();
-      s.buffer = buffer;
-      s.loop = looping;
-      if (looping) {
-        const [from, to] = loopRange(key, buffer);
-        if (from > LOOP_MIN_TRIM_SEC || buffer.duration - to > LOOP_MIN_TRIM_SEC) {
-          s.loopStart = from;
-          s.loopEnd = Math.min(to, buffer.duration);
-        }
-      }
-      return s;
-    };
-    const source = makeSource();
+    // A pass shorter than LOOP_MIN_PASS_SEC (a broken file) would make the scheduler spin: play it once.
+    const looping = isLoop(key) && buffer.duration > LOOP_MIN_PASS_SEC;
+    // A looping track is NOT one source with source.loop (a browser was seen to report such a source as
+    // playing while it went silent after the first pass). Each pass is its own one-shot source, scheduled
+    // ahead (LOOP_LOOKAHEAD_SEC) to start on the exact sample the previous pass ends: gapless, plain
+    // start(when) scheduling. Passes repeat [loopStart, loopEnd) (loopRange: silent ends trimmed when the
+    // trim is longer than LOOP_MIN_TRIM_SEC); the first pass plays from 0. A one-shot plays once.
+    const [from, to] = looping ? loopRange(key, buffer) : [0, buffer.duration];
+    const loopStart = from > LOOP_MIN_TRIM_SEC ? from : 0;
+    let loopEnd = buffer.duration - to > LOOP_MIN_TRIM_SEC ? Math.min(to, buffer.duration) : buffer.duration;
+    if (loopEnd - loopStart < LOOP_MIN_PASS_SEC) loopEnd = buffer.duration; // a trim that leaves next to nothing: whole buffer
     const gain = ctx.createGain();
     const duckNode = ctx.createGain();
     const now = ctx.currentTime;
     gain.gain.setValueAtTime(0, now);
     gain.gain.linearRampToValueAtTime(1, now + fade);
-    source.connect(gain);
     gain.connect(duckNode);
     duckNode.connect(musicBus);
     const rec = {
       key,
       id,
+      looping,
       ended: false,
       stopping: false,
-      source,
+      source: null, // the latest pass (musicStatus, QA)
+      sources: new Set(), // passes started or scheduled and not ended yet
+      passes: 0,
+      nextAt: now,
+      timer: null,
+      loopStart,
+      loopEnd,
       startedAt: now,
       duckValue: () => duckNode.gain.value,
       setDuck: (level, sec) => {
@@ -710,16 +725,56 @@ function startFile(key, id, fade) {
       },
       stop: (f) => {
         rec.stopping = true;
+        if (rec.timer) clearInterval(rec.timer);
+        rec.timer = null;
         const t = ctx.currentTime;
         gain.gain.cancelScheduledValues(t);
         gain.gain.setValueAtTime(gain.gain.value, t);
         gain.gain.linearRampToValueAtTime(0, t + f);
-        try {
-          rec.source.stop(t + f + 0.05);
-        } catch (err) {
-          // already ended
+        if (!rec.sources.size) finish();
+        for (const s of rec.sources) {
+          try {
+            s.stop(t + f + 0.05);
+          } catch (err) {
+            // already ended
+          }
         }
       },
+    };
+    const finish = () => {
+      if (rec.ended) return;
+      audioLog({ ev: 'ended', key, stopping: rec.stopping, current: current === rec, passes: rec.passes });
+      rec.ended = true;
+      if (rec.timer) clearInterval(rec.timer);
+      rec.timer = null;
+      musicSources.delete(rec);
+      try {
+        gain.disconnect();
+        duckNode.disconnect();
+      } catch (err) {
+        // already disconnected
+      }
+    };
+    // One pass: [offset, loopEnd) of the buffer, starting at `when`; returns when it ends.
+    const startPass = (when, offset) => {
+      const s = ctx.createBufferSource();
+      s.buffer = buffer;
+      s.connect(gain);
+      const len = loopEnd - offset;
+      s.start(when, offset, len);
+      rec.sources.add(s);
+      rec.source = s;
+      s.onended = () => {
+        rec.sources.delete(s);
+        try {
+          s.disconnect();
+        } catch (err) {
+          // already disconnected
+        }
+        // A stopped track, or a one-shot that has played, is done once its last pass has ended.
+        if (!rec.sources.size && (rec.stopping || !looping)) finish();
+      };
+      return when + len;
     };
     // A second sounding track must never happen: stop whatever is still up (it is faded, not left running).
     for (const other of musicSources) {
@@ -728,31 +783,21 @@ function startFile(key, id, fade) {
       other.stop(fade);
     }
     musicSources.add(rec);
-    // Safety net: a looping track that ends while it is still the wanted one (a browser that drops the
-    // loop) starts again at once from its loop point, on the same gain chain, so the music never stops.
-    const onEnded = (ended) => () => {
-      if (ended !== rec.source) return;
-      if (looping && !rec.stopping && current === rec && ctx) {
-        const again = makeSource();
-        again.connect(gain);
-        again.onended = onEnded(again);
-        rec.source = again;
-        again.start(ctx.currentTime, again.loopStart || 0);
-        audioLog({ ev: 'loop-restart', key });
-        return;
-      }
-      rec.ended = true;
-      musicSources.delete(rec);
-      try {
-        ended.disconnect();
-        gain.disconnect();
-        duckNode.disconnect();
-      } catch (err) {
-        // already disconnected
-      }
-    };
-    source.onended = onEnded(source);
-    source.start(now);
+    rec.nextAt = startPass(now, 0);
+    if (looping) {
+      const schedule = () => {
+        if (rec.stopping || rec.ended || !ctx) return;
+        // A pass that should already have started (the clock jumped): start the next one now, never a pile.
+        if (rec.nextAt < ctx.currentTime) rec.nextAt = ctx.currentTime;
+        while (rec.nextAt - ctx.currentTime < LOOP_LOOKAHEAD_SEC) {
+          rec.nextAt = startPass(rec.nextAt, loopStart);
+          rec.passes += 1;
+          audioLog({ ev: 'loop-pass', key, n: rec.passes });
+        }
+      };
+      rec.timer = setInterval(schedule, LOOP_TICK_MS);
+      schedule();
+    }
     current = rec;
     if (duckLevel !== 1) rec.setDuck(duckLevel, 0.05);
   });
@@ -776,9 +821,27 @@ export function resetMusicStats() {
   if (musicEngine) musicEngine.stats = { notes: 0, dropped: 0, ticks: 0, tickMs: 0, maxTickMs: 0 };
 }
 
-// QA only (scripts/qa/music-loop.mjs): the live file source, to prove the loop safety net.
-export function musicSourceForQa() {
-  return current && current.source ? current.source : null;
+// Field diagnostics (window.unrememberedMusic() in the browser console, set in main.js): what the
+// music is doing right now and the last music events, to paste into a bug report.
+export function musicDiagnostics() {
+  let level = null;
+  if (musicMeter) {
+    const data = new Float32Array(musicMeter.fftSize);
+    musicMeter.getFloatTimeDomainData(data);
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+    level = Math.round(Math.sqrt(sum / data.length) * 1000) / 1000; // RMS of the music bus right now (0 = silent)
+  }
+  return {
+    wanted: wantedMusic,
+    level,
+    busGain: musicBus ? musicBus.gain.value : null,
+    paused,
+    sampleRate: ctx ? ctx.sampleRate : null,
+    visibility: typeof document !== 'undefined' ? document.visibilityState : null,
+    status: musicStatus(),
+    recent: recentMusic.map((r) => ({ ...r })),
+  };
 }
 
 // For the ?music= panel and the perf script.
@@ -799,7 +862,7 @@ export function musicStatus() {
     state: ctx ? ctx.state : 'none',
     ambience: ambience ? ambience.key : null,
     sfxPlaying: activeSfx.size,
-    file: current && current.source ? { loop: current.source.loop, loopStart: current.source.loopStart, loopEnd: current.source.loopEnd, duration: current.source.buffer.duration, elapsed: ctx.currentTime - current.startedAt, ended: current.ended } : null,
+    file: current && current.source ? { loop: current.looping, passes: current.passes, scheduled: current.sources.size, loopStart: current.loopStart, loopEnd: current.loopEnd, duration: current.source.buffer.duration, elapsed: ctx.currentTime - current.startedAt, ended: current.ended } : null,
     resident: [...buffers.keys()].filter((k) => !k.startsWith('sfx/')),
   };
 }

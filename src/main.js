@@ -12,7 +12,7 @@ import AnimTestScene from './scenes/AnimTestScene.js';
 import PauseScene from './scenes/PauseScene.js';
 import LoaderScene from './scenes/LoaderScene.js';
 import RewardScene from './scenes/RewardScene.js';
-import { installAudioUnlock } from './systems/Audio.js';
+import { installAudioUnlock, musicDiagnostics } from './systems/Audio.js';
 import { devParam } from './systems/DevParams.js';
 import { VIEW, install as installView } from './systems/View.js';
 import { installJamClock } from './systems/JamReport.js';
@@ -53,6 +53,16 @@ else if (sideways.addListener) sideways.addListener(onSideways);
 // skip the Title tap), later ones resume it after an iOS interruption (a call,
 // Siri, an app switch) that left it stopped, so the music comes back.
 installAudioUnlock();
+// Field diagnostics: type unrememberedMusic() in the browser console (the game's frame) to see the music state.
+try {
+  window.unrememberedMusic = () => {
+    const d = musicDiagnostics();
+    console.log(JSON.stringify(d, null, 1));
+    return d;
+  };
+} catch (err) {
+  // no window: skip
+}
 
 // Browser toolbars (iOS Safari, the Instagram in-app browser) grow and shrink
 // the visible viewport: re-fit the canvas (the logical width stays as measured
