@@ -7,6 +7,7 @@ import audioData from '../data/audio.json';
 import { prefetchMusicFor } from './MusicPlan.js';
 import { resetPauses } from './TutorialPause.js';
 import { chapterXpBefore, xpForLevel } from './Recall.js';
+import { startClock } from './JamReport.js';
 
 // Walks a chapter's step list (src/data/chapter1.json). Each scene calls
 // runner.next(this) when its step is done. A step whose scene doesn't exist
@@ -61,6 +62,8 @@ export default class ChapterRunner {
         continue;
       }
 
+      // Jam site reporting: the run clock starts after the opening cutscene (systems/JamReport.js).
+      if (step.type !== 'cutscene') startClock(scene.registry);
       // Music: download what this step and the next can play, free the rest (audio.json music.prefetchPolicy).
       prefetchMusicFor(step, this.steps[this.index + 1]);
       // A cue still ringing from the scene that just ended fades out.

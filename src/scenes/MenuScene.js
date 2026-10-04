@@ -7,6 +7,7 @@ import { addText, makeGlassButton } from '../systems/Button.js';
 import { saveSettings } from '../systems/Settings.js';
 import { difficultyDef, difficultyIds, normalizeDifficulty } from '../systems/Difficulty.js';
 import ChapterRunner from '../systems/ChapterRunner.js';
+import { startRun } from '../systems/JamReport.js';
 import { isRealTexture, whenReady } from '../systems/Assets.js';
 import { glassPanel, keyArtBackdrop } from '../systems/Backdrop.js';
 import * as Fx from '../systems/Fx.js';
@@ -136,6 +137,7 @@ export default class MenuScene extends Phaser.Scene {
       const next = normalizeDifficulty({ ...settings, difficulty, difficultyChosen: true });
       this.registry.set('settings', next);
       saveSettings(next);
+      startRun(this.registry, next);
       ChapterRunner.start(this, chapter1);
     };
     const buttons = difficultyIds().map((id, i) => {
