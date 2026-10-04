@@ -9,6 +9,8 @@ import { cutsceneTrack, prefetchMusicForShot } from '../systems/MusicPlan.js';
 import * as Fx from '../systems/Fx.js';
 import { whenReady } from '../systems/Assets.js';
 import { devInt } from '../systems/DevParams.js';
+import { onAction } from '../systems/Input.js';
+import input from '../data/input.json';
 import { VIEW, rect as viewRect } from '../systems/View.js';
 
 const cfg = ui.cutscene;
@@ -126,12 +128,20 @@ export default class CutsceneScene extends Phaser.Scene {
       this.holdStart = performance.now();
       this.holdPos = { x: pointer.worldX, y: pointer.worldY };
     });
-    this.input.on('pointerup', () => {
+    const up = () => {
       if (this.holdStart === null) return;
       this.holdStart = null;
       this.holdRing.clear();
       this.onTap();
+    };
+    this.input.on('pointerup', up);
+    // Keyboard / controller: confirm is the finger (a press taps, a hold skips; the ring at holdRingAt).
+    const [x, y] = input.cutscene.holdRingAt;
+    onAction(this, 'confirm', (e) => {
+      this.holdStart = e.time;
+      this.holdPos = { x, y };
     });
+    onAction(this, 'confirm', up, { release: true });
     this.events.on('update', () => this.updateHold());
   }
 

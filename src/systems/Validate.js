@@ -1126,6 +1126,33 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     }
   }
 
+  // Keyboard / controller bindings (data/input.json, systems/Input.js): every action has a key and a
+  // button, keys are KeyboardEvent.code strings, buttons Standard Gamepad indices (0-16), and
+  // parry / dodge / mash never share one.
+  if (data.input) {
+    const inp = data.input;
+    const actions = new Set(inp.actions || []);
+    for (const device of ['keyboard', 'gamepad']) {
+      const map = inp[device] || {};
+      for (const a of actions) if (!map[a]?.length) err(`input.${device}: action "${a}" has no binding`);
+      for (const [a, list] of Object.entries(map)) {
+        if (!actions.has(a)) err(`input.${device}.${a}: not in input.actions`);
+        for (const k of list || []) {
+          if (device === 'keyboard' && (typeof k !== 'string' || !k)) err(`input.keyboard.${a}: "${k}" is not a KeyboardEvent.code`);
+          if (device === 'gamepad' && !(Number.isInteger(k) && k >= 0 && k <= 16)) err(`input.gamepad.${a}: ${k} is not a button index 0-16`);
+        }
+      }
+      const timed = ['parry', 'dodge', 'mash'];
+      timed.forEach((a, i) => {
+        for (const b of timed.slice(i + 1)) {
+          const shared = (map[a] || []).filter((k) => (map[b] || []).includes(k));
+          if (shared.length) err(`input.${device}: ${a} and ${b} share ${shared.join(', ')}`);
+        }
+      });
+    }
+    for (const key of ['resumeActions', 'continueActions']) for (const a of inp.pause?.[key] || []) if (!actions.has(a)) err(`input.pause.${key}: unknown action "${a}"`);
+  }
+
   return { errors, warnings };
 }
 

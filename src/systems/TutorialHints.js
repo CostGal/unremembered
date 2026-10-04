@@ -1,4 +1,5 @@
 import ui from '../data/ui.json';
+import { onAction } from './Input.js';
 
 const cfg = ui.tutorial;
 // Each hint shows once per session (a Retry doesn't repeat them).
@@ -42,7 +43,13 @@ export default class TutorialHints {
     const dismiss = () => {
       if (this.current === current) this.hide();
     };
-    scene.time.delayedCall(b.dismissDelayMs, () => scene.input.once('pointerdown', dismiss));
+    scene.time.delayedCall(b.dismissDelayMs, () => {
+      scene.input.once('pointerdown', dismiss);
+      const off = onAction(scene, 'confirm', () => {
+        off();
+        dismiss();
+      });
+    });
     scene.time.delayedCall(b.maxMs, dismiss);
     return true;
   }

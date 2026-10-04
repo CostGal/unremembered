@@ -6,6 +6,7 @@ import { saveSettings } from '../systems/Settings.js';
 import { requestFullscreen, titleLine, wantsFullscreen } from '../systems/Fullscreen.js';
 import { addText } from '../systems/Button.js';
 import { isRealTexture, whenReady } from '../systems/Assets.js';
+import { onAction } from '../systems/Input.js';
 import * as Fx from '../systems/Fx.js';
 
 const cfg = ui.title;
@@ -52,11 +53,21 @@ export default class TitleScene extends Phaser.Scene {
     addText(this, 180, layout.silent.y, cfg.silent.text, cfg.silent).setDepth(cfg.art.textDepth);
     this.buildFullscreenLine();
 
-    this.input.once('pointerdown', () => {
+    const start = () => {
+      if (this.started) return;
+      this.started = true;
       unlockAudio();
       // Inside the tap, where the browser allows it and the player hasn't turned it off.
       if (wantsFullscreen(this.registry.get('settings'))) requestFullscreen();
       this.leave();
+    };
+    this.started = false;
+    this.input.once('pointerdown', start);
+    // Keyboard / controller: confirm starts too. (A controller button is not a user
+    // gesture for audio in most browsers; the next key, click or tap unlocks it.)
+    onAction(this, 'confirm', () => {
+      start();
+      return true;
     });
     // For the load-time check (scripts/perf.mjs): the title takes taps now.
     performance.mark('title-interactive');

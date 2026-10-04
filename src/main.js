@@ -15,6 +15,7 @@ import RewardScene from './scenes/RewardScene.js';
 import { installAudioUnlock } from './systems/Audio.js';
 import { devParam } from './systems/DevParams.js';
 import { VIEW, install as installView } from './systems/View.js';
+import { installInput } from './systems/Input.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -34,12 +35,15 @@ const config = {
 
 const game = new Phaser.Game(config);
 installView(game);
+// Keyboard and controller actions (systems/Input.js, data/input.json).
+installInput(game);
 if (import.meta.env.DEV) window.__game = game;
 
 // Held sideways (the "Rotate your phone" overlay in index.html shows on this
 // query): treat it like leaving the app, so a battle pauses instead of running
 // a ring nobody can see. The Pause scene's "Tap to continue" waits on return.
-const sideways = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+// Touch screens only (pointer: coarse): a short desktop window is not a phone.
+const sideways = window.matchMedia('(orientation: landscape) and (max-height: 500px) and (pointer: coarse)');
 const onSideways = () => {
   if (sideways.matches) game.events.emit(Phaser.Core.Events.HIDDEN);
 };

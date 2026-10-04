@@ -5,6 +5,7 @@ import ui from '../data/ui.json';
 import { playSfx } from './Audio.js';
 import * as Fx from './Fx.js';
 import { computeGrade, rankIndex } from './Grade.js';
+import { onAction } from './Input.js';
 
 // Best rank per battle this session (memory only) and the one-time hint.
 const bestRanks = {};
@@ -31,14 +32,17 @@ export default class ResultCard {
   show() {
     return new Promise((resolve) => {
       this.build();
+      let offConfirm = null;
       const onTap = () => {
         if (this.phase === 'rows') this.stamp();
         else if (this.phase === 'ready') {
           this.scene.input.off('pointerdown', onTap);
+          offConfirm();
           resolve();
         }
       };
       this.scene.input.on('pointerdown', onTap);
+      offConfirm = onAction(this.scene, 'confirm', onTap);
       this.scene.events.once('shutdown', () => this.scene.input.off('pointerdown', onTap));
     });
   }

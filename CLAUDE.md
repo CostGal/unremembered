@@ -32,6 +32,7 @@ A 2D turn-based RPG **demo** with real-time parry QTEs, built for a 1-week game 
 - `index.html` viewport: `width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover`.
 - CSS on html/body/canvas: `touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; overscroll-behavior:none;` height `100dvh`. Block `contextmenu`.
 - Tap targets ≥ 56px tall, ≥ 16px from screen edges.
+- **Keyboard + controller (post-jam, issues #172–#177):** `systems/Input.js` turns keys and PS5 DualSense buttons (Gamepad API, Standard layout) into actions from `data/input.json`: parry (Space / R1), dodge (Shift / Circle), mash (F / Square), nala (N / Triangle), confirm (Enter / Cross), back (Esc / Circle), pause (P / Options), directions (arrows, WASD / d-pad, left stick). Scenes subscribe with `onAction(scene, action, fn)`; presses carry event timestamps for the QTE. Confirm does every "tap anywhere" (Title, dialogue, cutscene tap + hold-to-skip, cut-ins, cards, hints, End); pause opens the pause menu, back/pause resumes it. The rotate overlay is touch-only (`pointer: coarse`). QA: `node scripts/qa/keyboard.mjs`.
 
 ## File structure
 ```

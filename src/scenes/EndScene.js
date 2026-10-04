@@ -5,6 +5,7 @@ import { playSceneMusic } from '../systems/Audio.js';
 import { addText } from '../systems/Button.js';
 import { whenReady } from '../systems/Assets.js';
 import { glassPanel, keyArtBackdrop } from '../systems/Backdrop.js';
+import { onAction } from '../systems/Input.js';
 
 const cfg = ui.end;
 
@@ -98,6 +99,7 @@ export default class EndScene extends Phaser.Scene {
       this.tweens.add({ targets: hint, alpha: cfg.hint.pulseAlpha, duration: cfg.hint.pulseMs, yoyo: true, repeat: -1 });
       // A short tap returns; a drag on the list does not (end of the drag = pointerup).
       this.input.on('pointerup', () => { if (!this.wasDrag()) this.scene.start('Menu'); });
+      onAction(this, 'confirm', () => this.scene.start('Menu'));
     });
   }
 }

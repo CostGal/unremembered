@@ -3,6 +3,7 @@ import tutorial from '../data/tutorial.json';
 import ui from '../data/ui.json';
 import { devParam } from './DevParams.js';
 import { rect as viewRect } from './View.js';
+import { onAction } from './Input.js';
 
 // Tutorial pauses (src/data/tutorial.json): the scene freezes, everything is
 // dimmed except the spotlight targets, a short text box explains them and a
@@ -126,6 +127,17 @@ class Pause {
       this.pressed = false;
       this.next();
     });
+    // Keyboard / controller: confirm steps on like a tap on the dim (it never leaks to the battle
+    // under the pause). A guided pause waits for its spotlit button instead.
+    this.offConfirm = onAction(
+      scene,
+      'confirm',
+      () => {
+        if (!this.guided && !this.done && performance.now() - this.shownAt >= cfg.minDismissMs) this.next();
+        return true;
+      },
+      { priority: cfg.inputPriority },
+    );
     this.holes = scene.make.graphics({ add: false });
     this.mask = this.holes.createGeometryMask();
     this.mask.setInvertAlpha(true);
@@ -327,6 +339,7 @@ class Pause {
     scene.events.off('update', this.onUpdate);
     scene.events.off('shutdown', this.onShutdown);
     if (this.onPointer) scene.input.off('pointerdown', this.onPointer);
+    this.offConfirm?.();
     scene.tweens.timeScale = this.saved.tweens;
     scene.anims.globalTimeScale = this.saved.anims;
     scene.time.timeScale = this.saved.time;

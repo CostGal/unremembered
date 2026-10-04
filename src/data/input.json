@@ -1,0 +1,44 @@
+{
+  "_doc": "Keyboard and controller actions (systems/Input.js). keyboard: KeyboardEvent.code values. gamepad: Standard Gamepad button indices (DualSense: 0 Cross, 1 Circle, 2 Square, 3 Triangle, 4 L1, 5 R1, 6 L2, 7 R2, 8 Create, 9 Options, 12-15 d-pad up/down/left/right). Saved bindings (settings.bindings) replace an action's list.",
+  "actions": ["parry", "dodge", "mash", "nala", "confirm", "back", "pause", "up", "down", "left", "right"],
+  "keyboard": {
+    "parry": ["Space"],
+    "dodge": ["ShiftLeft", "ShiftRight"],
+    "mash": ["KeyF"],
+    "nala": ["KeyN"],
+    "confirm": ["Enter", "NumpadEnter"],
+    "back": ["Escape", "Backspace"],
+    "pause": ["KeyP"],
+    "up": ["ArrowUp", "KeyW"],
+    "down": ["ArrowDown", "KeyS"],
+    "left": ["ArrowLeft", "KeyA"],
+    "right": ["ArrowRight", "KeyD"]
+  },
+  "gamepad": {
+    "parry": [5],
+    "dodge": [1],
+    "mash": [2],
+    "nala": [3],
+    "confirm": [0],
+    "back": [1],
+    "pause": [9],
+    "up": [12],
+    "down": [13],
+    "left": [14],
+    "right": [15]
+  },
+  "stick": {
+    "axes": [0, 1],
+    "pressAt": 0.6,
+    "releaseAt": 0.3
+  },
+  "buttonPressAt": 0.5,
+  "maxTimestampSkewMs": 100,
+  "pause": {
+    "resumeActions": ["pause", "back"],
+    "continueActions": ["confirm", "pause"]
+  },
+  "cutscene": {
+    "holdRingAt": [180, 320]
+  }
+}

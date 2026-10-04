@@ -7,6 +7,7 @@
     "pad": 8,
     "radius": 10,
     "minDismissMs": 300,
+    "inputPriority": 10,
     "tapZone": { "y": 440, "bleed": 12 },
     "fadeMs": 160,
     "outline": { "color": "0x3fd0c9", "width": 2, "alphaMin": 0.45, "alphaMax": 1, "pulseMs": 900 },

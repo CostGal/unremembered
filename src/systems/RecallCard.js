@@ -7,6 +7,7 @@ import tutorial from '../data/tutorial.json';
 import * as TutorialPause from './TutorialPause.js';
 import { learnSteps } from './MoveHelp.js';
 import { growth, levelFor, levelUps, maxLevel, techniqueAt, xpForLevel } from './Recall.js';
+import { onAction } from './Input.js';
 
 const color = (hex) => Number(hex);
 const fill = (str, vars) => str.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
@@ -36,15 +37,20 @@ export default class RecallCard {
   show() {
     return new Promise((resolve) => {
       this.build();
+      let offConfirm = () => {};
       const onTap = () => {
         if (this.phase === 'filling') this.finish();
         else if (this.phase === 'ready') {
           this.scene.input.off('pointerdown', onTap);
+          offConfirm();
           resolve();
         }
       };
       // The tap that closed the result card must not also skip this one.
-      this.after(levels.card.inputDelayMs, () => this.scene.input.on('pointerdown', onTap));
+      this.after(levels.card.inputDelayMs, () => {
+        this.scene.input.on('pointerdown', onTap);
+        offConfirm = onAction(this.scene, 'confirm', onTap);
+      });
       this.scene.events.once('shutdown', () => this.scene.input.off('pointerdown', onTap));
     });
   }
