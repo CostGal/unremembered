@@ -21,7 +21,7 @@ import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
 import { clampX, mirrorEdges, rect as viewRect } from '../systems/View.js';
 import { difficultyDef, difficultyId } from '../systems/Difficulty.js';
-import { aiPickAttack, aiPickTarget, currentStage, enemyWindowMults, recollectionAtOf, recollectionDue, tuneEnemyDef } from '../systems/EnemyTuning.js';
+import { aiPickAttack, aiPickTarget, currentStage, enemyWindowMults, recollectionAtOf, recollectionDue, scaleEnemyDef, tuneEnemyDef } from '../systems/EnemyTuning.js';
 import CommandMenu from '../systems/CommandMenu.js';
 import { helpCard, learnSteps } from '../systems/MoveHelp.js';
 import { createBackdrop, createPlatform } from '../systems/BattleBackdrop.js';
@@ -40,7 +40,9 @@ import { devInt, devParam } from '../systems/DevParams.js';
 import { impact, impactLab, prewarmImpact } from '../systems/Impact.js';
 import { dropsFor, effectMax, effectTotal, ownedFragments } from '../systems/Fragments.js';
 import DropCard from '../systems/DropCard.js';
-import { battleXp, echoMaxFor, growth, learned, levelFor, techniqueAt, xpForLevel } from '../systems/Recall.js';
+import { battleXp, echoMaxFor, growth, learned, levelFor, techLevelOf, techniqueAt, xpForLevel } from '../systems/Recall.js';
+import { arenaLevels } from '../systems/ArenaRunner.js';
+import arenaData from '../data/arena.json';
 import RecallCard from '../systems/RecallCard.js';
 import { animKey, hasSheet, playLoop, playOnce, playReverseOnce, SheetDriver, trace } from '../systems/SpriteAnims.js';
 import { isRealTexture, whenReady } from '../systems/Assets.js';
@@ -86,7 +88,8 @@ export default class BattleScene extends Phaser.Scene {
   init(data) {
     this.initData = data;
     this.battleId = data.battleId || 'b1_forgotten';
-    this.battleDef = battles[this.battleId];
+    // The Arena (systems/ArenaRunner.js) builds its fight's def and passes it in.
+    this.battleDef = data.battleDef || battles[this.battleId];
   }
 
   // Waits for this scene's assets (loaded in the background by the Loader).
@@ -142,6 +145,9 @@ export default class BattleScene extends Phaser.Scene {
     // stage; the lose card then offers Retry from here. Carried over a checkpoint restart.
     this.stageSnapshot = this.initData.checkpoint || null;
     this.memoryFailed = false;
+    // An Arena fight (battleDef.arena): its own level table, per-fight enemy scaling, carried HP.
+    this.arena = this.battleDef.arena || null;
+    this.levelCfg = this.arena ? arenaLevels : levels;
     this.listenForBackground();
     addPauseButton(this, () => this.openPause(true));
     this.hints = new TutorialHints(this, !!this.battleDef.tutorial);
@@ -159,6 +165,8 @@ export default class BattleScene extends Phaser.Scene {
     this.createEnvironmentFx();
 
     if (this.battleDef.nala) this.createNala();
+    // battleDef.nalaGlow (the Arena): her Glow works from the first round, no unlock event.
+    if (this.nala && this.battleDef.nalaGlow) this.nala.glowOn = true;
 
     // The party for this battle (battles.json `party`, else ui.battleLayout.defaultParty).
     const heroKeys = this.battleDef.party ?? layout.defaultParty;
@@ -169,16 +177,20 @@ export default class BattleScene extends Phaser.Scene {
     // Recall (levels.json): the party's level grows HP and Strike, and decides
     // which techniques each hero remembers. Without a chapter run (?battle=),
     // ?level=N picks it (default 1).
-    const xp = this.registry.get('recallXp') ?? xpForLevel(devInt('level') ?? 1, levels);
+    // The Arena passes the team's level in (arena.json levels; ?level=N still overrides).
+    const xp = this.arena ? xpForLevel(devInt('level') ?? this.arena.level, this.levelCfg) : this.registry.get('recallXp') ?? xpForLevel(devInt('level') ?? 1, levels);
     this.recallXp = xp;
-    this.level = levelFor(xp, levels);
+    this.level = levelFor(xp, this.levelCfg);
+    // Arena buffs (arena.json): +% max HP and a harder Strike for every hero.
+    const hpPct = effectTotal(this.fragments, 'maxHpPct');
+    const strikeBonus = effectTotal(this.fragments, 'strikeBonus');
     for (const hero of this.heroes) {
-      const g = growth(hero.type, this.level, levels);
+      const g = growth(hero.type, this.level, this.levelCfg);
       hero.level = this.level;
-      hero.maxHp += g.hp;
+      hero.maxHp = Math.round((hero.maxHp + g.hp) * (1 + hpPct / 100));
       hero.hp = hero.maxHp;
-      hero.strike = [hero.def.strike[0] + g.strike, hero.def.strike[1] + g.strike];
-      hero.techniques = learned(hero.type, this.level, hero.def.techniques, levels);
+      hero.strike = [hero.def.strike[0] + g.strike + strikeBonus, hero.def.strike[1] + g.strike + strikeBonus];
+      hero.techniques = learned(hero.type, this.level, hero.def.techniques, this.levelCfg);
     }
 
     const dov = this.heroes.find((h) => h.type === 'dov');
@@ -186,12 +198,18 @@ export default class BattleScene extends Phaser.Scene {
       dov.maxHp += effectTotal(this.fragments, 'dovMaxHp');
       dov.hp = dov.maxHp;
     }
+    // Arena: HP carries over from the last fight (what each hero has lost; the fallen stay down).
+    for (const hero of this.heroes) {
+      const w = this.arena?.wounds?.[hero.type];
+      if (w) hero.hp = w.down ? 0 : Math.max(1, hero.maxHp - w.lost);
+    }
 
     const enemyKeys = this.battleDef.enemies;
     const slots = this.enemySlots(enemyKeys);
     this.enemies = enemyKeys.map((key, i) =>
       // enemies.json difficulty.<id>: the def is tuned once for the chosen difficulty (EnemyTuning.js).
-      this.createEntity(`${key}_${i}`, key, tuneEnemyDef(enemies[key], this.difficultyId), slots[Math.min(i, slots.length - 1)], 'left', false)
+      // The Arena scales it again for the fight number (arena.json scaling).
+      this.createEntity(`${key}_${i}`, key, scaleEnemyDef(tuneEnemyDef(enemies[key], this.difficultyId), this.arena?.scale), slots[Math.min(i, slots.length - 1)], 'left', false)
     );
 
     this.applyAmbientTint();
@@ -201,7 +219,7 @@ export default class BattleScene extends Phaser.Scene {
     // echoPips is how many pips the HUD draws. ?echo=N starts everyone with N
     // (dev, clamped to the cap); Old Ticket adds to everyone.
     for (const hero of this.heroes) {
-      hero.echoMax = echoMaxFor(hero.type, this.level, levels) ?? hero.def.echoMax ?? ui.hud.echo.max;
+      hero.echoMax = echoMaxFor(hero.type, this.level, this.levelCfg) ?? hero.def.echoMax ?? ui.hud.echo.max;
       hero.echoPips = hero.def.echoPips;
       hero.echo = Phaser.Math.Clamp((devInt('echo') ?? 0) + effectTotal(this.fragments, 'startEcho'), 0, hero.echoMax);
     }
@@ -211,8 +229,11 @@ export default class BattleScene extends Phaser.Scene {
     // Stats for the result card (grade.json): maxChain is above.
     this.stats = { perfects: 0, damageTaken: 0, turns: 0 };
     this.hud = new Hud(this, ui.hud, ui.font, this.heroes);
-    this.hud.setFragments(this.fragments);
+    // The Arena's stacking buffs don't fit the HUD's icon row: the run summary lists them.
+    this.hud.setFragments(this.arena ? [] : this.fragments);
     this.refreshHud();
+    // Arena: a hero who fell in an earlier fight starts this one down (Anchor or the campfire bring them back).
+    for (const hero of this.heroes) if (this.arena && hero.hp <= 0) this.markDown(hero, true);
     // Try again after a failed Recollection: the battle as it was when she cast it.
     // Retry from here: the battle as the boss rose into its checkpoint stage.
     if (this.initData.rewind) this.applyRewind(this.initData.rewind);
@@ -234,6 +255,7 @@ export default class BattleScene extends Phaser.Scene {
 
     const machine = new BattleStateMachine({
       intro: async () => {
+        if (this.arena) this.arenaBanner();
         await this.playIntro();
         // Dev: ?recollection=1 jumps a staged boss to the Recollection unlock (phone-testable, no console needed).
         if (devInt('recollection')) this.forceRecollectionReady();
@@ -264,6 +286,23 @@ export default class BattleScene extends Phaser.Scene {
       console.error('battle: turn loop failed', err);
       if (!this.battleOver) this.onBattleEnd('ERROR');
     });
+  }
+
+  // The Arena's "Fight N" over the scene as the enemies slide in, and how far the campfire is.
+  arenaBanner() {
+    const b = arenaData.ui.banner;
+    const t = arenaData.text;
+    const n = this.arena.campfireIn;
+    const sub = n <= 1 ? t.campfireNext : t.campfireIn.replace('{n}', n);
+    const style = (size, color) => ({ fontFamily: ui.font, fontSize: `${size}px`, color, stroke: b.stroke, strokeThickness: b.strokeThickness });
+    const title = this.add.text(180, b.y, t.fight.replace('{n}', this.arena.fight), style(b.fontSize, b.color)).setOrigin(0.5).setDepth(ui.battleEnd.depth);
+    const line = this.add.text(180, b.y + b.fontSize, sub, style(b.subFontSize, b.subColor)).setOrigin(0.5).setDepth(ui.battleEnd.depth);
+    const both = [title, line];
+    for (const o of both) o.setAlpha(0);
+    title.setScale(b.popScale);
+    this.tweens.add({ targets: both, alpha: 1, duration: b.fadeMs });
+    this.tweens.add({ targets: title, scale: 1, duration: b.fadeMs, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: both, alpha: 0, delay: b.fadeMs + b.holdMs, duration: b.fadeMs, onComplete: () => both.forEach((o) => o.destroy()) });
   }
 
   // ---------- App switch ----------
@@ -1140,7 +1179,8 @@ export default class BattleScene extends Phaser.Scene {
       ];
       // The ultimate slot exists only when ui.commands.ultimateInMenu is on (it is off in chapter 1: the
       // Recollection is cast by the Keepsake and by Try again) and the battle has the ultimate.
-      const ultimate = ui.commands.ultimateInMenu ? this.ultimateItem(hero, name(labels.recollection)) : null;
+      // battleDef.ultimateInMenu (the Arena) overrides it: there the button is how she casts it.
+      const ultimate = (this.battleDef.ultimateInMenu ?? ui.commands.ultimateInMenu) ? this.ultimateItem(hero, name(labels.recollection)) : null;
       if (ultimate) main.push(ultimate);
       // Dev/QA (?recollection=1, forceRecollectionReady): the first menu where Rhea can cast, she casts.
       if (this.castWhenReady && this.canUltimate(hero)) {
@@ -1213,7 +1253,7 @@ export default class BattleScene extends Phaser.Scene {
     this.menuPausesDone ||= new Set();
     if (!id || this.menuPausesDone.has(id) || this.battleOver) return;
     this.menuPausesDone.add(id);
-    const steps = learnSteps(id.slice(tutorialData.recallLearn.idPrefix.length), hero.level ?? this.level, false);
+    const steps = learnSteps(id.slice(tutorialData.recallLearn.idPrefix.length), this.techLevel(hero), false);
     if (!steps) return;
     const def = { always: true, steps: steps.map((text) => ({ text, targets: ['cmd.technique'] })) };
     await TutorialPause.show(this, id, {}, {}, def);
@@ -1253,7 +1293,12 @@ export default class BattleScene extends Phaser.Scene {
 
   // A hero's technique as it is at their Recall level (techniques.json `levels`).
   techOf(hero, id) {
-    return techniqueAt(id, hero.level ?? this.level, techniques);
+    return techniqueAt(id, this.techLevel(hero), techniques);
+  }
+
+  // The techniques.json `levels` key for a hero's level (the Arena maps its 20 levels onto those 5).
+  techLevel(hero) {
+    return techLevelOf(hero.level ?? this.level, this.levelCfg);
   }
 
   techniqueItems(hero) {
@@ -1282,7 +1327,7 @@ export default class BattleScene extends Phaser.Scene {
 
   // The long-press card of a command (MoveHelp.helpCard) at the hero's Recall level; none while fogged.
   helpFor(id, hero) {
-    return this.fogged(hero) ? null : helpCard(id, hero.level ?? this.level);
+    return this.fogged(hero) ? null : helpCard(id, this.techLevel(hero));
   }
 
   // battles.json lockedTechniques {techId: flag}: the technique can't be used until a battle event sets the flag.
@@ -1759,7 +1804,7 @@ export default class BattleScene extends Phaser.Scene {
     let input;
     let attackDone;
     const red = qte.unparryable;
-    const lesson = hit.unparryable && !dodgeLesson.learned && dodgeLesson.runs < red.lesson.attempts;
+    const lesson = hit.unparryable && !dodgeLesson.learned && dodgeLesson.runs < red.lesson.attempts && !this.battleDef.noStory;
     // The first red ring of the run: a spotlight pause before the ring exists (tutorial.json red_ring).
     // The slow-mo lesson below still runs; its own text prompt would repeat the pause, so it stays off.
     const redPaused = hit.pausedBefore || (hit.unparryable && (await this.runPause('red_ring', { enemy, hero: target })));
@@ -2023,7 +2068,7 @@ export default class BattleScene extends Phaser.Scene {
   // the Recollection (the Keepsake event) once per battle. Checked after every hit on him and on a hero.
   checkStage(enemy) {
     const stage = enemy.def.stages[enemy.phase || 0];
-    if (enemy.hp <= 0 || enemy.rising || enemy.recollectionUnlocked) return;
+    if (enemy.hp <= 0 || enemy.rising || enemy.recollectionUnlocked || this.battleDef.noStory) return;
     if (recollectionDue(recollectionAtOf(stage), enemy, this.heroes)) {
       enemy.recollectionUnlocked = true;
       this.pendingEvents.push('keepsake_burn');
@@ -2182,7 +2227,8 @@ export default class BattleScene extends Phaser.Scene {
 
   playDialogueOverlay(id) {
     return new Promise((resolve) => {
-      if (!this.scene.get('Dialogue')) {
+      // battleDef.noStory (the Arena): fighting only, every story line is skipped.
+      if (!this.scene.get('Dialogue') || this.battleDef.noStory) {
         resolve();
         return;
       }
@@ -2350,7 +2396,8 @@ export default class BattleScene extends Phaser.Scene {
       this.tapHint.setVisible(false);
     }
     // The memory ends it: the ultimate's kill is unconditional once it lands (techniques.json recollection.kill).
-    if (tech.kill && target.hp > 0 && (grade || !beats)) this.killEnemy(target);
+    // Not in the Arena: there the finisher's hit was the whole of it (arena.json recollection).
+    if (tech.kill && target.hp > 0 && (grade || !beats) && !this.arena) this.killEnemy(target);
     castDone.stop();
     setMusicWarm(false);
     // Still fighting after the attack: back to the stage's track (a kill goes on to the Victory jingle).
@@ -2386,7 +2433,10 @@ export default class BattleScene extends Phaser.Scene {
     Fx.shake(this, f.shake, f.shakeMs);
     playSfx(f.sfx);
     vibrate(qte.results.PERFECT.vibrateMs);
-    if (target.hp > 0) this.killEnemy(target);
+    // The Arena: a share of the target's max HP by grade instead of the kill.
+    const ar = this.arena ? arenaData.recollection : null;
+    if (target.hp > 0 && ar) this.applyHit(target, Math.round(target.maxHp * ar.dmgPct[grade]), g.color, { poiseSource: 'ultimate' });
+    else if (target.hp > 0) this.killEnemy(target);
     await Fx.hitstop(this, f.hitstopMs);
     const title = this.add
       .text(180, f.title.y, g.title, { fontFamily: ui.font, fontSize: `${f.title.fontSize}px`, color: g.color, stroke: f.title.stroke, strokeThickness: f.title.strokeThickness })
@@ -2394,7 +2444,7 @@ export default class BattleScene extends Phaser.Scene {
       .setDepth(recollection.depth + 2)
       .setScale(f.title.popScale);
     const sub = this.add
-      .text(180, f.sub.y, g.sub, { fontFamily: ui.font, fontSize: `${f.sub.fontSize}px`, color: f.sub.color, stroke: f.sub.stroke, strokeThickness: f.sub.strokeThickness })
+      .text(180, f.sub.y, ar?.sub[grade] ?? g.sub, { fontFamily: ui.font, fontSize: `${f.sub.fontSize}px`, color: f.sub.color, stroke: f.sub.stroke, strokeThickness: f.sub.strokeThickness })
       .setOrigin(0.5)
       .setDepth(recollection.depth + 2)
       .setAlpha(0);
@@ -2410,10 +2460,11 @@ export default class BattleScene extends Phaser.Scene {
   // turn is the forced Unwriting (enemyAct): the party falls and the LOSE card offers Try again / Quit.
   async memorySlips(hero, target) {
     const f = recollection.fail;
-    this.memoryFailed = true;
     hero.echo = 0;
     this.refreshHud();
-    if (target.hp > 0) {
+    // The Arena: the Echo is spent and that is all (no floor, no Unwriting, no Try again).
+    if (!this.battleDef.noStory) this.memoryFailed = true;
+    if (target.hp > 0 && !this.battleDef.noStory) {
       target.hp = target.def.stages?.[target.phase || 0]?.floorHp ?? 1;
       this.updateLabel(target);
       target.forceNextAttack = f.forceAttack;
@@ -2736,7 +2787,9 @@ export default class BattleScene extends Phaser.Scene {
 
     const storyMult = this.difficulty.damageMult;
     const braceMult = this.brace ? this.brace.damageMult : 1; // Brace holds for the whole enemy round
-    let dmg = Math.round(baseDmg * cfg.damageMult * storyMult * braceMult);
+    // Arena buffs (arena.json dmgTakenPct, negative = less): never below minDmgTakenPct.
+    const takenPct = Math.max(arenaData.minDmgTakenPct, effectTotal(this.fragments, 'dmgTakenPct'));
+    let dmg = Math.round(baseDmg * cfg.damageMult * storyMult * braceMult * (1 + takenPct / 100));
     // enemies.json hit.maxHpPct: the hit can take at most that share of the hero's max HP (the Archive
     // never one-shots a healthy Dov, whatever the difficulty or a crit added).
     if (hit.maxHpPct !== undefined) dmg = Math.min(dmg, Math.floor(hero.maxHp * hit.maxHpPct));
@@ -3657,6 +3710,18 @@ export default class BattleScene extends Phaser.Scene {
         this.showRecall().then(() => this.continueChapter());
         return;
       }
+      // The Arena: a win goes to the level card, then the runner (buff pick, campfire, next fight);
+      // a wipe ends the run (the summary). No result card, drops or Retry.
+      const runner = this.registry.get('runner');
+      if (this.arena && runner?.recordWin && result === 'WIN') {
+        const { fromXp, toXp } = runner.recordWin(this);
+        this.showLevelCard(fromXp, toXp).then(() => this.continueChapter());
+        return;
+      }
+      if (this.arena && runner?.endRun && result === 'LOSE') {
+        this.menu.show([{ slot: 'retry', label: arenaData.text.endRun, value: 'end' }]).then(() => runner.endRun(this));
+        return;
+      }
       if (result === 'WIN') {
         const stats = { ...this.stats, maxChain: this.maxChain };
         const partyHp = this.heroes.reduce((sum, h) => sum + h.maxHp, 0);
@@ -3709,6 +3774,13 @@ export default class BattleScene extends Phaser.Scene {
     this.registry.set('recallXp', to);
     const card = new RecallCard(this, this.recallXp, to, this.heroes);
     // Music: a level gained plays the memory jingle over the card (placement.events.recallCard).
+    if (card.ups.length) playOneShot(musicPlan.events.recallCard.oneShot, { resume: false });
+    return card.show();
+  }
+
+  // The Arena's level card: the same Recall card over the Arena's level table (arena.json levels).
+  showLevelCard(fromXp, toXp) {
+    const card = new RecallCard(this, fromXp, toXp, this.heroes, this.levelCfg);
     if (card.ups.length) playOneShot(musicPlan.events.recallCard.oneShot, { resume: false });
     return card.show();
   }

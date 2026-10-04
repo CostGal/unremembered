@@ -26,6 +26,8 @@ export default class PreloadScene extends Phaser.Scene {
     else if (devParam('music')) {
       // ?music=<key>: the track panel (systems/MusicPanel.js) is the whole screen.
     } else if (devParam('reward')) this.scene.start('Reward', { id: 'reward_rest' });
+    // ?arena=1: the Arena's team select (?arenaFight=N then starts the run at fight N).
+    else if (devParam('arena') !== null) this.scene.start('ArenaTeam');
     else if (devParam('cutscene')) this.scene.start('Cutscene', { id: devParam('cutscene') });
     else if (devParam('step') !== null) ChapterRunner.start(this, chapter1);
     else this.scene.start('Title');

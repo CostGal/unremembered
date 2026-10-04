@@ -2,6 +2,11 @@
 
 Newest first. Versioning rules: `CLAUDE.md` > Versioning.
 
+## 0.4.0 — 2026-10-04
+- New mode: the Arena (Menu > Arena). Pick two heroes and a support, then fight an endless line of ever stronger enemies with no story in between. HP carries over from fight to fight.
+- The team levels up as it wins (Rhea learns the Recollection at level 10), picks a buff after every fight and rests at a campfire every 4 fights (full heal plus a team upgrade).
+- New enemy groups for the Arena: Quill with a Forgotten, two Quills, three Warden Hollows and more.
+
 ## 0.3.2 — 2026-10-04
 - Credits: the champion's record is now 8:59 (Unforgettable).
 - Music loops for real: each pass of a track is scheduled to start on the exact sample the previous one ends, instead of relying on the browser's loop flag (which went silent after the first pass in desktop Chrome on the jam site).

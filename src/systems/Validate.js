@@ -932,6 +932,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   }
   if (techniques.recollection?.kill !== undefined && typeof techniques.recollection.kill !== 'boolean') err('techniques.recollection.kill must be true or false');
   validateRecollection(data, dialogue, enemies, ui, err);
+  validateArena(data, err, warn);
   const keepsake = battleEvents.keepsake_burn?.dialogue;
   if (keepsake && !dialogue[keepsake]) err(`battleEvents.keepsake_burn: no dialogue "${keepsake}"`);
 
@@ -1138,6 +1139,100 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   }
 
   return { errors, warnings };
+}
+
+// The effect keys a memory or an Arena buff may carry (systems/Fragments.js reads them).
+const EFFECT_KEYS = ['startEcho', 'nalaExtraUses', 'perfectWindowMs', 'dovMaxHp', 'perfectEchoBonus', 'anchorBonus', 'counterBonus', 'blastCritChance', 'maxHpPct', 'strikeBonus', 'dmgTakenPct', 'healAfterFightPct', 'xpPct'];
+
+// arena.json (systems/Arena.js, ArenaRunner.js): the roster, the tiers' bundles (enemies, formations),
+// the stages, the level table, the buffs / campfire upgrades and the Recollection's damage.
+function validateArena(data, err, warn) {
+  const a = data.arena;
+  if (!a) return;
+  const { characters = {}, allies = {}, enemies = {}, techniques = {}, ui = {}, assets = {} } = data;
+  const formations = ui.battleLayout?.enemies || {};
+  for (const [kind, list, defs] of [['heroes', a.roster?.heroes, characters], ['supports', a.roster?.supports, allies]]) {
+    if (!Array.isArray(list) || !list.length) err(`arena.roster.${kind}: must be a non-empty list`);
+    for (const [i, e] of (list || []).entries()) {
+      if (e.locked) continue;
+      if (!defs[e.id]) err(`arena.roster.${kind}[${i}]: "${e.id}" is not in ${kind === 'heroes' ? 'characters' : 'allies'}.json`);
+      if (e.portrait && !assets.portraits?.[e.portrait]) warn(`arena.roster.${kind}[${i}]: portrait "${e.portrait}" is not in assets.json portraits`);
+      if (!/^#[0-9a-f]{6}$/i.test(e.color || '')) err(`arena.roster.${kind}[${i}]: color must be #rrggbb`);
+    }
+  }
+  const unlocked = (list) => (list || []).filter((e) => !e.locked).length;
+  if (!(a.heroCount >= 1) || a.heroCount > unlocked(a.roster?.heroes)) err(`arena.heroCount: ${a.heroCount} heroes, the roster has ${unlocked(a.roster?.heroes)}`);
+  if (!(a.supportCount >= 0) || a.supportCount > unlocked(a.roster?.supports)) err(`arena.supportCount: ${a.supportCount} supports, the roster has ${unlocked(a.roster?.supports)}`);
+  if (a.heroCount > 2) err('arena.heroCount: the battle HUD and ui.battleLayout.heroes hold 2 heroes');
+
+  const s = a.scaling || {};
+  for (const k of ['hpPerFight', 'dmgPerFight', 'telegraphPerFight', 'telegraphMin']) if (typeof s[k] !== 'number') err(`arena.scaling.${k}: must be a number`);
+  for (const id of Object.keys(s.byDifficulty || {})) if (!data.qte?.difficulties?.[id]) err(`arena.scaling.byDifficulty.${id}: not a qte.json difficulty`);
+
+  let from = 0;
+  (a.tiers || []).forEach((t, ti) => {
+    const at = `arena.tiers[${ti}]`;
+    if (ti === 0 && t.fromFight !== 1) err(`${at}.fromFight: the first tier must start at fight 1`);
+    if (!(t.fromFight > from)) err(`${at}.fromFight: must grow from tier to tier`);
+    from = t.fromFight;
+    if (!a.stages?.[t.stage]) err(`${at}.stage: "${t.stage}" is not in arena.stages`);
+    if (!t.bundles?.length) err(`${at}.bundles: must be a non-empty list`);
+    (t.bundles || []).forEach((b, bi) => {
+      const where = `${at}.bundles[${bi}]`;
+      if (!b.enemies?.length || b.enemies.length > 3) err(`${where}: 1 to 3 enemies (the target picker holds 3)`);
+      for (const id of b.enemies || []) {
+        if (!enemies[id]) err(`${where}: no enemy "${id}" in enemies.json`);
+        else if (enemies[id].stages || enemies[id].refuseUntilFlag) err(`${where}: "${id}" is a story enemy (stages / refuseUntilFlag); use an arena variant`);
+      }
+      // As BattleScene.enemySlots picks it: the bundle's formation, else 'boss' with a boss, else by count.
+      const hasBoss = (b.enemies || []).some((id) => enemies[id]?.boss);
+      const key = b.formation || (hasBoss ? 'boss' : String((b.enemies || []).length));
+      const slots = formations[key];
+      if (!slots) err(`${where}: formation "${key}" is not in ui.battleLayout.enemies`);
+      else if (slots.length < (b.enemies || []).length) err(`${where}: formation "${key}" has ${slots.length} slots for ${b.enemies.length} enemies`);
+    });
+  });
+  for (const [id, st] of Object.entries(a.stages || {})) {
+    if (!assets.backgrounds?.[st.bg]) err(`arena.stages.${id}.bg: "${st.bg}" is not in assets.json backgrounds`);
+  }
+
+  const L = a.levels || {};
+  const xpAt = L.xpAt || [];
+  if (xpAt[0] !== 0 || xpAt.some((x, i) => i && !(x > xpAt[i - 1]))) err('arena.levels.xpAt: must start at 0 and grow');
+  for (const t of L.techLevel || []) if (!(t >= 1 && t <= 5)) err(`arena.levels.techLevel: ${t} is not a techniques.json level (1-5)`);
+  for (const [hero, list] of Object.entries(L.learn || {})) {
+    if (!characters[hero]) err(`arena.levels.learn.${hero}: not in characters.json`);
+    for (const [tech, lvl] of Object.entries(list)) {
+      if (!techniques[tech]) err(`arena.levels.learn.${hero}.${tech}: not in techniques.json`);
+      if (!(lvl >= 1 && lvl <= xpAt.length)) err(`arena.levels.learn.${hero}.${tech}: level ${lvl} is past the table (${xpAt.length})`);
+    }
+  }
+  for (const [hero, table] of Object.entries(L.echoMax || {})) if (!characters[hero] || !table.length) err(`arena.levels.echoMax.${hero}: not a character, or empty`);
+  // Rhea's Recollection needs her Echo cap at its cost by the level she learns it.
+  for (const [hero, list] of Object.entries(L.learn || {})) {
+    if (list.recollection === undefined) continue;
+    const table = L.echoMax?.[hero] || [];
+    const cap = table[Math.min(table.length, list.recollection) - 1];
+    if (!(cap >= (techniques.recollection?.cost ?? 10))) err(`arena.levels: ${hero} learns the Recollection at ${list.recollection} with an Echo cap of ${cap}`);
+  }
+
+  const pools = { buffs: a.buffs || {}, 'campfire.upgrades': a.campfire?.upgrades || {} };
+  for (const [name, pool] of Object.entries(pools)) {
+    for (const [id, b] of Object.entries(pool)) {
+      const at = `arena.${name}.${id}`;
+      if (data.fragments?.pool?.[id]) err(`${at}: the id is also a memory in fragments.json`);
+      for (const k of ['name', 'short', 'text']) if (!b[k]) err(`${at}.${k}: missing`);
+      if (!/^#[0-9a-f]{6}$/i.test(b.color || '')) err(`${at}.color: must be #rrggbb`);
+      for (const k of Object.keys(b.effects || {})) if (!EFFECT_KEYS.includes(k)) err(`${at}.effects.${k}: unknown effect key (Fragments.js)`);
+      if (b.needsHero && !characters[b.needsHero]) err(`${at}.needsHero: "${b.needsHero}" is not a character`);
+      if (b.needsSupport && !allies[b.needsSupport]) err(`${at}.needsSupport: "${b.needsSupport}" is not an ally`);
+    }
+  }
+  if (!(a.campfire?.every >= 1)) err('arena.campfire.every: must be at least 1');
+  for (const g of ['FLAWLESS', 'CLEAN', 'ROUGH']) {
+    if (typeof a.recollection?.dmgPct?.[g] !== 'number') err(`arena.recollection.dmgPct.${g}: must be a number`);
+    if (!a.recollection?.sub?.[g]) err(`arena.recollection.sub.${g}: missing`);
+  }
 }
 
 // recollection.json (the minigame "Burn the memory"), the forced no-input attack it falls back on

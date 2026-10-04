@@ -6,7 +6,7 @@ import * as Fx from './Fx.js';
 import tutorial from '../data/tutorial.json';
 import * as TutorialPause from './TutorialPause.js';
 import { learnSteps } from './MoveHelp.js';
-import { growth, levelFor, levelUps, maxLevel, techniqueAt, xpForLevel } from './Recall.js';
+import { growth, levelFor, levelUps, maxLevel, techLevelOf, techniqueAt, xpForLevel } from './Recall.js';
 
 const color = (hex) => Number(hex);
 const fill = (str, vars) => str.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
@@ -17,19 +17,21 @@ const fill = (str, vars) => str.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? var
 // after that continues.
 export default class RecallCard {
   // fromXp/toXp: the party's Memories before and after this battle.
-  constructor(scene, fromXp, toXp, heroes) {
+  // cfg: the level table (levels.json; the Arena passes its own, same shape).
+  constructor(scene, fromXp, toXp, heroes, cfg = levels) {
     this.scene = scene;
+    this.cfg = cfg;
     this.fromXp = fromXp;
     this.toXp = toXp;
     this.heroes = heroes;
-    this.ups = levelUps(fromXp, toXp, levels, techniques);
+    this.ups = levelUps(fromXp, toXp, this.cfg, techniques);
     this.timers = [];
     this.items = [];
-    this.lineY = levels.card.lines.firstY;
+    this.lineY = this.cfg.card.lines.firstY;
     this.lineObjs = [];
     this.phase = 'filling'; // filling -> ending -> (paused) -> ready
     // Spotlight targets for the tutorial pause (tutorial.json recallCard): the level text and the bar.
-    const c = levels.card;
+    const c = this.cfg.card;
     if (scene.tutorialTargets) scene.tutorialTargets['recall.bar'] = { x: c.level.x, y: c.level.y - 10, w: c.bar.w, h: c.bar.y - c.level.y + 18 };
   }
 
@@ -44,7 +46,7 @@ export default class RecallCard {
         }
       };
       // The tap that closed the result card must not also skip this one.
-      this.after(levels.card.inputDelayMs, () => this.scene.input.on('pointerdown', onTap));
+      this.after(this.cfg.card.inputDelayMs, () => this.scene.input.on('pointerdown', onTap));
       this.scene.events.once('shutdown', () => this.scene.input.off('pointerdown', onTap));
     });
   }
@@ -52,14 +54,14 @@ export default class RecallCard {
   text(x, y, str, size, col, extra = {}) {
     const t = this.scene.add
       .text(x, y, str, { fontFamily: ui.font, fontSize: `${size}px`, color: col, ...extra })
-      .setDepth(levels.card.depth + 1)
+      .setDepth(this.cfg.card.depth + 1)
       .setAlpha(0);
     this.items.push(t);
     return t;
   }
 
   fadeIn(obj) {
-    this.scene.tweens.add({ targets: obj, alpha: 1, duration: levels.card.fadeMs });
+    this.scene.tweens.add({ targets: obj, alpha: 1, duration: this.cfg.card.fadeMs });
   }
 
   after(ms, fn) {
@@ -68,15 +70,15 @@ export default class RecallCard {
 
   build() {
     const scene = this.scene;
-    const c = levels.card;
-    const t = levels.text;
+    const c = this.cfg.card;
+    const t = this.cfg.text;
     const panel = scene.add.rectangle(c.x, c.y, c.w, c.h, color(c.fill), c.alpha).setOrigin(0).setStrokeStyle(1, color(c.stroke)).setDepth(c.depth).setAlpha(0);
     this.items.push(panel);
     this.fadeIn(panel);
     this.fadeIn(this.text(c.title.x, c.title.y, t.title, c.title.fontSize, c.title.color).setOrigin(0, 0.5));
     this.fadeIn(this.text(c.gain.x, c.gain.y, fill(t.memories, { n: this.toXp - this.fromXp }), c.gain.fontSize, c.gain.color).setOrigin(1, 0.5));
 
-    const level = levelFor(this.fromXp, levels);
+    const level = levelFor(this.fromXp, this.cfg);
     this.levelText = this.text(c.level.x, c.level.y, this.levelLabel(level), c.level.fontSize, c.level.color).setOrigin(0, 0.5);
     this.fadeIn(this.levelText);
     this.barBg = scene.add.rectangle(c.bar.x, c.bar.y, c.bar.w, c.bar.h, color(c.bar.bg)).setOrigin(0, 0.5).setDepth(c.depth + 1);
@@ -88,21 +90,21 @@ export default class RecallCard {
   }
 
   levelLabel(level) {
-    return fill(levels.text.level, { n: level }) + (level >= maxLevel(levels) ? `  ${levels.text.max}` : '');
+    return fill(this.cfg.text.level, { n: level }) + (level >= maxLevel(this.cfg) ? `  ${this.cfg.text.max}` : '');
   }
 
   // How full the bar is at xp, within `level`.
   barPct(xp, level) {
-    if (level >= maxLevel(levels)) return 1;
-    const lo = xpForLevel(level, levels);
-    const hi = xpForLevel(level + 1, levels);
+    if (level >= maxLevel(this.cfg)) return 1;
+    const lo = xpForLevel(level, this.cfg);
+    const hi = xpForLevel(level + 1, this.cfg);
     return Math.max(0, Math.min(1, (xp - lo) / (hi - lo)));
   }
 
   // Fills to the next level (then shows that level's gains) or to toXp.
   fillFrom(level) {
     if (this.phase !== 'filling') return;
-    const c = levels.card;
+    const c = this.cfg.card;
     const up = this.ups.find((u) => u.level === level + 1);
     const target = up ? 1 : this.barPct(this.toXp, level);
     this.tween = this.scene.tweens.add({
@@ -112,7 +114,7 @@ export default class RecallCard {
       onComplete: () => {
         if (!up) return this.done();
         this.levelUp(up);
-        this.bar.scaleX = up.level >= maxLevel(levels) ? 1 : 0;
+        this.bar.scaleX = up.level >= maxLevel(this.cfg) ? 1 : 0;
         this.after(c.lines.staggerMs * (this.linesFor(up).length + 1), () => this.fillFrom(up.level));
       },
     });
@@ -120,11 +122,11 @@ export default class RecallCard {
 
   // "RECALL 2" pops, then the gains line by line.
   levelUp(up, instant = false) {
-    const c = levels.card;
+    const c = this.cfg.card;
     const l = c.levelUp;
     this.levelText.setText(this.levelLabel(up.level));
     if (!this.popText) this.popText = this.text(l.x, l.y, '', l.fontSize, l.color).setOrigin(1, 0.5);
-    this.popText.setText(fill(levels.text.levelUp, { n: up.level })).setAlpha(1);
+    this.popText.setText(fill(this.cfg.text.levelUp, { n: up.level })).setAlpha(1);
     if (instant) this.popText.setScale(1);
     else {
       this.popText.setScale(l.popScale);
@@ -148,38 +150,40 @@ export default class RecallCard {
 
   // Per hero: "+6 HP +1 Strike", then each technique they remember (+ flavor).
   linesFor(up) {
-    const t = levels.text;
+    const t = this.cfg.text;
     const lines = [];
     for (const hero of this.heroes) {
-      const now = growth(hero.type, up.level, levels);
-      const before = growth(hero.type, up.level - 1, levels);
+      const now = growth(hero.type, up.level, this.cfg);
+      const before = growth(hero.type, up.level - 1, this.cfg);
       const hp = now.hp - before.hp;
       const strike = now.strike - before.strike;
-      if (hp || strike) lines.push({ text: fill(t.stats, { hero: hero.name, hp, strike, strikeName: techniques.strike.name }) });
+      // A level with HP and no Strike (the Arena's slower Strike growth) uses statsHp when the table has it.
+      const tpl = !strike && t.statsHp ? t.statsHp : t.stats;
+      if (hp || strike) lines.push({ text: fill(tpl, { hero: hero.name, hp, strike, strikeName: techniques.strike.name }) });
     }
     for (const hero of this.heroes) {
       for (const id of up.learned[hero.type] || []) {
-        lines.push({ text: fill(t.remembers, { hero: hero.name, tech: techniques[id]?.name || id }), learn: true, flavor: levels.flavor[id], pauseKey: id });
+        lines.push({ text: fill(t.remembers, { hero: hero.name, tech: techniques[id]?.name || id }), learn: true, flavor: this.cfg.flavor[id], pauseKey: id });
       }
     }
     for (const hero of this.heroes) {
       for (const id of up.upgraded?.[hero.type] || []) {
         lines.push({ text: fill(t.upgrade, { tech: techniques[id]?.name || id, detail: this.upgradeDetail(id, up.level) }), learn: true, pauseKey: `${id}_${up.level}` });
-        // Anchor's revive switches on: its own line (levels.json upgradeDetail.canRevive).
-        if (!techniqueAt(id, up.level - 1, techniques).canRevive && techniqueAt(id, up.level, techniques).canRevive) {
-          lines.push({ text: fill(levels.upgradeDetail.canRevive, { tech: techniques[id]?.name || id }), learn: true });
+        // Anchor's revive switches on: its own line (this.cfg.json upgradeDetail.canRevive).
+        if (!techniqueAt(id, techLevelOf(up.level - 1, this.cfg), techniques).canRevive && techniqueAt(id, techLevelOf(up.level, this.cfg), techniques).canRevive) {
+          lines.push({ text: fill(this.cfg.upgradeDetail.canRevive, { tech: techniques[id]?.name || id }), learn: true });
         }
       }
     }
     return lines;
   }
 
-  // What changed in a technique between two levels, from levels.upgradeDetail
+  // What changed in a technique between two levels, from this.cfg.upgradeDetail
   // ("2 Echo, 3–3 bolts"): only the keys that differ, in that table's order.
   upgradeDetail(id, level) {
-    const before = techniqueAt(id, level - 1, techniques);
-    const now = techniqueAt(id, level, techniques);
-    const d = levels.upgradeDetail;
+    const before = techniqueAt(id, techLevelOf(level - 1, this.cfg), techniques);
+    const now = techniqueAt(id, techLevelOf(level, this.cfg), techniques);
+    const d = this.cfg.upgradeDetail;
     const parts = [];
     for (const [key, str] of Object.entries(d)) {
       if (key === 'hitsSame' || key === 'canRevive') continue;
@@ -192,12 +196,12 @@ export default class RecallCard {
   }
 
   addLine(line) {
-    const l = levels.card.lines;
+    const l = this.cfg.card.lines;
     const out = [this.text(l.x, this.lineY, line.text, l.fontSize, line.learn ? l.learnColor : l.color).setOrigin(0, 0.5)];
     this.lineObjs.push(out[0]);
     // The Recall-learn pauses spotlight this line (tutorial.json recallLearn).
     if (line.pauseKey && this.scene.tutorialTargets) {
-      this.scene.tutorialTargets[`${tutorial.recallLearn.lineTarget}.${line.pauseKey}`] = { x: l.x, y: this.lineY - l.spacing / 2 + 1, w: levels.card.w - (l.x - levels.card.x) * 2, h: l.spacing - 2, pad: 4 };
+      this.scene.tutorialTargets[`${tutorial.recallLearn.lineTarget}.${line.pauseKey}`] = { x: l.x, y: this.lineY - l.spacing / 2 + 1, w: this.cfg.card.w - (l.x - this.cfg.card.x) * 2, h: l.spacing - 2, pad: 4 };
     }
     this.lineY += line.flavor ? l.flavorSpacing : l.spacing;
     if (line.flavor) {
@@ -220,10 +224,10 @@ export default class RecallCard {
     for (const obj of this.items) obj.setAlpha(1);
     this.lineObjs.forEach((o) => o.destroy());
     this.lineObjs = [];
-    this.lineY = levels.card.lines.firstY;
+    this.lineY = this.cfg.card.lines.firstY;
     for (const up of this.ups) this.levelUp(up, true);
     if (!this.ups.length && this.popText) this.popText.setAlpha(0);
-    const level = levelFor(this.toXp, levels);
+    const level = levelFor(this.toXp, this.cfg);
     this.levelText.setText(this.levelLabel(level));
     this.bar.scaleX = this.barPct(this.toXp, level);
     this.done();
@@ -255,7 +259,7 @@ export default class RecallCard {
     if (this.phase !== 'filling') return;
     this.phase = 'ending';
     const b = ui.battleEnd;
-    this.after(levels.card.fadeMs, async () => {
+    this.after(this.cfg.card.fadeMs, async () => {
       // The Recall card's tutorial pause (the first card of the run): the card is still, the bar drawn.
       if (tutorial.recallCard && TutorialPause.wouldShow(this.scene, tutorial.recallCard)) {
         this.phase = 'paused';
@@ -266,7 +270,7 @@ export default class RecallCard {
       const go = this.scene.add
         .text(180, b.hintY, b.continueText, { fontFamily: ui.font, fontSize: `${b.hintFontSize}px`, color: b.hintColor })
         .setOrigin(0.5)
-        .setDepth(levels.card.depth + 1);
+        .setDepth(this.cfg.card.depth + 1);
       this.scene.tweens.add({ targets: go, alpha: b.hintPulseAlpha, duration: b.hintPulseMs, yoyo: true, repeat: -1 });
       this.items.push(go);
     });

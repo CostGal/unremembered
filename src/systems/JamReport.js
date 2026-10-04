@@ -13,7 +13,7 @@ import { difficultyId } from './Difficulty.js';
 export const JAM_VER = 'hard1';
 
 // A run touched by a dev URL param (systems/DevParams.js) or the dev HUD debug never reports.
-const DEV_PARAMS = ['step', 'level', 'battle', 'echo', 'recollection', 'impact', 'difficulty', 'fakesheets', 'editor', 'music', 'reward', 'cutscene', 'shot', 'pauses', 'fragments', 'char', 'animtest', 'fps'];
+const DEV_PARAMS = ['step', 'level', 'battle', 'echo', 'recollection', 'impact', 'difficulty', 'fakesheets', 'editor', 'music', 'reward', 'cutscene', 'shot', 'pauses', 'fragments', 'char', 'animtest', 'fps', 'arena', 'arenaFight'];
 // The longest frame the clock counts (ms), so one long frame after a resume adds nothing big.
 const MAX_FRAME_MS = 250;
 const KEY = 'jamRun';

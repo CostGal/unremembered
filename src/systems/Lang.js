@@ -15,6 +15,7 @@ import cutsceneOrigin from '../data/cutscene_origin.json';
 import tutorial from '../data/tutorial.json';
 import recollection from '../data/recollection.json';
 import enemies from '../data/enemies.json';
+import arena from '../data/arena.json';
 import el from '../data/lang/el.json';
 
 // Languages: English is the data as written; another language is an overlay
@@ -29,7 +30,7 @@ import el from '../data/lang/el.json';
 // { pauses: { id: { text, steps: [ {text} ], textIfShort } } }, `recollection`,
 // `enemies` { id: { name } }. Speaker names and the data keys stay English.
 
-const MODULES = { ui, credits, qte, techniques, fragments, statuses, battleEvents, allies, break: breakData, grade, levels, crit, dialogue, cutscene_origin: cutsceneOrigin, tutorial, recollection, enemies };
+const MODULES = { ui, credits, qte, techniques, fragments, statuses, battleEvents, allies, break: breakData, grade, levels, crit, dialogue, cutscene_origin: cutsceneOrigin, tutorial, recollection, enemies, arena };
 const OVERLAYS = { el };
 export const LANGUAGES = ui.languages.list;
 

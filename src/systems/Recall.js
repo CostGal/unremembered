@@ -21,11 +21,12 @@ export function maxLevel(cfg) {
   return cfg.xpAt.length;
 }
 
-// What a hero has gained over level 1: {hp, strike}.
+// What a hero has gained over level 1: {hp, strike}. A fractional rate (the Arena's 0.5 Strike)
+// adds up and rounds down: +1 every other level.
 export function growth(heroId, level, cfg) {
   const g = cfg.growth[heroId] || {};
   const n = Math.max(0, level - 1);
-  return { hp: (g.hp || 0) * n, strike: (g.strike || 0) * n };
+  return { hp: Math.floor((g.hp || 0) * n), strike: Math.floor((g.strike || 0) * n) };
 }
 
 // The techniques (from the hero's full list, in order) known at this level.
@@ -41,6 +42,14 @@ export function echoMaxFor(heroId, level, cfg) {
   const table = cfg.echoMax?.[heroId];
   if (!table?.length) return null;
   return table[Math.max(0, Math.min(table.length, level) - 1)];
+}
+
+// The techniques.json `levels` key a hero's techniques are at for a level: the level itself, or
+// cfg.techLevel[level-1] when the table maps more levels onto the same 5 (the Arena's 20 levels).
+export function techLevelOf(level, cfg) {
+  const t = cfg?.techLevel;
+  if (!t?.length) return level;
+  return t[Math.max(0, Math.min(t.length, level) - 1)];
 }
 
 // A technique's definition at a Recall level: the base def with the highest
@@ -76,8 +85,8 @@ export function levelUps(fromXp, toXp, cfg, techniques = {}) {
     for (const [hero, list] of Object.entries(cfg.learn)) {
       const ids = Object.keys(list).filter((id) => {
         if (list[id] >= level) return false; // not known yet, or just learned now
-        const was = techniqueAt(id, level - 1, techniques);
-        const now = techniqueAt(id, level, techniques);
+        const was = techniqueAt(id, techLevelOf(level - 1, cfg), techniques);
+        const now = techniqueAt(id, techLevelOf(level, cfg), techniques);
         return was && JSON.stringify(was) !== JSON.stringify(now);
       });
       if (ids.length) upgradedHere[hero] = ids;
