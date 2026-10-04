@@ -447,10 +447,18 @@ let pendingStart = null; // {id}: the file track whose decode a start is waiting
 
 // Dev / QA only: window.__audio (scripts/qa/lib.mjs) collects every music request,
 // so a headless run can assert the play/stop sequence. Nothing happens in the game.
+// Every build also keeps the last RECENT_MAX music events (not SFX) for musicDiagnostics().
+const RECENT_MAX = 60;
+const recentMusic = [];
 function audioLog(entry) {
+  const row = { t: Math.round(performance.now()), ...entry };
+  if (!String(entry.ev).startsWith('sfx') && entry.ev !== 'stopSfx') {
+    recentMusic.push(row);
+    if (recentMusic.length > RECENT_MAX) recentMusic.shift();
+  }
   try {
     const hook = window.__audio;
-    if (hook) (hook.log || (hook.log = [])).push({ t: Math.round(performance.now()), ...entry });
+    if (hook) (hook.log || (hook.log = [])).push(row);
   } catch (err) {
     // no window / blocked: skip
   }
@@ -741,6 +749,7 @@ function startFile(key, id, fade) {
         audioLog({ ev: 'loop-restart', key });
         return;
       }
+      audioLog({ ev: 'ended', key, stopping: rec.stopping, current: current === rec });
       rec.ended = true;
       musicSources.delete(rec);
       try {
@@ -774,6 +783,17 @@ export function setMusicWarm(on) {
 // Perf script: forget the scheduler timings so far (the first ticks build buffers).
 export function resetMusicStats() {
   if (musicEngine) musicEngine.stats = { notes: 0, dropped: 0, ticks: 0, tickMs: 0, maxTickMs: 0 };
+}
+
+// Field diagnostics (window.unrememberedMusic() in the browser console, set in main.js): what the
+// music is doing right now and the last music events, to paste into a bug report.
+export function musicDiagnostics() {
+  return {
+    wanted: wantedMusic,
+    visibility: typeof document !== 'undefined' ? document.visibilityState : null,
+    status: musicStatus(),
+    recent: recentMusic.map((r) => ({ ...r })),
+  };
 }
 
 // QA only (scripts/qa/music-loop.mjs): the live file source, to prove the loop safety net.

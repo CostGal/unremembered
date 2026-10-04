@@ -2,6 +2,10 @@
 
 Newest first. Versioning rules: `CLAUDE.md` > Versioning.
 
+## 0.3.2 — 2026-10-04
+- Credits: the champion's record is now 8:59 (Unforgettable).
+- Music diagnostics: `unrememberedMusic()` in the browser console shows what the music is doing and its last events.
+
 ## 0.3.1 — 2026-10-04
 - Unforgettable: the Forgotten's parry, dodge and red-ring timing windows are a bit wider (PERFECT 56 ms, GOOD 172 ms instead of 45 / 150).
 - Blast can no longer be dodged by Quill, and Rhea now reaches Recall 5 after the gate battle, so the Blast aim minigame is live in the boss fight.
