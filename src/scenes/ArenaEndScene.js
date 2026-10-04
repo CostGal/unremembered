@@ -6,6 +6,7 @@ import { makeGlassButton } from '../systems/Button.js';
 import { whenReady } from '../systems/Assets.js';
 import { glassPanel, keyArtBackdrop } from '../systems/Backdrop.js';
 import { fragmentDef } from '../systems/Fragments.js';
+import { setFocusBack } from '../systems/Focus.js';
 
 const L = arena.ui.end;
 const T = arena.text.end;
@@ -71,6 +72,9 @@ export default class ArenaEndScene extends Phaser.Scene {
 
     const b = L.button;
     makeGlassButton(this, 180, L.againY, b, ui.glass, 'primary', T.again, () => this.scene.start('ArenaTeam', { team: r.team })).container.setDepth(depth);
-    makeGlassButton(this, 180, L.menuY, b, ui.glass, 'secondary', T.menu, () => this.scene.start('Menu')).container.setDepth(depth);
+    const menu = makeGlassButton(this, 180, L.menuY, b, ui.glass, 'secondary', T.menu, () => this.scene.start('Menu'));
+    menu.container.setDepth(depth);
+    // Keyboard / controller: back (Circle / Esc) is Menu.
+    setFocusBack(this, () => menu.focus.activate());
   }
 }

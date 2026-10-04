@@ -1181,7 +1181,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
         else if (v && typeof v === 'object') checkPlaceholders(v, `${at}.${k}`);
       }
     };
-    for (const name of ['ui', 'qte', 'tutorial', 'recollection', 'allies', 'fragments']) checkPlaceholders(data[name], name);
+    for (const name of ['ui', 'qte', 'tutorial', 'recollection', 'allies', 'fragments', 'arena']) checkPlaceholders(data[name], name);
     for (const [t, a] of Object.entries(inp.tutorialTargets || {})) if (!actions.has(a)) err(`input.tutorialTargets.${t}: unknown action "${a}"`);
     // A guided tutorial pause must be answerable with a key: a command slot or a target in tutorialTargets.
     for (const [pid, def] of Object.entries(tutorial?.pauses || {})) {

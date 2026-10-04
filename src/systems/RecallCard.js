@@ -170,7 +170,7 @@ export default class RecallCard {
     }
     for (const hero of this.heroes) {
       for (const id of up.learned[hero.type] || []) {
-        lines.push({ text: fill(t.remembers, { hero: hero.name, tech: techniques[id]?.name || id }), learn: true, flavor: this.cfg.flavor[id], pauseKey: id });
+        lines.push({ text: fill(t.remembers, { hero: hero.name, tech: techniques[id]?.name || id }), learn: true, flavor: tx({ text: this.cfg.flavor[id], textButtons: this.cfg.flavorButtons?.[id] }), pauseKey: id });
       }
     }
     for (const hero of this.heroes) {

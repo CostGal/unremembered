@@ -10,6 +10,7 @@ export function arenaLevelCfg(levels, cfg) {
     ...cfg.levels,
     text: { ...levels.text, ...cfg.levels.text },
     flavor: { ...levels.flavor, ...cfg.levels.flavor },
+    flavorButtons: { ...levels.flavorButtons, ...cfg.levels.flavorButtons },
   };
 }
 

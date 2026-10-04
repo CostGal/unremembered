@@ -198,6 +198,57 @@ await withBrowser(async ({ server, chrome }) => {
     await page.cdp.send('Page.close').catch(() => {});
   }
 
+  // ---------- H: the Arena on the controller ----------
+  {
+    const page = await openFront(chrome, server.url, desk);
+    const T = `window.__game.scene.getScene('ArenaTeam')`;
+    await waitScene(page, 'Title');
+    await sleep(600);
+    await tap(page, 'cross');
+    await waitScene(page, 'Menu', 8000).catch(() => {});
+    await sleep(1800);
+    for (let i = 0; i < 2; i++) await tap(page, 'down');
+    await tap(page, 'cross');
+    await waitScene(page, 'ArenaTeam', 8000).catch(() => {});
+    check('H: Menu > Arena with the d-pad + Cross', await active(page, 'ArenaTeam'));
+    await page.waitFor(`!!${T}.cards`, { timeout: 20000 });
+    await sleep(600);
+    // The first card (Rhea) is focused first: Cross, down, Cross (Dov), down, Cross (Nala).
+    await tap(page, 'cross');
+    await tap(page, 'down');
+    await tap(page, 'cross');
+    await tap(page, 'down');
+    await tap(page, 'cross');
+    const team = await page.ev(`JSON.stringify({ heroes: ${T}.heroes, support: ${T}.support, ready: ${T}.ready() })`);
+    check('H: Cross on the cards picks Rhea, Dov and Nala', team === JSON.stringify({ heroes: ['rhea', 'dov'], support: 'nala', ready: true }), team);
+    // Down to the bottom row (Begin), then Cross.
+    for (let i = 0; i < 4 && !(await page.ev(`${T}.__focus.current === ${T}.begin.focus`)); i++) await tap(page, 'down');
+    check('H: the d-pad reaches Begin', await page.ev(`${T}.__focus.current === ${T}.begin.focus`));
+    await tap(page, 'cross');
+    await page.waitFor(`!!(window.__battle && window.__battle.arena && window.__battle.arena.fight === 1)`, { timeout: 20000 }).catch(() => {});
+    check('H: Begin starts Arena fight 1', await page.ev(`!!(window.__battle && window.__battle.arena && window.__battle.arena.fight === 1)`));
+    // Square strikes in the Arena too (with several enemies, Cross confirms the target).
+    check('H: the command menu comes up', await waitMenu(page));
+    await sleep(600);
+    await tap(page, 'square');
+    if ((await menuValues(page)).some((v) => v.startsWith('target:'))) await tap(page, 'cross');
+    await sleep(400);
+    check('H: Square = Strike in the Arena', !(await menuPending(page)));
+    // Win the fight (as scripts/qa/arena.mjs does), then the level card and the buff with the pad.
+    await sleep(2500);
+    await page.ev(`(() => { const b = window.__battle; b.enemies.forEach((e) => { if (e.hp > 0) b.killEnemy(e); }); b.onBattleEnd('WIN'); })()`);
+    for (let t = 0; t < 40 && (await active(page, 'Battle')); t++) await tap(page, 'cross');
+    await waitScene(page, 'Reward', 15000).catch(() => {});
+    check('H: Cross passes the result and level cards to the buff pick', await active(page, 'Reward'));
+    await sleep(800);
+    await tap(page, 'down');
+    await tap(page, 'cross');
+    await page.waitFor(`!!(window.__battle && window.__battle.arena && window.__battle.arena.fight === 2)`, { timeout: 20000 }).catch(() => {});
+    check('H: the d-pad + Cross picks a buff and fight 2 starts', await page.ev(`!!(window.__battle && window.__battle.arena && window.__battle.arena.fight === 2)`));
+    check('H: no page errors', page.errors.length === 0, page.errors.join(' | '));
+    await page.cdp.send('Page.close').catch(() => {});
+  }
+
   // ---------- B + C: battle commands and the parry ring (b1: two Forgotten) ----------
   {
     const page = await openFront(chrome, `${server.url}?battle=b1_forgotten&pauses=0`, desk);
