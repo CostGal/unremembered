@@ -4,6 +4,7 @@ Newest first. Versioning rules: `CLAUDE.md` > Versioning.
 
 ## 0.3.1 — 2026-10-04
 - Unforgettable: the Forgotten's parry, dodge and red-ring timing windows are a bit wider (PERFECT 56 ms, GOOD 172 ms instead of 45 / 150).
+- Blast can no longer be dodged by Quill, and Rhea now reaches Recall 5 after the gate battle, so the Blast aim minigame is live in the boss fight.
 
 ## 0.3.0 — 2026-10-04
 - Game-jam site reporting: finishing a run tells the host page the run's time, difficulty and battle results (no change on screen).

@@ -152,7 +152,7 @@ WIN → "Victory" → runner.next()      LOSE → Retry
 - **Feint** (`feint: {atPct, pauseMs}`): the ring shrinks to `atPct` of its travel, freezes for `pauseMs`, then continues to impact.
 
 ### Echo
-- Per hero, integer 0–cap. The cap follows the Recall level (`levels.json` `echoMax`): Rhea 1 / 3 / 5 / 7 / 8 at Recall 1–5, Dov 5 at every level. The Keepsake raises Rhea's cap to 10 and fills it (every difficulty). HUD pips: `characters.json` `echoPips` (Rhea 10, Dov 5). The striker gets +1 per Strike that lands; the hero who parries gets +2 per PERFECT (GOOD and dodges give 0). Techniques spend their user's Echo according to `techniques.json`.
+- Per hero, integer 0–cap. The cap follows the Recall level (`levels.json` `echoMax`; `xpAt` [0, 60, 110, 190, 195], so the gate battle gives Recall 4 and 5 together and the boss is fought at Recall 5 with the Blast aim ring): Rhea 1 / 3 / 5 / 7 / 8 at Recall 1–5, Dov 5 at every level. The Keepsake raises Rhea's cap to 10 and fills it (every difficulty). HUD pips: `characters.json` `echoPips` (Rhea 10, Dov 5). The striker gets +1 per Strike that lands; the hero who parries gets +2 per PERFECT (GOOD and dodges give 0). Techniques spend their user's Echo according to `techniques.json`.
 
 ### Recollection (ultimate, P0)
 - Needs Echo = 10 and is used by Rhea.
