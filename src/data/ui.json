@@ -1262,6 +1262,17 @@
       "depth": 16
     }
   },
+  "version": {
+    "text": "v{version}",
+    "x": 344,
+    "y": 626,
+    "originX": 1,
+    "originY": 1,
+    "fontSize": 11,
+    "color": "#8a8f9e",
+    "alpha": 0.8,
+    "depth": 50
+  },
   "menu": {
     "title": {
       "text": "UNREMEMBERED",

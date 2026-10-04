@@ -58,6 +58,10 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   });
   if (chapter1.length && chapter1[chapter1.length - 1].type !== 'end') warn('chapter1: last step is not {"type": "end"}');
 
+  // Version label (systems/Version.js): ui.version
+  const vl = ui.version;
+  if (vl && !(typeof vl.text === 'string' && vl.text.includes('{version}') && vl.fontSize > 0 && typeof vl.color === 'string')) err('ui.version: needs text (with {version}), fontSize and color');
+
   // Tutorial pauses (tutorial.json): targets from the known list, an indicator, steps with text.
   if (tutorial) {
     const known = new Set(tutorial.targets || []);
