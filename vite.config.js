@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { defineConfig } from 'vite';
 
 // Music keys that have a real file in public/assets/audio/music/. Anything else
@@ -16,7 +16,16 @@ const sfxFiles = existsSync(sfxDir)
   ? readdirSync(sfxDir).filter((f) => f.endsWith('.mp3')).map((f) => f.slice(0, -4))
   : [];
 
+// The game's version (package.json), shown on the Title and Menu (systems/Version.js).
+const appVersion = JSON.parse(readFileSync('package.json', 'utf8')).version;
+
 export default defineConfig({
   base: './',
-  define: { __MUSIC_FILES__: JSON.stringify(musicFiles), __SFX_FILES__: JSON.stringify(sfxFiles) },
+  define: {
+    __MUSIC_FILES__: JSON.stringify(musicFiles),
+    __SFX_FILES__: JSON.stringify(sfxFiles),
+    __APP_VERSION__: JSON.stringify(appVersion),
+    // The separate jam build (vite.jam.config.js) turns this on; see src/systems/Jam.js.
+    __JAM__: false,
+  },
 });

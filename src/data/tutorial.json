@@ -101,7 +101,7 @@
       "always": true,
       "steps": [
         { "text": "Strong enemies parry too. When he blocks your Strike, a ring comes back at you.", "targets": ["enemy"] },
-        { "text": "Parry it like any other. Blast and Tremor he can only dodge.", "targets": ["enemy", "tapzone"], "indicator": "tap" }
+        { "text": "Parry it like any other. Tremor he can dodge, but Blast always hits.", "targets": ["enemy", "tapzone"], "indicator": "tap" }
       ]
     },
     "nala_save": {

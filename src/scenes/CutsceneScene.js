@@ -99,13 +99,16 @@ export default class CutsceneScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
       .setDepth(cfg.depth.text);
 
+    // Right-aligned in the corner by default; align "left" starts it at skipHint.x
+    // (the jam build clears the host page's top-right button this way).
+    const leftAligned = cfg.skipHint.align === 'left';
     this.skipHint = this.add
-      .text(360 - cfg.skipHint.pad, cfg.skipHint.y ?? 640 - cfg.skipHint.pad, cfg.skipHint.text, {
+      .text(leftAligned ? cfg.skipHint.x : 360 - cfg.skipHint.pad, cfg.skipHint.y ?? 640 - cfg.skipHint.pad, cfg.skipHint.text, {
         fontFamily: ui.font,
         fontSize: `${cfg.skipHint.fontSize}px`,
         color: cfg.skipHint.color,
       })
-      .setOrigin(1, 1)
+      .setOrigin(leftAligned ? 0 : 1, 1)
       .setDepth(cfg.depth.text);
     this.skipHint.setVisible(!this.preview);
     this.tweens.add({ targets: this.skipHint, alpha: 0, delay: cfg.skipHint.showMs, duration: cfg.skipHint.fadeMs });

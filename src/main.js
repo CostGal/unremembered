@@ -16,6 +16,7 @@ import { installAudioUnlock } from './systems/Audio.js';
 import { devParam } from './systems/DevParams.js';
 import { VIEW, install as installView } from './systems/View.js';
 import { installInput } from './systems/Input.js';
+import { installJamClock } from './systems/JamReport.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -37,6 +38,8 @@ const game = new Phaser.Game(config);
 installView(game);
 // Keyboard and controller actions (systems/Input.js, data/input.json).
 installInput(game);
+// Game-jam site reporting: the active-time clock of a run (systems/JamReport.js).
+installJamClock(game);
 if (import.meta.env.DEV) window.__game = game;
 
 // Held sideways (the "Rotate your phone" overlay in index.html shows on this

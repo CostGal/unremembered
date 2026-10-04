@@ -384,6 +384,10 @@
       "quit": [
         266,
         540
+      ],
+      "retryStage": [
+        266,
+        540
       ]
     },
     "slotWidths": {
@@ -637,6 +641,7 @@
     "continueText": "Tap to continue",
     "retryText": "Retry",
     "retryRecollectionText": "Try again",
+    "retryStageText": "Retry from here",
     "quitText": "Quit",
     "textY": 300,
     "fontSize": 28,
@@ -1272,6 +1277,17 @@
       "depth": 16
     }
   },
+  "version": {
+    "text": "v{version}",
+    "x": 344,
+    "y": 626,
+    "originX": 1,
+    "originY": 1,
+    "fontSize": 11,
+    "color": "#8a8f9e",
+    "alpha": 0.8,
+    "depth": 50
+  },
   "menu": {
     "title": {
       "text": "UNREMEMBERED",
@@ -1775,6 +1791,21 @@
         "color": "#e8883a",
         "stroke": "#0b0d14",
         "strokeThickness": 4
+      }
+    }
+  },
+  "jam": {
+    "_note": "Deep-merged over this file in the jam build only (vite.jam.config.js): keeps the host page's 60x60 top-right button clear (logical x 300-360, y 0-60).",
+    "tutorial": {
+      "banner": {
+        "y": 84
+      }
+    },
+    "cutscene": {
+      "skipHint": {
+        "align": "left",
+        "x": 84,
+        "y": 36
       }
     }
   }

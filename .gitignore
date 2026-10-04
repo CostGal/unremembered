@@ -6,3 +6,5 @@ _inbox/
 node_modules
 .claude/worktrees/
 _art/trailer/work/
+dist-jam/
+dist-jam-zip/

@@ -7,11 +7,13 @@ import { addText, makeGlassButton } from '../systems/Button.js';
 import { saveSettings } from '../systems/Settings.js';
 import { difficultyDef, difficultyIds, normalizeDifficulty } from '../systems/Difficulty.js';
 import ChapterRunner from '../systems/ChapterRunner.js';
+import { startRun } from '../systems/JamReport.js';
 import { isRealTexture, whenReady } from '../systems/Assets.js';
 import { glassPanel, keyArtBackdrop } from '../systems/Backdrop.js';
 import * as Fx from '../systems/Fx.js';
 import { rect as viewRect } from '../systems/View.js';
 import { popFocusLayer, pushFocusLayer } from '../systems/Focus.js';
+import { addVersionLabel } from '../systems/Version.js';
 
 const cfg = ui.menu;
 
@@ -53,6 +55,7 @@ export default class MenuScene extends Phaser.Scene {
       this.enter(button.body, delay);
       if (item.id === 'new') this.pulse(y, delay + cfg.enter.ms);
     });
+    addVersionLabel(this);
   }
 
   // The drawn part slides in from the right and fades up; the hit area is
@@ -137,6 +140,7 @@ export default class MenuScene extends Phaser.Scene {
       const next = normalizeDifficulty({ ...settings, difficulty, difficultyChosen: true });
       this.registry.set('settings', next);
       saveSettings(next);
+      startRun(this.registry, next);
       ChapterRunner.start(this, chapter1);
     };
     const buttons = difficultyIds().map((id, i) => {

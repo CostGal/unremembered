@@ -15,7 +15,8 @@
     "fallbackDeathAlpha": 0.35,
     "riseMs": 600,
     "flash": { "color": "0xd8303a", "alpha": 0.4, "ms": 500 },
-    "shake": { "amount": 5, "ms": 300 }
+    "shake": { "amount": 5, "ms": 300 },
+    "checkpoint": { "fullParty": true, "clearStatuses": true }
   },
   "charge": {
     "glowRadius": 90,

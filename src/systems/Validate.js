@@ -58,6 +58,10 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   });
   if (chapter1.length && chapter1[chapter1.length - 1].type !== 'end') warn('chapter1: last step is not {"type": "end"}');
 
+  // Version label (systems/Version.js): ui.version
+  const vl = ui.version;
+  if (vl && !(typeof vl.text === 'string' && vl.text.includes('{version}') && vl.fontSize > 0 && typeof vl.color === 'string')) err('ui.version: needs text (with {version}), fontSize and color');
+
   // Tutorial pauses (tutorial.json): targets from the known list, an indicator, steps with text.
   if (tutorial) {
     const known = new Set(tutorial.targets || []);
@@ -591,6 +595,7 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
         ids.add(stage.id);
         if (i === 0 && !(stage.hpPct > 0 && stage.hpPct <= 100)) err(`${at}: hpPct (the share of hp the first stage opens with) must be in (0, 100]`);
         if (i > 0 && stage.hpPct !== undefined) err(`${at}: hpPct belongs to the first stage only (later stages refill via the previous onZero.refillTo)`);
+        if (stage.checkpoint !== undefined && (typeof stage.checkpoint !== 'boolean' || i === 0)) err(`${at}: checkpoint must be true/false and only on a later stage (it is recorded as the enemy rises into it)`);
         if (!stage.attacks?.length) err(`${at}: no attacks`);
         const last = i === st.length - 1;
         const z = stage.onZero;
@@ -733,10 +738,10 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
     const stageIds = new Set((e.stages || []).map((s) => s.id));
     for (const [did, t] of Object.entries(e.difficulty)) {
       if (!qteDifficultyIds(data).includes(did)) err(`${at}.${did}: not a qte.json difficulty id`);
-      for (const k of ['hpMult', 'telegraphMult', 'dmgMult']) if (t[k] !== undefined && !(typeof t[k] === 'number' && t[k] > 0)) err(`${at}.${did}.${k} must be a number > 0`);
+      for (const k of ['hpMult', 'telegraphMult', 'dmgMult', 'windowMult', 'perfectWindowMult']) if (t[k] !== undefined && !(typeof t[k] === 'number' && t[k] > 0)) err(`${at}.${did}.${k} must be a number > 0`);
       for (const aid of Object.keys(t.attacks || {})) if (!attackIds.has(aid)) err(`${at}.${did}.attacks.${aid}: not one of the enemy's attacks`);
       for (const sid of Object.keys(t.stages || {})) if (!stageIds.has(sid)) err(`${at}.${did}.stages.${sid}: not one of the enemy's stage ids`);
-      for (const k of Object.keys(t)) if (!['hpMult', 'telegraphMult', 'dmgMult', 'attacks', 'stages', 'defend', 'ai'].includes(k)) err(`${at}.${did}.${k}: unknown tuning key`);
+      for (const k of Object.keys(t)) if (!['hpMult', 'telegraphMult', 'dmgMult', 'windowMult', 'perfectWindowMult', 'attacks', 'stages', 'defend', 'ai'].includes(k)) err(`${at}.${did}.${k}: unknown tuning key`);
     }
   }
   for (const id of data.qte?.difficulties?.order || []) {
@@ -884,6 +889,12 @@ export function validateData(data, { sheetExists = null, maxLineChars = 90 } = {
   }
   if (Object.values(enemies).some((e) => e.stages)) {
     const sg = battleEvents.stage;
+    if (Object.values(enemies).some((e) => (e.stages || []).some((x) => x.checkpoint))) {
+      const cp = sg?.checkpoint;
+      if (!(cp && typeof cp.fullParty === 'boolean' && typeof cp.clearStatuses === 'boolean')) err('battleEvents.stage.checkpoint: fullParty and clearStatuses (true/false) are required when a stage has checkpoint');
+      if (!(typeof ui.battleEnd?.retryStageText === 'string' && ui.battleEnd.retryStageText)) err('ui.battleEnd.retryStageText is required when a stage has checkpoint (the Retry from here button)');
+      if (!ui.commands?.slots?.retryStage) err('ui.commands.slots.retryStage is required when a stage has checkpoint');
+    }
     if (Object.values(enemies).some((e) => (e.stages || []).some((x) => x.floorHp !== undefined)) && !(typeof sg?.floorText === 'string' && sg.floorText && sg.floorColor)) err('battleEvents.stage: floorText and floorColor are required when a stage has floorHp');
     if (!(sg && typeof sg.enragedText === 'string' && sg.enragedText && sg.enragedColor && typeof sg.laughText === 'string' && sg.laughColor && sg.deathHoldMs >= 0 && sg.riseMs > 0 && sg.fallbackDeathAlpha >= 0 && sg.fallbackDeathAlpha <= 1)) err('battleEvents.stage: enragedText, enragedColor, laughText ("" = none), laughColor, deathHoldMs, riseMs and fallbackDeathAlpha are required');
   }

@@ -625,6 +625,7 @@ function startProcedural(key, id, fade) {
 // decoded buffer without its silent ends (encoder delay at the start, padding / silence at the end):
 // the first and the last sample above LOOP_FLOOR within LOOP_SCAN_SEC of either end.
 const LOOP_FLOOR = 0.001; // -60 dB
+const LOOP_MIN_TRIM_SEC = 0.005; // a trim shorter than this keeps the whole-buffer loop
 const LOOP_SCAN_SEC = 0.2;
 const loopCache = new WeakMap();
 function loopRange(key, buffer) {
@@ -670,15 +671,24 @@ function startFile(key, id, fade) {
       startProcedural(key, id, fade);
       return;
     }
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
+    const looping = isLoop(key);
     // A looping track is one source on a seamless loop (loopRange); a one-shot (music.loop[key] false) plays once.
-    source.loop = isLoop(key);
-    if (source.loop) {
-      const [from, to] = loopRange(key, buffer);
-      source.loopStart = from;
-      source.loopEnd = to;
-    }
+    // Loop points are set only when they trim something audible-length (LOOP_MIN_TRIM_SEC); otherwise the
+    // source loops the whole buffer (loopStart = loopEnd = 0), the path every browser handles.
+    const makeSource = () => {
+      const s = ctx.createBufferSource();
+      s.buffer = buffer;
+      s.loop = looping;
+      if (looping) {
+        const [from, to] = loopRange(key, buffer);
+        if (from > LOOP_MIN_TRIM_SEC || buffer.duration - to > LOOP_MIN_TRIM_SEC) {
+          s.loopStart = from;
+          s.loopEnd = Math.min(to, buffer.duration);
+        }
+      }
+      return s;
+    };
+    const source = makeSource();
     const gain = ctx.createGain();
     const duckNode = ctx.createGain();
     const now = ctx.currentTime;
@@ -708,7 +718,7 @@ function startFile(key, id, fade) {
         gain.gain.setValueAtTime(gain.gain.value, t);
         gain.gain.linearRampToValueAtTime(0, t + f);
         try {
-          source.stop(t + f + 0.05);
+          rec.source.stop(t + f + 0.05);
         } catch (err) {
           // already ended
         }
@@ -721,17 +731,30 @@ function startFile(key, id, fade) {
       other.stop(fade);
     }
     musicSources.add(rec);
-    source.onended = () => {
+    // Safety net: a looping track that ends while it is still the wanted one (a browser that drops the
+    // loop) starts again at once from its loop point, on the same gain chain, so the music never stops.
+    const onEnded = (ended) => () => {
+      if (ended !== rec.source) return;
+      if (looping && !rec.stopping && current === rec && ctx) {
+        const again = makeSource();
+        again.connect(gain);
+        again.onended = onEnded(again);
+        rec.source = again;
+        again.start(ctx.currentTime, again.loopStart || 0);
+        audioLog({ ev: 'loop-restart', key });
+        return;
+      }
       rec.ended = true;
       musicSources.delete(rec);
       try {
-        source.disconnect();
+        ended.disconnect();
         gain.disconnect();
         duckNode.disconnect();
       } catch (err) {
         // already disconnected
       }
     };
+    source.onended = onEnded(source);
     source.start(now);
     current = rec;
     if (duckLevel !== 1) rec.setDuck(duckLevel, 0.05);
@@ -754,6 +777,11 @@ export function setMusicWarm(on) {
 // Perf script: forget the scheduler timings so far (the first ticks build buffers).
 export function resetMusicStats() {
   if (musicEngine) musicEngine.stats = { notes: 0, dropped: 0, ticks: 0, tickMs: 0, maxTickMs: 0 };
+}
+
+// QA only (scripts/qa/music-loop.mjs): the live file source, to prove the loop safety net.
+export function musicSourceForQa() {
+  return current && current.source ? current.source : null;
 }
 
 // For the ?music= panel and the perf script.

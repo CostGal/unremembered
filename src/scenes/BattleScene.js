@@ -21,7 +21,7 @@ import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
 import { clampX, mirrorEdges, rect as viewRect } from '../systems/View.js';
 import { difficultyDef, difficultyId } from '../systems/Difficulty.js';
-import { aiPickAttack, aiPickTarget, currentStage, recollectionAtOf, recollectionDue, tuneEnemyDef } from '../systems/EnemyTuning.js';
+import { aiPickAttack, aiPickTarget, currentStage, enemyWindowMults, recollectionAtOf, recollectionDue, tuneEnemyDef } from '../systems/EnemyTuning.js';
 import CommandMenu from '../systems/CommandMenu.js';
 import { helpCard, learnSteps } from '../systems/MoveHelp.js';
 import { createBackdrop, createPlatform } from '../systems/BattleBackdrop.js';
@@ -45,6 +45,7 @@ import { battleXp, echoMaxFor, growth, learned, levelFor, techniqueAt, xpForLeve
 import RecallCard from '../systems/RecallCard.js';
 import { animKey, hasSheet, playLoop, playOnce, playReverseOnce, SheetDriver, trace } from '../systems/SpriteAnims.js';
 import { isRealTexture, whenReady } from '../systems/Assets.js';
+import { markDebugUsed, recordBattle } from '../systems/JamReport.js';
 
 const layout = ui.battleLayout;
 const musicPlan = audioData.music.placement; // where the music plays (audio.json music.placement)
@@ -138,6 +139,9 @@ export default class BattleScene extends Phaser.Scene {
     // Recollection (recollection.json): the moment it was cast (Try again comes back there) and
     // whether a memory slipped (3 MISS: the next LOSE offers Try again / Quit).
     this.recollectionSnapshot = this.initData.rewind || null;
+    // Stage checkpoint (enemies.json stages[i].checkpoint): the battle as the boss rose into that
+    // stage; the lose card then offers Retry from here. Carried over a checkpoint restart.
+    this.stageSnapshot = this.initData.checkpoint || null;
     this.memoryFailed = false;
     this.listenForBackground();
     addPauseButton(this, () => this.openPause(true));
@@ -211,7 +215,9 @@ export default class BattleScene extends Phaser.Scene {
     this.hud.setFragments(this.fragments);
     this.refreshHud();
     // Try again after a failed Recollection: the battle as it was when she cast it.
+    // Retry from here: the battle as the boss rose into its checkpoint stage.
     if (this.initData.rewind) this.applyRewind(this.initData.rewind);
+    else if (this.initData.checkpoint) this.applyRewind(this.checkpointState(this.initData.checkpoint));
     if (import.meta.env.DEV) {
       this.enableHudDebug();
       window.__battle = this;
@@ -812,6 +818,7 @@ export default class BattleScene extends Phaser.Scene {
   enableHudDebug() {
     const { hpStep, echoStep, keys } = ui.debug;
     const hurt = (i) => {
+      markDebugUsed();
       const hero = this.heroes[i];
       if (!hero) return;
       if (hero.hp <= 0) this.revive(hero, hero.maxHp);
@@ -823,6 +830,7 @@ export default class BattleScene extends Phaser.Scene {
       this.refreshHud();
     };
     const addEcho = (hero, d, wrap) => {
+      markDebugUsed();
       if (!hero) return;
       let next = hero.echo + d;
       if (wrap && next > hero.echoMax) next = 0;
@@ -985,6 +993,7 @@ export default class BattleScene extends Phaser.Scene {
     if (enemy.anims) playLoop(enemy.body, enemy.type, 'idle');
     if (!enemy.anims || enemy.anims.idle.placeholder) enemy.bobTween = this.idleBob(enemy.container);
     this.enterStage(enemy, next);
+    if (next.checkpoint) this.stageSnapshot = this.takeRecollectionSnapshot();
     await this.wait(cfg.riseMs);
   }
 
@@ -1769,7 +1778,10 @@ export default class BattleScene extends Phaser.Scene {
       this.setTimeScale(slow);
       if ((this.tutorialSlow || lesson) && !(lesson && redPaused)) this.showTutorialPrompt(true, lesson ? red.lesson.text : qte.tutorial.prompt.text);
 
-      const windows = hit.firstSlow ? Qte.scaledWindows(this.parryWindows(), hit.firstSlow) : this.parryWindows();
+      // This enemy's own window factors (enemies.json difficulty.<id>.windowMult / perfectWindowMult).
+      const [eGood, ePerfect] = enemyWindowMults(enemy.def);
+      const ownWindows = (w) => (eGood === 1 && ePerfect === 1 ? w : Qte.scaledWindows(w, eGood, ePerfect));
+      const windows = ownWindows(hit.firstSlow ? Qte.scaledWindows(this.parryWindows(), hit.firstSlow) : this.parryWindows());
       const x = target.container.x;
       const y = target.container.y + qte.ring.offsetY;
       ring = Qte.runRing(this, {
@@ -1782,7 +1794,7 @@ export default class BattleScene extends Phaser.Scene {
         swipe: qte.dodge.swipe,
         unparryable: hit.unparryable,
         // Every ring takes both gestures: a tap parries, a swipe dodges (Qte.runRing).
-        dodgeWindows: slow === 1 ? this.dodgeWindows() : Qte.scaledWindows(this.dodgeWindows(), 1 / slow),
+        dodgeWindows: slow === 1 ? ownWindows(this.dodgeWindows()) : Qte.scaledWindows(ownWindows(this.dodgeWindows()), 1 / slow),
         // No tap by T: the hit visibly lands now, the judgement (a late GOOD
         // or a MISS) follows when the window closes.
         onImpact: () => target.hp > 0 && this.playHurt(target),
@@ -2473,8 +2485,9 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   // What Try again restores: the party (Rhea with the Echo she just spent), every enemy (stage, HP,
-  // poise, unlocks), statuses, flags, fired events and the running stats.
-  takeRecollectionSnapshot(hero, tech) {
+  // poise, unlocks), statuses, flags, fired events and the running stats. Also the stage
+  // checkpoint (riseStage), called without a hero: every Echo stays as it is.
+  takeRecollectionSnapshot(hero = null, tech = null) {
     return {
       heroes: this.heroes.map((h) => ({ hp: h.hp, maxHp: h.maxHp, echoMax: h.echoMax, echo: h === hero ? Math.min(h.echoMax, h.echo + tech.cost) : h.echo, statuses: JSON.parse(JSON.stringify(h.statuses || {})) })),
       enemies: this.enemies.map((e) => ({ phase: e.phase || 0, hp: e.hp, maxHp: e.maxHp, poise: e.poise, recollectionUnlocked: !!e.recollectionUnlocked, turnsInPhase: e.turnsInPhase || 0, attacked: !!e.attacked, attackCount: e.attackCount || 0, released: e.released || null, floorHits: e.floorHits || 0, exposed: e.exposed ? { ...e.exposed } : null })),
@@ -2488,6 +2501,14 @@ export default class BattleScene extends Phaser.Scene {
       nalaUsesLeft: this.nala ? this.nala.usesLeft : null,
       nalaGlow: this.nala ? { on: this.nala.glowOn, cd: this.nala.glowCd } : null,
     };
+  }
+
+  // A stage checkpoint as applyRewind takes it: the party back on its feet at full HP and
+  // statuses cleared when battleEvents.stage.checkpoint says so (Echo as it was at the rise).
+  checkpointState(snap) {
+    const c = battleEvents.stage.checkpoint || {};
+    const heroes = snap.heroes.map((h) => ({ ...h, hp: c.fullParty ? h.maxHp : h.hp, statuses: c.clearStatuses ? {} : h.statuses }));
+    return { ...snap, heroes };
   }
 
   // A fresh build puts the snapshot back (Try again, see rewind()).
@@ -3646,6 +3667,7 @@ export default class BattleScene extends Phaser.Scene {
         const stats = { ...this.stats, maxChain: this.maxChain };
         const partyHp = this.heroes.reduce((sum, h) => sum + h.maxHp, 0);
         const card = new ResultCard(this, this.battleId, stats, partyHp);
+        recordBattle(this.registry, this.battleId, card.result);
         card
           .show()
           .then(() => card.hide())
@@ -3661,6 +3683,15 @@ export default class BattleScene extends Phaser.Scene {
           { slot: 'quit', label: cfg.quitText, value: 'quit' },
         ];
         this.menu.show(items).then((choice) => (choice === 'quit' ? this.quitToMenu() : this.rewind()));
+        return;
+      }
+      // Lost after the boss rose into a checkpoint stage: Retry (from the start) or Retry from here.
+      if (result === 'LOSE' && this.stageSnapshot) {
+        const items = [
+          { slot: 'retryRecollection', label: cfg.retryText, value: 'retry' },
+          { slot: 'retryStage', label: cfg.retryStageText, value: 'checkpoint' },
+        ];
+        this.menu.show(items).then((choice) => (choice === 'checkpoint' ? this.retryStage() : this.retry()));
         return;
       }
       this.menu.show([{ slot: 'retry', label: cfg.retryText, value: 'retry' }]).then(() => this.retry());
@@ -3690,8 +3721,14 @@ export default class BattleScene extends Phaser.Scene {
 
   // Retry restarts the same battle from its starting state (full HP, starting Echo).
   retry() {
-    const { rewind, ...data } = this.initData;
+    const { rewind, checkpoint, ...data } = this.initData;
     this.scene.restart(data);
+  }
+
+  // Retry from here: the same battle, back at the moment the boss rose into its checkpoint stage.
+  retryStage() {
+    const { rewind, ...data } = this.initData;
+    this.scene.restart({ ...data, checkpoint: this.stageSnapshot });
   }
 
   // Try again (after the Unwriting): the same battle, back at the moment the Recollection was cast.
