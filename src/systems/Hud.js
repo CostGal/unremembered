@@ -3,7 +3,7 @@
 // calls update(state).
 import { VIEW } from './View.js';
 import statuses from '../data/statuses.json';
-import fragments from '../data/fragments.json';
+import { fragmentDef } from './Fragments.js';
 import levels from '../data/levels.json';
 
 const color = (hex) => Number(hex);
@@ -70,7 +70,9 @@ export default class Hud {
     // Recall level (levels.json), small and gold, right after the name.
     if (hero.level) {
       const l = levels.hud;
-      this.text(label.x + label.width + l.gap, y + l.dy, levels.text.hud.replace('{n}', hero.level), l.fontSize).setOrigin(0, 0.5).setColor(l.color);
+      // The Arena has its own level table and label (arena.json levels.text.hud).
+      const fmt = this.scene.levelCfg?.text?.hud ?? levels.text.hud;
+      this.text(label.x + label.width + l.gap, y + l.dy, fmt.replace('{n}', hero.level), l.fontSize).setOrigin(0, 0.5).setColor(l.color);
     }
     const value = this.text(hpText.x, y, '', hpText.fontSize).setOrigin(1, 0.5);
 
@@ -190,8 +192,8 @@ export default class Hud {
   // the Echo row.
   setFragments(ids) {
     const f = this.cfg.fragments;
-    ids.forEach((id, i) => {
-      const def = fragments.pool[id];
+    [...new Set(ids)].filter(fragmentDef).forEach((id, i) => {
+      const def = fragmentDef(id);
       const x = f.x + i * (f.size + f.gap);
       this.scene.add.rectangle(x, f.y, f.size, f.size, color(f.fill)).setOrigin(0, 0.5).setStrokeStyle(1, color(def.color.replace('#', '0x')));
       this.text(x + f.size / 2, f.y, def.short, f.fontSize).setOrigin(0.5).setColor(def.color);

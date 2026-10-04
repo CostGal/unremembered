@@ -772,6 +772,15 @@
       "Reward": [
         "ui"
       ],
+      "ArenaTeam": [
+        "ui",
+        "portraits",
+        "sprites",
+        "sheets"
+      ],
+      "ArenaEnd": [
+        "ui"
+      ],
       "Cutscene": [
         "cutscene",
         "sprites",

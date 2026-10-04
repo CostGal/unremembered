@@ -59,6 +59,8 @@ export function hasSeen(registry, id) {
 export function wouldShow(scene, id, inline = null) {
   const def = inline || tutorial.pauses[id];
   if (!def || pausesMode() === 'off') return false;
+  // The Arena (battleDef.noStory) is fighting only: no tutorial pause at all.
+  if (scene.battleDef?.noStory) return false;
   if (scene.battleDef && !scene.battleDef.tutorial && !def.always) return false;
   return pausesMode() === 'all' || !hasSeen(scene.registry, id);
 }

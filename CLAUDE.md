@@ -68,8 +68,12 @@ src/
     DialogueScene.js
     BattleScene.js
     EndScene.js           "End of Demo" + credits
+    ArenaTeamScene.js     Arena team select
+    ArenaEndScene.js      Arena run summary
   systems/
     ChapterRunner.js      walks data/chapter1.json
+    Arena.js              Arena rules (pure; the sim uses them too)
+    ArenaRunner.js        an Arena run: fights, buffs, campfire, carried HP
     BattleStateMachine.js
     Qte.js                ring timing + judgement
     Echo.js
@@ -78,7 +82,7 @@ src/
     Settings.js
   data/
     assets.json characters.json enemies.json techniques.json battles.json
-    chapter1.json dialogue.json cutscene_origin.json credits.json
+    chapter1.json dialogue.json cutscene_origin.json credits.json arena.json
 .github/workflows/deploy.yml
 scripts/bootstrap-issues.sh
 docs/STORY.md
@@ -88,9 +92,10 @@ _art/                       source art: raw downloads + PSDs. Committed, never l
 ## Game flow (state machine)
 ```
 Boot → Preload → Title ("Tap to start") → Menu
-Menu: New Game | Chapter 2 🔒 | Arena 🔒 | Settings | Credits
+Menu: New Game | Chapter 2 🔒 | Arena | Settings | Credits
       (locked items show "Coming soon" on tap)
 New Game → ChapterRunner(chapter1.json) → EndScene → Menu
+Arena → ArenaTeam (pick the team) → ArenaRunner: fight → level card → buff → [campfire] → fight … → ArenaEnd → ArenaTeam | Menu
 ```
 `chapter1.json`, an ordered list of steps. Reordering the story = editing this file:
 ```json
@@ -182,6 +187,15 @@ WIN → "Victory" → runner.next()      LOSE → Retry
 - Quill's enraged stage: `hpMult` 1.2 (its own max HP), `defendChanceMult` 2 (he parries / dodges twice as often), Stamp and Redact 20. His `ai` (`EnemyTuning.js`): a 50% pull toward the weakest hero, rules in order (Archive once a hero is down, Redact a hero with ≥ 4 Echo, Stamp a hero under 35%); Unforgettable: 85% / 80% and all his moves wind up 20% faster, Archive's ring 320 ms (the shortest in the game), enraged HP × 1.5.
 - **Archive never one-shots a healthy hero**: `maxHpPct` 0.85 caps the hit at 85% of the target's max HP, after every multiplier.
 - **Riposte (parry on a parry):** when Quill parries a Strike he answers with a 350 ms ring on the hero; a **PERFECT there returns it for `defend.reparry.counterDmg`** (Normal 35–42, Unforgettable 38–45) with the pop "RETURNED!" instead of the usual 4-damage counter.
+
+## Arena (endless mode)
+Fighting only: no cutscene, dialogue or tutorial pause (battle def `noStory`). Everything is in `src/data/arena.json`; the rules are pure functions in `systems/Arena.js` (shared with the sim), the run in `systems/ArenaRunner.js` (the same `runner.next(scene)` hook as the chapter). Per run only: nothing is saved (best run = this page session).
+- **Team select** (`scenes/ArenaTeamScene.js`): 2 heroes + 1 support from `roster` (today Rhea, Dov, Nala; locked "Coming soon" cards for the rest). Tap a card to fill the next slot (the slot shows them idling), tap again or tap the slot to take them out. Begin needs every slot filled.
+- **Fights:** fight n draws a bundle from the last `tiers` entry it reached (1: Forgotten/Hollow pairs; 4: Wardens; 8: three-packs, Quill alone; 12: Quill + Forgotten, 2 Quills, 3 Wardens; 20: boss trios). Arena Quill is `enemies.json clerk_arena` (no stages, Keepsake, floor or Unwriting, so two can share a fight). Enemies scale per fight (`scaling`: HP +10%, damage +16%, Story +50%, telegraph down to 0.8) on top of the difficulty.
+- **HP carries over.** After each win every standing hero heals `healAfterFightPct` (15%) of max HP; the fallen stay down (Anchor or the campfire bring them back). A team wipe ends the run: the lose card's only button is **End run** → the summary (`scenes/ArenaEndScene.js`).
+- **Levels** (`arena.json levels`, same shape as `levels.json`, separate so the story balance is untouched): 20 levels, one team XP pool, +HP and +½ Strike per level, techniques learned and grown along the way (`techLevel` maps the 20 levels onto techniques.json's 5). **Rhea learns the Recollection at level 10** (Echo cap 10): the Ultimate button (`battleDef.ultimateInMenu`) once her Echo is full. In the Arena it hits for 70 / 50 / 30% of the target's max HP by grade (`recollection.dmgPct`) instead of killing; 3 MISS only costs the Echo.
+- **Buffs:** after every win pick 1 of 3 `buffs` (stackable up to `max`); every `campfire.every` (4) wins the **campfire** heals everyone to full, revives the fallen and offers 1 of 3 bigger `campfire.upgrades`. Effect keys: the memories' ones plus `maxHpPct`, `strikeBonus`, `dmgTakenPct` (floor `minDmgTakenPct`), `healAfterFightPct`, `xpPct` (`systems/Fragments.js`).
+- Balance: `npm run sim -- --arena` (fights won per run per profile; reference on Normal: non-gamer ~7, average ~15, good ~40; Story non-gamer ~17). QA: `node scripts/qa/arena.mjs`. Dev: `?arena=1` opens the team select, `?arenaFight=N` starts at fight N.
 
 ## Data (starting values — tune in JSON only)
 `characters.json`
@@ -324,7 +338,7 @@ Behaviour:
 - **Unlock** on the Title tap. Pause all audio when `document.visibilityState === 'hidden'`, resume on visible.
 - iOS mutes Web Audio when the silent switch is on → the Title screen shows the small line "🔈 Turn off silent mode for sound".
 - **SFX are procedural** in `Audio.js`: short oscillator/noise envelopes for hit, perfect, good, miss, menu tick, echo gain, ultimate. No files needed.
-- **Music:** a file in `public/assets/audio/music/<key>.mp3` plays looped with a 500ms crossfade. If there is no file for a key, a **procedural track** from `src/data/music.json` plays instead (Web Audio, `systems/Music.js`; no files needed). `setMusicIntensity(0..1)` (boss phase 2) and `setMusicWarm(bool)` (Recollection) shape it. Keep total audio under 6 MB.
+- **Music:** a file in `public/assets/audio/music/<key>.mp3` plays looped with a 500ms crossfade. Looping never uses `source.loop`: each pass is its own source scheduled to start on the sample the previous pass ends (`Audio.js startFile`, `LOOP_LOOKAHEAD_SEC`), because a looping source was seen to go silent after one pass in desktop Chrome. Field check: `unrememberedMusic()` in the browser console (state, live level, last events). QA: `node scripts/qa/music-loop.mjs`. If there is no file for a key, a **procedural track** from `src/data/music.json` plays instead (Web Audio, `systems/Music.js`; no files needed). `setMusicIntensity(0..1)` (boss phase 2) and `setMusicWarm(bool)` (Recollection) shape it. Keep total audio under 6 MB.
 - **Settings:** Music volume, SFX volume, Story Mode. Persist to localStorage.
 
 ## Performance budget
