@@ -1,5 +1,5 @@
-// File music keeps looping (systems/Audio.js startFile): every looping track loops, and the safety net
-// restarts a track whose source stops looping (a browser that drops the loop). Uses the 11 s title track.
+// File music keeps looping (systems/Audio.js startFile): every looping track loops on gapless scheduled
+// passes, stays audible past its length (music-bus level meter), and a stop stays stopped. Title = 11 s.
 //   node scripts/qa/music-loop.mjs
 import { loadPlaywright, startServer } from '../lib/harness.mjs';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -23,23 +23,24 @@ try {
     for (let i = 0; i < 120 && !(st && st.file && st.key === key); i++) { await sleep(250); st = await status(); }
     check(`${key}: loops`, st.key === key && st.file && st.file.loop && !st.file.ended, JSON.stringify(st.file));
   }
-  // Title: natural loop past its length.
+  // Title (11 s): past its length the music is still AUDIBLE (a level meter on the music bus), it runs on
+  // scheduled passes (no source.loop), and passes never pile up.
   await page.evaluate(async () => (await import('/src/systems/Audio.js')).playMusic('title', { crossfadeMs: 0 }));
-  await sleep(1000);
-  const dur = (await status()).file.duration;
-  await sleep((dur + 2) * 1000);
-  let st = await status();
-  check('title keeps sounding past its length', st.key === 'title' && st.sources === 1 && !st.file.ended, `elapsed ${st.file.elapsed.toFixed(1)} of ${dur.toFixed(1)}`);
-  // Safety net: drop the loop on the live source; when it ends the track must start again.
-  await page.evaluate(async () => { (await import('/src/systems/Audio.js')).musicSourceForQa().loop = false; });
-  await sleep((dur + 2) * 1000);
-  st = await status();
-  const restarts = await page.evaluate(() => window.__audio.log.filter((e) => e.ev === 'loop-restart').length);
-  check('safety net restarts a track that stopped looping', restarts >= 1 && st.key === 'title' && st.sources === 1 && !st.file.ended, `restarts ${restarts}`);
+  await sleep(1500);
+  const diag = () => page.evaluate(async () => (await import('/src/systems/Audio.js')).musicDiagnostics());
+  let d = await diag();
+  check('title audible at start', d.level > 0.005, `level ${d.level}`);
+  const dur = d.status.file.duration;
+  await sleep((dur * 2 + 1) * 1000);
+  d = await diag();
+  check('title still audible after two passes', d.level > 0.005 && d.status.key === 'title' && !d.status.file.ended, `level ${d.level}, elapsed ${d.status.file.elapsed.toFixed(1)} of ${dur.toFixed(1)}`);
+  check('title loops on scheduled passes, no pile-up', d.status.file.passes >= 2 && d.status.file.scheduled <= 2, `passes ${d.status.file.passes}, scheduled ${d.status.file.scheduled}`);
+  const passes = await page.evaluate(() => window.__audio.log.filter((e) => e.ev === 'loop-pass' && e.key === 'title').length);
+  check('loop passes are logged', passes >= 2, `loop-pass events ${passes}`);
   // A one-shot still plays once and a stopped track does not come back.
   await page.evaluate(async () => (await import('/src/systems/Audio.js')).playMusic(null));
   await sleep(2500);
-  st = await status();
+  const st = await status();
   check('stopping the music leaves it stopped', st.sources === 0 && st.key === null, JSON.stringify({ key: st.key, sources: st.sources }));
 } finally {
   await browser.close();

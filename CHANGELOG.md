@@ -4,7 +4,8 @@ Newest first. Versioning rules: `CLAUDE.md` > Versioning.
 
 ## 0.3.2 — 2026-10-04
 - Credits: the champion's record is now 8:59 (Unforgettable).
-- Music diagnostics: `unrememberedMusic()` in the browser console shows what the music is doing and its last events.
+- Music loops for real: each pass of a track is scheduled to start on the exact sample the previous one ends, instead of relying on the browser's loop flag (which went silent after the first pass in desktop Chrome on the jam site).
+- Music diagnostics: `unrememberedMusic()` in the browser console shows what the music is doing, its live level and its last events.
 
 ## 0.3.1 — 2026-10-04
 - Unforgettable: the Forgotten's parry, dodge and red-ring timing windows are a bit wider (PERFECT 56 ms, GOOD 172 ms instead of 45 / 150).
