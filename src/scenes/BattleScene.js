@@ -20,7 +20,8 @@ import { dueEvents, thenSplit } from '../systems/BattleEvents.js';
 import BattleStateMachine from '../systems/BattleStateMachine.js';
 import * as Fx from '../systems/Fx.js';
 import { clampX, mirrorEdges, rect as viewRect } from '../systems/View.js';
-import { difficultyDef } from '../systems/Difficulty.js';
+import { difficultyDef, difficultyId } from '../systems/Difficulty.js';
+import { aiPickAttack, aiPickTarget, currentStage, recollectionAtOf, recollectionDue, tuneEnemyDef } from '../systems/EnemyTuning.js';
 import CommandMenu from '../systems/CommandMenu.js';
 import { helpCard, learnSteps } from '../systems/MoveHelp.js';
 import { createBackdrop, createPlatform } from '../systems/BattleBackdrop.js';
@@ -112,6 +113,7 @@ export default class BattleScene extends Phaser.Scene {
     setMusicIntensity(0);
     setMusicWarm(false);
     this.difficulty = difficultyDef(this.registry.get('settings'));
+    this.difficultyId = difficultyId(this.registry.get('settings'));
     this.tutorialSlow = !!this.battleDef.tutorial;
     // Spotlight targets for the tutorial pauses (TutorialPause.js); Hud, CommandMenu and the
     // helpers below register theirs. battles.json `pauses.battleStart` fires on the first command menu.
@@ -184,7 +186,8 @@ export default class BattleScene extends Phaser.Scene {
     const enemyKeys = this.battleDef.enemies;
     const slots = this.enemySlots(enemyKeys);
     this.enemies = enemyKeys.map((key, i) =>
-      this.createEntity(`${key}_${i}`, key, enemies[key], slots[Math.min(i, slots.length - 1)], 'left', false)
+      // enemies.json difficulty.<id>: the def is tuned once for the chosen difficulty (EnemyTuning.js).
+      this.createEntity(`${key}_${i}`, key, tuneEnemyDef(enemies[key], this.difficultyId), slots[Math.min(i, slots.length - 1)], 'left', false)
     );
 
     this.applyAmbientTint();
@@ -365,7 +368,7 @@ export default class BattleScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
       .setDepth(layout.labelDepth)
       .setVisible(false);
-    // usesLeft: the saves she has this round (reset every round, see roundStart). glowOn: the Glow is unlocked
+    // usesLeft: the saves she has this battle (never refilled; a Retry restores the battle-start count). glowOn: the Glow is unlocked
     // (battle event nalaGlow); glowCd: rounds until it is ready again.
     this.nala = { container, image, glow, readyGlow, counter, anims, def, used: false, usesLeft: this.nalaSaves(), glowOn: false, glowCd: 0, glowCasting: false, ring: null, body: image, type: 'nala', hp: 1, busy: false, alertLoop: null };
     if (!anims || anims.idle.placeholder) this.idleBob(container);
@@ -374,7 +377,7 @@ export default class BattleScene extends Phaser.Scene {
     image.on('pointerdown', () => this.nalaTap());
   }
 
-  // Her saves per round: 1, +1 per Nala's Bell (fragments.json nalaExtraUses).
+  // Her saves per battle: 1, +1 per Nala's Bell (fragments.json nalaExtraUses).
   nalaSaves() {
     return 1 + effectTotal(this.fragments, 'nalaExtraUses');
   }
@@ -486,7 +489,7 @@ export default class BattleScene extends Phaser.Scene {
     return !!hero && Object.keys(hero.statuses || {}).some((id) => statuses[id]?.effect === 'echoStrike');
   }
 
-  // A round has finished (not called before round 1): the Nala bookkeeping, then the events that wait for a
+  // A round has finished (not called before round 1): the Glow bookkeeping, then the events that wait for a
   // finished round ({noHollowDamageRounds}); BattleEvents' {round: n} reads the round that just ended here.
   async roundStart() {
     const finished = this.stats.turns;
@@ -499,12 +502,8 @@ export default class BattleScene extends Phaser.Scene {
       c.hollowImmuneThisRound = 0;
       if (nala && nala.glowCd > 0) nala.glowCd -= 1;
     }
-    // Her save is once per round.
-    if (nala) {
-      nala.usesLeft = this.nalaSaves();
-      nala.used = false;
-      this.nalaRefreshGlow();
-    }
+    // Her save is once per battle: nothing refills it here, only the Glow display updates.
+    if (nala) this.nalaRefreshGlow();
     if (finished > 0) await this.checkEvents();
     this.stats.turns += 1;
   }
@@ -711,6 +710,11 @@ export default class BattleScene extends Phaser.Scene {
   startHp(def) {
     const full = Math.round(def.hp * this.difficulty.enemyHpMult);
     return def.stages ? Math.round((full * def.stages[0].hpPct) / 100) : full;
+  }
+
+  // A later stage's own max HP: hp x the difficulty x the stage's `hpMult` (enemies.json stages, default 1).
+  stageMaxHp(enemy, stage) {
+    return Math.round(enemy.def.hp * this.difficulty.enemyHpMult * (stage?.hpMult ?? 1));
   }
 
   addShadow(container, frameW, frameH) {
@@ -964,7 +968,7 @@ export default class BattleScene extends Phaser.Scene {
     enemy.turnsInPhase = 0;
     enemy.rising = false;
     enemy.deathDone = null;
-    enemy.maxHp = Math.round(enemy.def.hp * this.difficulty.enemyHpMult);
+    enemy.maxHp = this.stageMaxHp(enemy, next);
     enemy.hp = Math.max(1, Math.round(enemy.maxHp * (z.refillTo ?? 1)));
     enemy.exposed = null;
     this.updateEnemyStatus(enemy);
@@ -1529,7 +1533,8 @@ export default class BattleScene extends Phaser.Scene {
       return;
     }
     const stanceHero = this.stance && this.stance.hero.hp > 0 ? this.stance.hero : null;
-    const target = stanceHero || Phaser.Utils.Array.GetRandom(livingHeroes);
+    // enemies.json ai (EnemyTuning.js): a chance to pick on the weakest hero; else a random one.
+    const target = stanceHero || aiPickTarget(enemy.def.ai, livingHeroes, Math.random);
     let attack;
     let mitigated = 0;
     if (enemy.charge) {
@@ -1544,7 +1549,7 @@ export default class BattleScene extends Phaser.Scene {
       mitigated = enemy.charge.mitigated;
       await this.endCharge(enemy);
     } else {
-      attack = this.pickAttack(enemy);
+      attack = this.pickAttack(enemy, target);
       if (attack.chargeTurns) {
         this.startCharge(enemy, attack);
         // attack.onChargeStart: a battle event (battleEvents.json) the first time any charge of
@@ -1630,14 +1635,18 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   // A phase's "opening" (enemies.json) fixes the attack of that phase's first
-  // turns (the Clerk charges Archive on his second); after that, weighted.
-  pickAttack(enemy) {
-    const phase = (enemy.def.stages || enemy.def.phases)?.[enemy.phase || 0];
+  // turns (the Clerk charges Archive on his second); then the enemy's `ai` rules
+  // (EnemyTuning.aiPickAttack: e.g. Redact a hero with Echo to spend) get a say; after that, weighted.
+  pickAttack(enemy, target = null) {
+    const phase = currentStage(enemy.def, enemy.phase);
     const n = enemy.turnsInPhase || 0;
     enemy.turnsInPhase = n + 1;
+    const pickable = this.pickableAttacks(enemy);
     const id = phase?.opening?.[n];
-    const fixed = id ? this.pickableAttacks(enemy).find((a) => a.id === id) : null;
-    return fixed || pickWeighted(this.pickableAttacks(enemy));
+    const fixed = id ? pickable.find((a) => a.id === id) : null;
+    if (fixed) return fixed;
+    const ruled = aiPickAttack(enemy.def.ai, pickable, { target, heroes: this.heroes, enemy }, Math.random);
+    return ruled || pickWeighted(pickable);
   }
 
   // The parry tutorial teaches the tap first: no red-ring attack until it's
@@ -1663,13 +1672,15 @@ export default class BattleScene extends Phaser.Scene {
       .setVisible(false);
   }
 
+  // The difficulty scales the windows: windowMult for GOOD, perfectWindowMult (default windowMult) for PERFECT.
   parryWindows() {
     const mult = this.difficulty.windowMult;
+    const pMult = this.difficulty.perfectWindowMult ?? mult;
     // Worn Glove: a wider PERFECT window. Assist: see parryAssist().
     const extra = effectTotal(this.fragments, 'perfectWindowMs');
     const assist = this.parryAssist();
     const windows = { ...qte.windows, perfectMs: qte.windows.perfectMs + extra + assist, goodMs: qte.windows.goodMs + assist };
-    return mult === 1 ? windows : Qte.scaledWindows(windows, mult);
+    return mult === 1 && pMult === 1 ? windows : Qte.scaledWindows(windows, mult, pMult);
   }
 
   // The easier windows of a swipe (dodge) on a parryable ring
@@ -1678,11 +1689,12 @@ export default class BattleScene extends Phaser.Scene {
   // dodge stays easier than a parry by the same margin everywhere.
   dodgeWindows() {
     const mult = this.difficulty.windowMult;
+    const pMult = this.difficulty.perfectWindowMult ?? mult;
     const extra = effectTotal(this.fragments, 'perfectWindowMs');
     const assist = this.parryAssist();
     const w = qte.dodge.windows;
     const windows = { ...qte.windows, perfectMs: w.perfectMs + extra + assist, goodMs: w.goodMs + assist };
-    return mult === 1 ? windows : Qte.scaledWindows(windows, mult);
+    return mult === 1 && pMult === 1 ? windows : Qte.scaledWindows(windows, mult, pMult);
   }
 
   // The fallback dodge reaction (qte.json dodge.sidestepPx/sidestepMs): the hero's
@@ -1993,12 +2005,14 @@ export default class BattleScene extends Phaser.Scene {
     }
   }
 
-  // `stages` (the Clerk): a stage's own HP is its bar, 0 ends the stage (markDown -> riseStage), and
-  // recollectionAtHpPct unlocks the Recollection (the Keepsake event) once per battle.
+  // `stages` (the Clerk): a stage's own HP is its bar, 0 ends the stage (markDown -> riseStage), and the
+  // stage's `recollectionAt` (EnemyTuning.recollectionDue: his HP under a number or a share, or the party
+  // in a last-resort state: both heroes in the red, or one down and the other at half or less) unlocks
+  // the Recollection (the Keepsake event) once per battle. Checked after every hit on him and on a hero.
   checkStage(enemy) {
     const stage = enemy.def.stages[enemy.phase || 0];
-    if (enemy.hp <= 0 || !stage.recollectionAtHpPct || enemy.recollectionUnlocked) return;
-    if ((enemy.hp / enemy.maxHp) * 100 <= stage.recollectionAtHpPct) {
+    if (enemy.hp <= 0 || enemy.rising || enemy.recollectionUnlocked) return;
+    if (recollectionDue(recollectionAtOf(stage), enemy, this.heroes)) {
       enemy.recollectionUnlocked = true;
       this.pendingEvents.push('keepsake_burn');
     }
@@ -2309,6 +2323,7 @@ export default class BattleScene extends Phaser.Scene {
       const results = await runBeats(this, {
         cfg: recollection,
         windowMult: this.difficulty.windowMult,
+        difficulty: this.difficultyId,
         swipe: qte.dodge.swipe,
         target,
         force: this.recollectionForce ?? null, // dev/QA only
@@ -2464,6 +2479,7 @@ export default class BattleScene extends Phaser.Scene {
       chain: this.chain,
       maxChain: this.maxChain,
       nalaUsed: this.nala ? this.nala.used : null,
+      nalaUsesLeft: this.nala ? this.nala.usesLeft : null,
       nalaGlow: this.nala ? { on: this.nala.glowOn, cd: this.nala.glowCd } : null,
     };
   }
@@ -2496,7 +2512,10 @@ export default class BattleScene extends Phaser.Scene {
     this.stats = { ...snap.stats };
     this.chain = snap.chain;
     this.maxChain = snap.maxChain;
-    if (this.nala && snap.nalaUsed) this.nala.used = true;
+    if (this.nala) {
+      this.nala.used = !!snap.nalaUsed;
+      if (typeof snap.nalaUsesLeft === 'number') this.nala.usesLeft = snap.nalaUsesLeft;
+    }
     if (this.nala && snap.nalaGlow) {
       this.nala.glowOn = snap.nalaGlow.on;
       this.nala.glowCd = snap.nalaGlow.cd;
@@ -2529,10 +2548,12 @@ export default class BattleScene extends Phaser.Scene {
     if ((e.phase || 0) !== last) {
       e.phase = last;
       e.turnsInPhase = 0;
-      e.maxHp = Math.round(e.def.hp * this.difficulty.enemyHpMult);
+      e.maxHp = this.stageMaxHp(e, stage);
       this.applyStageLook(e, stage);
     }
-    e.hp = Math.floor((e.maxHp * (stage.recollectionAtHpPct ?? 100)) / 100);
+    // Just at the unlock point: the stage's recollectionAt hp, or its pct share of the max.
+    const at = recollectionAtOf(stage);
+    e.hp = Math.max(1, Math.min(at?.hp ?? e.maxHp, Math.floor((e.maxHp * (at?.pct ?? 100)) / 100)));
     e.recollectionUnlocked = true;
     this.updateLabel(e);
     const rhea = this.heroes.find((h) => h.def.canUltimate);
@@ -2694,7 +2715,10 @@ export default class BattleScene extends Phaser.Scene {
 
     const storyMult = this.difficulty.damageMult;
     const braceMult = this.brace ? this.brace.damageMult : 1; // Brace holds for the whole enemy round
-    const dmg = Math.round(baseDmg * cfg.damageMult * storyMult * braceMult);
+    let dmg = Math.round(baseDmg * cfg.damageMult * storyMult * braceMult);
+    // enemies.json hit.maxHpPct: the hit can take at most that share of the hero's max HP (the Archive
+    // never one-shots a healthy Dov, whatever the difficulty or a crit added).
+    if (hit.maxHpPct !== undefined) dmg = Math.min(dmg, Math.floor(hero.maxHp * hit.maxHpPct));
     // Reactions (ART_BRIEF): PERFECT -> parry (the counter), GOOD -> dodge,
     // MISS -> hurt, each only if the character has that sheet.
     const dodge = (result === 'GOOD' || (result === 'PERFECT' && dodged)) && hero.hp > 0 && hasSheet(hero.anims, 'dodge');
@@ -2737,7 +2761,14 @@ export default class BattleScene extends Phaser.Scene {
       imp?.endSlow();
       return;
     }
-    if (result === 'PERFECT' && cfg.counterDmg) await this.playCounter(hero, enemy, cfg.counterDmg + effectTotal(this.fragments, 'counterBonus'));
+    if (result === 'PERFECT' && cfg.counterDmg) {
+      // A PERFECT on the riposte ring (the enemy parried a Strike, the hero parries the answer) returns it
+      // hard: defend.reparry.counterDmg [min, max] (enemies.json) instead of the usual counter, with its pop.
+      const rp = hit.reparry ? enemy.def.defend?.reparry : null;
+      const big = rp?.counterDmg ? Phaser.Math.Between(rp.counterDmg[0], rp.counterDmg[1]) : null;
+      if (big !== null) Fx.popText(this, enemy.container.x, enemy.container.y, battleEvents.defend.counterText, battleEvents.defend.counterColor, qte.text);
+      await this.playCounter(hero, enemy, (big ?? cfg.counterDmg) + effectTotal(this.fragments, 'counterBonus'));
+    }
     // The slow-mo of a PERFECT never reaches the next ring.
     imp?.endSlow();
   }
@@ -3222,14 +3253,17 @@ export default class BattleScene extends Phaser.Scene {
     return !!enemy.def.defend && enemy.hp > 0 && !enemy.broken && !enemy.charge;
   }
 
-  rollDefend() {
-    return Math.random() < this.difficulty.enemyDefendChance;
+  // The difficulty's chance x the current stage's `defendChanceMult` (enemies.json stages; an enraged
+  // Quill guards more). Story's 0 stays 0.
+  rollDefend(enemy) {
+    const mult = currentStage(enemy.def, enemy.phase)?.defendChanceMult ?? 1;
+    return Math.random() < this.difficulty.enemyDefendChance * mult;
   }
 
   // kind = 'parry' | 'dodge'; techId = the technique id listed in def.defend[kind].
   // Called once per action (per enemy), at the moment the roll matters.
   rollDefendAs(enemy, kind, techId) {
-    return this.canDefend(enemy) && !!enemy.def.defend[kind]?.includes(techId) && this.rollDefend();
+    return this.canDefend(enemy) && !!enemy.def.defend[kind]?.includes(techId) && this.rollDefend(enemy);
   }
 
   rollParry(enemy, techId) {
@@ -3421,8 +3455,11 @@ export default class BattleScene extends Phaser.Scene {
     }
     target.hp = Math.max(0, target.hp - dmg);
     this.updateLabel(target);
-    if (target.isHero) this.refreshHud();
-    else {
+    if (target.isHero) {
+      this.refreshHud();
+      // The party's state can unlock the Recollection too (stages recollectionAt, checkStage).
+      for (const e of this.enemies) if (e.def.stages) this.checkStage(e);
+    } else {
       this.checkPhase(target);
       if (poiseSource) this.hitPoise(target, dmg * brk.weights[poiseSource] * (crit ? brk.weights.critWeight : 1));
     }

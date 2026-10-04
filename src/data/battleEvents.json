@@ -38,6 +38,8 @@
   "defend": {
     "parryText": "PARRIED",
     "dodgeText": "DODGE",
+    "counterText": "RETURNED!",
+    "counterColor": "#f0c060",
     "color": "#c8c2b4",
     "sidestepPx": 14,
     "sidestepMs": 120

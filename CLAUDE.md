@@ -140,7 +140,9 @@ WIN → "Victory" → runner.next()      LOSE → Retry
   - ≤ 200ms → **GOOD**: 50% damage, +1 Echo.
   - otherwise → **MISS**: full damage.
   - (These windows are the parry/tap windows.) Touches earlier than T − 350ms are **ignored** (no penalty, but they don't count). Taps in [T − 350, T − 200) count as MISS. No tap at all = MISS.
-- **Story Mode** (setting): both window sets × 1.5, damage taken × 0.5.
+- **Difficulty** (`qte.json difficulties`, chosen on New Game; `settings.difficulty`): **Story** windows × 1.5, damage taken × 0.5, enemies never guard · **Normal** as designed, enemies guard 10% · **Unforgettable** GOOD window × 0.75 and PERFECT × 0.5 (`perfectWindowMult`: 45 ms / 150 ms), damage taken × 1.6, enemy HP × 1.35, Echo × 0.5, enemies guard 20%. Per-enemy tuning on top: `enemies.json <id>.difficulty.<difficulty id>` (`EnemyTuning.js`: `hpMult`, `telegraphMult`, `dmgMult`, `attacks.<id>` overrides, `stages.<id>` overrides, `defend`, `ai`).
+  - **Unforgettable is meant to be lost a few times.** It is for players who beat Normal; the judges (non-gamers) should not pick it, and its hint says so. The sim's balance targets (`npm run sim`: non-gamer ≤ 19 min incl. retries, every battle ≥ 99.9% win) hold for **Normal only**; `npm run sim -- --unforgettable` prints its rows for information (reference: good player ~90% per battle, b1 the hardest).
+  - Dev/QA: `?difficulty=unforgettable` (or `story` / `normal`) forces the difficulty for one visit, never saved.
 - **Feedback:**
   - PERFECT: hitstop 80ms, 4px shake, teal spark burst, "PERFECT" text, SFX.
   - GOOD: small flash, "GOOD" text.
@@ -156,18 +158,22 @@ WIN → "Victory" → runner.next()      LOSE → Retry
 - Needs Echo = 10 and is used by Rhea.
 - Screen warms to golden (tint overlay); the background swaps to `bg/memory_city` if it exists.
 - 3 rhythm rings on the target, 500ms apart. Damage per ring: PERFECT 60, GOOD 40, MISS 20. Afterwards the target is **Exposed**: ×1.3 damage taken for its next 3 turns.
+- Current build (`recollection.json mode: "beats"`): three gestures instead of rings, HOLD → SWIPE → TAPS; any success kills Quill, 3 MISS = the memory slips (Unwriting, LOSE, Try again). The TAPS finale asks for **20 taps on Story, 30 on Normal, 40 on Unforgettable** (`beats.taps.taps` per difficulty id) in the **same 5 s** (`tapWindowScales: false`); the milestone FX are keyed by % of the taps.
 - Rhea's Echo → 0, the tint fades back.
 
 ### Nala (P1)
 - Present in battles with `nala: true` (small sprite behind the heroes). She first appears in `b2_first_hollow`; b0 and b1 have none.
 - When a **Hollow** (`hollow: true`) telegraphs and Nala's ability is unused, Nala glows. Tapping Nala during that telegraph **cancels the attack** ("Nala hisses!").
-- Her save is **once per round** (it comes back at every round start; Nala's Bell adds +1 per round). A hiss also plays a `CutIn.flash`.
+- Her save is **once per battle** (it never comes back; Nala's Bell adds +1 per battle). A hiss also plays a `CutIn.flash`.
 - **Glow** (`b3_gate` event `b3_nala_glow`: after a round where nothing landed on a Hollow, `when` `{noHollowDamageRounds: 1}`, then `nalaGlow` + the `nala_glow` tutorial pause): Nala lights up, a light travels to each hero and every living hero gets the status `echo_strike` (statuses.json, HUD badge "E") for their next turn: their Strike is not IMMUNE on Hollows and pops "ECHO STRIKE". The Glow then has a 3-round cooldown (`allies.json nala.glowCooldownRounds`, counter "Glow in N" under her); when ready she pulses teal and a **tap on Nala during the player's turn** calls it again. Taps on her during an enemy telegraph stay the save. All numbers and texts: `allies.json nala.glow*`, `nala.counter`.
-- Once per battle. She never reacts to Forgotten (Blanks).
+- She never reacts to Forgotten (Blanks).
 
 ### Keepsake event (P1)
-- Entering boss phase 2 (`onEnter: "keepsake_burn"`) pauses the battle and plays dialogue `keepsake_burn`.
-- Then Rhea's `echoMax` becomes 10 and fills; the Recollection button pulses. Before that her cap is 8, so the ultimate is only reachable from here.
+- The Recollection is the **last resort**. In Quill's enraged stage (`enemies.json stages[1].recollectionAt`) it unlocks the moment **he is at ≤ 100 HP**, or **both heroes are in the red (< 25%)**, or **one hero is down and the other at half or less**; checked after every hit on him and on a hero (`EnemyTuning.recollectionDue`). The battle pauses and plays dialogue `keepsake_burn`.
+- Then Rhea's `echoMax` becomes 10 and fills; she casts the Recollection herself right after (`recollection.json autoCast`, a downed Rhea gets up first). Before that her cap is 8, so the ultimate is only reachable from here.
+- Quill's enraged stage: `hpMult` 1.2 (its own max HP), `defendChanceMult` 2 (he parries / dodges twice as often), Stamp and Redact 20. His `ai` (`EnemyTuning.js`): a 50% pull toward the weakest hero, rules in order (Archive once a hero is down, Redact a hero with ≥ 4 Echo, Stamp a hero under 35%); Unforgettable: 85% / 80% and all his moves wind up 20% faster, Archive's ring 320 ms (the shortest in the game), enraged HP × 1.5.
+- **Archive never one-shots a healthy hero**: `maxHpPct` 0.85 caps the hit at 85% of the target's max HP, after every multiplier.
+- **Riposte (parry on a parry):** when Quill parries a Strike he answers with a 350 ms ring on the hero; a **PERFECT there returns it for `defend.reparry.counterDmg`** (Normal 35–42, Unforgettable 38–45) with the pop "RETURNED!" instead of the usual 4-damage counter.
 
 ## Data (starting values — tune in JSON only)
 `characters.json`

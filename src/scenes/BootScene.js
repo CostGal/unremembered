@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { devParam } from '../systems/DevParams.js';
+import { normalizeDifficulty } from '../systems/Difficulty.js';
 import manifest from '../data/assets.json';
 import characters from '../data/characters.json';
 import allies from '../data/allies.json';
@@ -17,7 +19,10 @@ export default class BootScene extends Phaser.Scene {
   async create() {
     // Only the font blocks the first screen; the animation sets are fetched
     // by the Loader with the sprite sheets.
-    const settings = loadSettings();
+    let settings = loadSettings();
+    // Dev/QA: ?difficulty=story|normal|unforgettable forces the difficulty for this visit (never saved).
+    const forced = devParam('difficulty');
+    if (forced) settings = normalizeDifficulty({ ...settings, difficulty: forced, difficultyChosen: true });
     applyLanguage(settings);
     await loadFont(applyFont(settings));
 

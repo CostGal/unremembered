@@ -106,7 +106,7 @@
   - The Warden Hollow gets an **unparryable** attack (dodge only).
   - After round 1, if both heroes attacked and nothing landed on a Hollow, event `b3_nala_glow` fires. Nala meows and glows, and the glow passes to Rhea and Dov: **for the next round their strikes carry Echo** and damage Hollows.
   - Then the Glow goes on a **3-round cooldown**; tap Nala to re-trigger it when it is ready.
-  - Nala's save is separate and becomes **once per round**.
+  - Nala's save is separate and stays **once per battle**.
   - A tutorial pause explains both.
 
 ### 7. Progression
