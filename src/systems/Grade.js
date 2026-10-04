@@ -17,8 +17,13 @@ export function computeGrade(stats, battleId, cfg) {
     damagePct * f.damage -
     Math.max(0, stats.turns - par) * f.turn;
   const score = Math.max(0, Math.min(100, Math.round(raw)));
-  const rank = cfg.ranks.find((r) => score >= r.min) || cfg.ranks[cfg.ranks.length - 1];
+  const rank = rankFor(score, cfg);
   return { score, rank: rank.id, par };
+}
+
+// The rank (best first) a score reaches: the first whose min it meets, else the last.
+export function rankFor(score, cfg) {
+  return cfg.ranks.find((r) => score >= r.min) || cfg.ranks[cfg.ranks.length - 1];
 }
 
 // Index of a rank id in cfg.ranks (0 = best).

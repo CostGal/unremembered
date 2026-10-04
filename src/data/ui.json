@@ -1783,5 +1783,20 @@
         "strokeThickness": 4
       }
     }
+  },
+  "jam": {
+    "_note": "Deep-merged over this file in the jam build only (vite.jam.config.js): keeps the host page's 60x60 top-right button clear (logical x 300-360, y 0-60).",
+    "tutorial": {
+      "banner": {
+        "y": 84
+      }
+    },
+    "cutscene": {
+      "skipHint": {
+        "align": "left",
+        "x": 84,
+        "y": 36
+      }
+    }
   }
 }

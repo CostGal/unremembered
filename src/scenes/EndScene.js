@@ -5,6 +5,7 @@ import { playSceneMusic } from '../systems/Audio.js';
 import { addText } from '../systems/Button.js';
 import { whenReady } from '../systems/Assets.js';
 import { glassPanel, keyArtBackdrop } from '../systems/Backdrop.js';
+import { reportClear } from '../systems/JamReport.js';
 
 const cfg = ui.end;
 
@@ -19,6 +20,8 @@ export default class EndScene extends Phaser.Scene {
   }
 
   create() {
+    // Jam site reporting: a finished run tells the host page, once (not the menu's Credits).
+    if (!this.creditsOnly) reportClear(this.registry);
     playSceneMusic('End');
     this.cameras.main.fadeIn(cfg.hint.delayMs / 2);
     whenReady(this, () => this.build());

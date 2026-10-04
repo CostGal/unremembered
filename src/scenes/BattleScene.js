@@ -44,6 +44,7 @@ import { battleXp, echoMaxFor, growth, learned, levelFor, techniqueAt, xpForLeve
 import RecallCard from '../systems/RecallCard.js';
 import { animKey, hasSheet, playLoop, playOnce, playReverseOnce, SheetDriver, trace } from '../systems/SpriteAnims.js';
 import { isRealTexture, whenReady } from '../systems/Assets.js';
+import { markDebugUsed, recordBattle } from '../systems/JamReport.js';
 
 const layout = ui.battleLayout;
 const musicPlan = audioData.music.placement; // where the music plays (audio.json music.placement)
@@ -814,6 +815,7 @@ export default class BattleScene extends Phaser.Scene {
   enableHudDebug() {
     const { hpStep, echoStep, keys } = ui.debug;
     const hurt = (i) => {
+      markDebugUsed();
       const hero = this.heroes[i];
       if (!hero) return;
       if (hero.hp <= 0) this.revive(hero, hero.maxHp);
@@ -825,6 +827,7 @@ export default class BattleScene extends Phaser.Scene {
       this.refreshHud();
     };
     const addEcho = (hero, d, wrap) => {
+      markDebugUsed();
       if (!hero) return;
       let next = hero.echo + d;
       if (wrap && next > hero.echoMax) next = 0;
@@ -3655,6 +3658,7 @@ export default class BattleScene extends Phaser.Scene {
         const stats = { ...this.stats, maxChain: this.maxChain };
         const partyHp = this.heroes.reduce((sum, h) => sum + h.maxHp, 0);
         const card = new ResultCard(this, this.battleId, stats, partyHp);
+        recordBattle(this.registry, this.battleId, card.result);
         card
           .show()
           .then(() => card.hide())

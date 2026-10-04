@@ -330,6 +330,15 @@ Behaviour:
 - Every bump adds one entry at the top of `CHANGELOG.md`: version, date, 1–3 plain-English lines.
 - After a merge to `main`, Kostas may tag the release `vX.Y.Z`.
 
+## Jam site reporting
+- `src/systems/JamReport.js`. When a run reaches **End of Demo** (not the menu's Credits), the game sends once, only inside a host iframe (`window.parent !== window`, in try/catch):
+  `{gj: "clear", ver: JAM_VER, mode, seconds, details: {avgScore, avgRank, battles: [{id, rank, score}]}}`, then `{gj: "finish"}`.
+- `JAM_VER` is the constant at the top of that file (`"hard1"`). Change it after retuning the difficulty.
+- `seconds`: active time from the first step after the opening cutscene to End of Demo. Hidden tab, sideways phone and the Pause scene do not count. There is no save, so nothing is persisted.
+- `mode`: the easiest difficulty used during the run (Settings can change it mid-run). `battles`: the newest win of each battle, from the Result card's own `computeGrade`; b0 (interrupted) has none. `avgRank` uses `Grade.js` `rankFor`.
+- Nothing is sent after any dev URL param (`DEV_PARAMS` in that file) or the dev HUD debug. QA: `node scripts/qa/jam-report.mjs`.
+- Jam zip: `npm run build:jam` (needs Python with Pillow for `scripts/jam-thumb.py`) writes `dist-jam-zip/unremembered-jam-<stamp>.zip`.
+
 ## Mobile test checklist (run before every push that touches UI)
 - [ ] Open the Pages link from an Instagram DM on iPhone **and** Android (in-app browser).
 - [ ] "Tap to start" → music/SFX play. With the iPhone silent switch on, the hint is visible.
