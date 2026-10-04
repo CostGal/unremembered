@@ -1,0 +1,63 @@
+name: Jam zip
+
+# Every push to main also builds the game-jam zip (npm run build:jam, scripts/build-jam.mjs)
+# and puts it on the rolling "jam-latest" release, so the newest zip is always at one link:
+#   https://github.com/CostGal/unremembered/releases/download/jam-latest/unremembered-jam.zip
+# The jam site takes the zip by hand; download it there and upload it. Separate from
+# deploy.yml, so a failing jam build never blocks the Pages deploy.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jam-zip
+  cancel-in-progress: true
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pillow
+      - run: npm ci
+      - name: Build the jam zip
+        env:
+          JAM_ZIP_DIR: jam-zip
+        run: npm run build:jam
+      - name: Name it after the version
+        id: name
+        run: |
+          version=$(node -p "require('./package.json').version")
+          mv jam-zip/unremembered-jam-*.zip "jam-zip/unremembered-jam-v${version}.zip"
+          cp "jam-zip/unremembered-jam-v${version}.zip" jam-zip/unremembered-jam.zip
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unremembered-jam-v${{ steps.name.outputs.version }}
+          path: jam-zip/unremembered-jam-v${{ steps.name.outputs.version }}.zip
+      - name: Publish to the jam-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.name.outputs.version }}
+        run: |
+          notes="v${VERSION} · ${GITHUB_SHA::7} · $(date -u +%Y-%m-%d)"
+          if ! gh release view jam-latest > /dev/null 2>&1; then
+            gh release create jam-latest --prerelease --target "$GITHUB_SHA" --title "Jam build (latest)" --notes "$notes"
+          fi
+          # Only the newest zips stay on the release.
+          for asset in $(gh release view jam-latest --json assets --jq '.assets[].name'); do
+            gh release delete-asset jam-latest "$asset" --yes
+          done
+          gh release upload jam-latest "jam-zip/unremembered-jam-v${VERSION}.zip" jam-zip/unremembered-jam.zip --clobber
+          gh release edit jam-latest --notes "$notes"

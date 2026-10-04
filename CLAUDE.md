@@ -360,7 +360,8 @@ Behaviour:
 - `seconds`: active time from the first step after the opening cutscene to End of Demo. Hidden tab, sideways phone and the Pause scene do not count. There is no save, so nothing is persisted.
 - `mode`: the easiest difficulty used during the run (Settings can change it mid-run). `battles`: the newest win of each battle, from the Result card's own `computeGrade`; b0 (interrupted) has none. `avgRank` uses `Grade.js` `rankFor`.
 - Nothing is sent after any dev URL param (`DEV_PARAMS` in that file) or the dev HUD debug. QA: `node scripts/qa/jam-report.mjs`.
-- Jam zip: `npm run build:jam` (needs Python with Pillow for `scripts/jam-thumb.py`) writes `dist-jam-zip/unremembered-jam-<stamp>.zip`.
+- Jam zip: `npm run build:jam` (needs Python with Pillow for `scripts/jam-thumb.py`) writes `dist-jam-zip/unremembered-jam-<stamp>.zip` (or `$JAM_ZIP_DIR`, relative to the repo root).
+- **Every push to `main` builds it in CI** (`.github/workflows/jam-zip.yml`) and puts it on the rolling `jam-latest` release: the newest zip is always at https://github.com/CostGal/unremembered/releases/download/jam-latest/unremembered-jam.zip (also as `unremembered-jam-v<version>.zip` and as a workflow artifact). The jam site takes zips by hand: download that link, upload it there.
 
 ## Mobile test checklist (run before every push that touches UI)
 - [ ] Open the Pages link from an Instagram DM on iPhone **and** Android (in-app browser).
