@@ -11,6 +11,7 @@ import { isRealTexture, whenReady } from '../systems/Assets.js';
 import { glassPanel, keyArtBackdrop } from '../systems/Backdrop.js';
 import * as Fx from '../systems/Fx.js';
 import { rect as viewRect } from '../systems/View.js';
+import { addVersionLabel } from '../systems/Version.js';
 
 const cfg = ui.menu;
 
@@ -52,6 +53,7 @@ export default class MenuScene extends Phaser.Scene {
       this.enter(button.body, delay);
       if (item.id === 'new') this.pulse(y, delay + cfg.enter.ms);
     });
+    addVersionLabel(this);
   }
 
   // The drawn part slides in from the right and fades up; the hit area is

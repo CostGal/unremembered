@@ -1,17 +1,16 @@
 # Unremembered — Build Spec
 
 ## What this is
-A 2D turn-based RPG **demo** with real-time parry QTEs, built for a 1-week game jam.
+A 2D turn-based RPG with real-time parry QTEs. It started as a 1-week game jam demo (Chapter 1, submitted Oct 2026, v0.1.0) and is now in **post-jam development**. There are no deadlines.
 - Played on **phone browsers**, mostly the **Instagram in-app browser**. Portrait. No install, no login.
-- Judges are mostly **non-gamers** scoring 1–10 on "how good and how fun".
-- Target playtime: **12–15 min**.
-- **Deadline: Sat 3 Oct 2026, 16:00 (Greece).** Teaser screenshot: **Wed 30 Sep**.
+- Players are mostly **non-gamers**: every mechanic must be readable and forgiving.
+- Target playtime: **12–15 min per chapter**.
 - All story, characters and cutscene text: `docs/STORY.md` (source of truth for text).
 - The game's text is in **English**.
 
 ## Rules for Claude Code (read every session)
 1. **Start of session:** run `gh issue list --state open --milestone "<current milestone>" --json number,title,labels`. Pick the highest-priority open issue (P0 > P1 > P2) that is **not** labeled `manual`. Tell Kostas which one you picked before starting.
-2. **One issue per session.** When it's done: `npm run build` must pass, commit with `Closes #N`, push to `main` (auto-deploys). End with 1–3 lines on how to test it on the phone.
+2. **One issue per session.** When it's done: `npm run build` must pass, bump the version and add a `CHANGELOG.md` line (see Versioning), commit with `Closes #N`, push to `main` (auto-deploys). End with 1–3 lines on how to test it on the phone.
 3. **Never expand scope.** Any new idea (Kostas's or yours) becomes `gh issue create --label idea --milestone "Post-jam" --title "..."`, and then you continue the current issue.
 4. **Content is data.** Stats, text, timings, battle lists and cutscene shots live in JSON under `src/data/`. No hardcoded numbers or strings in systems code.
 5. **Missing art never blocks code.** If an asset file is missing, the loader draws a placeholder (colored rectangle with a label, same display size) and the game keeps working.
@@ -112,6 +111,7 @@ New Game → ChapterRunner(chapter1.json) → EndScene → Menu
 ```
 (Story v2: 19 steps, `?step=0..18`; `end` closes the list; step table in `docs/STATUS.md` > Story v2. A dialogue's last line may carry `"transition": "close"`: a 500 ms black close, and the next dialogue opens from black.)
 - **Losing a battle** → "The memory fades…" + a Retry button. Retry restarts the same battle with party HP/Echo restored to the battle-start snapshot. There is no game over screen.
+- **Boss checkpoint** (`enemies.json` `stages[i].checkpoint: true`, Quill's `enraged` stage): rising into that stage records a snapshot. A loss after that shows **Retry** (from the start) and **Retry from here**: the boss back at the start of that stage, the party at full HP with statuses cleared (`battleEvents.json` `stage.checkpoint`), story beats and tutorials not replayed. QA: `node scripts/qa/checkpoint.mjs`.
 
 ## Battle
 ### Layout (360×640)
@@ -141,7 +141,7 @@ WIN → "Victory" → runner.next()      LOSE → Retry
   - otherwise → **MISS**: full damage.
   - (These windows are the parry/tap windows.) Touches earlier than T − 350ms are **ignored** (no penalty, but they don't count). Taps in [T − 350, T − 200) count as MISS. No tap at all = MISS.
 - **Difficulty** (`qte.json difficulties`, chosen on New Game; `settings.difficulty`): **Story** windows × 1.5, damage taken × 0.5, enemies never guard · **Normal** as designed, enemies guard 10% · **Unforgettable** GOOD window × 0.75 and PERFECT × 0.5 (`perfectWindowMult`: 45 ms / 150 ms), damage taken × 1.6, enemy HP × 1.35, Echo × 0.5, enemies guard 20%. Per-enemy tuning on top: `enemies.json <id>.difficulty.<difficulty id>` (`EnemyTuning.js`: `hpMult`, `telegraphMult`, `dmgMult`, `attacks.<id>` overrides, `stages.<id>` overrides, `defend`, `ai`).
-  - **Unforgettable is meant to be lost a few times.** It is for players who beat Normal; the judges (non-gamers) should not pick it, and its hint says so. The sim's balance targets (`npm run sim`: non-gamer ≤ 19 min incl. retries, every battle ≥ 99.9% win) hold for **Normal only**; `npm run sim -- --unforgettable` prints its rows for information (reference: good player ~90% per battle, b1 the hardest).
+  - **Unforgettable is meant to be lost a few times.** It is for players who beat Normal; first-time non-gamer players should not pick it, and its hint says so. The sim's balance targets (`npm run sim`: non-gamer ≤ 19 min incl. retries, every battle ≥ 99.9% win) hold for **Normal only**; `npm run sim -- --unforgettable` prints its rows for information (reference: good player ~90% per battle, b1 the hardest).
   - Dev/QA: `?difficulty=unforgettable` (or `story` / `normal`) forces the difficulty for one visit, never saved.
 - **Feedback:**
   - PERFECT: hitstop 80ms, 4px shake, teal spark burst, "PERFECT" text, SFX.
@@ -323,18 +323,14 @@ Behaviour:
 - Total download < 8 MB. First interactive screen < 3s on 4G.
 - ≤ 150 rain particles. Target 60fps on a mid/low Android.
 
-## Day plan (a playable build every evening)
-| Day | Goal |
-|---|---|
-| Tue 29/9 | Setup, Pages live, issues bootstrapped. Battle scene with placeholders: Strike + parry QTE work. |
-| Wed 30/9 | **Teaser.** Real sprites and background, HUD, Echo bar, rain, hit FX. Screenshot-ready by evening. |
-| Thu 1/10 | Relay/Anchor, enemy AI from JSON, win/lose/retry, tutorial, b1 + b2, Nala. **Story text locked.** |
-| Fri 2/10 | Boss (2 phases), Recollection, Keepsake event, ChapterRunner, Dialogue, Cutscene system. **Cut decision tonight.** |
-| Sat 3/10 AM | Title / Menu / Settings / End + Credits, music, cutscene art, mobile test pass. **Final deploy by 14:00.** |
+## Versioning
+- Semantic versions, `MAJOR.MINOR.PATCH`. The single source is `package.json` `version`; Vite injects it at build time and the Title and Menu screens show it (format and position: `ui.json` `version`).
+- `0.1.0` = the jam build (branch `jam-build-final`). Post-jam work starts at `0.2.0`.
+- Every change that reaches `main` bumps the version: **PATCH** for fixes and tuning, **MINOR** for a new feature, mechanic or chapter. `1.0.0` is reserved for the first complete multi-chapter release.
+- Every bump adds one entry at the top of `CHANGELOG.md`: version, date, 1–3 plain-English lines.
+- After a merge to `main`, Kostas may tag the release `vX.Y.Z`.
 
-**Cut order if behind:** b3 → Siphon → Keepsake event → Nala → cutscene illustrations (keep text + fx) → Settings screen (keep defaults).
-
-## Mobile test checklist (run before every evening push that touches UI)
+## Mobile test checklist (run before every push that touches UI)
 - [ ] Open the Pages link from an Instagram DM on iPhone **and** Android (in-app browser).
 - [ ] "Tap to start" → music/SFX play. With the iPhone silent switch on, the hint is visible.
 - [ ] Nothing is cut off by the Instagram toolbars; all buttons reachable with a thumb.
@@ -350,4 +346,4 @@ Behaviour:
 1. Repo is **public** (GitHub Pages on the Free plan).
 2. Repo Settings → Pages → Source: **GitHub Actions** (one time).
 3. Every push to `main` deploys to `https://<user>.github.io/<repo>/`.
-4. Final build: tag `v0.1-jam` on Saturday.
+4. The jam build is preserved on branch `jam-build-final` (v0.1.0).

@@ -106,6 +106,7 @@
       },
       {
         "id": "enraged",
+        "checkpoint": true,
         "tint": "0xff6a5a",
         "aura": { "color": "0xd8303a", "radius": 150, "alpha": [0.15, 0.4], "pulseMs": 600 },
         "music": "boss_enraged",
