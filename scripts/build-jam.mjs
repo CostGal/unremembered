@@ -3,10 +3,10 @@
 //   2. scripts/jam-thumb.py                        -> dist-jam/thumb.jpg (1280x720)
 //   3. dist-jam/README-JAM.txt
 //   4. zip of the CONTENTS of dist-jam (index.html + thumb.jpg at the zip root)
-// The zip goes to JAM_ZIP_DIR, or <repo>/dist-jam-zip (git-ignored).
+// The zip goes to JAM_ZIP_DIR (relative to the repo root), or <repo>/dist-jam-zip (git-ignored).
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -36,7 +36,8 @@ host page's button).
 );
 
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 13);
-const zipDir = process.env.JAM_ZIP_DIR || join(root, 'dist-jam-zip');
+// Resolved against the repo root: zip runs inside dist-jam, where a relative path would point elsewhere.
+const zipDir = resolve(root, process.env.JAM_ZIP_DIR || 'dist-jam-zip');
 mkdirSync(zipDir, { recursive: true });
 const zip = join(zipDir, `unremembered-jam-${stamp}.zip`);
 if (existsSync(zip)) rmSync(zip);
