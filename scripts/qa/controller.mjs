@@ -4,6 +4,9 @@
 //   B  b1: Square strikes, the d-pad picks between the two enemies, Cross confirms; R2 opens the
 //      technique list and Circle backs out of it.
 //   C  b1: Cross at the ring's impact is a PERFECT parry; Circle at impact is a PERFECT dodge.
+//   I  b2: □ / R2 on Strike / Technique, ○ on Back, Options by the pause button; Nala's △ dim on the
+//      player's turn, lit during a Hollow's telegraph and when the Glow is ready, dim once her save is
+//      spent; a disabled command's button dim; every badge hidden after a touch.
 //   D  Quill: the Recollection on buttons (hold Cross, press the arrow's way, mash Square) -> Quill dies.
 //   node scripts/qa/controller.mjs
 import { open, sleep, waitScene, withBrowser } from './lib.mjs';
@@ -301,6 +304,57 @@ await withBrowser(async ({ server, chrome }) => {
     check('C: Circle at impact dodges PERFECT', dodged.length > 0 && dodged.every((o) => o.result === 'PERFECT' && o.input === 'swipe'), JSON.stringify(dodged));
     await page.ev('window.__ringButton = null');
     check('B/C: no page errors', page.errors.length === 0, page.errors.join(' | '));
+    await page.cdp.send('Page.close').catch(() => {});
+  }
+
+  // ---------- I: the buttons on the battle UI (b2: Forgotten + Hollow, Nala) ----------
+  {
+    const page = await openFront(chrome, `${server.url}?battle=b2_first_hollow&pauses=0`, desk);
+    const B = 'window.__battle';
+    check('I: the command menu comes up', await waitMenu(page));
+    await sleep(600);
+    const badges = () => page.ev(`JSON.stringify(${B}.menu.buttons.map((b) => b.badge ? { a: b.badge.action, v: b.badge.visible, al: +b.badge.alpha.toFixed(2) } : null))`).then(JSON.parse);
+    const main = await badges();
+    check('I: □ on Strike and R2 on Technique, lit', JSON.stringify(main) === JSON.stringify([{ a: 'strike', v: true, al: 1 }, { a: 'technique', v: true, al: 1 }]), JSON.stringify(main));
+    const pause = await page.ev(`(() => { const c = ${B}.children.list.find((o) => o.depth === 3000 && o.list); const b = c && c.list[2]; return b ? b.visible && b.list.length === 1 : false; })()`);
+    check('I: the pause button shows its button', pause);
+    await tap(page, 'r2');
+    await sleep(300);
+    const list = await badges();
+    check('I: ○ on the technique list Back', list[list.length - 1]?.a === 'back' && list[list.length - 1].v && list.slice(0, -1).every((b) => b === null), JSON.stringify(list));
+    await tap(page, 'circle');
+    await sleep(300);
+    const nala = () => page.ev(`JSON.stringify({ state: ${B}.nala.badge.state, alpha: +${B}.nala.badge.container.alpha.toFixed(2), visible: ${B}.nala.badge.container.visible, used: ${B}.nala.used })`).then(JSON.parse);
+    const idle = await nala();
+    check("I: Nala's △ is shown, dim, on the player's turn", idle.visible && idle.state === null && idle.alpha < 0.5, JSON.stringify(idle));
+    await page.ev(`(() => { const n = ${B}.nala; n.glowOn = true; n.glowCd = 0; ${B}.nalaRefreshGlow(); })()`);
+    await sleep(200);
+    const glow = await nala();
+    check("I: Nala's △ is lit when the Glow is ready", glow.state === 'glow' && glow.alpha === 1, JSON.stringify(glow));
+    await page.ev(`(() => { const b = ${B}; b.nala.glowOn = false; b.nalaRefreshGlow(); b.hideCommandMenu(); b.tutorialSlow = false; window.__done = false; b.enemyTurn(b.enemies.find((e) => e.def.hollow)).then(() => { window.__done = true; }); })()`);
+    await page.waitFor(`!!${B}.nala.ring`, { timeout: 8000 }).catch(() => {});
+    const save = await nala();
+    check("I: Nala's △ is lit while a Hollow winds up", save.state === 'save' && save.alpha === 1, JSON.stringify(save));
+    await tap(page, 'triangle');
+    await sleep(300);
+    const spent = await nala();
+    check("I: △ makes Nala hiss, then her △ is dim (save spent)", spent.used && spent.state === null && spent.alpha < 0.5, JSON.stringify(spent));
+    const until = Date.now() + 10000;
+    while (Date.now() < until && !(await page.ev('window.__done'))) await sleep(100);
+    // A disabled command: its button is dim (the menu is drawn on its own here, outside the battle loop).
+    await page.ev(`${B}.menu.show([{ slot: 'strike', label: 'Strike', value: 'strike' }, { slot: 'technique', label: 'Technique', value: 'technique', enabled: false }])`);
+    await sleep(200);
+    const off = await badges();
+    check('I: a disabled Technique shows R2 dim', off[1]?.a === 'technique' && off[1].al < 0.5 && off[0].al === 1, JSON.stringify(off));
+    // The pad unplugged and a touch on the screen: the player is on touch now, every badge hides.
+    await page.ev('navigator.getGamepads = () => [null, null, null, null]');
+    await page.cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    await page.cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 300, y: 300 }] });
+    await page.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await sleep(300);
+    const touch = await page.ev(`JSON.stringify({ menu: ${B}.menu.buttons.map((b) => b.badge && b.badge.visible), nala: ${B}.nala.badge.container.visible })`).then(JSON.parse);
+    check('I: after a touch no button is shown', touch.menu.every((v) => !v) && !touch.nala, JSON.stringify(touch));
+    check('I: no page errors', page.errors.length === 0, page.errors.join(' | '));
     await page.cdp.send('Page.close').catch(() => {});
   }
 

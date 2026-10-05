@@ -1,6 +1,6 @@
 import input from '../data/input.json';
 import ui from '../data/ui.json';
-import { getBindings, getLastDevice, hasGamepad, isTouchDevice } from './Input.js';
+import { getBindings, getLastDevice, hasGamepad, isTouchDevice, onDeviceChange } from './Input.js';
 
 // Button prompts: what the player is told to press, on the device they play with.
 //
@@ -95,6 +95,33 @@ export function badge(scene, x, y, action, { device = promptDevice(), key, size 
   g.lineStyle(b.stroke, Number(b.strokeColor), 1).strokeRoundedRect(-w / 2, -s / 2, w, s, b.radius);
   c.add(text);
   c.badgeWidth = w;
+  return c;
+}
+
+// A badge that follows the device: hidden on touch, redrawn on a switch between keys and the controller
+// (J <-> □) and when the scene resumes (a rebind from the pause menu's Settings). anchor 'left' puts its
+// left edge at x (a keycap is wider than a face button), 'center' its centre. The listeners go with the container.
+export function liveBadge(scene, x, y, action, { size, anchor = 'center' } = {}) {
+  const c = scene.add.container(x, y);
+  let drawn = null;
+  const draw = () => {
+    const device = promptDevice();
+    c.setVisible(device !== 'touch');
+    const id = `${device}:${boundTo(action, device)}`;
+    if (device === 'touch' || id === drawn) return;
+    drawn = id;
+    c.removeAll(true);
+    const b = badge(scene, 0, 0, action, { device, size });
+    if (anchor === 'left') b.setX((b.badgeWidth ?? size ?? cfg().badge.size) / 2);
+    c.add(b);
+  };
+  draw();
+  const off = onDeviceChange(() => c.active && draw());
+  scene.events.on('resume', draw);
+  c.once('destroy', () => {
+    off();
+    scene.events.off('resume', draw);
+  });
   return c;
 }
 

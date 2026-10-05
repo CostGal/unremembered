@@ -3,6 +3,7 @@ import { makeGlassButton } from './Button.js';
 import { describeTarget, layoutTargets, makeTargetCard } from './TargetMenu.js';
 import input from '../data/input.json';
 import { onAction } from './Input.js';
+import { liveBadge } from './Prompts.js';
 
 // The command buttons in the lower screen (2×2 grid, slots from ui.json).
 // show(items) draws one button per item and resolves with the tapped item's
@@ -10,7 +11,8 @@ import { onAction } from './Input.js';
 // A Back item is just an item whose value is null.
 // Keyboard / controller: the buttons take the focus (systems/Focus.js); while a
 // menu is up, back presses its Back item and the input.json commandShortcuts
-// actions (strike: Square, technique: R2) press the item with that value.
+// actions (strike: Square, technique: R2) press the item with that value. Those buttons show
+// their key / button at the left edge (ui.json prompts.command), dim while the item is disabled.
 
 export default class CommandMenu {
   constructor(scene, cfg, font) {
@@ -215,12 +217,24 @@ export default class CommandMenu {
 
     if (!enabled && !item.help) rect.disableInteractive();
 
+    // The key / button that presses it (Back: back; Strike, Technique: input.json commandShortcuts).
+    const action = item.value === null ? 'back' : Object.keys(input.commandShortcuts).find((a) => input.commandShortcuts[a] === item.value);
+    let icon = null;
+    if (action) {
+      const c = ui.prompts.command;
+      icon = liveBadge(this.scene, -w / 2 + c.padX, c.offsetY, action, { size: c.size, anchor: 'left' }).setAlpha(enabled ? c.litAlpha : c.dimAlpha);
+      icon.action = action;
+      body.add(icon);
+      // The label (and cost) make room for it.
+      if (icon.visible) for (const o of body.list) if (o.type === 'Text') o.x += c.labelShift;
+    }
+
     let pulse = null;
     if (item.pulse && enabled) {
       pulse = this.scene.tweens.add({ targets: container, scale: b.pulseScale, duration: b.pulseMs, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
 
-    return { container, rect, pulse, focus: button.focus };
+    return { container, rect, pulse, focus: button.focus, badge: icon };
   }
 
   // Presses the button in `slot` (a guided tutorial pause answered with the keyboard / controller).
