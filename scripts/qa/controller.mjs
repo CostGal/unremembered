@@ -342,7 +342,7 @@ await withBrowser(async ({ server, chrome }) => {
     const until = Date.now() + 10000;
     while (Date.now() < until && !(await page.ev('window.__done'))) await sleep(100);
     // A disabled command: its button is dim (the menu is drawn on its own here, outside the battle loop).
-    await page.ev(`${B}.menu.show([{ slot: 'strike', label: 'Strike', value: 'strike' }, { slot: 'technique', label: 'Technique', value: 'technique', enabled: false }])`);
+    await page.ev(`(() => { ${B}.menu.show([{ slot: 'strike', label: 'Strike', value: 'strike' }, { slot: 'technique', label: 'Technique', value: 'technique', enabled: false }]); return 0; })()`);
     await sleep(200);
     const off = await badges();
     check('I: a disabled Technique shows R2 dim', off[1]?.a === 'technique' && off[1].al < 0.5 && off[0].al === 1, JSON.stringify(off));
