@@ -36,7 +36,7 @@ import tutorialData from '../data/tutorial.json';
 import * as TutorialPause from '../systems/TutorialPause.js';
 import { addPauseButton, pauseScene } from '../systems/PauseButton.js';
 import { onAction } from '../systems/Input.js';
-import { ringPrompt, tx } from '../systems/Prompts.js';
+import { liveBadge, ringPrompt, tx } from '../systems/Prompts.js';
 import * as Qte from '../systems/Qte.js';
 import { devInt, devParam } from '../systems/DevParams.js';
 import { impact, impactLab, prewarmImpact } from '../systems/Impact.js';
@@ -419,11 +419,61 @@ export default class BattleScene extends Phaser.Scene {
     // (battle event nalaGlow); glowCd: rounds until it is ready again.
     this.nala = { container, image, glow, readyGlow, counter, anims, def, used: false, usesLeft: this.nalaSaves(), glowOn: false, glowCd: 0, glowCasting: false, ring: null, body: image, type: 'nala', hp: 1, busy: false, alertLoop: null };
     if (!anims || anims.idle.placeholder) this.idleBob(container);
+    this.nala.badge = this.createNalaBadge();
 
     image.setInteractive({ useHandCursor: true });
     image.on('pointerdown', () => this.nalaTap());
     // Keyboard / controller: the nala action (Triangle / N) is the tap on her.
     onAction(this, 'nala', () => this.nalaTap());
+  }
+
+  // Nala's key / button (ui.json prompts.nala) beside her, on keys and the controller. It follows her (the
+  // duel's jump-in) and her visibility; nalaRefreshBadge lights it.
+  createNalaBadge() {
+    const p = ui.prompts.nala;
+    const glow = this.add.image(0, 0, Fx.glowTexture(this, p.glowRadius)).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
+    const icon = liveBadge(this, 0, 0, 'nala', { size: p.size });
+    const container = this.add.container(0, 0, [glow, icon]).setDepth(p.depth).setAlpha(p.dimAlpha);
+    const follow = () => {
+      const c = this.nala?.container;
+      if (!c?.active) return;
+      container.setPosition(c.x + p.dx, c.y + p.dy).setVisible(c.visible && c.alpha > 0 && icon.visible);
+    };
+    follow();
+    this.events.on('update', follow);
+    this.events.once('shutdown', () => this.events.off('update', follow));
+    return { container, glow, icon, state: null };
+  }
+
+  // Lit while a press on Nala does something: 'save' (a Hollow is winding up and she has a save; orange glow)
+  // or 'glow' (the Glow is ready on a hero's turn; teal). Then it pops, pulses and glows; otherwise it is dim.
+  nalaRefreshBadge() {
+    const nala = this.nala;
+    const b = nala?.badge;
+    if (!b) return;
+    const state = nala.ring && !nala.used ? 'save' : this.nalaGlowReady() ? 'glow' : null;
+    if (state === b.state) return;
+    b.state = state;
+    const p = ui.prompts.nala;
+    this.tweens.killTweensOf([b.icon, b.glow]);
+    b.icon.setScale(1);
+    if (!state) {
+      b.container.setAlpha(p.dimAlpha);
+      b.glow.setAlpha(0);
+      return;
+    }
+    b.container.setAlpha(p.litAlpha);
+    b.glow.setTint(Number(state === 'save' ? p.saveColor : p.glowColor));
+    this.tweens.add({ targets: b.glow, alpha: { from: p.glowAlphaMin, to: p.glowAlphaMax }, duration: p.pulseMs, yoyo: true, repeat: -1 });
+    this.tweens.add({
+      targets: b.icon,
+      scale: { from: p.popScale, to: 1 },
+      duration: p.popMs,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        if (b.state) this.tweens.add({ targets: b.icon, scale: p.pulseScale, duration: p.pulseMs, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      },
+    });
   }
 
   // Her saves per battle: 1, +1 per Nala's Bell (fragments.json nalaExtraUses).
@@ -462,6 +512,7 @@ export default class BattleScene extends Phaser.Scene {
       nala.readyTween = null;
       nala.readyGlow.setAlpha(0);
     }
+    this.nalaRefreshBadge();
   }
 
   // Nala lends the party her Echo. Unlocked by the event (unlock = true) or called by a tap once ready. She plays

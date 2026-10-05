@@ -13,7 +13,10 @@
   "prompts": {
     "_about": "Button prompts (systems/Prompts.js). badge: one drawn button. ring: the parry / dodge buttons beside the hero a ring closes on (keys and buttons only): dim while the ring shrinks, lit once the press window opens (openMs before T = the widest good window).",
     "badge": { "size": 26, "fontSize": 11, "textColor": "#f1efe8", "fill": "0x0b0d14", "fillAlpha": 0.85, "strokeColor": "0xf1efe8", "stroke": 1.5, "radius": 6, "padX": 6, "shapeScale": 0.24, "shapeWidth": 2.5 },
-    "ring": { "dx": 21, "aboveTop": 4, "depth": 60, "dimAlpha": 0.3, "litAlpha": 1, "popScale": 1.35, "pressScale": 1.6, "popMs": 160 }
+    "ring": { "dx": 21, "aboveTop": 4, "depth": 60, "dimAlpha": 0.3, "litAlpha": 1, "popScale": 1.35, "pressScale": 1.6, "popMs": 160 },
+    "command": { "_about": "The key / button on the Strike, Technique and Back command buttons (systems/CommandMenu.js): left edge padX in from the button's (clear of its accent bar), the label and cost moved labelShift right; semi-transparent while the command can't be used.", "size": 22, "padX": 17, "offsetY": 0, "labelShift": 14, "litAlpha": 1, "dimAlpha": 0.35 },
+    "nala": { "_about": "Nala's button (BattleScene nalaBadge), beside her: lit with a pulse and a glow (orange while she can save, teal when the Glow is ready) when a press does something, semi-transparent otherwise.", "size": 24, "dx": -2, "dy": -30, "depth": 900, "litAlpha": 1, "dimAlpha": 0.35, "popScale": 1.5, "popMs": 200, "pulseScale": 1.18, "pulseMs": 420, "glowRadius": 22, "glowAlphaMin": 0.35, "glowAlphaMax": 0.9, "saveColor": "0xe8883a", "glowColor": "0x3fd0c9" },
+    "pause": { "_about": "The pause key / button under the pause circle (systems/PauseButton.js; the hint banners sit to its right).", "size": 18, "dx": 0, "dy": 34 }
   },
   "view": {
     "designW": 360,

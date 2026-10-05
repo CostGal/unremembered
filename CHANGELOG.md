@@ -2,6 +2,10 @@
 
 Newest first. Versioning rules: `CLAUDE.md` > Versioning.
 
+## 0.5.2 — 2026-10-05
+- On keys and the controller the battle buttons show what presses them: □ / R2 on Strike and Technique (dim while unusable), ○ on Back, Options under the pause button.
+- Nala always shows △ beside her: lit, pulsing and glowing when a press does something (her save while a Hollow winds up, the Glow when ready), semi-transparent otherwise. Hidden on touch.
+
 ## 0.5.1 — 2026-10-04
 - The game-jam zip is built automatically on every update to main and always waits at one link: https://github.com/CostGal/unremembered/releases/download/jam-latest/unremembered-jam.zip (download it, upload it to the jam site).
 
